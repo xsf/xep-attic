@@ -1,0 +1,130 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0351: Recipient Server Side Notifications Filtering</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Recipient Server Side Notifications Filtering" /><meta name="DC.Creator" content="Sergey Dobrov" /><meta name="DC.Description" content="This specification defines a modern efficient way to deliver PubSub notifications." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2014-08-28" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0351" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright (c) 1999 - 2014 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0351: Recipient Server Side Notifications Filtering</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines a modern efficient way to deliver PubSub notifications.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Sergey Dobrov</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2014 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2014-08-28</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#usecases">Use Cases</a><br />   
+      3.1.  <a href="#sect-idp682832">Switching protocols</a><br />   
+      3.2.  <a href="#sect-idp686832">Sending and receiving a notification</a><br />   
+      3.3.  <a href="#sect-idp1567952">Advertising client's filtering preferences</a><br />4.  <a href="#security">Security Considerations</a><br />5.  <a href="#iana">IANA Considerations</a><br />6.  <a href="#registrar">XMPP Registrar Considerations</a><br />7.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p><span class="ref"><a href="http://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idp676672">1</a>] in conjuction with <span class="ref"><a href="http://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idp679440">2</a>] defines a way for a client to get rid of unwanted pubsub notifications and hence save significant amount of traffic. The protocol is quite flexible and reliable and is able to work even with servers that don't support filtering. Unfortunately, this reliability has its costs and the protocol has the following disadvantages:</p>
+  <ul>
+    <li>it's impossible to be subscribed to a person's feed if the person is not subscribed to you because in this case his server doesn't know your presence information and your capabilities and hence it can't filter the messages appropriately, so you won't receive any notifications at all;</li>
+    <li>servers need to know not only their users' capabilities but also the capabilities of all the users that it wants to communicate;</li>
+    <li>clients can't decide what kind of notifications they want to receive; node owner decides instead, but clients might not be interested in some of notifications or vice versa.</li>
+  </ul>
+  <p>The most actual example of the problems that are beget with these disadvantages is the <span class="ref"><a href="http://xmpp.org/extensions/xep-0277.html">Microblogging Over XMPP (XEP-0277)</a></span>  [<a href="#nt-idp689040">3</a>]: you won't be able to subscribe to a user's blog if he doesn't want to read your blog as well. This will be a big problem for popular bloggers that can't read all the feeds of their readers.</p>
+  <p>Another one is a bot which want to gather information from a lot of users. For instance, we can want to write a bot which gather geo-location from a lot of devices, then it will subscribe to these devices but they may not want to do so. The new protocol will allow such bots to operate this way.</p>
+  <p>Also, some clients may want to receive retract items events to appropriately update their feed data storage but some other clients may not want to store feeds at all and just show the recent events and corollary don't need in these events. This standard allows the first one to receive those events and the last one to get rid of them saving traffic, regardless of node settings which can be configured solely by the node's owner.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p>The new protocol is needed to solve the stated problems that will allow to move the notifications filtering process from the sender side to the recipient side, that will allow us to filter them in a more flexible way. Also, we must care of:</p>
+  <ul>
+    <li>backwards-compatibility: users of servers that don't support this XEP should be able to receive the notifications through the old protocol;</li>
+    <li>users should be able to control what kind of events they want to receive besides the nodes types.</li>
+  </ul>
+<h2>3.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <p>This document should cover the following use cases:</p>
+  <ul>
+    <li>switching to the new protocol if the recipient's server support it;</li>
+    <li>sending a notification;</li>
+    <li>receiving a notification by server and broadcasting it to its users;</li>
+    <li>advertising client's filtering preferences.</li>
+  </ul>
+  <div class="indent"><h3>3.1 <a name="sect-idp682832" id="sect-idp682832">Switching protocols</a></h3>
+    <p>Since we require the implementations to be backwards compatible, we need a mechanism for a sender to know if the recipient's server supports the modern protocol or not.</p>
+    <p>To know this, sender's server should check recipient's capabilities as described at <span class="ref"><a href="http://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idp685152">4</a>] in the "Stream Feature" section: if the server supports the "urn:xmpp:rsf:0" feature then the server SHOULD use the protocol that's described here, if the server lacks support of this feature or doesn't provide its capabilities at all then the sender MUST NOT use this protocol.</p>
+  </div>
+  <div class="indent"><h3>3.2 <a name="sect-idp686832" id="sect-idp686832">Sending and receiving a notification</a></h3>
+    <p>When using this protocol to deliver notifications, the server MUST follow these rules:</p>
+    <ul>
+      <li>send all the notifications that can be generated by the pubsub node without any care of node settings to make it possible for users to choose which notifications they want to receive instead.</li>
+    </ul>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Sending the notification</p><div class="indent"><pre class="prettyprint">
+        
+&lt;message from='user@example.net'
+         to='user1@example.com'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='n48ad4fj78zn38st734'&gt;
+      &lt;item id='i1s2d3f4g5h6bjeh936'&gt;
+        &lt;geoloc xmlns='http://jabber.org/protocol/geoloc'&gt;
+          &lt;description&gt;Venice&lt;/description&gt;
+          &lt;lat&gt;45.44&lt;/lat&gt;
+          &lt;lon&gt;12.33&lt;/lon&gt;
+        &lt;/geoloc&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+&lt;message from='user@example.net'
+         to='user2@example.com'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='n48ad4fj78zn38st734'&gt;
+      &lt;item id='i1s2d3f4g5h6bjeh936'&gt;
+        &lt;geoloc xmlns='http://jabber.org/protocol/geoloc'&gt;
+          &lt;description&gt;Venice&lt;/description&gt;
+          &lt;lat&gt;45.44&lt;/lat&gt;
+          &lt;lon&gt;12.33&lt;/lon&gt;
+        &lt;/geoloc&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+... and so on
+        
+    </pre></div>
+    <p>Recipient server is responsible now to filter out and broadcast that messages with events that were request by each user's resource.</p>
+  </div>
+  <div class="indent"><h3>3.3 <a name="sect-idp1567952" id="sect-idp1567952">Advertising client's filtering preferences</a></h3>
+    <p>As described at <span class="ref"><a href="http://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idp1571664">5</a>]'s "Filtered notifications" section, client should add payload's NodeID and "+notify" postfix to tell which types of content it can and want to process.</p>
+    <p>This document extends this filtering feature to allow clients also select which event types it wants to receive.</p>
+    <p>To advertise user's preferences it should add a feature in its capabilities that MUST consist of payload's NodeID with appended "+events-" postfix and then append a list of necessary payload types. Here are the rules of generating this list:</p>
+    <ul>
+      <li>list should contain payload types those can be one of the following: config, delete, retract, sub as described in <span class="ref"><a href="http://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idp1576048">6</a>];</li>
+      <li>order the list ascending;</li>
+      <li>concatenate the items through the "-" sign.</li>
+    </ul>
+    <p>For example, the following string will mean that user wants to receive new items, node configuration changes and new subscriptions geolocation events, it should add the following features in its capabilities:</p>
+    <ul>
+      <li>http://jabber.org/protocol/geoloc+notify</li>
+      <li>http://jabber.org/protocol/geoloc+events-config-sub</li>
+    </ul>
+    <p>The recipient's server MUST drop the notifications that are not in the list. New items notifications are implied by the "+notify" filter. If user doesn't specify the "+events" filter then the server SHOULD treat it as absence of any filtering at all.</p>
+  </div>
+<h2>4.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p>PENDING</p>
+<h2>5.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p>This document requires no interaction with the Internet Assigned Numbers Authority (IANA).</p>
+<h2>6.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p>REQUIRED.</p>
+<h2>7.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p>This protocol doesn't define any XML stanzas.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0351<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2014-08-28<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0001, XEP-0060, XEP-0115<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://gitorious.org/xmpp/xmpp/blobs/master/extensions/xep-0351.xml">HTML</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0351.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0351.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Sergey Dobrov</h3><p class="indent">
+        Email:
+        <a href="mailto:Binary@JRuDevels.org">Binary@JRuDevels.org</a><br />
+        JabberID: 
+        <a href="xmpp:Binary@JRuDevels.org">Binary@JRuDevels.org</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright (c) 1999 - 2014 by the XMPP Standards Foundation (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. In no event shall the XMPP Standards Foundation or the authors of this Specification be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising out of the use or inability to use the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which may be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XSF, P.O. Box 1641, Denver, CO 80201 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idp676672" id="nt-idp676672">1</a>. XEP-0060: Publish-Subscribe &lt;<a href="http://xmpp.org/extensions/xep-0060.html">http://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-idp679440" id="nt-idp679440">2</a>. XEP-0115: Entity Capabilities &lt;<a href="http://xmpp.org/extensions/xep-0115.html">http://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-idp689040" id="nt-idp689040">3</a>. XEP-0277: Microblogging over XMPP &lt;<a href="http://xmpp.org/extensions/xep-0277.html">http://xmpp.org/extensions/xep-0277.html</a>&gt;.</p><p><a name="nt-idp685152" id="nt-idp685152">4</a>. XEP-0115: Entity Capabilities &lt;<a href="http://xmpp.org/extensions/xep-0115.html">http://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-idp1571664" id="nt-idp1571664">5</a>. XEP-0060: Publish-Subscribe &lt;<a href="http://xmpp.org/extensions/xep-0060.html">http://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-idp1576048" id="nt-idp1576048">6</a>. XEP-0060: Publish-Subscribe &lt;<a href="http://xmpp.org/extensions/xep-0060.html">http://xmpp.org/extensions/xep-0060.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2014-08-28)</h4><div class="indent"><p>Initial published version approved by the XMPP Council.</p> (XEP Editor(aw))
+    </div><h4>Version 0.0.2 (2014-07-20)</h4><div class="indent"><p>Updated based on Council feedback.</p> (sd)
+    </div><h4>Version 0.0.1 (2014-05-20)</h4><div class="indent"><p>First draft.</p> (sd)
+    </div></div><hr /><p>END</p></body></html>

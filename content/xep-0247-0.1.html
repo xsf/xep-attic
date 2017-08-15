@@ -1,0 +1,264 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0247: Jingle XML Streams</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><meta name="DC.Title" content="Jingle XML Streams" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Creator" content="Justin Karneges" /><meta name="DC.Creator" content="Dirk Meyer" /><meta name="DC.Description" content="This specification defines a Jingle application type for establishing direct or mediated XML streams between two entities over any reliable transport. This technology thus enables two entities to establish a trusted connection for end-to-end encryption or for bypassing server limits on large volumes of XMPP traffic." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2008-06-18" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0247" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright (c) 1999 - 2009 by the XMPP Standards Foundation (XSF)." /></head><body><h1>XEP-0247: Jingle XML Streams</h1><p>Copyright (c) 1999 - 2009 <a href="http://xmpp.org/">XMPP Standards Foundation</a>. See <a href="#appendix-legal">Legal Notices</a>.</p><hr /><p>This specification defines a Jingle application type for establishing direct or mediated XML streams between two entities over any reliable transport. This technology thus enables two entities to establish a trusted connection for end-to-end encryption or for bypassing server limits on large volumes of XMPP traffic.</p><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems should not deploy implementations of this protocol until it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#protocol">How It Works</a><br />3.  <a href="#impl">Implementation Notes</a><br />   
+      3.1.  <a href="#impl-mti">Mandatory to Implement Technologies</a><br />   
+      3.2.  <a href="#impl-pref">Preference Order of Transport Methods</a><br />4.  <a href="#security">Security Considerations</a><br />5.  <a href="#iana">IANA Considerations</a><br />6.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      6.1.  <a href="#ns">Protocol Namespaces</a><br />   
+      6.2.  <a href="#registrar-content">Jingle Application Formats</a><br />7.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">The standard client-server architecture for XMPP communication provides a stable infrastructure for real-time communication. However, there are certain situations in which it is desirable to bypass the standard client-server architecture, including:</p>
+  <ul class="" style="">
+    <li class="" style="">Two endpoints cannot access an XMPP server</li>
+    <li class="" style="">Two endpoints want to enforce end-to-end encryption</li>
+    <li class="" style="">Two endpoints want to send a high volume of XMPP traffic but the intermediate servers enforce rate limits</li>
+  </ul>
+  <p class="" style="">The first situation is addressed by <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0174.html">Link-Local Messaging</a></span>  [<a href="#nt-id2254563">1</a>]. However, if the endpoints already have client-to-server connections but wish to bypass those connections or leverage those streams for a higher-level application such as end-to-end encryption, it is desirable for the two endpoints to negotiate an end-to-end XML stream. This specification defines methods for doing so, where the application format is an XML stream and the transport method is any direct or mediated reliable transport, such as <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0047.html">In-Band Bytestreams</a></span>  [<a href="#nt-id2254603">2</a>] (mediated), <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0065.html">SOCKS5 Bytestreams</a></span>  [<a href="#nt-id2251034">3</a>] (direct or mediated), or a future ice-tcp Jingle transport (direct or mediated) based on <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-ietf-mmusic-ice-tcp">TCP Candidates with Interactive Connectivity Establishment (ICE)</a></span>  [<a href="#nt-id2251061">4</a>].</p>
+<h2>2.
+       <a name="protocol" id="protocol">How It Works</a></h2>
+  <p class="" style="">This section provides a friendly introduction to Jingle XML streams.</p>
+  <p class="" style="">First, the party that wishes to initiate the stream determines the responder's capabilities (via <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0030.html">Service Discovery</a></span>  [<a href="#nt-id2251108">5</a>] or <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0115.html">Entity Capabilities</a></span>  [<a href="#nt-id2251134">6</a>]). Here we assume that the responder supports a service discovery feature of 'urn:xmpp:tmp:jingle:apps:xmlstream' (see <a href="#ns">Protocol Namespaces</a> regarding issuance of one or more permanent namespaces) corresponding to the Jingle XML stream functionalited defined herein, as well as the 'urn:xmpp:tmp:jingle:transports:bytestreams' and 'urn:xmpp:tmp:jingle:transports:ibb' features currently defined in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0234.html">Jingle File Transfer</a></span>  [<a href="#nt-id2251171">7</a>].</p>
+  <p class="" style="">The initiator then sends a Jingle session-initiation request to the responder. The content-type of the request specifies two things:</p>
+  <ol start="1" class="" style="">
+    <li class="" style=""><p class="" style="">An application type of "urn:xmpp:tmp:jingle:apps:xmlstream" (see <a href="#ns">Protocol Namespaces</a> regarding issuance of one or more permanent namespaces), where the &lt;description/&gt; element specifies parameters for the XML stream and the parameters map to those provided in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0155.html">Stanza Session Negotiation</a></span>  [<a href="#nt-id2251235">8</a>] in a way that is consistent with <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0116.html">Encrypted Session Negotiation</a></span>  [<a href="#nt-id2251261">9</a>].</p></li>
+    <li class="" style=""><p class="" style="">Options for the reliable transport method, such as In-Band Bytestreams ("IBB") as defined in <span class="ref">XEP-0047</span> or SOCKS5 Bytestreams ("S5B") as defined in <span class="ref">XEP-0065</span>.</p></li>
+  </ol>
+  <p class="" style="">In this example, the initiator is &lt;alice@example.org&gt;, the responder is &lt;bob@example.com&gt;, and the initiation request specifies Alice's desired stream parameters along with a transport method of "bytestreams" (i.e., <span class="ref">XEP-0065</span>).</p>
+  <p class="" style="">The flow is as follows.</p>
+  <p class="caption"></p><div class="indent"><pre>
+ Alice                          Bob
+   |                             |
+   |   session-initiate          |
+   |----------------------------&gt;|
+   |   ack                       |
+   |&lt;----------------------------|
+   |   [ SOCKS5 negotiation ]    |
+   |&lt;---------------------------&gt;|
+   |   session-accept            |
+   |&lt;----------------------------|
+   |   ack                       |
+   |----------------------------&gt;|
+   |   [ XML stream ]            |
+   |----------------------------&gt;|
+   |   terminate                 |
+   |&lt;----------------------------|
+   |   ack                       |
+   |----------------------------&gt;|
+   |                             |
+  </pre></div>
+  <p class="" style="">First the initiator sends a Jingle session-initiate.</p>
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Initiator sends session-initiate</p><div class="indent"><pre>
+&lt;iq from='alice@example.org/foo'
+    id='jingle1'
+    to='bob@example.com/bar'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:tmp:jingle'
+          action='session-initiate'
+          initiator='alice@example.org/foo'
+          sid='851ba2'&gt;
+    &lt;content creator='initiator' name='xmlstream'&gt;
+      &lt;description 
+          xmlns='urn:xmpp:tmp:jingle:apps:xmlstream'
+          authentication='optional'
+          disclosure='never'
+          logging='mustnot'
+          tls='required'/&gt;
+      &lt;transport xmlns='urn:xmpp:tmp:jingle:transports:bytestreams'/&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">The responder immediately acknowledges receipt of the Jingle session-initiate.</p>
+  <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Responder acknowledges session-initiate</p><div class="indent"><pre>
+&lt;iq from='bob@example.com/bar'
+    id='jingle1'
+    to='alice@example.org/foo'
+    type='result'/&gt;
+  </pre></div>
+  <p class="" style="">The initiator then attempts to initiate a SOCKS5 Bytestream with the responder.</p>
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Initiation of Interaction</p><div class="indent"><pre>
+&lt;iq type='set' 
+    from='alice@example.org/foo' 
+    to='bob@example.com/bar' 
+    id='initiate'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/bytestreams' 
+         sid='mySID' 
+	 mode='tcp'&gt;
+    &lt;streamhost 
+        jid='alice@example.org/foo' 
+        host='192.168.4.1' 
+        port='5086'/&gt;
+    &lt;streamhost 
+        jid='streamhostproxy.example.net' 
+        host='24.24.24.1' 
+        zeroconf='_jabber.bytestreams'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">If the responder is willing to accept the bytestream, it MUST attempt to open a standard TCP socket on the network address of the StreamHost communicated by the initiator. If the initiator provides more than one StreamHost, the responder SHOULD try to connect to them in the order they occur.</p>
+  <p class="" style="">If the responder is able to open a TCP socket on a StreamHost, it MUST utilize the SOCKS5 protocol specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc1928">RFC 1928</a></span>  [<a href="#nt-id2251469">10</a>] to establish the connection with the StreamHost.</p>
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Responder Connects to StreamHost</p><div class="indent"><pre>
+CMD = X'01'
+ATYP = X'03'
+DST.ADDR = SHA1 Hash of: (SID + Initiator JID + Responder JID)
+DST.PORT = 0
+  </pre></div>
+  <p class="caption"><a name="example-5" id="example-5"></a>Example 5. StreamHost Acknowledges Connection</p><div class="indent"><pre>
+STATUS = X'00'
+  </pre></div>
+  <p class="" style="">After the responder has authenticated with the StreamHost, it MUST send an IQ-result to the initiator indicating which StreamHost was used.</p>
+  <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Responder Notifies Initiator of Connection</p><div class="indent"><pre>
+&lt;iq type='result' 
+    from='bob@example.com/bar' 
+    to='alice@example.org/foo' 
+    id='initiate'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/bytestreams'&gt;
+    &lt;streamhost-used jid='streamhostproxy.example.net'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">The responder then sends a Jingle session-accept.</p>
+  <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Responder sends session-accept</p><div class="indent"><pre>
+&lt;iq from='bob@example.com/bar'
+    id='accept1'
+    to='alice@example.org/foo'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:tmp:jingle'
+          action='session-accept'
+          initiator='alice@example.org/foo'
+          sid='851ba2'&gt;
+    &lt;content creator='initiator' name='xmlstream'&gt;
+      &lt;description 
+          xmlns='urn:xmpp:tmp:jingle:apps:xmlstream'
+          authentication='optional'
+          disclosure='never'
+          logging='mustnot'
+          tls='required'/&gt;
+      &lt;transport xmlns='urn:xmpp:tmp:jingle:transports:bytestreams'/&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">The initiator acknowledges the Jingle session-accept.</p>
+  <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Initiator acknowledges session-accept</p><div class="indent"><pre>
+&lt;iq from='bob@example.com/bar'
+    id='accept1'
+    to='alice@example.org/foo'
+    type='result'/&gt;
+  </pre></div>
+  <p class="" style="">Now the parties start an XML stream over the negotiated bytestream, following the recommendations in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0246.html">End-to-End XML Streams</a></span>  [<a href="#nt-id2261758">11</a>].</p>
+<h2>3.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <div class="indent"><h3>3.1 <a name="impl-mti" id="impl-mti">Mandatory to Implement Technologies</a></h3>
+    <p class="" style="">All implementations MUST support the In-Band Bytestreams transport method as a reliable method of last resort. An implementation SHOULD support other transport methods as well.</p>
+  </div>
+  <div class="indent"><h3>3.2 <a name="impl-pref" id="impl-pref">Preference Order of Transport Methods</a></h3>
+    <p class="" style="">An application MAY present transport methods in any order, except that the In-Band Bytestreams method MUST be the lowest preference.</p>
+  </div>
+<h2>4.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">In order to secure the e2e XML stream, implementations SHOULD use the standard STARTTLS method defined in <span class="ref">XMPP Core</span> but MAY instead use a TLS encrypted port that provides immediate encryption rather than upgrading of the stream via STARTTLS.</p>
+<h2>5.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">No interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id2261900">12</a>] is required as a result of this document.</p>
+<h2>6.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>6.1 <a name="ns" id="ns">Protocol Namespaces</a></h3>
+    <p class="" style="">Until this specification advances to a status of Draft, its associated namespaces shall be 'urn:xmpp:tmp:jingle:apps:xmlstream'. Upon advancement of this specification, the <span class="ref" style=""><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id2261921">13</a>] shall issue a permanent namespace in accordance with the process defined in Section 4 of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function</a></span>  [<a href="#nt-id2261951">14</a>]. The namespace 'urn:xmpp:jingle:apps:xmlstream' is requested and is thought to be unique per the XMPP Registrar's requirements.</p>
+  </div>
+  <div class="indent"><h3>6.2 <a name="registrar-content" id="registrar-content">Jingle Application Formats</a></h3>
+    <p class="" style="">The XMPP Registrar shall include "xmlstream" in its registry of Jingle application formats. The registry submission is as follows:</p>
+    <p class="caption"></p><div class="indent"><pre>
+&lt;application&gt;
+  &lt;name&gt;xmlstream&lt;/name&gt;
+  &lt;desc&gt;Jingle sessions for an end-to-end XML stream&lt;/desc&gt;
+  &lt;transport&gt;reliable&lt;/transport&gt;
+  &lt;doc&gt;XEP-xxxx&lt;/doc&gt;
+&lt;/application&gt;
+    </pre></div>
+  </div>
+<h2>7.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre>
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:tmp:jingle:apps:xmlstream'
+    xmlns='urn:xmpp:tmp:jingle:apps:xmlstream'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='description'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='authentication' use='required'&gt;
+            &lt;xs:simpleType&gt;
+              &lt;xs:restriction base='xs:NCName'&gt;
+                &lt;xs:enumeration value='optional'/&gt;
+                &lt;xs:enumeration value='required'/&gt;
+              &lt;/xs:restriction&gt;
+            &lt;/xs:simpleType&gt;
+          &lt;/xs:attribute&gt;
+          &lt;xs:attribute name='disclosure' use='required'&gt;
+            &lt;xs:simpleType&gt;
+              &lt;xs:restriction base='xs:NCName'&gt;
+                &lt;xs:enumeration value='disabled'/&gt;
+                &lt;xs:enumeration value='enabled'/&gt;
+                &lt;xs:enumeration value='never'/&gt;
+              &lt;/xs:restriction&gt;
+            &lt;/xs:simpleType&gt;
+          &lt;/xs:attribute&gt;
+          &lt;xs:attribute name='logging' use='required'&gt;
+            &lt;xs:simpleType&gt;
+              &lt;xs:restriction base='xs:NCName'&gt;
+                &lt;xs:enumeration value='may'/&gt;
+                &lt;xs:enumeration value='mustnot'/&gt;
+              &lt;/xs:restriction&gt;
+            &lt;/xs:simpleType&gt;
+          &lt;/xs:attribute&gt;
+          &lt;xs:attribute name='tls' use='required'&gt;
+            &lt;xs:simpleType&gt;
+              &lt;xs:restriction base='xs:NCName'&gt;
+                &lt;xs:enumeration value='optional'/&gt;
+                &lt;xs:enumeration value='required'/&gt;
+              &lt;/xs:restriction&gt;
+            &lt;/xs:simpleType&gt;
+          &lt;/xs:attribute&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+&lt;/xs:schema&gt;
+    </pre></div>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://www.xmpp.org/extensions/">XEP</a><br />
+            Number: 0247<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2008-06-18<br />
+                Approving Body: <a href="http://www.xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0047, XEP-0065, XEP-0166, XEP-0246<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0247.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0247.xml/rss.xml">RSS</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Peter Saint-Andre</h3><p class="indent">
+        JabberID: 
+        <a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        URI: 
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p><h3>Justin Karneges</h3><p class="indent">
+        Email:
+        <a href="mailto:justin@affinix.com">justin@affinix.com</a><br />
+        JabberID: 
+        <a href="xmpp:justin@andbit.net">justin@andbit.net</a><br /></p><h3>Dirk Meyer</h3><p class="indent">
+        Email:
+        <a href="mailto:dmeyer@tzi.de">dmeyer@tzi.de</a><br />
+        JabberID: 
+        <a href="xmpp:dmeyer@jabber.org">dmeyer@jabber.org</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright (c) 1999 - 2009 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. In no event shall the XMPP Standards Foundation or the authors of this Specification be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising out of the use or inability to use the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which may be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XSF, P.O. Box 1641, Denver, CO 80201 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata may be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id2254563" id="nt-id2254563">1</a>. XEP-0174: Link-Local Messaging &lt;<a href="http://xmpp.org/extensions/xep-0174.html">http://xmpp.org/extensions/xep-0174.html</a>&gt;.</p><p><a name="nt-id2254603" id="nt-id2254603">2</a>. XEP-0047: In-Band Bytestreams &lt;<a href="http://xmpp.org/extensions/xep-0047.html">http://xmpp.org/extensions/xep-0047.html</a>&gt;.</p><p><a name="nt-id2251034" id="nt-id2251034">3</a>. XEP-0065: SOCKS5 Bytestreams &lt;<a href="http://xmpp.org/extensions/xep-0065.html">http://xmpp.org/extensions/xep-0065.html</a>&gt;.</p><p><a name="nt-id2251061" id="nt-id2251061">4</a>. TCP Candidates with Interactive Connectivity Establishment (ICE) &lt;<a href="http://tools.ietf.org/html/draft-ietf-mmusic-ice-tcp">http://tools.ietf.org/html/draft-ietf-mmusic-ice-tcp</a>&gt;. Work in progress.</p><p><a name="nt-id2251108" id="nt-id2251108">5</a>. XEP-0030: Service Discovery &lt;<a href="http://xmpp.org/extensions/xep-0030.html">http://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id2251134" id="nt-id2251134">6</a>. XEP-0115: Entity Capabilities &lt;<a href="http://xmpp.org/extensions/xep-0115.html">http://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-id2251171" id="nt-id2251171">7</a>. XEP-0234: Jingle File Transfer &lt;<a href="http://xmpp.org/extensions/xep-0234.html">http://xmpp.org/extensions/xep-0234.html</a>&gt;.</p><p><a name="nt-id2251235" id="nt-id2251235">8</a>. XEP-0155: Stanza Session Negotiation &lt;<a href="http://xmpp.org/extensions/xep-0155.html">http://xmpp.org/extensions/xep-0155.html</a>&gt;.</p><p><a name="nt-id2251261" id="nt-id2251261">9</a>. XEP-0116: Encrypted Session Negotiation &lt;<a href="http://xmpp.org/extensions/xep-0116.html">http://xmpp.org/extensions/xep-0116.html</a>&gt;.</p><p><a name="nt-id2251469" id="nt-id2251469">10</a>. RFC 1928: SOCKS Protocol Version 5 &lt;<a href="http://tools.ietf.org/html/rfc1928">http://tools.ietf.org/html/rfc1928</a>&gt;.</p><p><a name="nt-id2261758" id="nt-id2261758">11</a>. XEP-0246: End-to-End XML Streams &lt;<a href="http://xmpp.org/extensions/xep-0246.html">http://xmpp.org/extensions/xep-0246.html</a>&gt;.</p><p><a name="nt-id2261900" id="nt-id2261900">12</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id2261921" id="nt-id2261921">13</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id2261951" id="nt-id2261951">14</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><div class="indent"><h4>Version 0.1 (2008-06-18)</h4><div class="indent"><p class="" style="">Initial published version.</p> (psa)
+    </div><h4>Version 0.0.1 (2008-06-13)</h4><div class="indent">First draft. (psa/jk/dm)
+    </div></div><hr /><p>END</p></body></html>

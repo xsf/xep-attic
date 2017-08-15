@@ -1,0 +1,256 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0237: Roster Versioning</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><meta name="DC.Title" content="Roster Versioning" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Creator" content="Dave Cridland" /><meta name="DC.Description" content="This specification defines a proposed modification to the XMPP roster protocol that enables versioning of rosters such that the server will not send the roster to the client if the roster has not been modified, thus saving bandwidth during session establishment." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2009-04-30" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0237" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2009 by the XMPP Standards Foundation (XSF)." /></head><body><h1>XEP-0237: Roster Versioning</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines a proposed modification to the XMPP roster protocol that enables versioning of rosters such that the server will not send the roster to the client if the roster has not been modified, thus saving bandwidth during session establishment.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Peter Saint-Andre, Dave Cridland</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2009 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Proposed</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.11</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2009-04-30</td></tr></table><hr /><p style="color:red">NOTICE: This document is currently within Last Call or under consideration by the XMPP Council for advancement to the next stage in the XSF standards process.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#proto">Protocol</a><br />   
+      2.1.  <a href="#format">Data Format</a><br />   
+      2.2.  <a href="#request">Client Request</a><br />   
+      2.3.  <a href="#response-result">Server Response</a><br />3.  <a href="#examples">Examples</a><br />4.  <a href="#feature">Stream Feature</a><br />5.  <a href="#impl">Implementation Guidelines</a><br />   
+      5.1.  <a href="#impl-syntactic">Syntactic Conformance</a><br />   
+      5.2.  <a href="#impl-exactmatch">Exact-Match Conformance</a><br />   
+      5.3.  <a href="#impl-addonly">Add-Only Conformance</a><br />   
+      5.4.  <a href="#impl-client">Client Implementation Guidelines</a><br />6.  <a href="#security">Security Considerations</a><br />7.  <a href="#iana">IANA Considerations</a><br />8.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      8.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />9.  <a href="#schemas">XML Schemas</a><br />   
+      9.1.  <a href="#schemas-roster">jabber:iq:roster</a><br />   
+      9.2.  <a href="#schemas-feature">Stream Feature</a><br />10.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">Although XMPP rosters can become quite large, they tend to change infrequently. Therefore it can be inefficient for the server to send the roster to the client during session establishment if the roster has not been modified. This document defines a small modification to the XMPP roster protocol specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3921">XMPP IM</a></span>  [<a href="#nt-id2251718">1</a>] that enables "versioning" of roster information.</p>
+  <p class="" style="">The basic model is that if the client specifies a version ID when it requests the roster, the server returns an empty IQ-result. If the roster has been modified, the server sends versioned roster pushes for each roster item that has been touched in any way since the version specified by the client. The client processes each roster push as it normally would, modifying its local version ID with each roster push it receives. This enables the client to receive only the items that have been modified, not the entire roster.</p>
+  <p class="" style=""><span class="em">Note: This document describes a protocol or best practice that is intended for incorporation into the specification that will supersede <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3921">RFC 3921</a></span>  [<a href="#nt-id2251760">2</a>] within the Internet Standards Process, i.e., <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-saintandre-rfc3921bis">rfc3921bis</a></span>  [<a href="#nt-id2264851">3</a>]. This document is provided only for the purpose of open community discussion of the potential modification and will be obsoleted as soon as the relevant RFC is published.</span></p>
+<h2>2.
+       <a name="proto" id="proto">Protocol</a></h2>
+  <div class="indent"><h3>2.1 <a name="format" id="format">Data Format</a></h3>
+    <p class="" style="">This document adds a new 'ver' attribute to the &lt;query/&gt; element qualified by the 'jabber:iq:roster' namespace, defined as follows.</p>
+    <p class="def" style=""><span class="strong">Definition:</span> The <span class="strong">'ver' attribute</span> is a string that identifies a particular version of the roster information. The value MUST be generated only by the server and MUST be treated by the client as opaque. The server can use any appropriate method for generating the version ID, such as a hash of the roster data or a strictly-increasing sequence number.</p>
+  </div>
+  <div class="indent"><h3>2.2 <a name="request" id="request">Client Request</a></h3>
+    <p class="" style="">If a client supports roster versioning, it MUST include the 'ver' element in its request for the roster, where the 'ver' attribute is set to the version ID associated with its last cache of the roster.</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Roster get with version ID</p><div class="indent"><pre>
+C: &lt;iq from='romeo@montague.lit/home' id='r1h3vzp7' to='romeo@montague.lit' type='get'&gt;
+     &lt;query xmlns='jabber:iq:roster' ver='qAxdnWNcA+lYf7CoN5wpBsvVVno='/&gt;
+   &lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">If the client has not yet cached the roster or the cache is lost or corrupted, but the client wishes to bootstrap the use of roster versioning, it MUST set the 'ver' attribute to the empty string (i.e., <span class="strong">ver=""</span>).</p>
+    <p class="" style="">Naturally, if the client does not support roster versioning or does not wish to bootstrap the use of roster versioning, it will behave like an RFC-3921-compliant client by not including the 'ver' attribute.</p>
+  </div>
+  <div class="indent"><h3>2.3 <a name="response-result" id="response-result">Server Response</a></h3>
+    <p class="" style="">Whether or not the roster has been modified since the version ID enumerated by the client, the server MUST either return the complete roster as described in RFC 3921 or return an empty IQ-result (thus indicating that any roster modifications will be sent via roster pushes, as described below). In general, unless returning the complete roster would (1) use less bandwidth than sending individual roster pushes to the client (e.g., if the roster contains only a few items) or (2) the server cannot associate the version ID with any previous version it has on file, the server SHOULD send an empty IQ-result and then send the modifications (if any) via roster pushes.</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Empty roster result</p><div class="indent"><pre>
+S: &lt;iq from='romeo@montague.lit' id='r1h3vzp7' to='romeo@montague.lit/home' type='result'/&gt;
+    </pre></div>
+    <p class="" style="">Note: This empty IQ-result is different from an empty &lt;query/&gt;, thus disambiguating this usage from an empty roster.</p>
+    <p class="" style="">If the roster has not been modified since the version ID enumerated by the client, the server will simply not send any roster pushes to the client (until and unless some relevant event triggers a roster push during the lifetime of the client's session).</p>
+    <p class="" style="">If the roster has been modified since the version ID enumerated by the client, the server MUST then send one roster push to the client for each roster item that has been modified since the version ID enumerated by the client. (We call a roster push that is sent for purposes of roster version synchronization an "interim roster push".)</p>
+    <p class="def" style=""><span class="strong">Definition:</span> A <span class="strong">"roster modification"</span> is any modification to the roster data that would result in a roster push to a connected client. Therefore internal states related to roster processing within the server that would not result in a roster push to a connected client do not necessitate a change to the version. If a series of roster modifications result in a roster item that does not differ from the version cached by the client (e.g., a modification to the item's 'name' attribute and then a modification back to the original value), the server SHOULD NOT consider the item to have been modified for purposes of roster versioning and therefore SHOULD NOT push the item to the client in an interim roster push.</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Roster pushes</p><div class="indent"><pre>
+S: &lt;iq from='romeo@montague.lit' id='ah382g67' to='romeo@montague.lit/home' type='set'&gt;
+     &lt;query xmlns='jabber:iq:roster' ver='qAxdnWNcA+lYf7CoN5wpBsvVVno='&gt;
+       &lt;item jid='tybalt@shakespeare.lit' subscription='remove'/&gt;
+     &lt;/query&gt;
+   &lt;/iq&gt;
+
+S: &lt;iq from='romeo@montague.lit' id='b2gs90j5' to='romeo@montague.lit/home' type='set'&gt;
+     &lt;query xmlns='jabber:iq:roster' ver='18sl3M/tdcyd1mwtn1hKmKOnacE='&gt;
+       &lt;item jid='bill@shakespeare.lit' subscription='both'/&gt;
+     &lt;/query&gt;
+   &lt;/iq&gt;
+
+S: &lt;iq from='romeo@montague.lit' id='c73gs419' to='romeo@montague.lit/home' type='set'&gt;
+     &lt;query xmlns='jabber:iq:roster' ver='kkmqpuunFM5obGuZLN9ZgyKEVSs='&gt;
+       &lt;item jid='nurse@shakespeare.lit' name='Nurse' subscription='to'&gt;
+         &lt;group&gt;Servants&lt;/group&gt;
+       &lt;/item&gt;
+     &lt;/query&gt;
+   &lt;/iq&gt;
+
+S: &lt;iq from='romeo@montague.lit' id='dh361f35' to='romeo@montague.lit/home' type='set'&gt;
+     &lt;query xmlns='jabber:iq:roster' ver='/gAR2erxkF5xLkRGaHJziC7B3LE='&gt;
+       &lt;item jid='juliet@shakespeare.lit' name='Juliet' subscription='both'&gt;
+         &lt;group&gt;VIPs&lt;/group&gt;
+       &lt;/item&gt;
+     &lt;/query&gt;
+   &lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">These "interim roster pushes" can be understood as follows:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">Imagine that the client had an active presence session for the entire time between its cached roster version (say, "qAxdnWNcA+lYf7CoN5wpBsvVVno=") and the new roster version (say, "/gAR2erxkF5xLkRGaHJziC7B3LE=").</li>
+      <li class="" style="">During that time, the client might have received roster pushes related to various roster versions. However, some of those roster pushes might have contained intermediate updates to the same roster item (e.g., modifications to the subscription state for bill@shakespeare.lit from "none" to "to" and from "to" to "both").</li>
+      <li class="" style="">The interim roster pushes would not include all of the intermediate steps, only the final result of all modifications applied to each item while the client was in fact offline (say, "qAxdnWNcA+lYf7CoN5wpBsvVVno=", "18sl3M/tdcyd1mwtn1hKmKOnacE=", "kkmqpuunFM5obGuZLN9ZgyKEVSs=", and "/gAR2erxkF5xLkRGaHJziC7B3LE=").</li>
+    </ol>
+    <p class="" style="">The client MUST handle an "interim roster push" in the same way it handles any roster push (indeed, from the client's perspective it cannot tell the difference between an "interim" roster push and a "live" roster push). If the client's session ends before it receives all of the interim roster pushes, when requesting the roster after reconnection it SHOULD request the version associated with the last roster <span class="em">push</span> it received during the session that was disconnected, not the version associated with the roster <span class="em">result</span> it received at the start of the session that was disconnected.</p>
+    <p class="" style="">When roster versioning is enabled, the server MUST include the updated roster version with each roster push. Roster pushes MUST occur in order of modification and the version contained in a roster push MUST be unique.</p>
+  </div>
+<h2>3.
+       <a name="examples" id="examples">Examples</a></h2>
+  <p class="" style="">This section provides a detailed scenario that illustrates the use of roster versioning. In this example the client gets disconnected before the server has had a chance to send all of its roster pushes, but this is immaterial to the synchronization process.</p>
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. The roster synchronization process</p><div class="indent"><pre>
+C: &lt;iq from='romeo@montague.lit/home' id='r1h3vzp7' to='romeo@montague.lit' type='get'&gt;
+     &lt;query xmlns='jabber:iq:roster' ver='qAxdnWNcA+lYf7CoN5wpBsvVVno='/&gt;
+   &lt;/iq&gt;
+
+S: &lt;iq from='romeo@montague.lit' id='r1h3vzp7' to='romeo@montague.lit/home' type='result'/&gt;
+
+S: &lt;iq from='romeo@montague.lit' id='ah382g67' to='romeo@montague.lit/home' type='set'&gt;
+     &lt;query xmlns='jabber:iq:roster' ver='qAxdnWNcA+lYf7CoN5wpBsvVVno='&gt;
+       &lt;item jid='tybalt@shakespeare.lit' subscription='remove'/&gt;
+     &lt;/query&gt;
+   &lt;/iq&gt;
+
+S: &lt;iq from='romeo@montague.lit' id='b2gs90j5' to='romeo@montague.lit/home' type='set'&gt;
+     &lt;query xmlns='jabber:iq:roster' ver='18sl3M/tdcyd1mwtn1hKmKOnacE='&gt;
+       &lt;item jid='bill@shakespeare.lit' subscription='both'/&gt;
+     &lt;/query&gt;
+   &lt;/iq&gt;
+
+S: &lt;/stream:stream&gt;
+
+[ reconnection ]
+
+C: &lt;iq from='romeo@montague.lit/home' id='r2xa7gf9' to='romeo@montague.lit' type='get'&gt;
+     &lt;query xmlns='jabber:iq:roster' ver='18sl3M/tdcyd1mwtn1hKmKOnacE='/&gt;
+   &lt;/iq&gt;
+
+S: &lt;iq from='romeo@montague.lit' id='r2xa7gf9' to='romeo@montague.lit/home' type='result'/&gt;
+
+S: &lt;iq from='romeo@montague.lit' id='c73gs419' to='romeo@montague.lit/home' type='set'&gt;
+     &lt;query xmlns='jabber:iq:roster' ver='kkmqpuunFM5obGuZLN9ZgyKEVSs='&gt;
+       &lt;item jid='nurse@shakespeare.lit' name='Nurse' subscription='to'&gt;
+         &lt;group&gt;Servants&lt;/group&gt;
+       &lt;/item&gt;
+     &lt;/query&gt;
+   &lt;/iq&gt;
+
+S: &lt;iq from='romeo@montague.lit' id='dh361f35' to='romeo@montague.lit/home' type='set'&gt;
+     &lt;query xmlns='jabber:iq:roster' ver='/gAR2erxkF5xLkRGaHJziC7B3LE='&gt;
+       &lt;item jid='juliet@shakespeare.lit' name='Juliet' subscription='both'&gt;
+         &lt;group&gt;VIPs&lt;/group&gt;
+       &lt;/item&gt;
+     &lt;/query&gt;
+   &lt;/iq&gt;
+    </pre></div>
+<h2>4.
+       <a name="feature" id="feature">Stream Feature</a></h2>
+  <p class="" style="">If a server supports roster versioning, it MUST inform the connecting entity when returning stream features during the stream negotiation process; at the latest, when informing a client that resource binding is required. This is done by including a &lt;ver/&gt; element qualified by the 'urn:xmpp:features:rosterver' namespace.</p>
+  <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Stream features</p><div class="indent"><pre>
+&lt;stream:features&gt;
+  &lt;bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'&gt;
+    &lt;required/&gt;
+  &lt;/bind&gt;
+  &lt;ver xmlns='urn:xmpp:features:rosterver'&gt;
+    &lt;optional/&gt;
+  &lt;/ver&gt;
+&lt;/stream:features&gt;
+  </pre></div>
+<h2>5.
+       <a name="impl" id="impl">Implementation Guidelines</a></h2>
+  <p class="" style="">This specification is specifically designed to allow for a wide range of implementation choices. These range from highly simplistic but inefficient, to very efficient but quite complex.</p>
+  <p class="" style="">This section provides suggestions, rather than instructions, on some lightweight approaches to conforming with the specification.</p>
+  <div class="indent"><h3>5.1 <a name="impl-syntactic" id="impl-syntactic">Syntactic Conformance</a></h3>
+    <p class="" style="">A server can conform to this specification by accepting and ignoring the 'ver' attribute in requests, and providing an empty 'ver' attribute in each roster push.</p>
+    <p class="" style="">This provides no efficiency savings for clients.</p>
+  </div>
+  <div class="indent"><h3>5.2 <a name="impl-exactmatch" id="impl-exactmatch">Exact-Match Conformance</a></h3>
+    <p class="" style="">Using some digest (hash) of the roster, a server can identify unchanged rosters, and handle the case where the client sends a ver corresponding to the current roster state.</p>
+    <p class="" style="">This will account for the majority of cases, and represents a substantial saving. Server implementors are advised to canonicalize the form and ordering of roster items prior to applying the hash function. This hash function need not be cryptographically secure, merely resistent to collisions, and it is advisable to pick one that is fast to compute.</p>
+    <p class="" style="">No additional data need be stored, although storing the current hash will yield some performance advantage. This strategy is thought to be relatively safe in the face of data loss on the server.</p>
+  </div>
+  <div class="indent"><h3>5.3 <a name="impl-addonly" id="impl-addonly">Add-Only Conformance</a></h3>
+    <p class="" style="">Using a strictly increasing sequence for the 'ver' attribute, a server can "stamp" each roster item with its last change, and the roster as a whole with its last deletion. The server returns either the entire roster -- if a deletion has occured since the client's ver value -- or those changed items.</p>
+    <p class="" style="">Deletions are thought to be rare compared to additions and modifications, and as such this approach captures almost all changes. The additional storage cost is also low.</p>
+    <p class="" style="">Implementors could combine this strategy with the previous one, detecting a sequence of modifications yielding the same roster as the client has cached already, by constructing a ver attribute containing both a hash and sequence value. This might provide some resilience in the case of data loss.</p>
+    <p class="" style="">Implementors are advised that a pure timestamp is not suitable for this approach, since under some circumstances system clocks can go backwards (e.g., because of an adjustment based on an update triggered by use of the Network Time Protocol as described in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc0958">RFC 958</a></span>  [<a href="#nt-id2265387">4</a>]).</p>
+  </div>
+  <div class="indent"><h3>5.4 <a name="impl-client" id="impl-client">Client Implementation Guidelines</a></h3>
+    <p class="" style="">Client implementors are reminded that the value of the 'ver' attribute is entirely opaque, and they should behave identically with each strategy described above by simply conforming to the specification. The only storage requirement for this specification is the last seen 'ver' attribute.</p>
+  </div>
+<h2>6.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">It is possible that client-side caching of roster information across sessions (rather than holding them in memory only for the life of a session) could introduce new vulnerabilities, such as misuse by malware. Implementations are advised to appropriately protect cached roster data.</p>
+<h2>7.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id2265467">5</a>].</p> 
+<h2>8.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>8.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:features:rosterver</li>
+    </ul>
+    <p class="" style="">Upon advancement of this specification from a status of Experimental to a status of Draft, the <span class="ref" style=""><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id2265550">6</a>] shall add the foregoing namespace to the registry located at &lt;<a href="http://xmpp.org/registrar/stream-features.html">http://xmpp.org/registrar/stream-features.html</a>&gt;, as described in Section 4 of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function</a></span>  [<a href="#nt-id2265593">7</a>].</p>
+  </div>
+<h2>9.
+       <a name="schemas" id="schemas">XML Schemas</a></h2>
+
+  <div class="indent"><h3>9.1 <a name="schemas-roster" id="schemas-roster">jabber:iq:roster</a></h3>
+    <p class="" style="">This specification proposes addition of the 'ver' attribute to the schema for the 'jabber:iq:roster' namespace.</p>
+  </div>
+
+  <div class="indent"><h3>9.2 <a name="schemas-feature" id="schemas-feature">Stream Feature</a></h3>
+    <p class="caption"></p><div class="indent"><pre>
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:features:rosterver'
+    xmlns='urn:xmpp:features:rosterver'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='ver'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:choice&gt;
+        &lt;xs:element name='optional' type='empty'/&gt;
+        &lt;xs:element name='required' type='empty'/&gt;
+      &lt;/xs:choice&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+    </pre></div>
+  </div>
+
+<h2>10.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+  <p class="" style="">Thanks to Dave Cridland, Richard Dobson, Leonid Evdokimov, Fabio Forno, Alexander Gnauck, Juha Hartikainen, Joe Hildebrand, Justin Karneges, Sachin Khandelwal, Curtis King, Jonas Lindberg, Pedro Melo, Matthew Wild, and Jiří Zárevúcký for their comments.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://www.xmpp.org/extensions/">XEP</a><br />
+            Number: 0237<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#states-Proposed">Proposed</a><br />
+            Type:
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.11<br />
+            Last Updated: 2009-04-30<br />
+                Approving Body: <a href="http://www.xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XMPP IM<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: N/A<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0237.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0237.xml/rss.xml">RSS</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Peter Saint-Andre</h3><p class="indent">
+        JabberID: 
+        <a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        URI: 
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p><h3>Dave Cridland</h3><p class="indent">
+        Email:
+        <a href="mailto:dave.cridland@isode.com">dave.cridland@isode.com</a><br />
+        JabberID: 
+        <a href="xmpp:dave.cridland@isode.com">dave.cridland@isode.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2009 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. In no event shall the XMPP Standards Foundation or the authors of this Specification be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising out of the use or inability to use the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XSF, P.O. Box 1641, Denver, CO 80201 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id2251718" id="nt-id2251718">1</a>. RFC 3921: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc3921">http://tools.ietf.org/html/rfc3921</a>&gt;.</p><p><a name="nt-id2251760" id="nt-id2251760">2</a>. RFC 3921: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc3921">http://tools.ietf.org/html/rfc3921</a>&gt;.</p><p><a name="nt-id2264851" id="nt-id2264851">3</a>. rfc3921bis: proposed revisions to Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/draft-saintandre-rfc3921bis">http://tools.ietf.org/html/draft-saintandre-rfc3921bis</a>&gt;. (work in progress)</p><p><a name="nt-id2265387" id="nt-id2265387">4</a>. RFC 958: Network Time Protocol (NTP) &lt;<a href="http://tools.ietf.org/html/rfc0958">http://tools.ietf.org/html/rfc0958</a>&gt;.</p><p><a name="nt-id2265467" id="nt-id2265467">5</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id2265550" id="nt-id2265550">6</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id2265593" id="nt-id2265593">7</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><div class="indent"><h4>Version 0.11 (2009-04-30)</h4><div class="indent"><p class="" style="">Added implementation guidelines.</p> (dc/psa)
+    </div><h4>Version 0.10 (2009-04-27)</h4><div class="indent"><p class="" style="">Modified ver attribute to be an opaque identifier instead of (necessarily) a strictly-increasing sequence number; specified that an empty version ID indicates that the client wishes to bootstrap the use of roster versioning.</p> (psa)
+    </div><h4>Version 0.9 (2009-04-22)</h4><div class="indent"><p class="" style="">Further clarified several implementation notes.</p> (psa)
+    </div><h4>Version 0.8 (2009-04-20)</h4><div class="indent"><p class="" style="">Defined schema for stream feature; adjusted some wording for improved clarity.</p> (psa)
+    </div><h4>Version 0.7 (2009-04-17)</h4><div class="indent"><p class="" style="">Modified the underlying model per list consensus; added more detailed scenarios to illustrate usage.</p> (psa)
+    </div><h4>Version 0.6 (2009-03-31)</h4><div class="indent"><p class="" style="">Clarified definition of ver attribute.</p> (psa)
+    </div><h4>Version 0.5 (2009-02-19)</h4><div class="indent"><p class="" style="">Reverted to a roster-specific method and modified presentation to enable incorporation into rfc3921bis.</p> (psa)
+    </div><h4>Version 0.4 (2008-09-17)</h4><div class="indent"><p class="" style="">Defined new namespace and generalized to handle service discovery and other use cases in addition to rosters.</p> (psa)
+    </div><h4>Version 0.3 (2008-04-21)</h4><div class="indent"><p class="" style="">Defined protocol solely in terms of full rosters and roster pushes (no more roster diffs); added implementation notes; clarified server behavior if cached version is unavailable.</p> (psa)
+    </div><h4>Version 0.2 (2008-03-06)</h4><div class="indent"><p class="" style="">Renamed to data sequencing; clarified server behavior.</p> (psa)
+    </div><h4>Version 0.1 (2008-03-05)</h4><div class="indent"><p class="" style="">Initial published version; per Council consensus, removed optionality regarding semantics of the version attribute.</p> (psa)
+    </div><h4>Version 0.0.3 (2008-03-05)</h4><div class="indent"><p class="" style="">Corrected semantics of version attribute (should be a strictly increasing sequence number but may be any unique identifier).</p> (psa)
+    </div><h4>Version 0.0.2 (2008-03-04)</h4><div class="indent"><p class="" style="">Clarified description of roster diff; added diff attribute and specified its use in roster results; specified use of version attribute in roster pushes.</p> (psa)
+    </div><h4>Version 0.0.1 (2008-03-04)</h4><div class="indent"><p class="" style="">First draft.</p> (psa)
+    </div></div><hr /><p>END</p></body></html>

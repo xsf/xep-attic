@@ -1,0 +1,529 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0274: Design Considerations for Digital Signatures in XMPP</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Design Considerations for Digital Signatures in XMPP" /><meta name="DC.Creator" content="Kurt Zeilenga" /><meta name="DC.Description" content="This document discusses considerations for the design of Digital Signatures in XMPP,&#10;      including use cases and requirements. The document also discusses various ways XML Digital&#10;      Signatures could be used in XMPP." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2009-09-15" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0274" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2010 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0274: Design Considerations for Digital Signatures in XMPP</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This document discusses considerations for the design of Digital Signatures in XMPP,
+      including use cases and requirements. The document also discusses various ways XML Digital
+      Signatures could be used in XMPP.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Kurt Zeilenga</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2010 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Informational</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2009-09-15</td></tr></table><hr /><p style="color:red">WARNING: This Informational document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the best practice or protocol profile described herein is encouraged in exploratory implementations, although production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#uses">Use Cases</a><br />   
+      2.1.  <a href="#direct-1to1-use">Use in directed one-to-one stanzas</a><br />   
+      2.2.  <a href="#redirect-1to1-use">Use in redirected one-to-one stanzas</a><br />   
+      2.3.  <a href="#redirect-1toG-use">Use in redirected one-to-group stanzas</a><br />   
+      2.4.  <a href="#presence-use">Use in presence stanzas</a><br />3.  <a href="#requires">Requirements</a><br />4.  <a href="#existing">Existing Solutions</a><br />   
+      4.1.  <a href="#xmpp-e2e">XMPP E2E</a><br />   
+      4.2.  <a href="#cdcie-ccp">CDCIE-CCP</a><br />5.  <a href="#design">Protocol Design Discussion</a><br />   
+      5.1.  <a href="#encap">Encapsulated v. Encapsulating Signatures</a><br />   
+      5.2.  <a href="#select">Selective Signing</a><br />   
+      5.3.  <a href="#replay">Replay attack protection</a><br />   
+      5.4.  <a href="#manifest">Manifest Signing</a><br />   
+      5.5.  <a href="#id">Unambigious identification of content</a><br />   
+      5.6.  <a href="#multisig">Multiple Signatures</a><br />   
+      5.7.  <a href="#dual">Dual content</a><br />   
+      5.8.  <a href="#key-info">Key Info</a><br />6.  <a href="#seccon">Security Considerations</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+    <p>Digital signatures may be used to provide a number of security services, including message
+      authentication, message integrity and non-repudiation. There are many use cases for Digital
+      Signatures in the Extensible Messaging and Presence Protocol (<span class="ref"><a href="http://xmpp.org/">XMPP</a></span>  [<a href="#nt-id337191">1</a>]).</p>
+    <p>XMPP can be described as a mean for exchanging structured information or stanzas between two
+      or more entities. To accomplish this exchange, a number of other entities may be involved. For
+      instance, communication of a stanza between two client entities will typically involve one or
+      more server entities. Entities may exchange stanzas through service entities, such as a chat
+      room service, to effect one-to-many communications.</p>
+    <p>Any entity involved in the exchange of a stanza may have wish to include one or more digital
+      signatures for the benefit of any entity involved in the exchange:</p>
+    <ul>
+      <li>A client might wish to sign information it exchanges with another client for the benefit
+        of this client (e.g, to provide message origin authentication service and content integrity
+        service)</li>
+      <li>A client might wish to sign a message in order to bind a Security Label to that
+        message.</li>
+      <li>A client may wish to sign information it sends to a chat room for the benefit of the chat
+        room service and/or for the benefit of room occupants.</li>
+      <li>The chat room service may wish to sign information it forwards to room occupants for the
+        benefit of room occupants, such as to bind the client's JID to the client's room JID.</li>
+      <li>A server involved in the exchange of a stanza between two clients may wish to sign
+        information for the benefit of another server involved in the exchange (e.g., to provide
+        delivery path validation).</li>
+      <li>A server may wish to add additional data to a message, for example a Security Label, and
+        bind that data to the message with a digital signature.</li>
+    </ul>
+    <p>Digital signatures are provided to serve specific purposes. These purposes might include
+      authentication of a particular entity involved in the exchange and integrity of information
+      that entity provided.</p>
+
+    <p>This document discusses <a href="#design">considerations for the design</a> of
+      general-purpose digital signature extension for XMPP. The document discusses <a href="#uses">use cases</a> and <a href="#requires">requirements</a>, as well as explores the
+      solution space. The document also discusses <a href="#existing">existing solutions</a> in
+      this area.</p>
+
+    <p>This document contains a numerous examples intended to aide in the discussion of design
+      issues. The examples are examples generally abbreviated and often use informal syntaxes.</p>
+  <h2>2.
+       <a name="uses" id="uses">Use Cases</a></h2>
+    <div class="indent"><h3>2.1 <a name="direct-1to1-use" id="direct-1to1-use">Use in directed one-to-one stanzas</a></h3>
+      <p>Directed one-to-one stanzas are stanzas which are exchanged between two entities, the
+        originator of the stanza and intended recipient of that stanza, without exchanging through
+        services which provide re-direction of stanzas (such as a groupchat service). The stanza may
+        be handled by one or more other entities.</p>
+      <p>Examples of directed one-to-one stanzas include chat &lt;message/&gt; used in one-to-one chat
+        sessions and &lt;iq/&gt; stanzas (excepting those exchanged through services providing <a href="redirect-1to1-use">re-direction</a>).</p>
+      <p>The originator may wish to provide a signature for the benefit of the intended recipient.
+        The intended recipient could use this signature to authenticate the originator and to ensure
+        integrity of originator provided information.</p>
+      <p>Entities handling the stanza may wish to provide a signature for the benefit of the
+        intended recipient. For instance, where a originator is a client and does not provide a
+        signature, the client's server may wish to provide a signature for the benefit of the
+        intended recipient. The intended recipient could use this signature to authenticate this
+        server and to ensure integrity of the information as forwarded by this server. </p>
+    </div>
+
+    <div class="indent"><h3>2.2 <a name="redirect-1to1-use" id="redirect-1to1-use">Use in redirected one-to-one stanzas</a></h3>
+      <p>Redirected one-to-one stanzas which are exchanged between two entities, the originator of
+        the stanza and intended recipient of that stanza, through a service which provides
+        re-direction of stanzas. The stanza may be handled by one or more other entities. </p>
+      <p>A multi-user chat (MUC) 'private message' is an example of redirected one-to-one
+        stanza.</p>
+      <p>The originator's server may wish to provide a signature for the benefit of the re-direction
+        service. The service could use this signature to authenticate the originator and to ensure
+        integrity of originator provided information.</p>
+      <p>The originator may wish to provide a signature for the benefit of the intended recipient.
+        The intended recipient could use this signature to authenticate the originator and to ensure
+        integrity of originator provided information. However, this signature would by itself not
+        establish any relationship between the signer and 'from' address in the stanza as received,
+        nor does it establish this signature establish that the stanza was processed by the
+        re-direction service. As in the <a href="#direct-1to1-use">directed one-to-one
+          stanza</a>, a originating client's server may wish to provide a signature for the
+        benefit of the intended recipient.</p>
+      <p>The re-direction service may wish to provide a signature for the benefit of the intended
+        recipient. The intended recipient could use this signature to authenticate the service and
+        hence establish the service processed the stanza. The intended recipient could also use the
+        signature to ensure the integrity of the information as redirected by the service.</p>
+    </div>
+
+    <div class="indent"><h3>2.3 <a name="redirect-1toG-use" id="redirect-1toG-use">Use in redirected one-to-group stanzas</a></h3>
+      <p>Redirected one-to-many stanzas which are exchanged between two or more entities, the
+        originator of the stanza and a group of recipients, through a service which provides
+        re-direction of stanzas of a single stanza to a set of recipients. The stanza may be handled
+        by one or more other entities. </p>
+      <p>A multi-user chat (MUC) message to all occupants is an example of redirected one-to-group
+        stanza.</p>
+      <p>The originator's server may wish to provide a signature for the benefit of the re-direction
+        service. The service could use this signature to authenticate the originator and to ensure
+        integrity of originator provided information.</p>
+      <p>The originator may wish to provide a signature for the benefit of each recipient in the
+        group. Each recipient could use this signature to authenticate the originator and to ensure
+        integrity of originator provided information. However, this signature would by itself not
+        establish any relationship between the signer and the 'from' address in the stanza as
+        received, nor does it establish this signature establish that the stanza was processed by
+        the re-direction service. As in the <a href="#direct-1to1-use">directed one-to-one
+          stanza</a>, a originating client's server may wish to provide a signature for the
+        benefit of the each recipient.</p>
+      <p>The re-direction service may wish to provide a signature for the benefit of each recipient
+        in the group. Each recipient could use this signature to authenticate the service and hence
+        establish the service processed the stanza. Each could also use the signature to ensure the
+        integrity of the information as redirected by the service.</p>
+    </div>
+
+    <div class="indent"><h3>2.4 <a name="presence-use" id="presence-use">Use in presence stanzas</a></h3>
+      <p>The presence can be viewed as a specialized "publish-subscribe" mechanism. Commonly the
+        publishing entity sends a &lt;presence/&gt; stanza to a presence service and the presence
+        service than forwards the stanza to each subscriber. In basic user presence, the publishing
+        entity is the user's client and the presence service is presence service is the provided by
+        this client's server. In this case, the 'to' address is empty.</p>
+      <p>The publisher may wish to sign the signature for the benefit of each subscriber. Each
+        subscriber could use this signature to authenticate the publisher and to ensure integrity of
+        publisher provided information.</p>
+      <p>The presence service may wish to provide a signature for the benefit of each subscriber.
+        Each subscriber could use this signature to authenticate the service and hence establish the
+        service processed the stanza. Each could also use the signature to ensure the integrity of
+        the information as redirected by the service.</p>
+      <p>A presence stanza may also directed to another entity, possibly through a re-direction
+        service. This use is similar to the <a href="#direct-1to1-use">directed one-to-one</a>
+        and <a href="#redirect-1to1-use">redirected one-to-one</a> cases detailed above.</p>
+    </div>
+  <h2>3.
+       <a name="requires" id="requires">Requirements</a></h2>
+    <p>For the purposes of this memo, the following requirements are stipulated: </p>
+    <ol start="1">
+      <li>The extension shall support client signing of stanzas.</li>
+      <li>The extension shall support service (e.g., multi-user chat service) signing of
+        stanzas.</li>
+      <li>The extension shall support server signing stanzas.</li>
+      <li>The extension shall support multiple signatures in a stanza. That is, multiple entities
+        can sign a stanza.</li>
+      <li>The extension shall support signing of &lt;iq/&gt; stanzas.</li>
+      <li>The extension shall support signing of &lt;message/&gt; stanzas, including chat and
+        groupchat.</li>
+      <li>The extension shall support signing of &lt;presence/&gt; stanzas.</li>
+      <li>The extension shall support selective signing of stanzas. That is, a signer can sign
+        select portions of a stanza.</li>
+      <li>The extension shall support signing of externally referenced object. That is, the
+        signature may include a message digest of an external object, such as an HTTP accessible
+        content.</li>
+      <li>The extension shall allow selective verification of signed elements. </li>
+      <li>The extension shall allow independent handling of verification errors in signed
+        content.</li>
+      <li>The extension shall allow signers to provide signed copies of data likely to be modified
+        by intermediate entities, such as stanza 'to' and 'from' attributes.</li>
+      <li>The extension should avoid duplication of content.</li>
+      <li>The extension must provide a means for relating signed content with unsigned content.</li>
+      <li>The extension should support querying for key information in XMPP (e.g., &lt;iq/&gt;).</li>
+      <li>The extension should support communicating key information through their XMPP-published
+        vCard.</li>
+      <li>The extension should be designed such that the successful verification of a signature is
+        independent of the extension support in entities involved in the exchange.</li>
+    </ol>
+  <h2>4.
+       <a name="existing" id="existing">Existing Solutions</a></h2>
+    <div class="indent"><h3>4.1 <a name="xmpp-e2e" id="xmpp-e2e">XMPP E2E</a></h3>
+      <p>The <span class="ref"><a href="http://www.ietf.org/">Internet Engineering Task Force (IETF)</a></span>  [<a href="#nt-id343626">2</a>] standardized a signing and encryption facility for XMPP known as
+        <span class="ref"><a href="http://tools.ietf.org/html/rfc3923">XMPP E2E</a></span>  [<a href="#nt-id343651">3</a>]. XMPP E2E is based upon Secure/Multipurpose Internet Message Extensions
+        (<span class="ref"><a href="http://tools.ietf.org/html/rfc3851">S/MIME</a></span>  [<a href="#nt-id343675">4</a>]) and the Cryptographic Message Syntax (<span class="ref"><a href="http://tools.ietf.org/html/rfc3852">CMS</a></span>  [<a href="#nt-id343696">5</a>]). As it's name implies, XMPP
+        E2E is intended to be an end-to-end solution. That is, it enables a sender to sign content
+        sent to a specific recipient.</p>
+      <p>An advantage of the XMPP E2E approach is that it uses an encapsulating signature which
+        protects the signed content from alteration as it is exchanged over an XMPP network. A
+        disadvantage is that implementations which do not support XMPP E2E cannot make use of the
+        signed content.</p>
+      <p>At the time of this writing, XMPP E2E has not been widely implemented. XMPP E2E appears to
+        have limited applicability. </p>
+    </div>
+    <div class="indent"><h3>4.2 <a name="cdcie-ccp" id="cdcie-ccp">CDCIE-CCP</a></h3>
+      <p>Alternative approaches have been developed. For instance, the Cross Domain Collaborative
+        Information Environment (<span class="ref"><a href="http://www.jfcom.mil/about/facts_prt/MNIS.pdf">CDCIE</a></span>  [<a href="#nt-id343732">6</a>]) Client Chat Protocol (<span class="ref">CDCIE-CCP</span>  [<a href="#nt-id343753">7</a>]), an XMPP-based
+        protocol, supports signing of XMPP stanzas utilizes XML digital signatures (<span class="ref"><a href="http://www.w3.org/TR/xmldsig-core/">XMLDSIG</a></span>  [<a href="#nt-id343769">8</a>])
+        "enveloped" signatures over the whole stanza.</p>
+      <p>An advantage of the CDCIE-CCP approach is that, because it uses an encapsulated signature,
+        implementations need not support CDCIE-CPP to make use of the stanza. The disadvantage is
+        that the signature always over the entire stanza. Alteration of the stanza, as is common
+        (often required) when exchanging stanzas over an XMPP network, will invalidate the
+        signature.</p>
+      <p>While this approach has been implemented and deployed to some extent, the approach appears
+        to have applicability limited to the CDCIE.</p>
+    </div>
+  <h2>5.
+       <a name="design" id="design">Protocol Design Discussion</a></h2>
+    <div class="indent"><h3>5.1 <a name="encap" id="encap">Encapsulated v. Encapsulating Signatures</a></h3>
+      <p>An encapsulating signature is a signature approach that encapsulates the signed content
+        within the signature syntax. An encapsulated signature is a signature approach where the
+        signature syntax in encapsulated within the structure of the signed content. XMPP E2E is an
+        example of the former. CDCIE-CCP is an example of the latter.</p>
+
+      <p>The following example illustrates, using pseudo language, an encapsulating signature over a
+        &lt;message/&gt; stanza.</p>
+      <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Encapsulating Signature</p><div class="indent"><pre class="prettyprint">
+        &lt;encapslating-signature&gt;
+          &lt;signedInfo&gt;
+            &lt;message to='romeo@example.net' type='chat'&gt;
+              &lt;body&gt;Art thou not Romeo, and a Montague?&lt;/body&gt;
+            &lt;/message&gt;
+          &lt;/signedInfo&gt;
+          &lt;signature-over-signedInfo/&gt;
+        &lt;/encapslating-signature&gt;
+        </pre></div>
+
+      <p>To transfer a signed &lt;message/&gt; using an encapsulating signature, one needs to send it
+        within &lt;message/&gt; stanza. </p>
+      <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Transfer of an Encapsulating Signature</p><div class="indent"><pre class="prettyprint">
+        &lt;message to='romeo@example.net' type='chat'&gt;
+          &lt;encapslating-signature&gt;
+            &lt;signedInfo&gt;
+              &lt;message to='romeo@example.net' type='chat'&gt;
+                &lt;body&gt;Art thou not Romeo, and a Montague?&lt;/body&gt;
+              &lt;/message&gt;
+            &lt;/signedInfo&gt;
+            &lt;signature-over-signedInfo/&gt;
+          &lt;/encapslating-signature&gt;
+        &lt;/message&gt;
+        </pre></div>
+      <p>The following example illustrates, using pseudo language, an encapsulated signature over a
+        &lt;message/&gt; stanza. </p>
+      <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Encapsulated Signature</p><div class="indent"><pre class="prettyprint">
+        &lt;message to='romeo@example.net' type='chat'&gt;
+          &lt;body&gt;Art thou not Romeo, and a Montague?&lt;/body&gt;
+          &lt;encapsulated-signature&gt;
+            &lt;signature-over-message/&gt;
+          &lt;/encapsulated-signature&gt;
+        &lt;/message&gt;
+        </pre></div>
+      <p>Applicability of a simple (non-nesting) encapsulating signatures, such as in XMPP E2E, are
+        generally limited to end-to-end use cases. That is, cases where the originator of a stanza
+        signs the stanza and send it through the XMPP network to its intended recipient, and only
+        the intended recipient is expected to make use of the signed content. Entities between the
+        signer and the intended recipient are expected to forward of the stanza without regard to
+        the encapsulating signature, and without themselves signing the stanza. The approach does
+        not require forwarding entities to support the signing extension.</p>
+      <p>Simple encapsulating signatures have limited applicability in MUC and PubSub use cases. For
+        instance, an occupant can sign its submissions to the service for the benefit of the service
+        and the service can sign reflected stanzas to occupants. In providing non-anonymous chat
+        rooms, in addition to signing the reflected content, the service should include and sign the
+        stanza it received when it was signed. This allows the occupants verify the content the
+        service purports to have received, and to determine whether the reflected content is
+        consistent given this. The following example illustrates an encapsulating signature over a
+        groupchat &lt;message/&gt; stanza.</p>
+      <p class="caption"><a name="example-4" id="example-4"></a>Example 4. MUC submission with Encapsulating Signature</p><div class="indent"><pre class="prettyprint">
+        &lt;message from='hag66@shakespeare.lit/pda' to='darkcave@chat.shakespeare.lit'
+          type='groupchat' xml:lang='en'&gt;
+          &lt;encapslating-signature&gt;
+            &lt;signed-info&gt;
+              &lt;message
+                to='darkcave@chat.shakespeare.lit'
+                type='groupchat'
+                xml:lang='en'&gt;
+                &lt;body&gt;Harpier cries: 'tis time, 'tis time.&lt;/body&gt;
+              &lt;/message&gt;
+            &lt;/signed-info&gt;
+            &lt;signature-value&gt;...&lt;/signature-value&gt;
+          &lt;/encapslating-signature&gt;
+        &lt;/message&gt;
+        </pre></div>
+      <p>The following examples illustrates the signed reflection of the above stanza.</p>
+      <p class="caption"><a name="example-5" id="example-5"></a>Example 5. MUC reflection with Encapsulating Signature</p><div class="indent"><pre class="prettyprint">
+        &lt;message from='darkcave@chat.shakespeare.lit/thirdwitch'
+          to='crone1@shakespeare.lit/desktop' type='groupchat' xml:lang='en'&gt;
+          &lt;encapslating-signature&gt;
+            &lt;signed-info&gt;
+              &lt;message
+                from='darkcave@chat.shakespeare.lit/thirdwitch'
+                to='crone1@shakespeare.lit/desktop' type='groupchat' xml:lang='en'&gt;
+                &lt;body&gt;Harpier cries: 'tis time, 'tis time.&lt;/body&gt;
+              &lt;/message&gt;
+              &lt;derived-from&gt;
+                &lt;message from='hag66@shakespeare.lit/pda'
+                  to='darkcave@chat.shakespeare.lit' type='groupchat' xml:lang='en'&gt;
+                  &lt;encapslating-signature&gt;
+                    &lt;signedInfo&gt;
+                      &lt;message to='darkcave@chat.shakespeare.lit'
+                        type='groupchat' xml:lang='en'&gt;
+                        &lt;body&gt;Harpier cries: 'tis time, 'tis time.&lt;/body&gt;
+                      &lt;/message&gt;
+                    &lt;/signedInfo&gt;
+                    &lt;signature/&gt;
+                  &lt;/encapslating-signature&gt;
+                &lt;/message&gt;
+              &lt;/derived-from&gt;
+            &lt;/signed-info&gt;
+            &lt;signature-value&gt;...&lt;/signature-value&gt;
+          &lt;/encapslating-signature&gt;
+        &lt;/message&gt;
+        </pre></div>
+      <p>In encapsulated signature solutions, as in CDCIE-CCP, any entities can make use of the
+        signed content even if they do not support the signing extension. If the signature is over
+        the entire stanza, as in CDCIE-CCP, the signature is likely not to be valid when the stanza
+        is passed through multiple entities prior to verification. Hence, when the signature is over
+        the entire stanza, the encapsulating signature approach applicability is generally limited
+        to cases where there no entities between the signer and verifier. However, as discussed
+          <a href="#stanza-siging">below</a>, encapsulated selective signatures are generally
+        more applicable.</p>
+    </div>
+    <div class="indent"><h3>5.2 <a name="select" id="select">Selective Signing</a></h3>
+      <p>While an entity could provide a signature to be over the entire stanza, such signatures are
+        likely be invalidated as the stanza exchanged over the XMPP. This is because XMPP allows
+        and, in many cases, requires stanza to be modified as they are forwarded.</p>
+      <p>For instance, a client with the JID "juliet@example.com/Balcony" might send the following
+        signed stanza:</p>
+      <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Signature over entire stanza</p><div class="indent"><pre class="prettyprint">
+&lt;message to='romeo@example.net' type='chat' xml:lang='en'&gt;
+  &lt;subject&gt;Love&lt;/subject&gt;
+  &lt;body&gt;Art thou not Romeo, and a Montague?&lt;/body&gt;
+  &lt;Signature xmlns="http://www.w3.org/2000/09/xmldsig#"&gt;
+    &lt;SignedInfo&gt;
+      ...
+      &lt;Reference URI=""&gt;
+        &lt;Transforms&gt;
+          &lt;Transform
+            Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/&gt;
+        &lt;/Transforms&gt;
+        ...
+      &lt;/Reference&gt;
+    &lt;/SignedInfo&gt;
+    &lt;SignatureValue&gt;...&lt;/SignatureValue&gt;
+    ...
+  &lt;/Signature&gt;
+&lt;/message&gt;
+</pre></div>
+      <p>The example.com server is required, per <span class="ref"><a href="http://tools.ietf.org/html/rfc3920">RFC 3920</a></span>  [<a href="#nt-id343950">9</a>], to add a 'from' attribute to the
+        &lt;message/&gt; element before forwarding it to the example.net server. The example.net server
+        is required to replace the 'to' attribute with the full JID of the romeo@example.net client
+        it intends to forward the message to. These alternatations will "break" the signature.</p>
+
+      <p>XMLDSIG provides for a facility to selective sign XML content. For instance, the client
+        could sign the &lt;subject/&gt; and &lt;body/&gt; element and their content. However, this by
+        itself would not cover key aspects of the stanza, such that it was a chat &lt;message/&gt;
+        addressed to a particular JID and sent from a particular JID. XMLDSIG allows for enveloping
+        signatures, that is a signature that signs a data object contained within the
+        &lt;Signature/&gt; element. The solution could define an element, such as &lt;XMPPproperties/&gt; used
+        below, for including properties of the stanza in the signature. </p>
+    </div>
+
+    <div class="indent"><h3>5.3 <a name="replay" id="replay">Replay attack protection</a></h3>
+      <p>The signature in Example 1 does not provide any protection against replay attack. To
+        address replay attack, as well as other concerns, XMLDSIG defines the
+        &lt;SignatureProperties/&gt; element for including information items about the generation of
+        the Signature, such as the date/time the signature was generated. </p>
+    </div>
+
+    <div class="indent"><h3>5.4 <a name="manifest" id="manifest">Manifest Signing</a></h3>
+      <p>While one could have &lt;Signature/&gt; which included a &lt;Reference/&gt; element for each of
+        four elements discussed above within its &lt;SignedInfo/&gt; element, this would require
+        reference validation for each &lt;Reference/&gt; (See 2.3 of XMLDSIG). To provide greater
+        flexibility over handling of absent references and broken digest values, a &lt;Manifest/&gt;
+        can be constructed and only it signed.</p>
+
+
+      <p>Putting all of the above together, the client might send the following signed stanza:</p>
+      <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Client signed message</p><div class="indent"><pre class="prettyprint">
+&lt;message to='romeo@example.net' type='chat' xml:lang='en'&gt;
+  &lt;subject id='X-subj'&gt;Love&lt;/subject&gt;
+  &lt;body id='X-body'&gt;Art thou not Romeo, and a Montague?&lt;/body&gt;
+  &lt;Signature xmlns="http://www.w3.org/2000/09/xmldsig#" Id="sig"&gt;
+    &lt;SignedInfo&gt;
+      ...
+      &lt;Reference URI="#X-manifest"&gt;...&lt;/Reference&gt;
+    &lt;/SignedInfo&gt;
+    &lt;SignatureValue&gt;...&lt;/SignatureValue&gt;
+    &lt;Object&gt;
+      &lt;Manifest id='X-manifest'&gt;
+        &lt;Reference URI="#X-subj"&gt;...&lt;/Reference&gt;
+        &lt;Reference URI="#X-body"&gt;...&lt;/Reference&gt;
+        &lt;Reference URI="#X-xmppprop"&gt;...&lt;/Reference&gt;
+        &lt;Reference URI="#X-sigprop"&gt;...&lt;/Reference&gt;
+      &lt;/Manifest&gt;
+    &lt;/Object&gt;
+    &lt;Object&gt;
+      &lt;XMPPprop id='X-xmppprop'&gt;
+        &lt;stanza&gt;message&lt;/stanza&gt;
+        &lt;type&gt;chat&lt;/type&gt;
+        &lt;from&gt;juliet@example.com&lt;/from&gt;
+        &lt;to&gt;romeo@example.net&lt;/to&gt;
+      &lt;/XMPPStanza&gt;
+    &lt;/Object&gt;
+    &lt;Object&gt;
+      &lt;SignatureProperties id="X-sigprop" Target="#X-sig"&gt;
+          &lt;SignatureProperty Target="#timestamp"&gt;
+             &lt;timestamp&gt;2009-08-03T13:33:00Z&lt;/timestamp&gt;
+          &lt;/SignatureProperty&gt;
+        &lt;/SignatureProperties&gt;
+    &lt;/Object&gt;
+  &lt;/Signature&gt;
+&lt;/message&gt;
+  </pre></div>
+    </div>
+    <div class="indent"><h3>5.5 <a name="id" id="id">Unambigious identification of content</a></h3>
+      <p>The signature references needs to unambiguously identify content in stanza even in face of
+        subsequent modification of that stanza. Failure to unambiguously identify signed content
+        would also be problematic.</p>
+
+      <p>In the above example, signed child elements of the stanza were identified by 'id'
+        attribute. As stanzas may be forwarded into any XMPP stream, such identifiers needs to
+        remain unique.</p>
+
+      <p>Use of an extension attribute to identify elements may be problematic. In particular, the
+        XMPP specifications provide no assurance that this attribute would be forwarded with
+        element. While one could identify signed content by other means, such as <span class="ref"><a href="http://www.w3.org/TR/xptr">XPointer</a></span>  [<a href="#nt-id344058">10</a>],
+        these means would not unambiguously identify the signed content in the face of subsequent
+        stanza modification. </p>
+
+      <p>The an 'id' attribute is could be used (or possibly 'xml:id'), it may be appropriate for
+        the XMPP entity inserting a child element into a stanza to provide an 'xml:id' attribute
+        regardless of what stanza content it might sign.</p>
+    </div>
+    <div class="indent"><h3>5.6 <a name="multisig" id="multisig">Multiple Signatures</a></h3>
+      <p>Multiple entities can sign a stanza. A single entity may sign a stanza multiple times,
+        typically on different occasions.</p>
+
+      <p>Each signer simply adds their &lt;Signature/&gt; element to the stanza, typically as the last
+        element. A &lt;Signature/&gt; may sign other signatures, or portions thereof.</p>
+
+      <p>While a simple chat &lt;message/&gt; typically transits through only one or two XMPP servers
+        and a groupchat &lt;message/&gt; may typically transits one to three XMPP servers, a stanza
+        might include far more than four &lt;Signature/&gt; elements.</p>
+    </div>
+    <div class="indent"><h3>5.7 <a name="dual" id="dual">Dual content</a></h3>
+      <p>One possible signing solution is for stanzas to carry alternative sets of content, an
+        unsigned content alternative and a signed content alternative. An entity supporting the
+        signing extension could make use of the signed content alternative while an entity not
+        supporting the signing extension could make use of the unsigned content alternative. The
+        following example not only illustrate this approach, but a significant issue with this
+        approach:</p>
+      <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Dual content message</p><div class="indent"><pre class="prettyprint">
+      &lt;message from='hag66@shakespeare.lit/pda' to='darkcave@chat.shakespeare.lit/laptop'
+        type='groupchat' xml:lang='en'&gt;
+        &lt;body&gt;No.&lt;/body&gt;
+        &lt;encapslating-signature&gt;
+          &lt;signed-info&gt;
+            &lt;message to='darkcave@chat.shakespeare.lit' type='groupchat' xml:lang='en'&gt;
+              &lt;body&gt;Yes.&lt;/body&gt;
+            &lt;/message&gt;
+          &lt;/signed-info&gt;
+          &lt;signature-value&gt;...&lt;/signature-value&gt;
+        &lt;/encapslating-signature&gt;
+      &lt;/message&gt;
+      </pre></div>
+      <p>Note that the &lt;body/&gt; element values differ in the two alternatives.</p>
+      <p>An attacker could alter the unsigned content without alerting entities making use the
+        signed content.</p>
+      <p>Instead of treating the signed and unsigned content as alternatives, the solution could
+        limit use of the signed content to the validation of the unsigned data. However this
+        solution suffers from many same issues encapsulated signatures suffer from, as well as
+        suffering from unnecessary bloat.</p>
+      <p>Dual content approaches should be avoided.</p>
+    </div>
+    <div class="indent"><h3>5.8 <a name="key-info" id="key-info">Key Info</a></h3>
+      <p>While a signer may provide a &lt;KeyInfo/&gt; element within the &lt;Signature/&gt;, doing so
+        will significantly increase the size of the &lt;Signature/&gt; element. As implementations may
+        enforce a maximum stanza size as small as 10,000 bytes, use of &lt;KeyInfo/&gt; in stanza
+        signatures should be limited.</p>
+      <p>It is also noted there are cases where the signer may not want to expose the key
+        information to all entities involved in the exchange of stanza.</p>
+      <p>There are a number of ways key information may be published, such as in user's vCard. Key
+        information can also be provided at request, such as by &lt;iq/&gt;.</p>
+    </div>
+  <h2>6.
+       <a name="seccon" id="seccon">Security Considerations</a></h2>
+    <p>Care must be taken in the design of not only ensure it provides an effective digital
+      signature solution for XMPP, but is designed itself with security in mind. This section
+      discussions some security issues in providing a digital signature solution. The design should
+      consider a general digital signature issues as well issues specific to the technologies
+      used/involved, and particulars of the solution.</p>
+    <p>Due to the nature of XML and XMPP, an effective general digital signing solution for XMPP is
+      likely to be quite complex. This document suggests nothing less. With complexity comes
+      significant security risk. To minimize this risk, the solutions should avoid reinvention of
+      needed technology, such as signature and key information syntaxes, by reusing well established
+      and understood technologies such as XMLDSIG. Solutions should also favor simple and widely
+      used features of such technologies over esoteric or rarely used features</p>
+    <p>Designers of the solution should be mind full of security considerations discussed in XMLDSIG
+      (regardless of whether XMLDSIG is used in the solution)</p>
+    <p>If XMLDSIG is used, a number of security considerations would be introduced into the
+      solution. Implementations need to take special care in processing XMLDSIG &lt;Signature/&gt;
+      elements to avoid a wide range of attacks. For instance, an attacker could attempt to mount a
+      Denial of Service attack by sending a &lt;Signature/&gt; purporting to sign arbitrary large and
+      complex content. Or an attacker could attempt to mount a Distributed Denial of Service sending
+      a message to a chatroom that containing &lt;Signature/&gt; with multiple references to large
+      content hosted at the attack target in hopes that each room participant will repeated fetch
+      it. A &lt;Signature/&gt; element might also contain circler references.</p>
+  <hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0274<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Informational">Informational</a><br />
+            Version: 0.1<br />
+            Last Updated: 2009-09-15<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0001<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: N/A<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0274.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0274.xml/rss.xml">RSS</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0274.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0274.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Kurt Zeilenga</h3><p class="indent">
+        Email:
+        <a href="mailto:Kurt.Zeilenga@Isode.COM">Kurt.Zeilenga@Isode.COM</a><br />
+        JabberID: 
+        <a href="xmpp:Kurt.Zeilenga@Isode.COM">Kurt.Zeilenga@Isode.COM</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2010 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XMPP Standards Foundation, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id337191" id="nt-id337191">1</a>. Extensible Messaging and Presence Protocol (XMPP) &lt;<a href="http://xmpp.org/">http://xmpp.org/</a>&gt;.</p><p><a name="nt-id343626" id="nt-id343626">2</a>. The Internet Engineering Task Force is the principal body engaged in the development of new Internet standard specifications, best known for its work on standards such as HTTP and SMTP. For further information, see &lt;<a href="http://www.ietf.org/">http://www.ietf.org/</a>&gt;.</p><p><a name="nt-id343651" id="nt-id343651">3</a>. RFC 3923: End-to-End Signing and Object Encryption for the Extensible Messaging and Presence Protocol (XMPP) &lt;<a href="http://tools.ietf.org/html/rfc3923">http://tools.ietf.org/html/rfc3923</a>&gt;.</p><p><a name="nt-id343675" id="nt-id343675">4</a>. RFC 3851: Secure/Multipurpose Internet Mail Extensions (S/MIME) &lt;<a href="http://tools.ietf.org/html/rfc3851">http://tools.ietf.org/html/rfc3851</a>&gt;.</p><p><a name="nt-id343696" id="nt-id343696">5</a>. RFC 3852: Cryptographic Message Syntax (CMS) &lt;<a href="http://tools.ietf.org/html/rfc3852">http://tools.ietf.org/html/rfc3852</a>&gt;.</p><p><a name="nt-id343732" id="nt-id343732">6</a>. USFCOM fact sheet: Multinational Information Sharing and the Cross Domain Collaborative Information Environment &lt;<a href="http://www.jfcom.mil/about/facts_prt/MNIS.pdf">http://www.jfcom.mil/about/facts_prt/MNIS.pdf</a>&gt;.</p><p><a name="nt-id343753" id="nt-id343753">7</a>. Cross Domain Collaborative Information Environment (CDCIE) Chat Client Protocol Specification, Version 2.0, Trident Systems, Inc., 12 March 2008</p><p><a name="nt-id343769" id="nt-id343769">8</a>. XML Signature Syntax and Processing, W3C Recommendation, 10 June 2008 &lt;<a href="http://www.w3.org/TR/xmldsig-core/">http://www.w3.org/TR/xmldsig-core/</a>&gt;.</p><p><a name="nt-id343950" id="nt-id343950">9</a>. RFC 3920: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc3920">http://tools.ietf.org/html/rfc3920</a>&gt;.</p><p><a name="nt-id344058" id="nt-id344058">10</a>. XML Pointer Language (XPointer), W3C Recommendation, 8 June 2001 &lt;<a href="http://www.w3.org/TR/xptr">http://www.w3.org/TR/xptr</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2009-09-15)</h4><div class="indent"><p>Initial published version as accepted for publication by the XMPP Council.</p> (psa)
+    </div><h4>Version 0.0.1 (2009-08-20)</h4><div class="indent">
+        <p>Proto-XEP draft.</p>
+       (kdz)
+    </div></div><hr /><p>END</p></body></html>

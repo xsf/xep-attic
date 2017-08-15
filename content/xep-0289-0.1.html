@@ -1,0 +1,359 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0289: Federated MUC for Constrained Environments</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Federated MUC for Constrained Environments" /><meta name="DC.Creator" content="Kevin Smith" /><meta name="DC.Description" content="This document provides a protocol for reducing the bandwidth cost of local users contributing to a remote MUC over a constrained link through local proxying of the MUC room." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2010-11-29" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0289" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2012 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0289: Federated MUC for Constrained Environments</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This document provides a protocol for reducing the bandwidth cost of local users contributing to a remote MUC over a constrained link through local proxying of the MUC room.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Kevin Smith</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2012 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Deferred</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2010-11-29</td></tr></table><hr /><p style="color:red">WARNING: Consideration of this document has been <strong>Deferred</strong> by the XMPP Standards Foundation. Implementation of the protocol described herein is not recommended.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#addressing">Addressing</a><br />4.  <a href="#actors">Actors</a><br />5.  <a href="#usecases">Use Cases</a><br />   
+      5.1.  <a href="#joining">Joining</a><br />      
+      5.1.1.  <a href="#joinsuccess">Success case</a><br />      
+      5.1.2.  <a href="#joinfail">Failure case</a><br />      
+      5.1.3.  <a href="#joinmaster">Joining the MUC directly</a><br />   
+      5.2.  <a href="#parting">Parting</a><br />      
+      5.2.1.  <a href="#proxypart">Proxy-connected Users</a><br />      
+      5.2.2.  <a href="#directpart">Direct-connection Users</a><br />      
+      5.2.3.  <a href="#statuschange">Status changes</a><br />   
+      5.3.  <a href="#message">Sending a Message to All Occupants</a><br />      
+      5.3.1.  <a href="#message-ack">Normal use</a><br />      
+      5.3.2.  <a href="#message-noack">Fire and Forget</a><br />   
+      5.4.  <a href="#admin">Administration Use Cases</a><br />6.  <a href="#rules">Business Rules</a><br />7.  <a href="#security">Security Considerations</a><br />8.  <a href="#iana">IANA Considerations</a><br />9.  <a href="#registrar">XMPP Registrar Considerations</a><br />10.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p>MUC uses lots of bandwidth. Sometimes server to server traffic is heavily constrained. This limits the amount of traffic going across s2s through local proxying for remote MUC rooms. It requires no setup in advance, and needs no bandwidth for remote rooms without local occupants. The premise is that a proxy room joins another room, and receives stanzas from the MUC just as anoter occupant would.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p>If appropriately configured, avoid bandwidth use that isn't strictly necessary for message exchange.</p>
+  <p>Allow an endpoint to scale gracefully up to the usual full MUC chat service as bandwidth allows.</p>
+<h2>3.
+       <a name="addressing" id="addressing">Addressing</a></h2>
+  <p>Each local representation has a different address for the federated MUC so that standard XMPP routing rules can be used, and servers do not need to be modified. To generate the JID through which a user can join a federated MUC, the joining client should apply <span class="ref"><a href="http://xmpp.org/extensions/xep-0106.html">JID Escaping</a></span>  [<a href="#nt-id242959">1</a>] to the JID of the MUC, and use this as the node part of a JID with the host of the mirroring domain. For example, if a client is connected to the server 'remote.example.com', which has a mirroring service 'mirror.remote.example.com', and the user wants to join the MUC 'jabberchat@talk.example.com', their client would generate a federated MUC JID of jabberchat\40talk.example.com@mirror.remote.example.com for them to use.</p>
+<h2>4.
+       <a name="actors" id="actors">Actors</a></h2>
+  <p>The following JIDs are used in this document.</p>
+  <ul>
+    <li>example.com - service</li>
+    <li>talk.example.com - MUC service on example.com.</li>
+    <li>curtis@example.com - User on example.com</li>
+    <li>jabberchat@talk.example.com - MUC room.</li>
+
+    <li>remote.example.com - remote service, connected to example.com over constrained link</li>
+    <li>kev@remote.example.com/Swift - user connected to a remote service</li>
+    <li>mirror.remote.example.com - MUC mirroring service on remote.example.com</li>
+    <li>jabberchat\40talk.example.com@mirror.remote.example.com - slave room.</li>
+  </ul>
+  <p></p>
+<h2>5.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <div class="indent"><h3>5.1 <a name="joining" id="joining">Joining</a></h3>
+    <div class="indent"><h3>5.1.1 <a name="joinsuccess" id="joinsuccess">Success case</a></h3>
+<p>kev@remote.example.com/Swift joining jabberchat@talk.example.com through a pre-known mirror.remote.example.com service. At this point mirror.remote.example.com knows nothing of the jabberchat@talk.example.com MUC, and no existing proxying is in place beyond mirror.remote.example.com being willing to proxy for kev@remote.example.com</p>
+
+<p class="caption"><a name="example-1" id="example-1"></a>Example 1. User joins MUC through a proxy</p><div class="indent"><pre class="prettyprint">
+&lt;presence
+    from='kev@remote.example.com/Swift'
+    to='jabberchat\40talk.example.com@mirror.remote.example.com/Kev'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc'/&gt;
+&lt;/presence&gt;
+</pre></div>
+
+<p>mirror.example.com then un-escapes 'jabberchat\40talk.example.com', and joins jabberchat@talk.example.com (the master), saying it's a room mirror.</p>
+
+<p class="caption"><a name="example-2" id="example-2"></a>Example 2. Proxy service joins the target MUC</p><div class="indent"><pre class="prettyprint">
+&lt;presence
+    from='jabberchat\40talk.example.com@mirror.remote.example.com'
+    to='jabberchat@talk.example.com/Kev'&gt;
+  &lt;fmuc xmlns='http://isode.com/protocol/fmuc' from='kev@remote.example.com/Swift' /&gt;
+&lt;/presence&gt;
+</pre></div>
+
+<p>jabberchat@talk.example.com recognises that the mirror service is now mirrorring it, and performs the usual ACL checks as if kev@example.com/Swift had joined directly, sending presence to all occupants as normal. For all in-room routing, the slave is now treated as an occupant, and the slave is expected to do fan-out to its users as it is itself a MUC.</p>
+
+<p class="caption"><a name="example-3" id="example-3"></a>Example 3. MUC confirms room join</p><div class="indent"><pre class="prettyprint">
+&lt;presence
+    from='jabberchat@talk.example.com/Kev'
+    to='jabberchat\40talk.example.com@mirror.remote.example.com'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'&gt;
+    &lt;item affiliation='none' role='participant'/&gt;
+  &lt;/x&gt;
+&lt;/presence&gt;
+</pre></div>
+
+<p>The slave then fans-out.</p>
+
+<p class="caption"><a name="example-4" id="example-4"></a>Example 4. Proxy delivers the join to local users</p><div class="indent"><pre class="prettyprint">
+&lt;presence
+    from='jabberchat\40talk.example.com@mirror.remote.example.com/Kev'
+    to='kev@remote.example.com/Swift'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'&gt;
+    &lt;item affiliation='none' role='participant'/&gt;
+  &lt;/x&gt;
+&lt;/presence&gt;
+</pre></div>
+</div>
+
+    <div class="indent"><h3>5.1.2 <a name="joinfail" id="joinfail">Failure case</a></h3>
+      <p>If the master doesn't allow the user to join, they send the standard MUC error to the slave. Note that for stanzas sent to a user on the slave (such as this join error), it sends to the full MUC JID of the user on the slave, not to the slave room as it does with most other stanzas.</p>
+
+<p class="caption"><a name="example-5" id="example-5"></a>Example 5. Master rejects joins</p><div class="indent"><pre class="prettyprint">
+&lt;presence
+    from='jabberchat@talk.example.com'
+    to='jabberchat\40talk.example.com@mirror.remote.example.com/Kev'
+    type='error'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc'/&gt;
+  &lt;error type='auth'&gt;
+    &lt;registration-required xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/presence&gt;
+</pre></div>
+
+<p>The proxy then delivers this to the user</p>
+
+<p class="caption"><a name="example-6" id="example-6"></a>Example 6. Proxy delivers the join failure to the user</p><div class="indent"><pre class="prettyprint">
+&lt;presence
+    from='jabberchat\40talk.example.com@mirror.remote.example.com'
+    to='kev@remote.example.com/Swift'
+    type='error'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc'/&gt;
+  &lt;error type='auth'&gt;
+    &lt;registration-required xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/presence&gt;
+</pre></div>
+    </div>
+
+    <div class="indent"><h3>5.1.3 <a name="joinmaster" id="joinmaster">Joining the MUC directly</a></h3>
+      <p>Now when a user joins the master directly it will do usual presence distribution to occupants (remembering the slave is an occupant). Status codes are omitted from this example, see <span class="ref"><a href="http://xmpp.org/extensions/xep-0045.html">Multi-User Chat</a></span>  [<a href="#nt-id249478">2</a>] for those.</p>
+
+<p class="caption"><a name="example-7" id="example-7"></a>Example 7. User joins the master MUC directly</p><div class="indent"><pre class="prettyprint">
+&lt;presence
+    from='curtis@example.com/Swift'
+    to='jabberchat@talk.example.com/Curtis'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc'/&gt;
+&lt;/presence&gt;
+</pre></div>
+
+<p class="caption"><a name="example-8" id="example-8"></a>Example 8. MUC delivers the join to its occupants</p><div class="indent"><pre class="prettyprint">
+&lt;presence
+    from='jabberchat@talk.example.com/Curtis'
+    to='curtis@example.com/Swift'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'&gt;
+    &lt;item affiliation='owner' role='moderator'/&gt;
+  &lt;/x&gt;
+&lt;/presence&gt;
+
+&lt;presence
+    from='jabberchat@talk.example.com/Curtis'
+    to='jabberchat\40talk.example.com@mirror.remote.example.com'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'&gt;
+    &lt;item affiliation='admin' role='moderator'/&gt;
+  &lt;/x&gt;
+&lt;/presence&gt;
+</pre></div>
+      
+<p class="caption"><a name="example-9" id="example-9"></a>Example 9. Proxy delivers join to its occupants</p><div class="indent"><pre class="prettyprint">
+&lt;presence
+    from='jabberchat\40talk.example.com@mirror.remote.example.com/Curtis'
+    to='kev@remote.example.com/Swift'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'&gt;
+    &lt;item affiliation='owner' role='moderator'/&gt;
+  &lt;/x&gt;
+&lt;/presence&gt;
+</pre></div>
+    </div>
+</div>
+
+  <div class="indent"><h3>5.2 <a name="parting" id="parting">Parting</a></h3>
+    <div class="indent"><h3>5.2.1 <a name="proxypart" id="proxypart">Proxy-connected Users</a></h3>
+      <p>The flow for a user leaving the proxy room is much the same as joining the proxy room:</p>
+      <p class="caption"><a name="example-10" id="example-10"></a>Example 10. User leaves the proxy room</p><div class="indent"><pre class="prettyprint">
+&lt;presence
+    from='kev@remote.example.com/Swift'
+    to='jabberchat\40talk.example.com@mirror.remote.example.com/Kev'
+    type='unavailable'/&gt;
+</pre></div>
+
+      <p class="caption"><a name="example-11" id="example-11"></a>Example 11. Proxy sends part to the MUC</p><div class="indent"><pre class="prettyprint">
+&lt;presence
+    from='jabberchat\40talk.example.com@mirror.remote.example.com'
+    to='jabberchat@talk.example.com/Kev'
+    type='unavailable'/&gt;
+</pre></div>
+
+      <p class="caption"><a name="example-12" id="example-12"></a>Example 12. MUC transmits part to occupants</p><div class="indent"><pre class="prettyprint">
+&lt;presence
+    from='jabberchat@talk.example.com/Kev'
+    to='jabberchat\40talk.example.com@mirror.remote.example.com'
+    type='unavailable'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'&gt;
+    &lt;item affiliation='none' role='none'/&gt;
+  &lt;/x&gt;
+&lt;/presence&gt;
+
+&lt;presence
+    from='jabberchat@talk.example.com/Kev'
+    to='curtis@example.com/Swift'
+    type='unavailable'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'&gt;
+    &lt;item affiliation='none' role='none'/&gt;
+  &lt;/x&gt;
+&lt;/presence&gt;
+</pre></div>
+
+      <p class="caption"><a name="example-13" id="example-13"></a>Example 13. Proxy sends part to local users</p><div class="indent"><pre class="prettyprint">
+&lt;presence
+    from='jabberchat\40talk.example.com@mirror.remote.example.com/Kev'
+    to='kev@remote.example.com/Swift''
+    type='unavailable'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'&gt;
+    &lt;item affiliation='none' role='none'/&gt;
+    &lt;status code='110'/&gt;
+  &lt;/x&gt;
+&lt;/presence&gt;
+</pre></div>
+
+
+
+      <p>When the master MUC receives a parting presence from the only user of the proxy, the proxy itself also leaves the room. This means that as long as no users of the proxy are in the room, it is causing no traffic on the s2s link.</p>
+    </div>
+
+
+    <div class="indent"><h3>5.2.2 <a name="directpart" id="directpart">Direct-connection Users</a></h3>
+      <p>Distribution of presence for users parting when connected directly to the MUC is identical to distribution of presence for users joining directly to the MUC.</p>
+    </div>
+
+    <div class="indent"><h3>5.2.3 <a name="statuschange" id="statuschange">Status changes</a></h3>
+      <p>Distribution of presence for users changing status is the same as that for joining and parting.</p>
+    </div>
+
+
+  </div>
+
+  <div class="indent"><h3>5.3 <a name="message" id="message">Sending a Message to All Occupants</a></h3>
+    <div class="indent"><h3>5.3.1 <a name="message-ack" id="message-ack">Normal use</a></h3>
+      <p>Normal fan-out like presence</p>
+      <p class="caption"><a name="example-14" id="example-14"></a>Example 14. Proxy user sends a message to the room</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='kev@remote.example.com/Swift'
+    to='jabberchat\40talk.example.com@mirror.remote.example.com'
+    type='groupchat'&gt;
+  &lt;body&gt;[[Unclassified]] It's getting warm in here.&lt;/body&gt;
+&lt;/message&gt;
+</pre></div>
+      <p class="caption"><a name="example-15" id="example-15"></a>Example 15. Proxy sends the message to the MUC</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='jabberchat\40talk.example.com@mirror.remote.example.com/Kev'
+    to='jabberchat@talk.example.com'
+    type='groupchat'&gt;
+  &lt;body&gt;[[Unclassified]] It's getting warm in here.&lt;/body&gt;
+&lt;/message&gt;
+</pre></div>
+      <p>If the proxy is not using fire and forget mode (see below), it MUST NOT fan out this message to local users until it receives the message copy from the MUC.</p>
+      <p class="caption"><a name="example-16" id="example-16"></a>Example 16. MUC sends the message to the occupants</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='jabberchat@talk.example.com'
+    to='jabberchat\40talk.example.com@mirror.remote.example.com'
+    type='groupchat'&gt;
+  &lt;body&gt;[[Unclassified]] It's getting warm in here.&lt;/body&gt;
+&lt;/message&gt;
+
+&lt;message
+    from='jabberchat@talk.example.com'
+    to='curtis@example.com/Swift'
+    type='groupchat'&gt;
+  &lt;body&gt;[[Unclassified]] It's getting warm in here.&lt;/body&gt;
+&lt;/message&gt;
+</pre></div>
+      <p>When receiving the message copy, the proxy MUST then distribute to proxied occupants.</p>
+      <p class="caption"><a name="example-17" id="example-17"></a>Example 17. Proxy sends the message to the proxied users</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='jabberchat\40talk.example.com@mirror.remote.example.com/Kev'
+    to='kev@remote.example.com/Swift'
+    type='groupchat'&gt;
+  &lt;body&gt;[[Unclassified]] It's getting warm in here.&lt;/body&gt;
+&lt;/message&gt;
+</pre></div>
+    </div>
+    <div class="indent"><h3>5.3.2 <a name="message-noack" id="message-noack">Fire and Forget</a></h3>
+      <p>When dealing with very constrained s2s links, the extra round-trip involved with the MUC sending the message back to the proxy may be unacceptable. In this case, the proxy MAY include the &lt;nomirror&gt; element. If the MUC receives a message from a proxy with &lt;nomirror&gt;, it MUST NOT resend this message to the proxy during its usual fan-out, but MUST send it to other occupants as usual. If sending a message with &lt;nomirror&gt;, the proxy MUST perform fan-out as if the MUC had sent the message back to it.</p>
+      <p>Note that this use introduces unfortunate side-effects, such as messages appearing out of order, depending on whether connected directly to the MUC, or through a proxy. Also, messages rejected by the MUC may already have been delivered to users on a proxy. As such, a proxy SHOULD only use &lt;nomirror&gt; in environments where these side-effects are understood.</p>
+      <p class="caption"><a name="example-18" id="example-18"></a>Example 18. Proxy user sends a message to the room</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='kev@remote.example.com/Swift'
+    to='jabberchat\40talk.example.com@mirror.remote.example.com'
+    type='groupchat'&gt;
+  &lt;body&gt;[[Unclassified]] It's getting warm in here.&lt;/body&gt;
+&lt;/message&gt;
+</pre></div>
+      <p class="caption"><a name="example-19" id="example-19"></a>Example 19. Proxy sends the message to the MUC</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='jabberchat\40talk.example.com@mirror.remote.example.com/Kev'
+    to='jabberchat@talk.example.com'
+    type='groupchat'&gt;
+  &lt;body&gt;[[Unclassified]] It's getting warm in here.&lt;/body&gt;
+  &lt;nomirror xmlns='http://isode.com/protocol/fmuc'/&gt;
+&lt;/message&gt;
+</pre></div>
+      <p>If the proxy is using fire and forget mode, it MUST fan out this message to local users now, instead of waiting  until it receives the message copy from the MUC.</p>
+      <p class="caption"><a name="example-20" id="example-20"></a>Example 20. Proxy sends the message to the proxied users</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='jabberchat\40talk.example.com@mirror.remote.example.com/Kev'
+    to='kev@remote.example.com/Swift'
+    type='groupchat'&gt;
+  &lt;body&gt;[[Unclassified]] It's getting warm in here.&lt;/body&gt;
+&lt;/message&gt;
+</pre></div>
+      <p>Because this is fire and forget mode, the MUC now MUST NOT send the message back to the proxy, but MUST send to the other occupants.</p>
+      <p class="caption"><a name="example-21" id="example-21"></a>Example 21. MUC sends the message to the other occupants</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='jabberchat@talk.example.com/Kev'
+    to='curtis@example.com/Swift'
+    type='groupchat'&gt;
+  &lt;body&gt;[[Unclassified]] It's getting warm in here.&lt;/body&gt;
+&lt;/message&gt;
+</pre></div>
+    </div>
+    
+  </div>
+
+  <div class="indent"><h3>5.4 <a name="admin" id="admin">Administration Use Cases</a></h3>
+    <p>To perform administration of the MUC, connect directly to the MUC and follow the standard process.</p>
+  </div>
+
+<h2>6.
+       <a name="rules" id="rules">Business Rules</a></h2>
+  <ul>
+    <li>To avoid complexity of protocol, the MUC MUST NOT modify the nick of a user joining from a proxy - if their JID is unacceptable, the join must instead fail (this simplifies the passing of status codes between the MUC and the proxy).</li>
+    <li>Similarly to avoid complexity and round-trips, nick-changing is not allowed for users connected through a proxy. If a user attempts to change their nick, the proxy MUST return a &lt;not-acceptable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt; error.</li>
+  </ul>
+<h2>7.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p>This allows a MUC mirror to proxy for another JID, so should only be deployed in scenarios where either the proxy service is trusted, or it is known that the users of the proxy service are in the same security domain as the proxy service.</p>
+<h2>8.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p>None.</p>
+<h2>9.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p>Needs a namespace.</p>
+<h2>10.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p>When advanced.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0289<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2010-11-29<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0045<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: FMUC<br />
+              Source Control: 
+                <a class="standardsButton" href="http://gitorious.org/xmpp/xmpp/blobs/master/extensions/xep-0289.xml">HTML</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0289.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0289.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Kevin Smith</h3><p class="indent">
+        Email:
+        <a href="mailto:kevin.smith@isode.com">kevin.smith@isode.com</a><br />
+        JabberID: 
+        <a href="xmpp:kevin.smith@isode.com">kevin.smith@isode.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2012 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/">http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/</a>&gt; or obtained by writing to XMPP Standards Foundation, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id242959" id="nt-id242959">1</a>. XEP-0106: JID Escaping &lt;<a href="http://xmpp.org/extensions/xep-0106.html">http://xmpp.org/extensions/xep-0106.html</a>&gt;.</p><p><a name="nt-id249478" id="nt-id249478">2</a>. XEP-0045: Multi-User Chat &lt;<a href="http://xmpp.org/extensions/xep-0045.html">http://xmpp.org/extensions/xep-0045.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2010-11-29)</h4><div class="indent"><p>Initial published version.</p> (psa)
+    </div><h4>Version 0.0.1 (2010-05-24)</h4><div class="indent"><p>First draft.</p> (kis)
+    </div></div><hr /><p>END</p></body></html>

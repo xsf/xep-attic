@@ -1,0 +1,395 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0198: Stream Management</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><meta name="DC.Title" content="Stream Management" /><meta name="DC.Creator" content="Justin Karneges" /><meta name="DC.Creator" content="Joe Hildebrand" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Description" content="This specification defines an XMPP protocol extension for active management of an XML stream between two XMPP entities, including features for stanza acknowledgements and stream resumption." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2009-03-30" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0198" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2009 by the XMPP Standards Foundation (XSF)." /></head><body><h1>XEP-0198: Stream Management</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines an XMPP protocol extension for active management of an XML stream between two XMPP entities, including features for stanza acknowledgements and stream resumption.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Justin Karneges, Joe Hildebrand, Peter Saint-Andre</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2009 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.7</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2009-03-30</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems should not deploy implementations of this protocol until it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#feature">Stream Feature</a><br />3.  <a href="#enable">Enabling Stream Management</a><br />4.  <a href="#acking">Acks</a><br />5.  <a href="#resumption">Resumption</a><br />6.  <a href="#errors">Error Handling</a><br />7.  <a href="#scenarios">Scenarios</a><br />   
+      7.1.  <a href="#scenarios-basic">Basic Acking</a><br />8.  <a href="#security">Security Considerations</a><br />9.  <a href="#iana">IANA Considerations</a><br />10.  <a href="#registrar">Jabber Registrar Considerations</a><br />   
+      10.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      10.2.  <a href="#registrar-versioning">Protocol Versioning</a><br />   
+      10.3.  <a href="#registrar-stream">Stream Features</a><br />11.  <a href="#schemas">XML Schemas</a><br />12.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style=""><span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3920">XMPP Core</a></span>  [<a href="#nt-id2251648">1</a>] defines the fundamental streaming XML technology used by XMPP (i.e., stream establishment and termination including authentication and encryption). However, the core XMPP specification does not provide tools for actively managing a "live" XML stream. In particular, the following management features might improve network reliability and the end-user experience (especially when connectivity is infrequent):</p>
+  <ul class="" style="">
+    <li class="" style="">Acks -- the ability to know if a stanza or series of stanzas has been received by one's peer.</li>
+    <li class="" style="">Resumption -- the ability to quickly resume a stream that has been terminated.</li>
+  </ul>
+  <p class="" style="">The basic concept behind stream management is that the initiating entity (either a client or a server) and the receiving entity (a server) can exchange commands for active management of the stream. Instead of using XMPP IQ, message, or presence stanzas (which are relatively verbose), stream management uses a series of short XML elements at the root stream level.</p>
+  <p class="" style="">The benefits to be gained from stream management include the following:</p>
+  <ul class="" style="">
+    <li class="" style="">Ability to take alternate action if the peer has not acknowledged handling of a stanza, such as storing and delivering again later.</li>
+    <li class="" style="">Servers can send stanzas with the same to/from JID pair on separate server-to-server TCP channels, as long as the sent stanzas have been acknowledged as handled.</li>
+  </ul>
+  <p class="" style="">Detailed descriptions of these features are provided in the remainder of this specification.</p>
+  <p class="" style="">Note: To check TCP connectivity for a given stream, it is RECOMMENDED to use <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0199.html">XMPP Ping</a></span>  [<a href="#nt-id2251774">2</a>], whitespace pings (see Section 5.7.3 of <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-saintandre-rfc3920bis">rfc3920bis</a></span>  [<a href="#nt-id2262426">3</a>]), or TCP keepalives.</p>
+  <p class="" style="">Note: This specification applies at the level of an XML stream between a client and a server or between a server and a peer server. By constrast, <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0079.html">Advanced Message Processing</a></span>  [<a href="#nt-id2262463">4</a>] and <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0184.html">Message Receipts </a></span>  [<a href="#nt-id2262487">5</a>] define acks that are sent end-to-end over multiple streams; these facilities are useful in special scenarios but are unnecessary for checking of a direct stream between two XMPP entities. (It is also expected that this protocol will revive interest in Advanced Message Processing (AMP), because single-hop acks are necessary for AMP delivery receipts to function properly.)</p>
+<h2>2.
+       <a name="feature" id="feature">Stream Feature</a></h2>
+  <p class="" style="">After negotiating use of TLS and authenticating via SASL, the receiving entity returns a new stream header to the intiating entity along with stream features, where the features include an &lt;sm/&gt; element qualified by the 'urn:xmpp:sm:1' namespace (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number).</p>
+  <p class="" style="">The stream management feature MUST NOT be offered unless the initiating entity has been authenticated via SASL, <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0078.html">Non-SASL Authentication</a></span>  [<a href="#nt-id2262550">6</a>], or <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0220.html">Server Dialback</a></span>  [<a href="#nt-id2262580">7</a>].</p>
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Server sends new stream header along with stream features</p><div class="indent"><pre>
+&lt;stream:stream
+    to='example.com'
+    xmlns='jabber:client'
+    xmlns:stream='http://etherx.jabber.org/streams'
+    version='1.0'&gt;
+
+&lt;stream:features&gt;
+  &lt;bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'&gt;
+    &lt;required/&gt;
+  &lt;/bind&gt;
+  &lt;sm xmlns='urn:xmpp:sm:1'&gt;
+    &lt;optional/&gt;
+  &lt;/sm&gt;
+&lt;/stream:features&gt;
+  </pre></div>
+  <p class="" style="">The &lt;sm/&gt; element MAY include a 'stanzas' attribute whose value indicates the server's preferred maximum number of received stanzas between acks. For example, if the 'stanzas' attribute has a value of "10" then a server would prefer that a connected client request an ack after the client has sent at most ten stanzas to the server.</p>
+  <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Stream features with stanzas attribute</p><div class="indent"><pre>
+&lt;stream:features&gt;
+  &lt;bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'&gt;
+    &lt;required/&gt;
+  &lt;/bind&gt;
+  &lt;sm xmlns='urn:xmpp:sm:1' stanzas='10'&gt;
+    &lt;optional/&gt;
+  &lt;/sm&gt;
+&lt;/stream:features&gt;
+  </pre></div>
+  <p class="" style="">If the receiving entity offers stream resumption in addition to stanza acks, the &lt;sm/&gt; element MUST include a 'max' attribute that specifies the longest allowable time period for session resumption (in seconds).</p>
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Stream features for resumption</p><div class="indent"><pre>
+&lt;stream:features&gt;
+  &lt;bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'&gt;
+    &lt;required/&gt;
+  &lt;/bind&gt;
+  &lt;sm xmlns='urn:xmpp:sm:1' max='600' stanzas='10'&gt;
+    &lt;optional/&gt;
+  &lt;/sm&gt;
+&lt;/stream:features&gt;
+  </pre></div>
+<h2>3.
+       <a name="enable" id="enable">Enabling Stream Management</a></h2>
+  <p class="" style="">To enable use of stream management, the client sends an &lt;enable/&gt; command to the server.</p>
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Client enables stream management</p><div class="indent"><pre>
+&lt;enable xmlns='urn:xmpp:sm:1'/&gt;
+  </pre></div>
+  <p class="" style="">If the client wants to be allowed to resume the stream, it includes a boolean 'resume' attribute, which defaults to false  [<a href="#nt-id2262677">8</a>]. For information about resuming a previous session, see the <a href="#resumption">Resumption</a> section of this document.</p>
+  <p class="" style="">Upon receiving the enable request, the receiving entity MUST reply with an &lt;enabled/&gt; element or a &lt;failed/&gt; element qualified by the 'urn:xmpp:sm:1' namespace. The &lt;failed/&gt; element indicates that there was a problem enabling the stream management "session". The &lt;enabled/&gt; element indicates successful enabling of the stream management session.</p>
+  <p class="" style="">For client-to-server connections, the client SHOULD NOT attempt to enable stream management until after it has completed Resource Binding. The server MAY enforce this order and return a &lt;failed/&gt; element in response (see <a href="#errors">Error Handling</a>).</p>
+  <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Server returns error if client attempts to enable stream management before resource binding</p><div class="indent"><pre>
+&lt;failed xmlns='urn:xmpp:sm:1'&gt;
+  &lt;unexpected-request xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+&lt;/failed&gt;
+  </pre></div>
+  <p class="" style="">If session resumption is allowed, the receiving entity MUST include a 'resume' attribute set to a value of "true" or "1".</p>
+  <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Server enables stream management</p><div class="indent"><pre>
+&lt;enabled xmlns='urn:xmpp:sm:1' resume='true'/&gt;
+  </pre></div>
+  <p class="" style="">The parties can then the use stream management features defined below.</p>
+<h2>4.
+       <a name="acking" id="acking">Acks</a></h2>
+  <p class="" style="">After enabling the feature, the initiating or receiving entity can send ack elements at any time over the stream. An ack element is one of the following:</p>
+  <ul class="" style="">
+    <li class="" style="">The &lt;r/&gt; element is used to <span class="strong">request</span> acknowledgement of received stanzas.</li>
+    <li class="" style="">The &lt;a/&gt; element is used to <span class="strong">answer</span> a request for acknowledgement.</li>
+  </ul>
+  <p class="" style="">The &lt;r/&gt; and &lt;a/&gt; elements are qualified by the 'urn:xmpp:sm:1' namespace.</p>
+  <p class="" style="">The following attributes are defined:</p>
+  <ul class="" style="">
+    <li class="" style="">The 'u' attribute identifies the last <span class="strong">unacknowledged</span> stanza (i.e., the last stanza generated by the sender which has not yet been acknowledged as handled by the peer). It is an integer value generated by the sender and MUST be strictly increasing.</li>
+    <li class="" style="">The 'h' attribute identifies the last <span class="strong">handled</span> stanza (i.e., the last stanza that the receiver will acknowledge as having handled). It is an integer value that corresponds to the 'u' attribute of the last received &lt;r/&gt; element.</li>
+  </ul>
+  <p class="" style="">An &lt;r/&gt; element MUST contain a 'u' attribute and MAY contain an 'h' attribute.</p>
+  <p class="" style="">An &lt;a/&gt; element MUST contain an 'h' attribute and MAY contain a 'u' attribute.</p>
+  <p class="" style="">Therefore an ack element is used to indicate an unacknowledged sequence number (contains 'u'), to acknowledge a sequence number (contains 'h'), or to do both at once (contains 'u' and contains 'h').</p>
+  <p class="def" style=""><span class="strong">Definition:</span> Acknowledging a previously-received ack element indicates that the stanza(s) sent since then have been "handled" by the receiver. By "handled" we mean that the stanzas have been either processed directly by the receiver, delivered to a local entity such as another connected client on the same server, or routed to a remote entity at a different server. Acking a stanza does not necessarily indicate that the stanza has been successfully delivered to the intended recipient, only that it has been handled by the entity at the other end of an XML stream.</p>
+  <p class="caption"><a name="example-7" id="example-7"></a>Example 7. A message with a request</p><div class="indent"><pre>
+&lt;message from='laurence@example.net/churchyard'
+         to='juliet@example.com'
+         xml:lang='en'&gt;
+  &lt;body&gt;
+    I'll send a friar with speed, to Mantua, 
+    with my letters to thy lord.
+  &lt;/body&gt;
+&lt;/message&gt;
+&lt;r xmlns='urn:xmpp:sm:1' u='1'/&gt;
+  </pre></div>
+  <p class="box" style="">Note: Ack elements SHOULD be sent immediately after sending an XMPP stanza. In particular, if a request is received, an applications MAY wait a short period for something else to send before responding, so that the response can be sent with the other data.</p>
+  <p class="" style="">When an &lt;r/&gt; element ("request") is received, the recipient MUST acknowledge it by sending an ack element (either &lt;a/&gt; or &lt;r/&gt;) to the sender. The sender does not have to wait for an ack to continue sending stanzas. The response MUST contain a value of 'h' that is greater than or equal to the 'u' value given in the request. The response SHOULD be sent as soon as possible, and MUST NOT be withheld for any condition other than a timeout. For example, a client with a slow connection might want to collect many stanzas over a period of time before acking, and a server might want to throttle incoming stanzas. Because acks indicate stanza acceptance, a server that is throttling stanzas MUST delay the response until the client is no longer being penalized.</p>
+  <p class="" style="">When a recipient receives a sequence number for unacknowledged stanzas (via the 'u' attribute), the recipient SHOULD keep a record of this value as the last received sequence number for the current stream. Every time a new sequence number is received, the previous number SHOULD be discarded. If a stream ends and it is not resumed within the time specified in the acknowledgement feature element, the sequence number and any associated state MAY be discarded. Before the session state is discarded, implementations SHOULD take alternative action regarding any unacknowledged stanzas (e.g. stanzas sent after the latest sequence number reported by 'h'). A server implementation SHOULD treat unacknowledged stanzas in the same way that it would treat a stanza sent to an unavailable resource, by either returning an error to the sender or committing the stanza to offline storage. A user-oriented client implementation SHOULD inform the user of the failure via appropriate user-interface elements.</p>
+  <p class="caption"><a name="example-8" id="example-8"></a>Example 8. An ack</p><div class="indent"><pre>
+&lt;a xmlns='urn:xmpp:sm:1' h='1'/&gt;
+  </pre></div>
+<h2>5.
+       <a name="resumption" id="resumption">Resumption</a></h2>
+  <p class="" style="">It can happen that an XML stream is terminated unexpectedly (e.g., because of network outages). In this case, it is desirable to quickly resume the former stream rather than complete the tedious process of stream establishment, roster retrieval, and presence broadcast.</p>
+  <p class="" style="">To request that the stream will be resumable, when enabling stream management the initiating entity MUST add a 'resume' attribute to the &lt;enable/&gt; element with a value of "true" or "1"  [<a href="#nt-id2263035">9</a>].</p>
+  <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Client enables stream management</p><div class="indent"><pre>
+&lt;enable xmlns='urn:xmpp:sm:1' resume='true'/&gt;
+  </pre></div>
+  <p class="" style="">If the receiving entity will allow the stream to be resumed, it MUST include a 'resume' attribute set to "true" or "1" on the &lt;enabled/&gt; element and MUST include an 'id' attribute that specifies an identifier for the stream.</p>
+  <p class="caption"><a name="example-10" id="example-10"></a>Example 10. Server allows stream resumption</p><div class="indent"><pre>
+&lt;enabled xmlns='urn:xmpp:sm:1' id='some-long-sm-id' resume='true'/&gt;
+  </pre></div>
+  <p class="def" style=""><span class="strong">Definition:</span> The 'id' attribute defines a unique identifier for purposes of stream management (an "SM-ID"). The SM-ID MUST be generated by the receiving entity (server). The initiating entity MUST consider the SM-ID to be opaque and therefore MUST NOT assign any semantic meaning to the SM-ID. The receiving entity MAY encode any information it deems useful into the SM-ID, such as the full JID &lt;localpart@domain.tld/resource&gt; of a connected client (e.g., the full JID plus a nonce value). Any characters allowed in an XML attribute are allowed. The SM-ID MUST NOT be reused for simultaneous or subsequent sessions (as long as the receiving entity is available). The SM-ID SHOULD NOT be longer than 4000 bytes.</p>
+  <p class="" style="">If the stream is terminated unexpectedly, the initiating entity would then open a TCP connection to the receiving entity. The order of events is envisioned to be as follows:</p>
+  <ol start="1" class="" style="">
+    <li class="" style="">Initiating entity sends initial stream header.</li>
+    <li class="" style="">Receiving entity sends response stream header.</li>
+    <li class="" style="">Receiving entity sends stream features.</li>
+    <li class="" style="">Initiating entity sends STARTTLS request.</li>
+    <li class="" style="">Receiving entity informs initiating entity to proceed with the TLS negotiation.</li>
+    <li class="" style="">The parties complete a TLS handshake. (Note: When performing session resumption and also utilizing TLS, it is RECOMMENDED to take advantage of TLS session resumption to further optimize the resumption of the XML stream.)</li>
+    <li class="" style="">Initiating entity sends new initial stream header.</li>
+    <li class="" style="">Receiving entity sends response stream header.</li>
+    <li class="" style="">Receiving entity sends stream features, requiring SASL negotiation and offering appropriate SASL mechanisms. (Note: If the server considers the information provided during TLS session resumption to be sufficient authentication, it MAY offer the SASL EXTERNAL mechanism; for details, refer to <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-cridland-sasl-tls-sessions">draft-cridland-sasl-tls-sessions</a></span>  [<a href="#nt-id2263272">10</a>].)</li>
+    <li class="" style="">The parties complete SASL negotiation.</li>
+    <li class="" style="">Initiating entity sends new initial stream header.</li>
+    <li class="" style="">Receiving entity sends response stream header.</li>
+    <li class="" style="">Receiving entity sends stream features, offering the SM feature.</li>
+    <li class="" style="">Initiating entity requests resumption of the former stream.</li>
+  </ol>
+  <p class="" style="">To request resumption of the former stream, the initiating entity sends a &lt;resume/&gt; element qualified by the 'urn:xmpp:sm:1' namespace. This element MUST include a 'previd' attribute whose value is the SM-ID of the former stream and SHOULD include an 'h' attribute that identifies the last acknowledged sequence number sent over the former stream from the receiving entity to the initiating entity.</p>
+  <p class="caption"><a name="example-11" id="example-11"></a>Example 11. Stream resumption request</p><div class="indent"><pre>
+&lt;resume xmlns='urn:xmpp:sm:1' previd='some-long-sm-id' h='foo'/&gt;
+  </pre></div>
+  <p class="" style="">If the receiving entity can resume the former stream, it MUST return a &lt;resumed/&gt; element that includes a 'previd' attribute set to the SM-ID of the former stream.</p>
+  <p class="" style="">If the receiving entity does not support session resumption, it MUST return a &lt;failed/&gt; element, which SHOULD include an error condition of &lt;feature-not-implemented/&gt;. If the receiving entity does not recognize the 'previd' as an earlier session (e.g., because the former session has timed out), it MUST return a &lt;failed/&gt; element, which SHOULD include an error condition of &lt;item-not-found/&gt;. In both of these failure cases, the receiving entity SHOULD allow the initiating entity to bind a resource at this point rather than forcing the initiating entity to restart the stream and re-authenticate.</p>
+  <p class="" style="">The &lt;resumed/&gt; element MAY also include an 'h' attribute set to the last acknowledged sequence number sent over the former stream from the initiating entity to the receiving entity. If there is no known last acknowledged sequence number for the former stream, then the 'h' attribute MUST NOT be included.</p>
+  <p class="" style="">If the former stream is resumed and the receiving entity still has the stream for the previously-identified session open at this time, the old stream SHOULD be terminated.</p>
+  <p class="caption"><a name="example-12" id="example-12"></a>Example 12. Stream resumed</p><div class="indent"><pre>
+&lt;resumed xmlns='urn:xmpp:sm:1' previd='some-long-sm-id'/&gt;
+  </pre></div>
+  <p class="" style="">When a session is resumed, the parties SHOULD proceed as follows:</p>
+  <ul class="" style="">
+    <li class="" style="">Both parties SHOULD retransmit any stanzas that were not accepted during the previous session, based on the last acknowledged sequence number reported by the peer.</li>
+    <li class="" style="">A reconnecting client SHOULD NOT request the roster, because any roster changes that occurred while the client was disconnected will be sent to the client after the stream resumes.</li>
+    <li class="" style="">The client SHOULD NOT resend presence stanzas in an attempt to restore its former presence state, since this state will have been retained by the server.</li>
+  </ul>
+<h2>6.
+       <a name="errors" id="errors">Error Handling</a></h2>
+  <p class="" style="">If an error occurs with regard to an &lt;enable/&gt; or &lt;resume/&gt; element, the receiving entity MUST return a &lt;failed/&gt; element. This element SHOULD contain an error condition, which MUST be one of the stanza error conditions defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-saintandre-rfc3920bis">rfc3920bis</a></span>  [<a href="#nt-id2263451">11</a>].</p>
+  <p class="" style="">An example follows.</p>
+  <p class="caption"><a name="example-13" id="example-13"></a>Example 13. Server returns error</p><div class="indent"><pre>
+&lt;failed xmlns='urn:xmpp:sm:1'&gt;
+  &lt;unexpected-request xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+&lt;/failed&gt;
+  </pre></div>
+  <p class="" style="">In addition, the &lt;pong/&gt; element MAY contain an error condition.</p>
+  <p class="" style="">Stream management errors SHOULD be considered recoverable; however, misuse of stream management MAY result in termination of the stream.</p>
+<h2>7.
+       <a name="scenarios" id="scenarios">Scenarios</a></h2>
+  <p class="" style="">The following scenarios illustrate several different uses of stream management. The examples are that of a client and a server, but stream management can also be used for server-to-server streams.</p>
+
+  <div class="indent"><h3>7.1 <a name="scenarios-basic" id="scenarios-basic">Basic Acking</a></h3>
+    <p class="" style="">The Stream Management protocol can be used to improve reliability using acks without the ability to resume a session. In fact, a basic implementation might not even care about sequence numbers and therefore would do the following:</p>
+    <ul class="" style="">
+      <li class="" style="">As an initiating entity, send &lt;enable/&gt; with no attributes, and ignore the attributes on the &lt;enabled/&gt; response.</li>
+      <li class="" style="">As a receiving entity, ignore the attributes on the &lt;enable/&gt; element received, and respond via &lt;enabled/&gt; with no attributes.</li>
+      <li class="" style="">When receiving an &lt;r/&gt; or &lt;a/&gt; element with a 'u' attribute, immediately respond via an &lt;a/&gt; element where the value of 'h' sent is the value of 'u' received.</li>
+      <li class="" style="">Keep an integer X for this stream session, initially set to zero. When about to send a stanza, first put the stanza (paired with the current value of X) in an "unacknowleged" queue. Then send the stanza over the wire with &lt;r u='[value of X]'/&gt; to request acknowledgement of that outbond stanza, and increment X by 1. When receiving an &lt;r/&gt; or &lt;a/&gt; element with an 'h' attribute, all stanzas whose paired value (X at the time of queueing) is less than or equal to the value of 'h' can be removed from the unacknowledged queue.</li>
+    </ul>
+    <p class="" style="">This is enough of an implementation to minimally satisfy the peer, and allows basic tracking of each outbound stanza. If the stream connection is broken, the application has a queue of unacknowledged stanzas that it can choose to handle appropriately (e.g., warned a human user or silently sending on reconnect).</p>
+    <p class="" style="">The following examples illustrate basic acking.</p>
+    <p class="" style="">First, after authentication and resource binding, the client enables stream management.</p>
+    <p class="caption"><a name="example-14" id="example-14"></a>Example 14. Client enables stream management</p><div class="indent"><pre>
+&lt;enable xmlns='urn:xmpp:sm:1'/&gt;
+    </pre></div>
+    <p class="" style="">The server then enables stream management.</p>
+  <p class="caption"><a name="example-15" id="example-15"></a>Example 15. Server enables stream management</p><div class="indent"><pre>
+&lt;enabled xmlns='urn:xmpp:sm:1'/&gt;
+    </pre></div>
+    <p class="" style="">The client then retrieves its roster and immediately sends an &lt;r/&gt; element to request acknowledgement.</p>
+    <p class="caption"><a name="example-16" id="example-16"></a>Example 16. Client sends a stanza and requests acknowledgement</p><div class="indent"><pre>
+&lt;iq id='ls72g593' type='get'&gt;
+  &lt;query xmlns='jabber:iq:roster'/&gt;
+&lt;/iq&gt;
+&lt;r xmlns='urn:xmpp:sm:1' u='1'/&gt;
+    </pre></div>
+    <p class="" style="">The server returns the roster and immediately sends an &lt;a/&gt; element to acknowledge handling of the stanza.</p>
+    <p class="caption"><a name="example-17" id="example-17"></a>Example 17. Server sends a stanza and acknowledges handling of client stanza</p><div class="indent"><pre>
+&lt;iq id='ls72g593' type='result'&gt;
+  &lt;query xmlns='jabber:iq:roster'&gt;
+    &lt;item jid='juliet@capulet.lit'/&gt;
+    &lt;item jid='benvolio@montague.lit'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+&lt;a xmlns='urn:xmpp:sm:1' u='1'/&gt;
+    </pre></div>
+    <p class="" style="">The client then sends initial presence and immediately sends an &lt;r/&gt; element to request acknowledgement, incrementing the 'u' attribute by one.</p>
+    <p class="caption"><a name="example-18" id="example-18"></a>Example 18. Client sends a stanza and requests acknowledgement</p><div class="indent"><pre>
+&lt;presence/&gt;
+&lt;r xmlns='urn:xmpp:sm:1' u='2'/&gt;
+    </pre></div>
+    <p class="" style="">The server handles the stanza by broadcasting the user's presence and immediately sends an &lt;a/&gt; element to acknowledge handling of the stanza.</p>
+    <p class="caption"><a name="example-19" id="example-19"></a>Example 19. Server sends a stanza and acknowledges handling of client stanza</p><div class="indent"><pre>
+&lt;presence from='romeo@montague.lit/orchard' to='romeo@montague.lit/orchard'/&gt;
+&lt;a xmlns='urn:xmpp:sm:1' u='2'/&gt;
+    </pre></div>
+    <p class="" style="">The client then sends an outbound message and an &lt;r/&gt; element.</p>
+    <p class="caption"><a name="example-20" id="example-20"></a>Example 20. Client sends a stanza and requests acknowledgement</p><div class="indent"><pre>
+&lt;message to='juliet@capulet.lit'&gt;
+  &lt;body&gt;ciao!&lt;/body&gt;
+&lt;/message&gt;
+&lt;r xmlns='urn:xmpp:sm:1' u='3'/&gt;
+    </pre></div>
+    <p class="" style="">The server handles the stanza by routing it to the remote contact and immediately sends an &lt;a/&gt; element to acknowledge handling of the stanza.</p>
+    <p class="caption"><a name="example-21" id="example-21"></a>Example 21. Server acknowledges handling of the stanza</p><div class="indent"><pre>
+&lt;a xmlns='urn:xmpp:sm:1' u='3'/&gt;
+    </pre></div>
+    <p class="" style="">And so on.</p>
+  </div>
+
+<h2>8.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">To follow.</p>
+<h2>9.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This XEP requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id2263832">12</a>]. </p>
+<h2>10.
+       <a name="registrar" id="registrar">Jabber Registrar Considerations</a></h2>
+  <div class="indent"><h3>10.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:sm:1</li>
+    </ul>
+    <p class="" style="">Upon advancement of this specification from a status of Experimental to a status of Draft, the <span class="ref" style=""><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id2263907">13</a>] shall add the foregoing namespaces to the registry located at &lt;<a href="http://xmpp.org/registrar/namespaces.html">http://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function</a></span>  [<a href="#nt-id2263951">14</a>].</p>
+  </div>
+  <div class="indent"><h3>10.2 <a name="registrar-versioning" id="registrar-versioning">Protocol Versioning</a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+  <div class="indent"><h3>10.3 <a name="registrar-stream" id="registrar-stream">Stream Features</a></h3>
+    <p class="" style="">Upon approval of this specification, the XMPP Registrar shall add 'urn:xmpp:sm:1:feature' to its registry of stream features.</p>
+  </div>
+<h2>11.
+       <a name="schemas" id="schemas">XML Schemas</a></h2>
+  <p class="caption"></p><div class="indent"><pre>
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:sm:1'
+    xmlns='urn:xmpp:sm:1'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='a' type='ackElementType'/&gt;
+
+  &lt;xs:element name='enable'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='resume' 
+                        type='xs:boolean'
+                        use='optional'
+                        default='false'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='enabled'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='host' 
+                        type='xs:string'
+                        use='optional'/&gt;
+          &lt;xs:attribute name='port' 
+                        type='xs:unsignedShort'
+                        use='optional'/&gt;
+          &lt;xs:attribute name='resume' 
+                        type='xs:boolean'
+                        use='optional'
+                        default='false'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='failed'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence xmlns:err='urn:ietf:params:xml:ns:xmpp-stanzas' minOccurs='0'&gt;
+        &lt;xs:group ref='err:stanzaErrorGroup'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='r' type='ackElementType'/&gt;
+
+  &lt;xs:element name='resume' type='empty'/&gt;
+
+  &lt;xs:element name='sm'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='id' type='xs:string' use='required'/&gt;
+          &lt;xs:attribute name='max' type='xs:positiveInteger' use='optional'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:complexType name='ackElementType'&gt;
+    &lt;xs:simpleContent&gt;
+      &lt;xs:extension base='empty'&gt;
+        &lt;xs:attribute name='h' type='xs:integer' use='optional'/&gt;
+        &lt;xs:attribute name='u' type='xs:integer' use='optional'/&gt;
+      &lt;/xs:extension&gt;
+    &lt;/xs:simpleContent&gt;
+  &lt;/xs:complexType&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+  </pre></div>
+<h2>12.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+  <p class="" style="">Thanks to Dave Cridland, Philipp Hancke, Curtis King, Tobias Markmann, Pedro Melo, Robin Redeker, and Mickaël Rémond for their feedback.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://www.xmpp.org/extensions/">XEP</a><br />
+            Number: 0198<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.7<br />
+            Last Updated: 2009-03-30<br />
+                Approving Body: <a href="http://www.xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0198.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0198.xml/rss.xml">RSS</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Justin Karneges</h3><p class="indent">
+        Email:
+        <a href="mailto:justin@affinix.com">justin@affinix.com</a><br />
+        JabberID: 
+        <a href="xmpp:justin@andbit.net">justin@andbit.net</a><br /></p><h3>Joe Hildebrand</h3><p class="indent">
+        Email:
+        <a href="mailto:jhildebrand@jabber.com">jhildebrand@jabber.com</a><br />
+        JabberID: 
+        <a href="xmpp:hildjj@jabber.org">hildjj@jabber.org</a><br /></p><h3>Peter Saint-Andre</h3><p class="indent">
+        JabberID: 
+        <a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        URI: 
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2009 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. In no event shall the XMPP Standards Foundation or the authors of this Specification be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising out of the use or inability to use the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which may be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XSF, P.O. Box 1641, Denver, CO 80201 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata may be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id2251648" id="nt-id2251648">1</a>. RFC 3920: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc3920">http://tools.ietf.org/html/rfc3920</a>&gt;.</p><p><a name="nt-id2251774" id="nt-id2251774">2</a>. XEP-0199: XMPP Ping &lt;<a href="http://xmpp.org/extensions/xep-0199.html">http://xmpp.org/extensions/xep-0199.html</a>&gt;.</p><p><a name="nt-id2262426" id="nt-id2262426">3</a>. rfc3920bis: proposed revisions to Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/draft-saintandre-rfc3920bis">http://tools.ietf.org/html/draft-saintandre-rfc3920bis</a>&gt;. (work in progress)</p><p><a name="nt-id2262463" id="nt-id2262463">4</a>. XEP-0079: Advanced Message Processing &lt;<a href="http://xmpp.org/extensions/xep-0079.html">http://xmpp.org/extensions/xep-0079.html</a>&gt;.</p><p><a name="nt-id2262487" id="nt-id2262487">5</a>. XEP-0184: Message Receipts &lt;<a href="http://xmpp.org/extensions/xep-0184.html">http://xmpp.org/extensions/xep-0184.html</a>&gt;.</p><p><a name="nt-id2262550" id="nt-id2262550">6</a>. XEP-0078: Non-SASL Authentication &lt;<a href="http://xmpp.org/extensions/xep-0078.html">http://xmpp.org/extensions/xep-0078.html</a>&gt;.</p><p><a name="nt-id2262580" id="nt-id2262580">7</a>. XEP-0220: Server Dialback &lt;<a href="http://xmpp.org/extensions/xep-0220.html">http://xmpp.org/extensions/xep-0220.html</a>&gt;.</p><p><a name="nt-id2262677" id="nt-id2262677">8</a>. In accordance with Section 3.2.2.1 of <span class="ref">XML Schema Part 2: Datatypes</span>, the allowable lexical representations for the xs:boolean datatype are the strings "0" and "false" for the concept 'false' and the strings "1" and "true" for the concept 'true'; implementations MUST support both styles of lexical representation.</p><p><a name="nt-id2263035" id="nt-id2263035">9</a>. In accordance with Section 3.2.2.1 of <span class="ref">XML Schema Part 2: Datatypes</span>, the allowable lexical representations for the xs:boolean datatype are the strings "0" and "false" for the concept 'false' and the strings "1" and "true" for the concept 'true'; implementations MUST support both styles of lexical representation.</p><p><a name="nt-id2263272" id="nt-id2263272">10</a>. On the use of TLS Session resumption and SASL EXTERNAL &lt;<a href="http://tools.ietf.org/html/draft-cridland-sasl-tls-sessions">http://tools.ietf.org/html/draft-cridland-sasl-tls-sessions</a>&gt;. Work in progress.</p><p><a name="nt-id2263451" id="nt-id2263451">11</a>. rfc3920bis: proposed revisions to Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/draft-saintandre-rfc3920bis">http://tools.ietf.org/html/draft-saintandre-rfc3920bis</a>&gt;. (work in progress)</p><p><a name="nt-id2263832" id="nt-id2263832">12</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id2263907" id="nt-id2263907">13</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id2263951" id="nt-id2263951">14</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><div class="indent"><h4>Version 0.7 (2009-03-30)</h4><div class="indent"><p class="" style="">Removed pings (use XEP-0199, whitespace pings, or TCP keepalives instead); removed section on throttling, since it is unworkable.</p> (jjh/psa)
+    </div><h4>Version 0.6 (2009-03-19)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Incremented protocol number from 0 to 1.</li>
+        <li class="" style="">Changed attribute names from c (?) and b (?) to u (unacknowledged) and h (handled).</li>
+        <li class="" style="">Added stanzas attribute to specify maximum number of stanzas between acking requests.</li>
+        <li class="" style="">More clearly defined error handling using &lt;failed/&gt; element plus stanza error conditions.</li>
+        <li class="" style="">Defined error handling for &lt;ping/&gt; element by allowing stanza error conditions in &lt;pong/&gt; element.</li>
+        <li class="" style="">More clearly specified maximum reconnect time.</li>
+        <li class="" style="">Added detailed scenarios for basic acking and for outbound and inbound throttling.</li>
+      </ul>
+     (psa)
+    </div><h4>Version 0.5 (2008-09-29)</h4><div class="indent"><p class="" style="">Removed recommendation to use namespace prefixes; modified namespace to incorporate namespace versioning.</p> (psa)
+    </div><h4>Version 0.4 (2008-09-08)</h4><div class="indent"><p class="" style="">Added support for session resumption; re-organized the document; changed name to stream management; changed provisional namespace.</p> (jjh/jk/psa)
+    </div><h4>Version 0.3 (2007-10-03)</h4><div class="indent"><p class="" style="">Updates per devcon discussion.</p> (jk)
+    </div><h4>Version 0.2 (2007-04-05)</h4><div class="indent"><p class="" style="">Require c attribute on &lt;r/&gt; element. Describe minimal implementation. Switch to standard temporary namespace.</p> (jk)
+    </div><h4>Version 0.1 (2006-11-21)</h4><div class="indent"><p class="" style="">Initial published version.</p> (psa)
+    </div><h4>Version 0.0.3 (2006-11-08)</h4><div class="indent">New version, using sequence numbers. (jk)
+    </div><h4>Version 0.0.2 (2004-12-11)</h4><div class="indent">Further clarification, allow acking many stanzas at once. (jk)
+    </div><h4>Version 0.0.1 (2004-08-09)</h4><div class="indent">First draft. (jk)
+    </div></div><hr /><p>END</p></body></html>

@@ -1,0 +1,464 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0259: Message Mine-ing</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Message Mine-ing" /><meta name="DC.Creator" content="Joe Hildebrand" /><meta name="DC.Description" content="In servers that deliver messages intended for the bare JID to&#10;  all resources, the resource that claims a conversation notifies all&#10;  of the other resources of that claim." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2009-01-21" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0259" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2010 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0259: Message Mine-ing</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>In servers that deliver messages intended for the bare JID to
+  all resources, the resource that claims a conversation notifies all
+  of the other resources of that claim.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Joe Hildebrand</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2010 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Deferred</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2009-01-21</td></tr></table><hr /><p style="color:red">WARNING: Consideration of this document has been <strong>Deferred</strong> by the XMPP Standards Foundation. Implementation of the protocol described herein is not recommended.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#usecases">Use Cases</a><br />   
+      3.1.  <a href="#disco_server">Determining Support: Servers</a><br />   
+      3.2.  <a href="#disco_client">Determining Support: Clients</a><br />   
+      3.3.  <a href="#receiving">Receving a message to the bare JID</a><br />   
+      3.4.  <a href="#broadcast">Broadcasting ownership requests</a><br />   
+      3.5.  <a href="#claim">Claiming ownership</a><br />   
+      3.6.  <a href="#notification">Notification of ownership claim</a><br />   
+      3.7.  <a href="#processing">Claim processing</a><br />   
+      3.8.  <a href="#muc">Claims for Multi-User Chat rooms</a><br />4.  <a href="#errors">Error Cases</a><br />   
+      4.1.  <a href="#bad_whose">Invalid "whose"</a><br />5.  <a href="#rules">Business Rules</a><br />   
+      5.1.  <a href="#generate">Generating IDs</a><br />   
+      5.2.  <a href="#semantics">ID Semantics</a><br />   
+      5.3.  <a href="#compare">Comparing IDs</a><br />   
+      5.4.  <a href="#multiple">Accepting Multiple IDs</a><br />   
+      5.5.  <a href="#when">When to send?</a><br />   
+      5.6.  <a href="#unsupported_clients">Legacy Clients</a><br />6.  <a href="#impl">Implementation Notes</a><br />7.  <a href="#access">Accessibility Considerations</a><br />8.  <a href="#security">Security Considerations</a><br />9.  <a href="#iana">IANA Considerations</a><br />10.  <a href="#registrar">XMPP Registrar Considerations</a><br />11.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">At the time of original writing of this XEP, many XMPP servers
+  handle message stanzas sent to a user@host (or "bare") JID with no
+  resource by delivering that message only to the resource with
+  the highest priority for the target user.  Some server
+  implementations, however, have chosen to send these messages to all
+  of the online resources for the target user.  If the target user is
+  online with multiple resources when the orginal message is sent, a
+  conversation ensues on one of the user's devices; if the user
+  subsequently switches devices, parts of the conversation may end up
+  on the alternate device, causing the user to be confused, misled,
+  or annoyed.</p>
+
+  <p class="" style="">This XEP proposes an approach for cleaning up the leftover
+  conversation shards on alternate devices, paving the way for servers
+  to deliver messages to multiple devices.  As the basic approach, the
+  receiving server asks all of the resources of a user "whose message
+  is this?".  The first resource to say "mine!" wins.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <ul class="" style="">
+    <li class="" style="">Large changes SHOULD NOT be required to existing servers</li>
+    <li class="" style="">Clients that do not implement the new protocol MUST be able
+    participate in conversations</li>
+    <li class="" style="">All messages MUST NOT be delivered to all devices at all
+    times, due to scale concerns</li>
+    <li class="" style="">Clients that do not own the message MUST be notified
+    when a different device claims ownership of the message</li>
+    <li class="" style="">Multiple clients MUST be able to uambiguosly decide which of
+    them owns a given message.</li>
+  </ul>
+<h2>3.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <div class="indent"><h3>3.1 <a name="disco_server" id="disco_server">Determining Support: Servers</a></h3>
+    <p class="" style="">If a server implements the Mine capability, it MUST specify the
+    'urn:xmpp:tmp:mine:0' feature in its service discovery
+    information features as specified in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0115.html">Entity Capabilities</a></span>  [<a href="#nt-id276748">1</a>] or <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0030.html">Service Discovery</a></span>  [<a href="#nt-id276771">2</a>].
+    Clients MUST NOT send ownership changes if their server does
+    not support this feature.</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Client requests information about its own server</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='get'
+    from='romeo@montague.net/orchard'
+    id='info1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;</pre></div>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Server responds with mine feature</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='get'
+    to='romeo@montague.net/home'
+    from='montague.net'
+    id='info1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+...
+    &lt;feature var='urn:xmpp:tmp:mine:0'/&gt;
+...
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></div>
+  </div>
+  <div class="indent"><h3>3.2 <a name="disco_client" id="disco_client">Determining Support: Clients</a></h3>
+    <p class="" style="">Clients that support this protocol MUST support <span class="ref">XEP-0115</span>, and MUST add the
+    'urn:xmpp:tmp:mine:0' feature to their entity capabilities, in
+    order to allow for potential server optimizations.</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Romeo publishes his capabilities</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='romeo@example.net/home'&gt;
+  &lt;c xmlns='http://jabber.org/protocol/caps' 
+     hash='sha-1'
+     node='http://example.com/clients/Mine'
+     ver='j+5eLRCz6NP6IEPob80JB6sWR3Y='/&gt;
+&lt;/presence&gt;
+</pre></div>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Romeo responds to capabilities inquiry from his server</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@example.net/home'
+    id='disco1'
+    to='example.net' 
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'
+         node='http://example.com/clients/Mine#/WmLAKHhB87dOqn5NUgxrr5NbfE='&gt;
+    &lt;identity category='client' type='pc' name='Mine'/&gt;
+    &lt;feature var='urn:xmpp:tmp:mine:0'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></div>
+  </div>
+  <div class="indent"><h3>3.3 <a name="receiving" id="receiving">Receving a message to the bare JID</a></h3>
+    <p class="" style="">When a server that implements the Mine capability receives a
+    message addressed to a user's bare JID, it MUST:</p>
+    <ul class="" style="">
+      <li class="" style="">Ensure that no "whose" element is already on the message.
+      See the <a href="#errors">Errors</a> section for processing.</li>
+      <li class="" style="">Add a whose element to the message, containing an id
+      attribute with a new value</li>
+      <li class="" style="">Ensure that the the same value of the "id" attribute is
+      never sent to the same session </li>
+    </ul>
+
+    <p class="" style="">Messages that have been processed to include a valid "whose"
+    element, are now also considered an "ownership request"</p>
+
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Juliet sends Romeo an undirected message</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='juliet@example.com/balcony'
+    to='romeo@example.net'
+    type='chat'&gt;
+  &lt;body&gt;Wherefore art thou, Romeo?&lt;/body&gt;
+  &lt;thread&gt;0e3141cd80894871a68e6fe6b1ec56fa&lt;/thread&gt;
+&lt;/message&gt;
+</pre></div>
+
+    <p class="caption"><a name="example-6" id="example-6"></a>Example 6. The ownership request, before broadcasting</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='juliet@example.com/balcony'
+    to='romeo@example.net'
+    type='chat'&gt;
+  &lt;body&gt;Wherefore art thou, Romeo?&lt;/body&gt;
+  &lt;thread&gt;0e3141cd80894871a68e6fe6b1ec56fa&lt;/thread&gt;
+  &lt;whose xmlns='urn:xmpp:tmp:mine:0' id='4'/&gt;
+&lt;/message&gt;
+</pre></div>
+  </div>
+
+  <div class="indent"><h3>3.4 <a name="broadcast" id="broadcast">Broadcasting ownership requests</a></h3>
+    <p class="" style="">The receiving server MUST send a copy of the ownership request
+    to each of that user's non-negative priority resources.  Each copy
+    of the message MUST contain a whose element, each of which has the
+    same id attribute.</p>
+    <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Romeo's server forwards copies of the                       message to all of his resources</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='juliet@example.com/balcony'
+    to='romeo@example.net/home'
+    type='chat'&gt;
+  &lt;body&gt;Wherefore art thou, Romeo?&lt;/body&gt;
+  &lt;thread&gt;0e3141cd80894871a68e6fe6b1ec56fa&lt;/thread&gt;
+  &lt;whose xmlns='urn:xmpp:tmp:mine:0' id='4'/&gt;
+&lt;/message&gt;
+
+&lt;message
+    from='juliet@example.com/balcony'
+    to='romeo@example.net/work'
+    type='chat'&gt;
+  &lt;body&gt;Wherefore art thou, Romeo?&lt;/body&gt;
+  &lt;thread&gt;0e3141cd80894871a68e6fe6b1ec56fa&lt;/thread&gt;
+  &lt;whose xmlns='urn:xmpp:tmp:mine:0' id='4'/&gt;
+&lt;/message&gt;
+
+&lt;message
+    from='juliet@example.com/balcony'
+    to='romeo@example.net/mobile'
+    type='chat'&gt;
+  &lt;body&gt;Wherefore art thou, Romeo?&lt;/body&gt;
+  &lt;thread&gt;0e3141cd80894871a68e6fe6b1ec56fa&lt;/thread&gt;
+  &lt;whose xmlns='urn:xmpp:tmp:mine:0' id='4'/&gt;
+&lt;/message&gt;
+</pre></div>
+  </div>
+
+  <div class="indent"><h3>3.5 <a name="claim" id="claim">Claiming ownership</a></h3>
+    <p class="" style="">When one client for a receiving user detects that the user's
+    attention has been directed to a given message, that client MUST
+    send an ownership claim (mine!) to the bare JID of the receiving
+    user.  If there was a thread element in the original message, it
+    MUST be included in the acceptance notification.  There MUST NOT
+    be a body element in the message, and the message SHOULD use the
+    same message type as the ownership request.  The mine element MUST
+    include an id element for each of the messages that the client
+    wants to accept.  The mine element MUST include at least one
+    id.</p>
+    <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Romeo's "work" client claims ownership</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    to='romeo@example.net'
+    from='romeo@example.net/work'
+    type='chat'&gt;
+  &lt;thread&gt;0e3141cd80894871a68e6fe6b1ec56fa&lt;/thread&gt;
+  &lt;mine xmlns='urn:xmpp:tmp:mine:0'&gt;
+    &lt;id&gt;4&lt;/id&gt;
+  &lt;/mine&gt;
+&lt;/message&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>3.6 <a name="notification" id="notification">Notification of ownership claim</a></h3>
+    <p class="" style="">As with all messages sent to a bare JID at a server
+    implementing the Mine feature, the acceptance message MUST be
+    forwarded to all of the non-negative priority resources.</p>
+    <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Each of Romeo's clients receives the claim</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    to='romeo@example.net/home'
+    from='romeo@example.net/work'
+    type='chat'&gt;
+  &lt;thread&gt;0e3141cd80894871a68e6fe6b1ec56fa&lt;/thread&gt;
+  &lt;mine xmlns='urn:xmpp:tmp:mine:0'&gt;
+    &lt;id&gt;4&lt;/id&gt;
+  &lt;/mine&gt;
+&lt;/message&gt;
+
+&lt;message
+    to='romeo@example.net/work'
+    from='romeo@example.net/work'
+    type='chat'&gt;
+  &lt;thread&gt;0e3141cd80894871a68e6fe6b1ec56fa&lt;/thread&gt;
+  &lt;mine xmlns='urn:xmpp:tmp:mine:0'&gt;
+    &lt;id&gt;4&lt;/id&gt;
+  &lt;/mine&gt;
+&lt;/message&gt;
+
+&lt;message
+    to='romeo@example.net/mobile'
+    from='romeo@example.net/work'
+    type='chat'&gt;
+  &lt;thread&gt;0e3141cd80894871a68e6fe6b1ec56fa&lt;/thread&gt;
+  &lt;mine xmlns='urn:xmpp:tmp:mine:0'&gt;
+    &lt;id&gt;4&lt;/id&gt;
+  &lt;/mine&gt;
+&lt;/message&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>3.7 <a name="processing" id="processing">Claim processing</a></h3>
+    <p class="" style="">When a client receives an ownership claim that was sent from
+    that client for an ID that has not been previously claimed,
+    the client MUST note that the message associated with the ID has
+    been confirmed, and ignore any further ownership claims for
+    that ID.</p>
+    <p class="" style="">When a client receives an ownership claim that was sent from
+    a different client of the same user for a ID that has not
+    been previously received, the client MUST note that the message
+    associated with the ID has been retracted, and ignore any further
+    ownership claims for that ID.  Retracted messages SHOULD
+    be removed from the client's user interface, or otherwise marked
+    in some way as retracted.</p>
+    <p class="" style="">Clients MUST ignore ownership claims for IDs for which they
+    have no corresponding message.</p>
+    <p class="" style="">Assuming that messages are delivered and processed in order,
+    these rules should ensure that exactly one client resource has a
+    confirmed copy of the message</p>
+  </div>
+  <div class="indent"><h3>3.8 <a name="muc" id="muc">Claims for Multi-User Chat rooms</a></h3>
+    <p class="" style="">The same approach that has been described for one-to-one
+    messages above can also be used by <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0045.html">Multi-User Chat</a></span>  [<a href="#nt-id277128">3</a>] (MUC) rooms.
+    Rooms that want to participate MUST send the
+    'urn:xmpp:tmp:mine:0' feature in the room's disco info.  The room
+    MUST then perform the role of the server in the above
+    descriptions, ensuring that unique ID's are assigned to all
+    outbound groupchat messages that were addressed to the bare JID of
+    the room.  Ownership claims MUST be sent to the bare JID of the
+    <span class="strong">room</span>, not the receiving user.</p>
+    <p class="" style="">This capability might be used to distribute questions to
+    multiple experts in a room, such that a single expert answers a
+    question.</p>
+    <p class="caption"><a name="example-10" id="example-10"></a>Example 10. Message is sent to the room</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='hag66@shakespeare.lit/pda'
+    to='darkcave@chat.shakespeare.lit'
+    type='groupchat'&gt;
+  &lt;body&gt;Harpier cries: 'tis time, 'tis time.&lt;/body&gt;
+&lt;/message&gt;</pre></div>
+    <p class="caption"><a name="example-11" id="example-11"></a>Example 11. Room forwards message to all participants as ownership request</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='darkcave@chat.shakespeare.lit/thirdwitch'
+    to='crone1@shakespeare.lit/desktop'
+    type='groupchat'&gt;
+  &lt;body&gt;Harpier cries: 'tis time, 'tis time.&lt;/body&gt;
+  &lt;whose xmlns='urn:xmpp:tmp:mine:0' id='5'/&gt;
+&lt;/message&gt;
+
+&lt;message
+    from='darkcave@chat.shakespeare.lit/thirdwitch'
+    to='wiccarocks@shakespeare.lit/laptop'
+    type='groupchat'&gt;
+  &lt;body&gt;Harpier cries: 'tis time, 'tis time.&lt;/body&gt;
+  &lt;whose xmlns='urn:xmpp:tmp:mine:0' id='5'/&gt;
+&lt;/message&gt;
+
+&lt;message
+    from='darkcave@chat.shakespeare.lit/thirdwitch'
+    to='hag66@shakespeare.lit/pda'
+    type='groupchat'&gt;
+  &lt;body&gt;Harpier cries: 'tis time, 'tis time.&lt;/body&gt;
+  &lt;whose xmlns='urn:xmpp:tmp:mine:0' id='5'/&gt;
+&lt;/message&gt;
+</pre></div>
+    <p class="caption"><a name="example-12" id="example-12"></a>Example 12. A participant claims ownership</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    to='darkcave@chat.shakespeare.lit'
+    from='crone1@shakespeare.lit/desktop'
+    type='groupchat'&gt;
+  &lt;mine xmlns='urn:xmpp:tmp:mine:0'&gt;
+    &lt;id&gt;5&lt;/id&gt;
+  &lt;/mine&gt;
+&lt;/message&gt;
+</pre></div>
+  </div>
+<h2>4.
+       <a name="errors" id="errors">Error Cases</a></h2>
+  <div class="indent"><h3>4.1 <a name="bad_whose" id="bad_whose">Invalid "whose"</a></h3>
+    <p class="" style="">A server receives a message addressed to the bare JID of a
+    user, from a different user than the one in the to address,
+    containing a "whose" or "mine" element, it MUST NOT forward the
+    message on to any clients.  This case is always either an attack,
+    a misconfiguration, or the result of bad code.  If the user in the
+    from address is already known to the user in the to address (for
+    example, to user in the to address has a presence subscription to
+    the user in the from address), the server MAY send back a helpful
+    "bad-request" error.</p>
+    <p class="caption"><a name="example-13" id="example-13"></a>Example 13. Romeo responds to a bad request from his friend Juliet</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    to='juliet@example.com/balcony'
+    from='romeo@example.net'
+    type='error&gt;
+  &lt;thread&gt;0e3141cd80894871a68e6fe6b1ec56fa&lt;/thread&gt;
+  &lt;body&gt;My client runneth over&lt;/body&gt;
+  &lt;whose xmlns='urn:xmpp:tmp:mine:0' id='4'&gt;
+  &lt;error type='modify'&gt;
+    &lt;bad-request xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+    &lt;text&gt;Yours&lt;/text&gt;
+  &lt;/error&gt;
+&lt;/message&gt;
+</pre></div>
+    <p class="" style="">However, if the user in the from address is not known to the user
+    in the to address, or the server perfers not to send helpful
+    errors, the server MUST treat the message as if it was addressed
+    to an unknown user.  Otherwise, sending a message with an invalid
+    "whose" or "mine" could allow an attacker to probe for valid users
+    at a site.</p>
+  </div>
+<h2>5.
+       <a name="rules" id="rules">Business Rules</a></h2>
+  <div class="indent"><h3>5.1 <a name="generate" id="generate">Generating IDs</a></h3>
+    <p class="" style="">The value of the id attribute sent by servers MUST be
+    valid output from the NODEPREP profile of stringprep.</p>
+  </div>
+  <div class="indent"><h3>5.2 <a name="semantics" id="semantics">ID Semantics</a></h3>
+    <p class="" style="">The value of the id resource is completely opqaque;
+    receiving clients MUST NOT use any apparent order or semantic in
+    the value of the id to perform optimizations or business
+    logic.</p>
+  </div>
+  <div class="indent"><h3>5.3 <a name="compare" id="compare">Comparing IDs</a></h3>
+    <p class="" style="">Clients MUST only compare the value of ID's for equality,
+    never for order.  ID's MUST be compared for equality
+    octet-for-octet or codepoint-for-codepoint; a basic string
+    comparison with no extra canonicalization.</p>
+  </div>
+  <div class="indent"><h3>5.4 <a name="multiple" id="multiple">Accepting Multiple IDs</a></h3>
+    <p class="" style="">A client MAY send multiple id elements in an accceptance.
+    Clients that receive a notification with multiple IDs MUST process
+    each ID individually, as if multiple claims had been sent.</p>
+  </div>
+  <div class="indent"><h3>5.5 <a name="when" id="when">When to send?</a></h3>
+    <p class="" style="">To avoid race conditions and edge cases (including
+    invisibility), if both the client and server support the Mine
+    capability, the client SHOULD send ownership queries regardless
+    of whether or not the client sees other resources for the same
+    user online, or the capabilities of those other resources.</p>
+  </div>
+  <div class="indent"><h3>5.6 <a name="unsupported_clients" id="unsupported_clients">Legacy Clients</a></h3>
+    <p class="" style="">Clients that do not implement the Mine capability MAY be sent
+    notifications by the server.  The server MAY be optimized to
+    avoid these notifications, however.</p>
+  </div>
+<h2>6.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <p class="" style="">Some examples of events that might lead to a client sending an
+  ownsership claim:</p>
+  <ul class="" style="">
+    <li class="" style="">Clicking on a toast notification for the message</li>
+    <li class="" style="">Bringing the client window to the front within a short time
+    after receiving the message, where the message is then displayed
+    to the user</li>
+    <li class="" style="">Bringing the tab containing the message to the front</li>
+    <li class="" style="">Beginning to type a response to the message</li>
+    <li class="" style="">Closing the window containing the message at least several
+    seconds after the message was received</li>
+    <li class="" style="">Clicking an accept button next to a message</li>
+    <li class="" style="">Shutting down the screen saver while the message is in the
+    top-most window</li>
+    <li class="" style="">A camera notices the user's eyes directed at the message</li>
+  </ul>
+<h2>7.
+       <a name="access" id="access">Accessibility Considerations</a></h2>
+  <p class="" style="">Some care should be given to the events that can cause ownsership
+  claims, particularly in the MUC client implementations, such that
+  users with different abilities all have a chance to claim ownership.</p>
+<h2>8.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">Clients MUST ignore acceptance notifications received from other users.</p>
+<h2>9.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id277472">4</a>].</p>
+<h2>10.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p class="" style="">This XEP proposes the new namespace 'urn:xmpp:tmp:mine:0'.</p>
+<h2>11.
+       <a name="schema" id="schema">XML Schema</a></h2>
+<p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8' ?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:tmp:mine:0'
+    xmlns='urn:xmpp:tmp:mine:0'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='whose'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:attribute name='id' type='xs:string' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='mine'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element ref='id' minOccurs='1' maxOccurs='unbounded'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='id'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='xs:NMTOKEN'/&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+&lt;/xs:schema&gt;
+</pre></div>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0259<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2009-01-21<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0030, XEP-0045, XEP-0115<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: mine<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0259.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0259.xml/rss.xml">RSS</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Joe Hildebrand</h3><p class="indent">
+        Email:
+        <a href="mailto:jhildebr@cisco.com">jhildebr@cisco.com</a><br />
+        JabberID: 
+        <a href="xmpp:hildjj@jabber.org">hildjj@jabber.org</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2010 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XMPP Standards Foundation, c/o Peter Saint-Andre, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id276748" id="nt-id276748">1</a>. XEP-0115: Entity Capabilities &lt;<a href="http://xmpp.org/extensions/xep-0115.html">http://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-id276771" id="nt-id276771">2</a>. XEP-0030: Service Discovery &lt;<a href="http://xmpp.org/extensions/xep-0030.html">http://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id277128" id="nt-id277128">3</a>. XEP-0045: Multi-User Chat &lt;<a href="http://xmpp.org/extensions/xep-0045.html">http://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-id277472" id="nt-id277472">4</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2009-01-21)</h4><div class="indent"><p class="" style="">Initial published version.</p> (psa)
+    </div><h4>Version 0.0.1 (2008-10-22)</h4><div class="indent"><p class="" style="">First draft.</p> (jjh)
+    </div></div><hr /><p>END</p></body></html>

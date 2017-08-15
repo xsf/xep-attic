@@ -1,0 +1,773 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0248: PubSub Collection Nodes</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="PubSub Collection Nodes" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Creator" content="Ralph Meijer" /><meta name="DC.Description" content="This specification defines the nature and handling of collection nodes in the XMPP publish-subsribe extension." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2008-08-11" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0248" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2010 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0248: PubSub Collection Nodes</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines the nature and handling of collection nodes in the XMPP publish-subsribe extension.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Peter Saint-Andre, Ralph Meijer</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2010 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Deferred</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2008-08-11</td></tr></table><hr /><p style="color:red">WARNING: Consideration of this document has been <strong>Deferred</strong> by the XMPP Standards Foundation. Implementation of the protocol described herein is not recommended.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#models">Node Relationship Models</a><br />3.  <a href="#subscribe">Subscribe to a Collection Node</a><br />4.  <a href="#root">Root Collection Node</a><br />5.  <a href="#createnode">Create a New Collection Node</a><br />6.  <a href="#createassociated">Create a Node Associated with a Collection</a><br />   
+      6.1.  <a href="#createassociated-request">Request</a><br />   
+      6.2.  <a href="#createassociated-success">Success Case</a><br />   
+      6.3.  <a href="#createassociated-error">Error Cases</a><br />      
+      6.3.1.  <a href="#createassociated-error-onenode">Only One Collection Node</a><br />      
+      6.3.2.  <a href="#createassociated-error-forbidden">Insufficient Privileges</a><br />      
+      6.3.3.  <a href="#createassociated-error-nomore">No More Nodes</a><br />      
+      6.3.4.  <a href="#createassociated-error-leaf">Leaf Node</a><br />      
+      6.3.5.  <a href="#createassociated-error-node">Node Does Not Exist</a><br />7.  <a href="#delete">Collection Node Deletion</a><br />   
+      7.1.  <a href="#delete-dag">Directed Acyclic Graph</a><br />   
+      7.2.  <a href="#delete-dagset">Dag Set</a><br />   
+      7.3.  <a href="#delete-tree">Tree</a><br />   
+      7.4.  <a href="#delete-forest">Forest</a><br />   
+      7.5.  <a href="#delete-strict">Strict Hierarchy or Strict Hierarchy Set</a><br />   
+      7.6.  <a href="#delete-loose">Loose Hierarchy or Loose Hierarchy Set</a><br />   
+      7.7.  <a href="#delete-root">Root Collection Node</a><br />8.  <a href="#associate">Associate an Existing Node with a Collection</a><br />9.  <a href="#disassociate">Disassociate a Node from a Collection</a><br />10.  <a href="#owner-default-requestcollection">Requesting Collection Node Configuration</a><br />11.  <a href="#notify">Generating Publish Notifications for Collections</a><br />12.  <a href="#security">Security Considerations</a><br />13.  <a href="#iana">IANA Considerations</a><br />14.  <a href="#registrar">XMPP Registrar Considerations</a><br />15.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p><span class="ref"><a href="http://xmpp.org/extensions/xep-0060.html">Publish-Subscribe</a></span>  [<a href="#nt-id90812">1</a>] defines an XMPP protocol extension for generic publish-subscribe features. This specification defines the nature and handling of collection nodes in XMPP-based publish-subscribe technologies.</p>
+  <p>A pubsub service MAY support collection nodes as well as leaf nodes. Collections enable nodes to be grouped together in many ways. A collection node MUST contain only leaf nodes and/or other collection nodes (similar to the way in which a file system directory can contain both files and subdirectories) and MUST NOT contain published items (therefore a collection MUST NOT support the "publish" feature or related features such as "persistent-items"). If collections are supported, a service MUST advertise that fact in its "disco#info" responses by including a feature of "pubsub#collections" and MUST support service discovery of child nodes as described in the <a href="#entity-nodes">Discover Nodes</a> section of this document.</p>
+<h2>2.
+       <a name="models" id="models">Node Relationship Models</a></h2>
+    <p>This section provides background information about collection nodes, with insights from graph theory.  [<a href="#nt-id90839">2</a>] The intended result is a clearer vocabulary about particular deployment scenarios. The terminology introduced in this section is used mainly in the discussion of <a href="delete">collection node deletion</a>.</p>
+    <p>In terms of graph theory, the set of nodes hosted at a pubsub service is a directed acyclic graph.  [<a href="#nt-id90859">3</a>] The particular graph types can be further described as follows:</p>
+    <ol>
+      <li>If there are no collection nodes, we say that the graph is simply a <span class="strong">flat set</span> of nodes without connections because there are no arcs between nodes, i.e., no node is the direct predecessor of another node (here we use the less formal phrase that no node is the parent of any other child node).</li>
+      <li>If there may be multiple paths between any two given nodes (where the path may include intermediate collection nodes), the graph is a <span class="strong">Directed Acyclic Graph</span> or "DAG"  [<a href="#nt-id90887">4</a>] because a given node may be the child of multiple parents.</li>
+      <li>If there is only one path between any two given nodes (where the path may include intermediate collection nodes), the graph is a <span class="strong">Tree</span>  [<a href="#nt-id90906">5</a>] because a given node may be the child of only one collection node.</li>
+      <li>If there is a root collection node but there are no internal collection nodes, we say informally that the graph has a <span class="strong">depth</span> of 1 because all of the connections from leaf nodes to the root collection node are direct (i.e., each connection is an arc); this case is equivalent to a flat set with a root collection node and is typically uninteresting.</li>
+      <li>If there is a root collection node and there are internal collection nodes, we say that the graph has <span class="strong">infinite depth</span> because there is an unbounded number of arcs between each leaf node and the root collection node; this case is more interesting than a graph of depth=1 since it enables a wide range of trees and hierarchies.</li>
+      <li>In a tree with collection nodes, deletion of a collection node automatically results in destruction of the arcs to that collection node from leaf nodes or other collection nodes because a child can have only one parent; in this case we say that a child node has a <span class="strong">dependency</span> on its parent and that the tree is a <span class="strong">Strict Hierarchy</span>. (This is similar to a strictly hierarchical file system, in which deletion of a directory results in deletion of all its file and subdirectories.)</li>
+      <li>In a DAG with collection nodes, deletion of a collection node does not automatically result in destruction of the arcs to that collection node from leaf nodes or other collection nodes because a child can have multiple parents (but if the last parent is deleted, the last remaining arc is destroyed); in this case we say that the tree is a <span class="strong">Loose Hierarchy</span>. (This is similar to a loosely hierarchical file system that is mostly hierarchical but that allows multiple soft links.)</li>
+      <li>If a graph is made up of directed acyclic graphs but there is no single root collection node for all the DAGs, we say that the graph is a <span class="strong">Dag Set</span> (i.e., a set of directed acyclic graphs).</li>
+      <li>If a graph is made up of trees but there is no single root collection node for all the trees, the graph is a <span class="strong">Forest</span> (i.e., a set of trees).</li>
+      <li>If each tree in a forest is a Strict Hierarchy, we say that the graph is a <span class="strong">Strict Hierarchy Set</span>.</li>
+      <li>If each DAG in a set is a Loose Hierarchy, we say that the graph is a <span class="strong">Loose Hierarchy Set</span>.</li>
+    </ol>
+    <p>Finally, in XMPP pubsub, all graphs are <span class="strong">oriented</span> because any two collection nodes cannot have a bidirectional relationship (i.e., if collection node #1 is a direct predecessor of collection node #2 then #2 cannot also be a direct predecessor of #1).</p>
+    <p>This terminology is summarized in the following table.</p>
+    <div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: Node Relationship Models</p><table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <th>Model</th>
+        <th>Description</th>
+        <th>Root Node</th>
+        <th>Multiple Parents</th>
+        <th>Node Dependency</th>
+        <th>Depth</th>
+      </tr>
+      <tr class="body">
+        <td>Flat Set</td>
+        <td>A set of nodes with no parent-child relationships (i.e., there are no collection nodes).</td>
+        <td>No</td>
+        <td>N/A</td>
+        <td>No</td>
+        <td>0 (zero)</td>
+      </tr>
+      <tr class="body">
+        <td>Directed Acyclic Graph (DAG)</td>
+        <td>A set of nodes with parent-child relationships, where a child node can have more than one parent.</td>
+        <td>Yes</td>
+        <td>Yes</td>
+        <td>No</td>
+        <td>1 or infinite</td>
+      </tr>
+      <tr class="body">
+        <td>Dag Set</td>
+        <td>A set of DAGs with no root node.</td>
+        <td>No</td>
+        <td>Yes</td>
+        <td>No</td>
+        <td>1 or infinite</td>
+      </tr>
+      <tr class="body">
+        <td>Tree</td>
+        <td>A set of nodes with parent-child relationships, where a node can be the child of only one parent.</td>
+        <td>Yes</td>
+        <td>No</td>
+        <td>No</td>
+        <td>1 or infinite</td>
+      </tr>
+      <tr class="body">
+        <td>Forest</td>
+        <td>A set of trees with no root node.</td>
+        <td>No</td>
+        <td>No</td>
+        <td>No</td>
+        <td>1 or infinite</td>
+      </tr>
+      <tr class="body">
+        <td>Strict Hierarchy</td>
+        <td>An infinite tree in which a child node can have only one parent and is dependent on its parent.</td>
+        <td>Yes</td>
+        <td>No</td>
+        <td>Yes</td>
+        <td>Infinite</td>
+      </tr>
+      <tr class="body">
+        <td>Strict Hierarchy Set</td>
+        <td>A set of strict hierarchies with no root node.</td>
+        <td>No</td>
+        <td>No</td>
+        <td>Yes</td>
+        <td>Infinite</td>
+      </tr>
+      <tr class="body">
+        <td>Loose Hierarchy</td>
+        <td>An infinite DAG in which a child node can have multiple parents but cannot exist without at least one parent.</td>
+        <td>Yes</td>
+        <td>Yes</td>
+        <td>Yes</td>
+        <td>Infinite</td>
+      </tr>
+      <tr class="body">
+        <td>Loose Hierarchy Set</td>
+        <td>A set of loose hierarchies with no root node.</td>
+        <td>No</td>
+        <td>Yes</td>
+        <td>Yes</td>
+        <td>Infinite</td>
+      </tr>
+    </table></div>
+<h2>3.
+       <a name="subscribe" id="subscribe">Subscribe to a Collection Node</a></h2>
+    <p>A service that implements collection nodes SHOULD allow entities to subscribe to collection nodes (subject to access models and local security policies).</p>
+    <p>In addition to the subscription configuration options already defined, there are two subscription configuration options specific to collection nodes:</p>
+    <ul>
+      <li>
+        <p><span class="strong">pubsub#subscription_type</span></p>
+        <p>This subscription option enables the subscriber to subscribe either to items or to nodes.</p>
+        <p>If the subscription type is "items", the subscriber shall be notified whenever any node contained in the collection generates a notification (e.g., when an item is published or deleted), as modified by the value of the "pubsub#subscription_depth" option.</p>
+        <p>If the subscription type is "nodes", the subscriber shall be notified whenever a new node is added to the collection, as modified by the value of the "pubsub#subscription_depth" option.</p>
+        <p>The default value of this subscription option MUST be "nodes".</p>
+      </li>
+      <li>
+        <p><span class="strong">pubsub#subscription_depth</span></p>
+        <p>This subscription option enables the subscriber to specify whether it wants to receive notifications only from first-level children of the collection (a value of "1") or from all descendents (a value of "all").</p>
+        <p>For subscriptions of type "items", this enables the subscriber to be informed only when an item is published to a leaf node that is a direct child of the collection node to which it has subscribed, or to be informed whenever an item is published to any leaf node in the "tree" that begins at the level of the collection to which it has subscribed.</p>
+        <p>For subscriptions of type "nodes", this enables the subscriber to be informed only when a new node is added in the specific collection to which it has subscribed, or to be informed whenever a node is added anywhere in the "tree" that begins at the level of the collection to which it has subscribed.</p>
+        <p>The default value of this subscription option MUST be "1".</p>
+      </li>
+    </ul>
+    <p>In order to subscribe to a collection node, an entity MUST send a subscription request to the node; the subscription request MAY include subscription options, but this is not strictly necessary (especially if the entity does not wish to override the default settings for the "pubsub#subscription_type" and "pubsub#subscription_depth" options).</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Entity subscribes to a collection node (no configuration)</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='francisco@denmark.lit/barracks'
+    to='pubsub.shakespeare.lit'
+    id='collsub1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;subscribe jid='francisco@denmark.lit'
+               node='blogs'/&gt;
+   &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p>The subscriber will now receive notification of new first-level nodes created within the "blogs" collection.</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Entity subscribes to a collection node (with configuration)</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='francisco@denmark.lit/barracks'
+    to='pubsub.shakespeare.lit'
+    id='collsub2'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;subscribe jid='francisco@denmark.lit'
+               node='blogs'/&gt;
+    &lt;options&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#subscribe_options&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#subscription_type'&gt;
+          &lt;value&gt;items&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#subscription_depth'&gt;
+          &lt;value&gt;all&lt;/value&gt;
+        &lt;/field&gt;
+      &lt;/x&gt;
+   &lt;/options&gt;
+ &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p>The subscriber will now receive item notifications from nodes at any depth within the "blogs" collection.</p>
+    <p>Depending on the nature of the node "tree", a subscription type of "items" and depth of "all" may result in an extremely large number of notifications. Therefore, a service MAY disallow such a combination of subscription options, in which case it MUST return a &lt;not-allowed/&gt; error to the requesting entity.</p>
+    <p>A service MAY allow an entity to subscribe to a collection node in two ways, once with a subscription of type "nodes" (to receive notification of any new nodes added to the collection or the entire tree) and once with a subscription of type "items" (to receive all items published within the tree). However, a service SHOULD NOT allow an entity to subscribe twice to a collection node (once with a subscription depth of "1" and once with a subscription depth of "all") for the same subscription type, since two such subscriptions are unnecessary (a depth of "all" includes by definition a depth of "1"); in this case the service SHOULD return a &lt;conflict/&gt; error to the requesting entity.</p>
+<h2>4.
+       <a name="root" id="root">Root Collection Node</a></h2>
+    <p>A service that implements collections SHOULD support a root collection. The root collection shall be identified by the lack of a node identifier (i.e., the address of the pubsub service itself, such as "pubsub.shakespeare.lit").</p>
+    <p>Subscribing to this node with a subscription of type "nodes" and a depth of "1" enables an entity to be notified whenever a new first-level node is created at the pubsub service. Subscribing to this node with a subscription of type "nodes" and a depth of "all" enables an entity to be notified whenever a new node is created anywhere at the pubsub service.</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Entity subscribes to the root collection node</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='francisco@denmark.lit/barracks'
+    to='pubsub.shakespeare.lit'
+    id='root1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;subscribe jid='francisco@denmark.lit'/&gt;
+ &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p>If the root collection node is configured to send notification of node associations and disassociations, the service shall send an event that contains a &lt;collection/&gt; element whose 'node' attribute specifies the NodeID of the collection (in this case the NodeID is empty to signify that the collection is the root collection); this element in turn contains an &lt;associate/&gt; element whose 'node' attribute specifies the NodeID of node that has been associated with the collection.</p>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Notification of node association</p><div class="indent"><pre class="prettyprint">
+&lt;message from='pubsub.shakespeare.lit'
+         to='francisco@denmark.lit'
+         id='newnode1'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;collection node='some-collection'&gt;
+      &lt;associate node='new-node-id'/&gt;
+    &lt;/collection&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+    </pre></div>
+    <p>The notification event MAY also include the node meta-data, formatted using the <span class="strong">Data Forms</span> protocol.</p>
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Notification of node association</p><div class="indent"><pre class="prettyprint">
+&lt;message from='pubsub.shakespeare.lit'
+         to='francisco@denmark.lit'
+         id='newnode2'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;collection node=''&gt;
+      &lt;associate node='new-node-id'&gt;
+        &lt;x xmlns='jabber:x:data' type='result'&gt;
+          &lt;field var='FORM_TYPE' type='hidden'&gt;
+            &lt;value&gt;http://jabber.org/protocol/pubsub#meta-data&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field var='pubsub#creation_date'&gt;&lt;var&gt;2003-07-29T22:56Z&lt;/var&gt;&lt;/field&gt;
+          &lt;field var='pubsub#creator'&gt;&lt;var&gt;hamlet@denmark.lit&lt;/var&gt;&lt;/field&gt;
+          &lt;field var='pubsub#description'&gt;&lt;var&gt;Atom feed for my blog.&lt;/var&gt;&lt;/field&gt;
+          &lt;field var='pubsub#language'&gt;&lt;var&gt;en&lt;/var&gt;&lt;/field&gt;
+          &lt;field var='pubsub#contact'&gt;&lt;value&gt;bard@shakespeare.lit&lt;/value&gt;&lt;/field&gt;
+          &lt;field var='pubsub#owner'&gt;&lt;value&gt;hamlet@denmark.lit&lt;/value&gt;&lt;/field&gt;
+          &lt;field var='pubsub#title'&gt;&lt;var&gt;Princely Musings (Atom).&lt;/var&gt;&lt;/field&gt;
+          &lt;field var='pubsub#type'&gt;&lt;value&gt;http://www.w3.org/2005/Atom&lt;/value&gt;&lt;/field&gt;
+        &lt;/x&gt;
+      &lt;/node&gt;
+    &lt;/collection&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+    </pre></div>
+<h2>5.
+       <a name="createnode" id="createnode">Create a New Collection Node</a></h2>
+    <p>To create a new collection node, the requesting entity MUST include a Data Form containing a 'pubsub#node_type' field whose &lt;value/&gt; is "collection".</p>
+    <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Entity requests a new collection node</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='bard@shakespeare.lit/globe'
+    to='pubsub.shakespeare.lit'
+    id='create3'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;create node='announcements'/&gt;
+    &lt;configure&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#node_type'&gt;&lt;value&gt;collection&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Service responds with success</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result'
+    from='pubsub.shakespeare.lit'
+    to='bard@shakespeare.lit/globe'
+    id='create3'/&gt;
+    </pre></div>
+    <p>In addition to the errors already defined for leaf node creation, there are several reasons why the collection node creation request might fail:</p>
+    <ol>
+      <li>The service does not support collection nodes.</li>
+      <li>The service does not support creation of collection nodes.</li>
+      <li>The requesting entity does not have sufficient privileges to create collection nodes.</li>
+    </ol>
+      <p>These error cases are described more fully in the following sections.</p>
+    <p>If the service does not support collection nodes, it MUST respond with a &lt;feature-not-implemented/&gt; error, specifying a pubsub-specific error condition of &lt;unsupported/&gt; and a feature of "collections".</p>
+    <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Service does not support collection nodes</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='error'
+    from='hamlet@denmark.lit/elsinore'
+    to='pubsub.shakespeare.lit'
+    id='config1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#owner'&gt;
+    &lt;configure node='princely_musings'/&gt;
+  &lt;/pubsub&gt;
+  &lt;error type='cancel'&gt;
+    &lt;feature-not-implemented xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+    &lt;unsupported xmlns='http://jabber.org/protocol/pubsub#errors'
+                 feature='collections'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p>If the service supports collection nodes but does not allow new collection nodes to be created, it MUST respond with a &lt;not-allowed/&gt; error.</p>
+    <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Service does not allow creation of collection nodes</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='error'
+    from='hamlet@denmark.lit/elsinore'
+    to='pubsub.shakespeare.lit'
+    id='config1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#owner'&gt;
+    &lt;configure node='princely_musings'/&gt;
+  &lt;/pubsub&gt;
+  &lt;error type='cancel'&gt;
+    &lt;not-allowed xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p>If the requesting entity has insufficient privileges to create new collections, the service MUST respond with a &lt;forbidden/&gt; error.</p>
+    <p class="caption"><a name="example-10" id="example-10"></a>Example 10. Requesting entity has insufficient privileges to create collection nodes</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='error'
+    from='pubsub.shakespeare.lit'
+    to='hamlet@denmark.lit/elsinore'
+    id='config1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#owner'&gt;
+    &lt;configure node='princely_musings'/&gt;
+  &lt;/pubsub&gt;
+  &lt;error type='auth'&gt;
+    &lt;forbidden xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p>A service MAY offer some node configuration options that are specific to collection nodes and not provided in configuration forms related to leaf nodes. The following are RECOMMENDED:</p>
+    <ul>
+      <li>pubsub#children_association_policy -- the policy regarding who may associate child nodes with the collection (values: all, owner, whitelist).</li>
+      <li>pubsub#children_association_whitelist -- the whitelist of entities that may associate child nodes with the collection.</li>
+      <li>pubsub#children_max -- the maximum number of child nodes that may be associated with a collection.</li>
+    </ul>
+<h2>6.
+       <a name="createassociated" id="createassociated">Create a Node Associated with a Collection</a></h2>
+  <div class="indent"><h3>6.1 <a name="createassociated-request" id="createassociated-request">Request</a></h3>
+      <p>To create a new node and associate it with an existing collection, the node configuration protocol MUST be used in the node creation request (see the <a href="#owner-create-and-configure">Create and Configure a Node</a> section of this document). In order to specify the associated collection(s), the form MUST include a 'pubsub#collection' field.</p>
+      <p>Note: Inclusion of the node configuration form is not necessary if the node is being created as a first-level child of the root collection node, since every such child is automatically affiliated with the root collection node (if any).</p>
+      <p>Note: For the protocol used to associate an existing node with a collection, refer to the <a href="#associate">Associate an Existing Node with a Collection</a> section of this document.</p>
+      <p class="caption"><a name="example-11" id="example-11"></a>Example 11. Entity creates a new node associated with a collection</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='bard@shakespeare.lit/globe'
+    to='pubsub.shakespeare.lit'
+    id='create4'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;create node='plays'/&gt;
+    &lt;configure&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='pubsub#collection'&gt;&lt;value&gt;announcements&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+      </pre></div>
+      <p>Note: If the node is a collection node and the requesting entity wishes to request the default configuration, the requesting entity MUST include <span class="em">only</span> the "pubsub#collection" and "pubsub#node_type" fields in the configuration form.</p>
+  </div>
+  <div class="indent"><h3>6.2 <a name="createassociated-success" id="createassociated-success">Success Case</a></h3>
+      <p>If no error occurs, the service MUST create the node and associate it with the collection.</p>
+  </div>
+  <div class="indent"><h3>6.3 <a name="createassociated-error" id="createassociated-error">Error Cases</a></h3>
+      <p>There are several reasons why the request might fail:</p>
+      <ol>
+        <li>The request specified more than one collection node, but the service allows a node to be associated with only one collection node.</li>
+        <li>The requesting entity does not have sufficient privileges to associate a node with the specified collection node.</li>
+        <li>No additional nodes can be associated with the collection node.</li>
+        <li>The specified collection node is actually a leaf node.</li>
+        <li>The specified collection node does not exist.</li>
+      </ol>
+      <p>These error cases are described more fully in the following sections.</p>
+    <div class="indent"><h3>6.3.1 <a name="createassociated-error-onenode" id="createassociated-error-onenode">Only One Collection Node</a></h3>
+        <p>An implementation MAY allow a node to be associated with more than one collection node and therefore MAY specify a type of "text-multi" for the "pubsub#collection" field. However, in order to reduce the complexity of implementation, it is RECOMMENDED to allow only one parent collection node for each node and therefore it is RECOMMENDED to specify a type of "text-single" for the "pubsub#collection" field. If a service supports associating a node with multiple collections, it MUST advertise support for the "multi-collection" feature (if that feature is not advertised, entities SHOULD assume that the service allows a node to be associated with only one collection). If the request specifies more than one collection node but the service allows a node to be associated with only one collection node, the service MUST return a &lt;bad-request/&gt; error.</p>
+        <p class="caption"><a name="example-12" id="example-12"></a>Example 12. Too many collection nodes</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='error'
+    from='pubsub.shakespeare.lit'
+    to='bard@shakespeare.lit/globe'
+    id='create4'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;create node='plays'/&gt;
+    &lt;configure&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='pubsub#collection'&gt;
+          &lt;value&gt;announcements&lt;/value&gt;
+          &lt;value&gt;news&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#node_type'&gt;
+          &lt;value&gt;collection&lt;/value&gt;
+        &lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+  &lt;error type='modify'&gt;
+    &lt;bad-request xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+        </pre></div>
+    </div>
+    <div class="indent"><h3>6.3.2 <a name="createassociated-error-forbidden" id="createassociated-error-forbidden">Insufficient Privileges</a></h3>
+        <p>If the requesting entity does not have sufficient privileges to associate a node with the specified collection node, the service MUST return a &lt;forbidden/&gt; error.</p>
+        <p class="caption"><a name="example-13" id="example-13"></a>Example 13. Insufficient privileges</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='error'
+    from='pubsub.shakespeare.lit'
+    to='bard@shakespeare.lit/globe'
+    id='create4'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;create node='plays'/&gt;
+    &lt;configure&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='pubsub#collection'&gt;&lt;value&gt;announcements&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+  &lt;error type='auth'&gt;
+    &lt;forbidden xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+        </pre></div>
+    </div>
+    <div class="indent"><h3>6.3.3 <a name="createassociated-error-nomore" id="createassociated-error-nomore">No More Nodes</a></h3>
+      <p>If no additional nodes can be associated with the collection node because a configurable limit of associated nodes has been reached, the service MUST return a &lt;not-allowed/&gt; error, which SHOULD also include a pubsub-specific error condition of &lt;max-nodes-exceeded/&gt;.</p>
+      <p class="caption"><a name="example-14" id="example-14"></a>Example 14. Associated node limit reached</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='error'
+    from='pubsub.shakespeare.lit'
+    to='bard@shakespeare.lit/globe'
+    id='create4'&gt;
+  &lt;error type='cancel'&gt;
+    &lt;not-allowed xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+    &lt;max-nodes-exceeded xmlns='http://jabber.org/protocol/pubsub#errors'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+        </pre></div>
+    </div>
+    <div class="indent"><h3>6.3.4 <a name="createassociated-error-leaf" id="createassociated-error-leaf">Leaf Node</a></h3>
+        <p>If the specified collection node is actually a leaf node, the service MUST return an &lt;not-allowed/&gt; error.</p>
+        <p class="caption"><a name="example-15" id="example-15"></a>Example 15. Collection node is actually a leaf node</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='error'
+    from='pubsub.shakespeare.lit'
+    to='bard@shakespeare.lit/globe'
+    id='create4'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;create node='plays'/&gt;
+    &lt;configure&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='pubsub#collection'&gt;&lt;value&gt;announcements&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+  &lt;error type='cancel'&gt;
+    &lt;not-allowed xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+        </pre></div>
+    </div>
+    <div class="indent"><h3>6.3.5 <a name="createassociated-error-node" id="createassociated-error-node">Node Does Not Exist</a></h3>
+        <p>If the specified collection node does not exist, the service MUST return an &lt;item-not-found/&gt; error.</p>
+        <p class="caption"><a name="example-16" id="example-16"></a>Example 16. No such collection node</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='error'
+    from='pubsub.shakespeare.lit'
+    to='bard@shakespeare.lit/globe'
+    id='create4'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;create node='plays'/&gt;
+    &lt;configure&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='pubsub#collection'&gt;&lt;value&gt;announcements&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+  &lt;error type='cancel'&gt;
+    &lt;item-not-found xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+        </pre></div>
+    </div>
+  </div>
+<h2>7.
+       <a name="delete" id="delete">Collection Node Deletion</a></h2>
+    <p>Deletion of a collection node can introduce a large number of changes to the system, depending on the <a href="#models">node relationship model</a> of the deployed system. This section describes recommended handling of deletion requests in the context of collection nodes.</p>
+  <div class="indent"><h3>7.1 <a name="delete-dag" id="delete-dag">Directed Acyclic Graph</a></h3>
+      <p>When the graph of the pubsub system is a Directed Acyclic Graph, a child node can have more than one parent, which may be the root collection node. Therefore, when a node owner deletes a collection node the service MUST behave as follows:</p>
+      <ul>
+        <li>If a child node will still have at least one other parent after deletion of the collection node, the service MUST NOT delete the child node but instead MUST simply sever the relationship between the deleted collection node and the child node.</li>
+        <li>If a child node will have no other parents after deletion of the collection node, the service MUST associate any orphaned child with the root collection node.</li>
+      </ul>
+  </div>
+  <div class="indent"><h3>7.2 <a name="delete-dagset" id="delete-dagset">Dag Set</a></h3>
+      <p>When the graph of the pubsub system is a Dag Set, a child node can have more than one parent but there is no root collection node. Therefore, when a node owner deletes a collection node the service MUST behave as follows:</p>
+      <ul>
+        <li>If a child node will still have at least one other parent after deletion of the collection node, the service MUST NOT delete the child node but instead MUST simply sever the relationship between the deleted collection node and the child node.</li>
+        <li>If a child node will have no other parents after deletion of the collection node, the service MUST associate any orphaned child with no other node.</li>
+      </ul>
+  </div>
+  <div class="indent"><h3>7.3 <a name="delete-tree" id="delete-tree">Tree</a></h3>
+      <p>When the graph of the pubsub system is a Tree, a child node can have only one parent, which may be the root collection node. Therefore, when a node owner deletes a collection node the service MUST behave as follows:</p>
+      <ul>
+        <li>The service MUST associate any orphaned child with the root collection node.</li>
+      </ul>
+  </div>
+  <div class="indent"><h3>7.4 <a name="delete-forest" id="delete-forest">Forest</a></h3>
+      <p>When the graph of the pubsub system is a Forest, a child node can have only one parent but there is no root collection node. Therefore, when a node owner deletes a collection node the service MUST behave as follows:</p>
+      <ul>
+        <li>The service MUST associate any orphaned child with no other node.</li>
+      </ul>
+  </div>
+  <div class="indent"><h3>7.5 <a name="delete-strict" id="delete-strict">Strict Hierarchy or Strict Hierarchy Set</a></h3>
+      <p>When the graph of the pubsub system is a Strict Hierarchy or a Strict Hierarchy Set, a child node can have only one parent node and cannot exist without its parent. Therefore, when a node owner deletes a collection node the service MUST behave as follows:</p>
+      <ul>
+        <li>The service SHOULD delete any orphaned child(ren).</li>
+      </ul>
+      <p>Note: This action may introduce cascading changes, since deletion of a child will result in deletion of any grandchildren, great-grandchildren, etc. A service MAY refuse to allow deletion of a collection node if doing so will result in an excessive load on the system. If it so refuses, it MUST return a &lt;resource-constraint/&gt; error.</p>
+  </div>
+  <div class="indent"><h3>7.6 <a name="delete-loose" id="delete-loose">Loose Hierarchy or Loose Hierarchy Set</a></h3>
+      <p>When the graph of the pubsub system is a Loose Hierarchy or a Loose Hierarchy Set, a child node can have multiple parent nodes but a child node cannot exist without at least one parent node. Therefore, when a node owner deletes a collection node the service MUST behave as follows:</p>
+      <ul>
+        <li>If a child node will still have at least one other parent after deletion of the collection node, the service MUST NOT delete the child node but instead MUST simply sever the relationship between the deleted collection node and the child node.</li>
+        <li>If a child node will have no other parents after deletion of the collection node, the service SHOULD delete any orphaned child(ren).</li>
+      </ul>
+      <p>Note: This action may introduce cascading changes, since deletion of a child will result in deletion of any grandchildren, great-grandchildren, etc. A service MAY refuse to allow deletion of a collection node if doing so will result in an excessive load on the system. If it so refuses, it MUST return a &lt;resource-constraint/&gt; error.</p>
+  </div>
+  <div class="indent"><h3>7.7 <a name="delete-root" id="delete-root">Root Collection Node</a></h3>
+    <p>If the requesting entity attempts to delete the root collection node, the service MUST return a &lt;not-allowed/&gt; error.</p>
+    <p class="caption"><a name="example-17" id="example-17"></a>Example 17. Node is the root</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='error'
+    from='pubsub.shakespeare.lit'
+    to='hamlet@denmark.lit/elsinore'
+    id='delete1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#owner'&gt;
+    &lt;delete/&gt;
+  &lt;/pubsub&gt;
+  &lt;error type='cancel'&gt;
+    &lt;not-allowed xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+<h2>8.
+       <a name="associate" id="associate">Associate an Existing Node with a Collection</a></h2>
+    <p>Although a node can be associated with a collection when it is created (as described above), it can also be associated with a collection after it has been created. This can be done in two ways:</p>
+    <ul>
+      <li>By modifying the node's "pubsub#collection" configuration field.</li>
+      <li>By modifying the collection node's "pubsub#children" configuration field.</li>
+    </ul>
+    <p>These methods are described below.</p>
+    <p>In order to modify the (child) node's "pubsub#collection" configuration field, the owner of the node shall submit a request to edit the node's configuration, receive a configuration form from the service, and then submit a modified configuration form:</p>
+    <p class="caption"><a name="example-18" id="example-18"></a>Example 18. Node owner modifies node configuration</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='hamlet@denmark.lit/elsinore'
+    to='pubsub.shakespeare.lit'
+    id='associate1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#owner'&gt;
+    &lt;configure node='princely_musings'&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+        &lt;/field&gt;
+        ...
+        &lt;field var='pubsub#collection'&gt;&lt;value&gt;blogs&lt;/value&gt;&lt;/field&gt;
+        ...
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p>Note: To associate a node with the root collection node, the node owner MUST submit an empty &lt;value/&gt; element within the 'pubsub#collection' field.</p>
+    <p>In order to modify the (parent) node's "pubsub#children" configuration field, the owner of the node shall submit a request to edit the node's configuration, receive a configuration form from the service, and then submit a modified configuration form:</p>
+    <p class="caption"><a name="example-19" id="example-19"></a>Example 19. Node owner modifies node configuration</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='bard@shakespeare.lit/globe'
+    to='pubsub.shakespeare.lit'
+    id='associate2'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#owner'&gt;
+    &lt;configure node='blogs'&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+        &lt;/field&gt;
+        ...
+        &lt;field var='pubsub#children'&gt;
+          &lt;value&gt;princely_musings&lt;/value&gt;
+          &lt;value&gt;kingly_ravings&lt;/value&gt;
+          &lt;value&gt;starcrossed_stories&lt;/value&gt;
+          &lt;value&gt;moorish_meanderings&lt;/value&gt;
+        &lt;/field&gt;
+        ...
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p>If the collection node is configured to send notification of node associations and disassociations, the service shall send an event that contains a &lt;collection/&gt; element whose 'node' attribute specifies the NodeID of the collection; this element in turn contains an &lt;associate/&gt; element whose 'node' attribute specifies the NodeID of node that has been associated with the collection.</p>
+    <p class="caption"><a name="example-20" id="example-20"></a>Example 20. Notification of node association</p><div class="indent"><pre class="prettyprint">
+&lt;message from='pubsub.shakespeare.lit'
+         to='francisco@denmark.lit'
+         id='newnode3'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;collection node='some-collection'&gt;
+      &lt;associate node='new-node-id'/&gt;
+    &lt;/collection&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+    </pre></div>
+    <p>If an entity attempts to associate a node with a collection in a way that would violate the <a href="#models">node relationship model</a> (e.g., adding a second parent to a node in a Tree or Strict Hierarchy or making a child a new parent of its existing parent or other predecessor and thus violating the orientation of the graph), the service MUST return a &lt;conflict/&gt; error.</p>
+<h2>9.
+       <a name="disassociate" id="disassociate">Disassociate a Node from a Collection</a></h2>
+    <p>A node can be disassociated from a collection after it has been associated (whether at creation time or afterward). This can be done in two ways:</p>
+    <ul>
+      <li>By modifying the node's "pubsub#collection" configuration field.</li>
+      <li>By modifying the collection node's "pubsub#children" configuration field.</li>
+    </ul>
+    <p>These methods are described below.</p>
+    <p>In order to modify the (child) node's "pubsub#collection" configuration field, the owner of the node shall submit a request to edit the node's configuration, receive a configuration form from the service, and then submit a modified configuration form:</p>
+    <p class="caption"><a name="example-21" id="example-21"></a>Example 21. Node owner modifies node configuration</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='hamlet@denmark.lit/elsinore'
+    to='pubsub.shakespeare.lit'
+    id='associate1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#owner'&gt;
+    &lt;configure node='princely_musings'&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+        &lt;/field&gt;
+        ...
+        &lt;field var='pubsub#collection'&gt;&lt;/field&gt;
+        ...
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p>Note: To disassociate the node from all collection nodes, the node owner MUST submit an empty &lt;field/&gt; element for the 'pubsub#collection' field as shown in the foregoing example.</p>
+    <p>Note: To disassociate the node from the root collection node, the node owner MUST submit an empty &lt;value/&gt; element within the 'pubsub#collection' field as shown in the foregoing example.</p>
+    <p>In order to modify the (parent) node's "pubsub#children" configuration field, the owner of the node shall submit a request to edit the node's configuration, receive a configuration form from the service, and then submit a modified configuration form:</p>
+    <p class="caption"><a name="example-22" id="example-22"></a>Example 22. Node owner modifies node configuration</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='bard@shakespeare.lit/globe'
+    to='pubsub.shakespeare.lit'
+    id='associate2'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#owner'&gt;
+    &lt;configure node='blogs'&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+        &lt;/field&gt;
+        ...
+        &lt;field var='pubsub#children'&gt;
+          &lt;value&gt;kingly_ravings&lt;/value&gt;
+          &lt;value&gt;starcrossed_stories&lt;/value&gt;
+          &lt;value&gt;moorish_meanderings&lt;/value&gt;
+        &lt;/field&gt;
+        ...
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p>If the collection node is configured to send notification of node associations and disassociations, the service shall send an event that contains a &lt;collection/&gt; element whose 'node' attribute specifies the NodeID of the collection; this element in turn contains a &lt;disassociate/&gt; element whose 'node' attribute specifies the NodeID of node that has been disassociated from the collection.</p>
+    <p class="caption"><a name="example-23" id="example-23"></a>Example 23. Notification of node disassociation</p><div class="indent"><pre class="prettyprint">
+&lt;message from='pubsub.shakespeare.lit'
+         to='francisco@denmark.lit'
+         id='oldnode1'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;collection node='some-collection'&gt;
+      &lt;disassociate node='new-node-id'/&gt;
+    &lt;/collection&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+    </pre></div>
+    <p>If a node is disassociated from a collection node and a new association is not formed, the implementation MAY associate the node with the root collection node or associate it with no collection node.</p>
+    <p>Note: The combination of associating a node with one collection and disassociating the same node from another collection can be used to move a node from one collection to another.</p>
+<h2>10.
+       <a name="owner-default-requestcollection" id="owner-default-requestcollection">Requesting Collection Node Configuration</a></h2>
+      <p>The default configuration options can be different for a collection node vs. a leaf node. In order to specifically request the default configuration options for collection nodes, an entity MUST include a Data Form with a 'pubsub#node_type' field whose value is "collection" in the request (since the default value for the 'pubsub#node_type' field is "leaf").</p>
+      <p class="caption"><a name="example-24" id="example-24"></a>Example 24. Entity requests default configuration options for collection nodes</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='get'
+    from='hamlet@denmark.lit/elsinore'
+    id='def2'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#owner'&gt;
+    &lt;default&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#node_type'&gt;&lt;value&gt;collection&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/default&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+      </pre></div>
+      <p>If the service does not support collection nodes, it MUST return a &lt;feature-not-implemented/&gt; error, specifying a pubsub-specific error condition of &lt;unsupported/&gt; and a feature of "collections".</p>
+    <p class="caption"><a name="example-25" id="example-25"></a>Example 25. Service does not support collection nodes</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='error'
+    from='pubsub.shakespeare.lit'
+    to='hamlet@denmark.lit/elsinore'
+    id='def2'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#owner'&gt;
+    &lt;default&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#node_type'&gt;&lt;value&gt;collection&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/default&gt;
+  &lt;/pubsub&gt;
+  &lt;error type='cancel'&gt;
+    &lt;feature-not-implemented xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+    &lt;unsupported xmlns='http://jabber.org/protocol/pubsub#errors'
+                 feature='collections'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+      </pre></div>
+<h2>11.
+       <a name="notify" id="notify">Generating Publish Notifications for Collections</a></h2>
+    <p>If an item is published to a node which is also included by a collection, and an entity is subscribed to that collection with a subscription type of "items", then the notifications generated by the service MUST contain additional information. The &lt;items/&gt; element contained in the notification message MUST specify the node identifier of the node that generated the notification (not the collection) and the &lt;item/&gt; element MUST contain a SHIM header that specifies the node identifier of the collection.</p>
+    <p class="caption"><a name="example-26" id="example-26"></a>Example 26. Subscribers receive notifications from a collection</p><div class="indent"><pre class="prettyprint">
+&lt;message to='francisco@denmark.lit' from='pubsub.shakespeare.lit'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='princely_musings'&gt;
+      &lt;item id='ae890ac52d0df67ed7cfdf51b644e901'&gt;
+        ...
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+  &lt;headers xmlns='http://jabber.org/protocol/shim'&gt;
+    &lt;header name='Collection'&gt;blogs&lt;/header&gt;
+  &lt;/headers&gt;
+&lt;/message&gt;
+
+&lt;message to='bernardo@denmark.lit' from='pubsub.shakespeare.lit'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='princely_musings'&gt;
+      &lt;item id='ae890ac52d0df67ed7cfdf51b644e901'&gt;
+        ...
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+  &lt;headers xmlns='http://jabber.org/protocol/shim'&gt;
+    &lt;header name='Collection'&gt;blogs&lt;/header&gt;
+  &lt;/headers&gt;
+&lt;/message&gt;
+.
+.
+.
+    </pre></div>
+    <p>Note: The delivery options (such as "pubsub#deliver_payloads") are determined by the publishing leaf node, not by the aggregating collection node. If the owner of a collection node sets delivery options for a collection node, the service SHOULD ignore those options and apply the options set for the leaf node that publishes an item.</p>
+<h2>12.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p>REQUIRED.</p>
+<h2>13.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p>REQUIRED.</p>
+<h2>14.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p>REQUIRED.</p>
+<h2>15.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p>REQUIRED for protocol specifications.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0248<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2008-08-11<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0060<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0248.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0248.xml/rss.xml">RSS</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0248.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0248.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Peter Saint-Andre</h3><p class="indent">
+        Email:
+        <a href="mailto:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        JabberID: 
+        <a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        URI: 
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p><h3>Ralph Meijer</h3><p class="indent">
+        Email:
+        <a href="mailto:ralphm@ik.nu">ralphm@ik.nu</a><br />
+        JabberID: 
+        <a href="xmpp:ralphm@ik.nu">ralphm@ik.nu</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2010 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XMPP Standards Foundation, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id90812" id="nt-id90812">1</a>. XEP-0060: Publish-Subscribe &lt;<a href="http://xmpp.org/extensions/xep-0060.html">http://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-id90839" id="nt-id90839">2</a>. See <a href="http://en.wikipedia.org/wiki/Graph_(mathematics)">http://en.wikipedia.org/wiki/Graph_(mathematics)</a>.</p><p><a name="nt-id90859" id="nt-id90859">3</a>. See <a href="http://en.wikipedia.org/wiki/Directed_acyclic_graph">http://en.wikipedia.org/wiki/Directed_acyclic_graph</a>.</p><p><a name="nt-id90887" id="nt-id90887">4</a>. See <a href="http://en.wikipedia.org/wiki/Directed_acyclic_graph">http://en.wikipedia.org/wiki/Directed_acyclic_graph</a>.</p><p><a name="nt-id90906" id="nt-id90906">5</a>. See <a href="http://en.wikipedia.org/wiki/Tree_(graph_theory)">http://en.wikipedia.org/wiki/Tree_(graph_theory)</a>.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2008-08-11)</h4><div class="indent"><p>Initial version, split from XEP-0060.</p> (psa)
+    </div></div><hr /><p>END</p></body></html>

@@ -1,0 +1,722 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0255: Location Query</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><meta name="DC.Title" content="Location Query" /><meta name="DC.Creator" content="Helge Timenes" /><meta name="DC.Creator" content="Simon Tennant" /><meta name="DC.Creator" content="Ross Savage" /><meta name="DC.Description" content="This specification defines an XMPP protocol extension for querying a compliant server for information about the geographical or physical location of an entity.&quot;" /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2008-12-20" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0255" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright (c) 1999 - 2009 by the XMPP Standards Foundation (XSF)." /></head><body><h1>XEP-0255: Location Query</h1><p>Copyright (c) 1999 - 2009 <a href="http://xmpp.org/">XMPP Standards Foundation</a>. See <a href="#appendix-legal">Legal Notices</a>.</p><hr /><p>This specification defines an XMPP protocol extension for querying a compliant server for information about the geographical or physical location of an entity."</p><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems should not deploy implementations of this protocol until it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#examples">How It Works</a><br />4.  <a href="#format">Data Format</a><br />5.  <a href="#transport">Recommended Transport</a><br />6.  <a href="#impl">Implementation Notes</a><br />   
+      6.1.  <a href="#server_impl">Server Implementation Notes</a><br />   
+      6.2.  <a href="#client_impl">Client Implementation Notes</a><br />7.  <a href="#i18n">Internationalization Considerations</a><br />8.  <a href="#security">Security Considerations</a><br />9.  <a href="#iana">IANA Considerations</a><br />10.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      10.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      10.2.  <a href="#registrar-versioning">Protocol Versioning</a><br />11.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">This document defines a format for querying a location server for information about an entity's geographical location.  The query must contain some location characteristics that the server can process to derive this information. These can be in the form of geodetic coordinates (from GPS receivers or other positioning equipment), in which case the server will perform "reversed geocoding" to derive the information. Alternatively, the location can be characterized by a list of identifiable radio transmitters (from here on called 'beacons') observable from this location. Typical beacons include cellular telephone towers, wireless network access points and bluetooth devices. In this case the location server must match the supplied characteristics with stored knowledge about the beacons to derive the submitting entity's location.  Client implementers are encouraged to supply both kinds of characteristics when available, as this can be utilized by self-learning location servers. The location information returned by the location server is structured according to <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0080.html">User Geolocation</a></span>  [<a href="#nt-id2251170">1</a>], ensuring compatibility with systems using this standard for location information publishing.</p>
+  <p class="" style="">The location query is designed to be used as a one-shot request or as a continuous query-result dialogue. The latter form will allow location servers to analyze changes with time, which in most cases yields improved fidelity and the possibility to derive motion state information.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p class="" style="">The format defined herein was designed to address the following requirements:</p>
+  <ul class="" style="">
+
+   <li class="" style="">It shall be usable on devices with no support for GPS or other geodetic positioning systems</li>
+   <li class="" style="">It shall be usable on devices with support for GPS or other geodetic positioning systems</li>
+   <li class="" style="">It shall be compatible with place-referencing systems</li>
+   <li class="" style="">It shall support self-learning location servers</li>
+   <li class="" style="">The result format shall be expressed as natural language location description</li>
+   <li class="" style="">The result format shall be compatible with XEP-0080</li>
+
+</ul>
+<h2>3.
+       <a name="examples" id="examples">How It Works</a></h2>
+  <p class="" style="">The basic principle behind this XMPP extension is as follows: An XMPP clients collects characteristics about its current location that is not directly suitable for presentation to a human user, but from which human readable location information can be derived. The client sends this information to a location server that derives this information and returns it to the querying client. Here "location server" means a XMPP server application that supports the <span class="strong">locationquery</span> stanza defined in this document. It can either be an integral part of the XMPP server, or run as a component on the same or a different machine from the XMPP server itself.</p>
+
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Entity queries server with GPS coordinates</p><div class="indent"><pre>
+&lt;iq from='hamlet@shakespeare.lit/phone' 
+    id='q01' 
+    to='location.shakespear.lit' 
+    type='get' 
+    xml:lang='en-US'&gt;
+  &lt;locationquery xmlns='urn:xmpp:locationquery:0'&gt;
+    &lt;latitude&gt;57.0501862&lt;/latitude&gt;
+    &lt;longitude&gt;9.9188746&lt;/longitude&gt;
+    &lt;accuracy&gt;35.6&lt;/accuracy&gt;
+  &lt;/locationquery&gt;
+&lt;iq&gt;
+  </pre></div>
+
+  <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Server responds with location info</p><div class="indent"><pre>
+&lt;iq from='location.shakespeare.lit' 
+    id='q01' 
+    to='hamlet@shakespeare.lit/phone' 
+    type='result' 
+    xml:lang='en-US'&gt;
+  &lt;geoloc xmlns='http://jabber.org/protocol/geoloc' xml:lang='en'&gt;
+    &lt;timestamp&gt;1599-10-23T01:56:05Z&lt;/timestamp&gt;
+    &lt;lat&gt;57.0501862&lt;/lat&gt;
+    &lt;lon&gt;9.9188746&lt;/lon&gt;
+    &lt;accuracy&gt;35.6&lt;/accuracy&gt;
+    &lt;street&gt;Jomfru Ane Gade 13&lt;/street&gt;
+    &lt;locality&gt;Aalborg&lt;/locality&gt;
+    &lt;country&gt;Denmark&lt;/country&gt;
+    &lt;uri&gt;http://shakespeare.lit/places/kings_head_pub_aalborg&lt;/uri&gt;
+    &lt;text&gt;Near King's Head Pub&lt;/text&gt;
+  &lt;/geoloc&gt;
+&lt;iq&gt;
+  </pre></div>
+
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Entity queries server with cell tower and wifi access point IDs</p><div class="indent"><pre>
+&lt;iq from='hamlet@shakespeare.lit/phone' 
+    id='q02' 
+    to='location.shakespear.lit' 
+    type='get' 
+    xml:lang='en-US'&gt;
+  &lt;locationquery xmlns='urn:xmpp:locationquery:0'&gt;
+    &lt;beacon&gt;
+      &lt;id&gt;238:02:34775:50880&lt;/id&gt;
+      &lt;type&gt;cell&lt;/type&gt;
+    &lt;/beacon&gt;
+    &lt;beacon&gt;
+      &lt;id&gt;00:0F:3D:42:92:2A&lt;/id&gt;
+      &lt;type&gt;wifi&lt;/type&gt;
+    &lt;/beacon&gt;
+    &lt;beacon&gt;
+      &lt;id&gt;00:19:CB:45:50:4A&lt;/id&gt;
+      &lt;type&gt;wifi&lt;/type&gt;
+    &lt;/beacon&gt;
+  &lt;/locationquery&gt;
+&lt;iq&gt;
+  </pre></div>
+
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Server responds with location info</p><div class="indent"><pre>
+&lt;iq from='location.shakespeare.lit' 
+    id='q02' 
+    to='hamlet@shakespeare.lit/phone' 
+    type='result' 
+    xml:lang='en-US'&gt;
+  &lt;geoloc xmlns='http://jabber.org/protocol/geoloc' xml:lang='en'&gt;
+    &lt;timestamp&gt;1599-10-23T01:56:05Z&lt;/timestamp&gt;
+    &lt;lat&gt;57.050122&lt;/lat&gt;
+    &lt;lon&gt;9.918833&lt;/lon&gt;
+    &lt;locality&gt;Aalborg&lt;/locality&gt;
+    &lt;street&gt;Jomfru Ane Gade 13&lt;/street&gt;
+    &lt;country&gt;Denmark&lt;/country&gt;
+    &lt;accuracy&gt;20&lt;/accuracy&gt;
+    &lt;uri&gt;http://shakespeare.lit/places/kings_head_pub_aalborg&lt;/uri&gt;
+    &lt;text&gt;King's Head Pub&lt;/text&gt;
+  &lt;/geoloc&gt;
+&lt;iq&gt;
+  </pre></div>
+
+  <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Entity queries server with beacon info from multiple scans and specifies that results should be published</p><div class="indent"><pre>
+&lt;iq from='hamlet@shakespeare.lit/phone' 
+    id='q03' 
+    to='location.shakespear.lit' 
+    type='get' 
+    xml:lang='en-US'&gt;
+  &lt;locationquery xmlns='urn:xmpp:locationquery:0'&gt;
+    &lt;timestamp&gt;1599-10-23T01:55:21Z&lt;/timestamp&gt;
+    &lt;lat&gt;57.0501862&lt;/lat&gt;
+    &lt;lon&gt;9.918874&lt;/lon&gt;
+    &lt;accuracy&gt;33.56&lt;/accuracy&gt;
+    &lt;publish&gt;true&lt;/publish&gt;
+    &lt;beacon&gt;
+      &lt;id&gt;238:02:34775:50880&lt;/id&gt;
+      &lt;type&gt;cell&lt;/type&gt;
+      &lt;signalstrength&gt;-88&lt;/signalstrength&gt;
+      &lt;timestamp&gt;1599-10-23T01:55:21Z&lt;/timestamp&gt;
+    &lt;/beacon&gt;
+    &lt;beacon&gt;
+      &lt;id&gt;238:02:34775:48770&lt;/id&gt;
+      &lt;type&gt;cell&lt;/type&gt;
+      &lt;signalstrength&gt;-76&lt;/signalstrength&gt;
+      &lt;timestamp&gt;1599-10-23T01:52:34Z&lt;/timestamp&gt;
+    &lt;/beacon&gt;
+    &lt;beacon&gt;
+      &lt;id&gt;00:0F:3D:42:92:2A&lt;/id&gt;
+      &lt;type&gt;wifi&lt;/type&gt;
+      &lt;signalstrength&gt;-64&lt;/signalstrength&gt;
+      &lt;timestamp&gt;1599-10-23T01:55:21Z&lt;/timestamp&gt;
+    &lt;/beacon&gt;
+    &lt;beacon&gt;
+      &lt;id&gt;238:02:34775:50880&lt;/id&gt;
+      &lt;type&gt;cell&lt;/type&gt;
+      &lt;signalstrength&gt;-88&lt;/signalstrength&gt;
+      &lt;timestamp&gt;1599-10-23T01:55:21Z&lt;/timestamp&gt;
+    &lt;/beacon&gt;
+    &lt;beacon&gt;
+      &lt;id&gt;00:19:CB:45:50:4A&lt;/id&gt;
+      &lt;type&gt;wifi&lt;/type&gt;
+      &lt;signalstrength&gt;-82&lt;/signalstrength&gt;
+      &lt;timestamp&gt;1599-10-23T01:52:24Z&lt;/timestamp&gt;
+    &lt;/beacon&gt;
+    &lt;beacon&gt;
+      &lt;id&gt;00:18:42:E6:71:51&lt;/id&gt;
+      &lt;type&gt;bluetooth&lt;/type&gt;
+    &lt;/beacon&gt;
+  &lt;/locationquery&gt;
+&lt;iq&gt;
+  </pre></div>
+
+  <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Server responds with empty IQ-result...</p><div class="indent"><pre>
+&lt;iq from='location.shakespeare.lit' 
+    id='q03' 
+    to='hamlet@shakespeare.lit/phone' 
+    type='result' 
+    xml:lang='en-US' /&gt;
+  </pre></div>
+
+  <p class="caption"><a name="example-7" id="example-7"></a>Example 7. ...and publishes result to the entity's geoloc pubsub node...</p><div class="indent"><pre>
+&lt;iq from='hamlet@shakespeare.lit/phone' 
+    id='q03' 
+    to='hamlet@shakespeare.lit/phone' 
+    type='set' 
+    xml:lang='en-US'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish&gt;
+      &lt;node xmlns='http://jabber.org/protocol/geoloc'&gt;
+        &lt;item&gt;
+          &lt;geoloc xmlns='http://jabber.org/protocol/geoloc' xml:lang='en'&gt;
+            &lt;timestamp&gt;1599-10-23T01:56:05Z&lt;/timestamp&gt;
+            &lt;lat&gt;57.0501862&lt;/lat&gt;
+            &lt;lon&gt;9.918874&lt;/lon&gt;
+            &lt;street&gt;Jomfru Ane Gade 13&lt;/street&gt;
+            &lt;locality&gt;Aalborg&lt;/locality&gt;
+            &lt;country&gt;Denmark&lt;/country&gt;
+            &lt;accuracy&gt;20&lt;/accuracy&gt;
+            &lt;uri&gt;http://shakespeare.lit/places/kings_head_pub_aalborg&lt;/uri&gt;
+            &lt;text&gt;King's Head Pub&lt;/text&gt;
+          &lt;/geoloc&gt;
+        &lt;/item&gt;
+      &lt;/node&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;iq&gt;
+  </pre></div>
+
+  <p class="caption"><a name="example-8" id="example-8"></a>Example 8. ...which is delivered to everyone subscribing to it</p><div class="indent"><pre>
+&lt;message from='hamlet@shakespeare.lit' to='hamlet@shakespeare.lit/phone'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='http://jabber.org/protocol/geoloc'&gt;
+      &lt;item id='4C940F61C13A0'&gt;
+        &lt;geoloc xmlns='http://jabber.org/protocol/geoloc' xml:lang='en'&gt;
+          &lt;timestamp&gt;1599-10-23T01:56:05Z&lt;/timestamp&gt;
+          &lt;lat&gt;57.0501862&lt;/lat&gt;
+          &lt;lon&gt;9.918874&lt;/lon&gt;
+          &lt;street&gt;Jomfru Ane Gade 13&lt;/street&gt;
+          &lt;locality&gt;Aalborg&lt;/locality&gt;
+          &lt;country&gt;Denmark&lt;/country&gt;
+          &lt;accuracy&gt;20&lt;/accuracy&gt;
+          &lt;uri&gt;http://shakespeare.lit/places/kings_head_pub_aalborg&lt;/uri&gt;
+          &lt;text&gt;King's Head Pub&lt;/text&gt;
+        &lt;/geoloc&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+
+&lt;message from='hamlet@shakespeare.lit' to='horatio@shakespeare.lit/pda'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='http://jabber.org/protocol/geoloc'&gt;
+      &lt;item id='4C940F61C13A0'&gt;
+        &lt;geoloc xmlns='http://jabber.org/protocol/geoloc' xml:lang='en'&gt;
+          &lt;timestamp&gt;1599-10-23T01:56:05Z&lt;/timestamp&gt;
+          &lt;lat&gt;57.0501862&lt;/lat&gt;
+          &lt;lon&gt;9.918874&lt;/lon&gt;
+          &lt;street&gt;Jomfru Ane Gade 13&lt;/street&gt;
+          &lt;locality&gt;Aalborg&lt;/locality&gt;
+          &lt;country&gt;Denmark&lt;/country&gt;
+          &lt;accuracy&gt;20&lt;/accuracy&gt;
+          &lt;uri&gt;http://shakespeare.lit/places/kings_head_pub_aalborg&lt;/uri&gt;
+          &lt;text&gt;King's Head Pub&lt;/text&gt;
+        &lt;/geoloc&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+  </pre></div>
+
+<h2>4.
+       <a name="format" id="format">Data Format</a></h2>
+  <p class="" style="">Information about the radio beacons in the entity's surrounding, and its geodetic coordinates are provided by the entity and propagated on the network by the entity's associated application (usually a client). The information is structured by means of a &lt;locationquery/&gt; element that is qualified by the 'urn:xmpp:locationquery:0' namespace and nested with in a &lt;iq&gt; element with type set to get.  The location result is provided by the location server and returned to the client in a &lt;iq&gt; element with type set to result.  The location result is structured by means of a &lt;geoloc/&gt; element that is qualified by  the 'http://jabber.org/protocol/geoloc' namespace (see XEP-0080).</p>
+
+    <div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: Location Query Child Elements</p><table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+         <th colspan="" rowspan="">Element Name</th>
+         <th colspan="" rowspan="">Datatype</th>
+         <th colspan="" rowspan="">Definition</th>
+         <th colspan="" rowspan="">Example</th>
+
+         <th colspan="" rowspan="">Notes</th>
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">timestamp</td>
+         <td colspan="" rowspan="">xs:datetime</td>
+         <td colspan="" rowspan="">UTC time-stamp (MUST conform to the DateTime profile of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles</a></span>  [<a href="#nt-id2250871">2</a>]). </td>
+         <td colspan="" rowspan="">2004-02-19T21:12Z</td>
+         <td colspan="" rowspan="">Optional. If individual beacons contain own timing information, this time-stamp shall represent GPS time only, otherwise it shall represent all provided info in the query. If not set, the server may assume current time.</td>
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">publish</td>
+         <td colspan="" rowspan="">xs:boolean</td>
+         <td colspan="" rowspan="">A flag specifying whether or not the server should publish the location result to subscribers of the submitting user's XEP-0080 compatible geoloc pub-sub node instead of returning it directly to the submitting user.</td>
+         <td colspan="" rowspan="">true</td>
+         <td colspan="" rowspan="">Optional. If present and "true", the server shall publish the entity's location details whenever it changes (suitable for periodic queries) and respond to the query with an empty &lt;iq&gt; stanza with type set to "result". If not specified or "false" the server shall return the location results to the submitting user in the form of a geoloc stanza (XEP-0080) embedded in a &lt;iq&gt; with type set to "result". Default is "false"</td>
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">lat</td>
+         <td colspan="" rowspan="">xs:decimal</td>
+         <td colspan="" rowspan="">Latitude in decimal degrees
+         North.</td>
+         <td colspan="" rowspan="">39.75</td>
+         <td colspan="" rowspan="">Required if no radio beacon data present, otherwise optional. If present, this shall also be present in the result stanza.  If not present, the location server SHOULD estimate a value based on submitted beacon data and return with result stanza. The location server is free to decide if the value of this field should be piped directly through to result, or if it should be modified based on beacon data or time history information. For instance: if the entity is indoors, the GPS signal will be inaccurate and unstable over time. If wifi beacons are submitted, the location server may decide that the entity is inside a known building, and return the latitude of this instead.</td>
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">lon</td>
+         <td colspan="" rowspan="">xs:decimal</td>
+         <td colspan="" rowspan="">Longitude in decimal degrees East</td>
+         <td colspan="" rowspan="">-104.99</td>
+         <td colspan="" rowspan="">See notes for lat</td>
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">alt</td>
+         <td colspan="" rowspan="">xs:decimal</td>
+         <td colspan="" rowspan="">Altitude in meters above or below sea level</td>
+         <td colspan="" rowspan="">1609</td>
+         <td colspan="" rowspan="">Optional. If present, this shall also be present in the result stanza with identical value.</td>
+      </tr>
+
+      <tr class="body">
+         <td colspan="" rowspan="">bearing</td>
+         <td colspan="" rowspan="">xs:decimal</td>
+         <td colspan="" rowspan="">GPS bearing (direction in which the entity is heading to reach its next waypoint), measured in decimal degrees relative to true north</td>
+         <td colspan="" rowspan=""> </td>
+         <td colspan="" rowspan="">See notes for alt</td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">datum</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">GPS datum (See XEP-0080)</td>
+         <td colspan="" rowspan=""> </td>
+         <td colspan="" rowspan="">See notes for alt</td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">accuracy</td>
+         <td colspan="" rowspan="">xs:decimal</td>
+         <td colspan="" rowspan="">Horizontal GPS accuracy in meters</td>
+         <td colspan="" rowspan="">10</td>
+         <td colspan="" rowspan="">See notes for lat</td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">speed</td>
+         <td colspan="" rowspan="">xs:decimal</td>
+         <td colspan="" rowspan="">The speed at which the entity is moving, in meters per second</td>
+         <td colspan="" rowspan="">52.69</td>
+         <td colspan="" rowspan="">See notes for alt</td>
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">beacons</td>
+         <td colspan="" rowspan="">locationquery:beacon</td>
+         <td colspan="" rowspan="">A list of identifiable radio transmitters observed by the entity</td>
+         <td colspan="" rowspan=""> </td>
+         <td colspan="" rowspan="">Required if no lat and lon values specified, otherwise optional. See Table 2 for type definition.</td>
+      </tr>
+    </table></div>
+
+    <div class="indent"><p class="caption"><a name="table-2" id="table-2"></a>Table 2: Beacon Child Elements</p><table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+         <th colspan="" rowspan="">Element Name</th>
+         <th colspan="" rowspan="">Datatype</th>
+         <th colspan="" rowspan="">Definition</th>
+         <th colspan="" rowspan="">Example</th>
+         <th colspan="" rowspan="">Notes</th>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">id</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">A world-wide unique beacon identifier. This SHALL be composed as follows: <br /><br />For cell towers: "MCC:MNC:LAC:CID" where MCC is the mobile country code  [<a href="#nt-id2262464">3</a>]), MNC is the network carrier code, LAC is the area code and CID is the cell ID.<br /><br />For wireless access points and bluetooth devices: The device MAC address.</td>
+         <td colspan="" rowspan="">207:02:12643:78596</td>
+         <td colspan="" rowspan="">Required</td>
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">type</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">Beacon type. One of "cell", "wifi", "bluetooth", "wimax", "rfid" (?), "other"</td>
+         <td colspan="" rowspan="">"cell"</td>
+         <td colspan="" rowspan="">Required.</td>
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">signalstrength</td>
+         <td colspan="" rowspan="">xs:int</td>
+         <td colspan="" rowspan="">Beacon signal strength in dBM.</td>
+         <td colspan="" rowspan="">-64</td>
+         <td colspan="" rowspan="">Optional.</td>
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">timestamp</td>
+         <td colspan="" rowspan="">xs:datetime</td>
+         <td colspan="" rowspan="">UTC time-stamp (MUST conform to the DateTime profile of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles</a></span>  [<a href="#nt-id2262632">4</a>]). </td>
+         <td colspan="" rowspan="">2004-02-19T21:12Z</td>
+         <td colspan="" rowspan="">Optional. If query contains info from multiple beacon scans, specifying the timestamp for each beacon may lead to improved temporal analysis (movement state etc).</td>
+      </tr>
+    </table></div>
+
+    <div class="indent"><p class="caption"><a name="table-3" id="table-3"></a>Table 3: Location Result Child Elements (Copied from XEP-0080 with notes added)</p><table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+         <th colspan="" rowspan="">Element Name</th>
+         <th colspan="" rowspan="">Datatype</th>
+         <th colspan="" rowspan="">Definition</th>
+         <th colspan="" rowspan="">Example</th>
+         <th colspan="" rowspan="">Notes</th>
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">alt</td>
+         <td colspan="" rowspan="">xs:decimal</td>
+         <td colspan="" rowspan="">Altitude in meters above or below sea level</td>
+         <td colspan="" rowspan="">1609</td>
+         <td colspan="" rowspan="">Piped directly through from query alt field if set.</td>
+      </tr>
+
+      <tr class="body">
+         <td colspan="" rowspan="">area</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">A named area such as a campus or neighborhood</td>
+         <td colspan="" rowspan="">Central Park</td>
+         <td colspan="" rowspan=""> </td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">bearing</td>
+         <td colspan="" rowspan="">xs:decimal</td>
+         <td colspan="" rowspan="">GPS bearing (direction in which the entity is heading to reach its next waypoint), measured in decimal degrees relative to true north</td>
+         <td colspan="" rowspan=""> </td>
+         <td colspan="" rowspan="">Piped directly through from query bearing field if set.</td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">building</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">A specific building on a street or in an area</td>
+         <td colspan="" rowspan="">The Empire State Building</td>
+         <td colspan="" rowspan=""> </td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">country</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">The nation where the user is located</td>
+         <td colspan="" rowspan="">USA</td>
+         <td colspan="" rowspan=""> </td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">datum</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">GPS datum (See notes for XEP-0080)</td>
+         <td colspan="" rowspan=""></td>
+         <td colspan="" rowspan="">Piped directly through from query datum field if set.</td>
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">description</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">A natural-language name for or description of the location</td>
+         <td colspan="" rowspan="">Bill's house</td>
+         <td colspan="" rowspan="">If location is mapped to a place in a place oriented service, this should hold the place description.</td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">accuracy</td>
+         <td colspan="" rowspan="">xs:decimal</td>
+         <td colspan="" rowspan="">Horizontal GPS accuracy in meters</td>
+         <td colspan="" rowspan="">10</td>
+         <td colspan="" rowspan="">Piped directly through from query accuracy field or estimated by location server using based on the other information in query and, if possible, differences between several queries over time.</td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">floor</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">A particular floor in a building</td>
+         <td colspan="" rowspan="">102</td>
+         <td colspan="" rowspan=""> </td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">lat</td>
+         <td colspan="" rowspan="">xs:decimal</td>
+         <td colspan="" rowspan="">Latitude in decimal degrees
+         North</td>
+         <td colspan="" rowspan="">39.75</td>
+         <td colspan="" rowspan="">Piped directly through from query lat field or estimated by location server based on the other information in query and, if possible, differences between several queries over time.</td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">locality</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">A locality within the administrative region, such as a town or city</td>
+         <td colspan="" rowspan="">New York City</td>
+         <td colspan="" rowspan=""> </td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">lon</td>
+         <td colspan="" rowspan="">xs:decimal</td>
+         <td colspan="" rowspan="">Longitude in decimal degrees East</td>
+         <td colspan="" rowspan="">-104.99</td>
+         <td colspan="" rowspan="">Piped directly through from query lon or estimated by location server based on the other information in query and, if possible, differences between several queries over time.</td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">postalcode</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">A code used for postal delivery</td>
+         <td colspan="" rowspan="">10027</td>
+         <td colspan="" rowspan=""> </td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">region</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">An administrative region of the nation, such as a state or province</td>
+         <td colspan="" rowspan="">New York</td>
+         <td colspan="" rowspan=""> </td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">room</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">A particular room in a building</td>
+         <td colspan="" rowspan="">Observatory</td>
+         <td colspan="" rowspan=""> </td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">speed</td>
+         <td colspan="" rowspan="">The speed at which the entity is moving, in meters per second</td>
+         <td colspan="" rowspan="">52.69</td>
+         <td colspan="" rowspan="">xs:decimal</td>
+         <td colspan="" rowspan="">Piped directly through from query speed field or estimated by location server based on the other information in query and, if possible, differences between several queries over time.</td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">street</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">A thoroughfare within the locality, or a crossing of two thoroughfares</td>
+         <td colspan="" rowspan="">34th and Broadway</td>
+         <td colspan="" rowspan=""> </td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">text</td>
+         <td colspan="" rowspan="">xs:string</td>
+         <td colspan="" rowspan="">A catch-all element that captures any other information about the location</td>
+         <td colspan="" rowspan="">Northwest corner of the lobby</td>
+         <td colspan="" rowspan="">Best practice tip: This field can be used by the server to combine several fields in a natural language style, suitable for simple one-line location presence text. Example: "Near Bob's place" (description + accuracy), "On the road in New York" (locality + speed)</td>
+
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">timestamp</td>
+         <td colspan="" rowspan="">xs:datetime</td>
+         <td colspan="" rowspan="">UTC timestamp specifying the moment when the reading was taken (MUST conform to the DateTime profile of <span class="ref">XEP-0082</span>)</td>
+         <td colspan="" rowspan="">2004-02-19T21:12Z</td>
+
+         <td colspan="" rowspan="">Piped directly through from query timestamp field.</td>
+      </tr>
+      <tr class="body">
+         <td colspan="" rowspan="">uri</td>
+         <td colspan="" rowspan="">A URI or URL pointing to
+         information about the location</td>
+         <td colspan="" rowspan="">http://beta.plazes.com/plazes/1940:jabber_inc</td>
+
+         <td colspan="" rowspan="">xs:anyURI</td>
+         <td colspan="" rowspan="">Only applicable to place-oriented services</td>
+      </tr>
+    </table></div>
+
+    <p class="" style="">NOTE: The datatypes specified above are defined in <span class="ref" style=""><a href="http://www.w3.org/TR/xmlschema-2/">XML Schema Part 2</a></span>  [<a href="#nt-id2263723">5</a>].</p>
+   
+<h2>5.
+       <a name="transport" id="transport">Recommended Transport</a></h2>
+  <p class="" style="">The location results SHOULD be distributed means of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0060.html">Publish-Subscribe</a></span>  [<a href="#nt-id2263772">6</a>] or the subset thereof specified in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0163.html">Personal Eventing Protocol</a></span>  [<a href="#nt-id2263796">7</a>]. This can be done automatically  by requesting the "publish" location query result format, in which case the location server will publish the results on the user's behalf. Alternatively the it can be done client side as outlined in <span class="ref">XEP-0080</span>.</p>
+<h2>6.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+
+  <div class="indent"><h3>6.1 <a name="server_impl" id="server_impl">Server Implementation Notes</a></h3>
+    <p class="" style="">The does not have to determine a value for all fields of the &lt;geoloc&gt; stanza, but it SHOULD determine values for as many as possible.  At the very least a value for 'country' should be set.</p>
+
+    <p class="" style="">If no GPS coordinate and accuracy information is submitted in the query, and the server determines location coordinates from submitted beacon data, a value for the returned geoloc 'accuracy' field SHOULD be returned. The magnitude of this should be derived based on the ranges of the beacons used to determine the location. </p>
+    <p class="" style="">The server should make no assumptions about how often a entity submits a query. It should support occasional manually triggered queries as well as periodic automated queries. In the latter case it should analyze changes over time, as this can greatly increase the fidelity of the result. </p>
+    <p class="" style="">Furthermore, no assumptions should be made about the number of beacons being logged in each query. Some handset manufacturers limit the access programmers have to cell tower and access point information. Some may only offer the currently connected cell ID, such that even if the handset can "see" many cell towers, only the one to which the handset is connected at the moment can be read. In this case the cell tower readings may not be constant, even if the querying entity is not moving. Rather it may jump round-robin style to each visible cell with variable time spent on each.  The location server should account for this to avoid yielding results indicating that a user is running around in cell-sized circles when he is in fact stationary. Again, analysis of variation of submitted queries over time is recommended.</p>
+    <p class="" style="">As no guarantees can be made that a given radio beacon stays at one fixed physical location throughout it's lifetime, the server should implement means to detect this. Generally it can be assumed that cell towers seldom move (could happen when a network operator changes the way it allocates cell IDs or when a tower is physically moved to a different location). Wireless access points move a bit more frequently (for instance when their owners move, or if they are installed in moving vehicles such as busses or trains). Bluetooth devices can generally be assumed to be mobile and should, unless specific knowledge to the contrary exists, not be used to locate an entity to a specific physical location. Rather, bluetooth devices (and other mobile beacons) can be used to co-locate entities to other entities for which a physical location is known. An example: Entity A submits query with GPS coordinates and the ID of some bluetooth device. It is located based on its submitted coordinates. Entity B submits a query with the same bluetooth device ID, but no GPS coordinates. Given this, and the fact that bluetooth transmitters have a very limited range, the server can then derive that A and B are at the same physical location (it may add 10-20 m to the accuracy of the location of B to account for the bluetooth range).</p>
+    <p class="" style="">The "radio landscape" is by no means constant. New beacons are added continuously, and old ones are phased out. A location server will have to adapt to this shifting landscape, either by means of operator-supplied databases (in case of cell towers) or by means of user generated information. This standard was written with the latter in mind, and it is recommended that location servers utilize any queries with combined GPS and radio beacon information to "learn" the approximate physical location of the provided beacons. For server implementation that rely on user generated information only, it is also recommended to supply additional means for the users to feed back location context in cases where the client does not have any GPS access, or when the server produces the wrong results. One way to do this would be to let the users define "placemarks" (a name, street, city etc) that can be associated with the beacons seen by this user at the time of definition. This is however beyond the scope of this XEP. </p>
+  </div>
+
+  <div class="indent"><h3>6.2 <a name="client_impl" id="client_impl">Client Implementation Notes</a></h3>
+    <p class="" style="">For the reasons mentioned above, it is recommended that the client supply both GPS coordinates as well as nearby radio beacon information when possible. Also it is recommended that the client submit queries frequently enough to allow the server to analyze changes over time (or lack thereof) to obtain a better result. When possible, the client should include wifi access points in the queries, as these yield much more precise results than cell towers alone (due to the much more limited range). This must however all be weighted against the increased power consumption resulting from keeping network sockets open, scanning for access points and driving a GPS receiver.<br /><br /> For optimal results, clients SHOULD post a location query any time when the set of observed beacons change (a new beacon is seen or an old one is not seen any more)</p>
+  </div>
+<h2>7.
+       <a name="i18n" id="i18n">Internationalization Considerations</a></h2>
+  <p class="" style="">Because the character data contained in the location results is intended to be readable by humans, the location query SHOULD possess an 'xml:lang' attribute specifying the natural language of such character data <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4646">RFC 4646</a></span>  [<a href="#nt-id2264027">8</a>]. If so, the server SHOULD equip the &lt;geoloc/&gt; element, of the result stanza with an identical attribute </p>
+
+<h2>8.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">It is imperative to control access to location information, at least by default. Imagine that a stalker got unauthorized access to this information, with enough accuracy and timeliness to be able to find the target person. This scenario could lead to loss of life, so please take access control checks seriously. If an error is deliberately added to a location, the error SHOULD be the same for all receivers, to minimize the likelihood of triangulation. In the case of deliberate error, the &lt;accuracy/&gt; element SHOULD NOT be included.</p>
+
+<h2>9.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style="">Internet Assigned Numbers Authority (IANA)</span> [7].</p>
+
+<h2>10.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+
+  <div class="indent"><h3>10.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:locationquery:0</li>
+    </ul>
+
+    <p class="" style="">Upon advancement of this specification from a status of Experimental to a status of Draft, the <span class="ref" style=""><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id2264177">9</a>] shall add the foregoing namespaces to the registry located at &lt;<a href="http://xmpp.org/registrar/namespaces.html">http://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function</a></span>  [<a href="#nt-id2264222">10</a>].</p>
+  </div>
+  <div class="indent"><h3>10.2 <a name="registrar-versioning" id="registrar-versioning">Protocol Versioning</a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a major revision that is not fully backward-compatible with an older version, or that contains significant new features, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+
+<h2>11.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre>
+&lt;xs:schema 
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:locationquery:0' 
+    xmlns='urn:xmpp:locationquery:0'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='locationquery'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence minOccurs='1' maxOccurs='1'&gt;
+        &lt;xs:element name='timestamp' 
+                    minOccurs='0' 
+                    maxOccurs='1' 
+                    type='xs:datetime'/&gt;
+        &lt;xs:element name='publish'   
+                    minOccurs='0' 
+                    maxOccurs='1' 
+                    type='xs:bolean'/&gt;
+        &lt;xs:element name='lat'       
+                    minOccurs='0' 
+                    maxOccurs='1' 
+                    type='xs:decimal'/&gt;
+        &lt;xs:element name='lon'       
+                    minOccurs='0' 
+                    maxOccurs='1' 
+                    type='xs:decimal'/&gt;
+        &lt;xs:element name='alt'       
+                    minOccurs='0' 
+                    maxOccurs='1' 
+                    type='xs:decimal'/&gt;
+        &lt;xs:element name='bearing'   
+                    minOccurs='0' 
+                    maxOccurs='1' 
+                    type='xs:decimal'/&gt;
+        &lt;xs:element name='speed'     
+                    minOccurs='0' 
+                    maxOccurs='1' 
+                    type='xs:decimal'/&gt;
+        &lt;xs:element name='datum'     
+                    minOccurs='0' 
+                    maxOccurs='1' 
+                    type='xs:string'/&gt;
+        &lt;xs:element name='accuracy'     
+                    minOccurs='0' 
+                    maxOccurs='1' 
+                    type='xs:decimal'/&gt;
+        &lt;xs:element name='beacons'   
+                    minOccurs='0' 
+                    maxOccurs='unbounded'
+                    type='beaconsType'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:complexType name='beaconsType'&gt;
+    &lt;xs:sequence minOccurs='1' maxOccurs='1'&gt;
+      &lt;xs:element name='id'
+                  minOccurs='1'
+                  maxOccurs='1'
+                  type='xs:string'/&gt;
+      &lt;xs:element name='type'
+                  minOccurs='1'
+                  maxOccurs='1'
+                  type='xs:string'/&gt;
+      &lt;xs:element name='signalstrength'
+                  minOccurs='0'
+                  maxOccurs='1'
+                  type='xs:int'/&gt;
+      &lt;xs:element name='timestamp'
+                  minOccurs='0'
+                  maxOccurs='1'
+                  type='xs:datetime'/&gt;
+    &lt;/xs:sequence&gt;
+  &lt;/xs:complexType&gt;
+
+&lt;/xs:schema&gt;
+  </pre></div>
+  <p class="" style="">Note: the schema for the location results is given by <span class="ref">XEP-0080</span>.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://www.xmpp.org/extensions/">XEP</a><br />
+            Number: 0255<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.3<br />
+            Last Updated: 2008-12-20<br />
+                Approving Body: <a href="http://www.xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0255.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0255.xml/rss.xml">RSS</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Helge Timenes</h3><p class="indent">
+        Email:
+        <a href="mailto:helge@buddycloud.com">helge@buddycloud.com</a><br />
+        JabberID: 
+        <a href="xmpp:helge@buddycloud.com">helge@buddycloud.com</a><br /></p><h3>Simon Tennant</h3><p class="indent">
+        Email:
+        <a href="mailto:simon@buddycloud.com">simon@buddycloud.com</a><br />
+        JabberID: 
+        <a href="xmpp:simon@buddycloud.com">simon@buddycloud.com</a><br /></p><h3>Ross Savage</h3><p class="indent">
+        Email:
+        <a href="mailto:ross@buddycloud.com">ross@buddycloud.com</a><br />
+        JabberID: 
+        <a href="xmpp:ross@buddycloud.com">ross@buddycloud.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright (c) 1999 - 2009 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. In no event shall the XMPP Standards Foundation or the authors of this Specification be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising out of the use or inability to use the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which may be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XSF, P.O. Box 1641, Denver, CO 80201 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata may be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id2251170" id="nt-id2251170">1</a>. XEP-0080: User Geolocation &lt;<a href="http://xmpp.org/extensions/xep-0080.html">http://xmpp.org/extensions/xep-0080.html</a>&gt;.</p><p><a name="nt-id2250871" id="nt-id2250871">2</a>. XEP-0082: XMPP Date and Time Profiles &lt;<a href="http://xmpp.org/extensions/xep-0082.html">http://xmpp.org/extensions/xep-0082.html</a>&gt;.</p><p><a name="nt-id2262464" id="nt-id2262464">3</a>. Values of Mobile Country Codes (MCC) are specified by <a href="http://www.itu.int/dms_pub/itu-t/opb/sp/T-SP-E.212A-2007-PDF-E.pdf">Annex to ITU Operational Bulletin No. 897 – 1.XII.2007</a>.</p><p><a name="nt-id2262632" id="nt-id2262632">4</a>. XEP-0082: XMPP Date and Time Profiles &lt;<a href="http://xmpp.org/extensions/xep-0082.html">http://xmpp.org/extensions/xep-0082.html</a>&gt;.</p><p><a name="nt-id2263723" id="nt-id2263723">5</a>. XML Schema Part 2: Datatypes &lt;<a href="http://www.w3.org/TR/xmlschema-2/">http://www.w3.org/TR/xmlschema-2/</a>&gt;.</p><p><a name="nt-id2263772" id="nt-id2263772">6</a>. XEP-0060: Publish-Subscribe &lt;<a href="http://xmpp.org/extensions/xep-0060.html">http://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-id2263796" id="nt-id2263796">7</a>. XEP-0163: Personal Eventing Protocol &lt;<a href="http://xmpp.org/extensions/xep-0163.html">http://xmpp.org/extensions/xep-0163.html</a>&gt;.</p><p><a name="nt-id2264027" id="nt-id2264027">8</a>. RFC 4646: Tags for Identifying Languages &lt;<a href="http://tools.ietf.org/html/rfc4646">http://tools.ietf.org/html/rfc4646</a>&gt;.</p><p><a name="nt-id2264177" id="nt-id2264177">9</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id2264222" id="nt-id2264222">10</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><div class="indent"><h4>Version 0.3 (2008-12-20)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Corrected name-space in section 10.1.</li>
+        <li class="" style="">Removed extra 's in example 7 </li>
+        <li class="" style="">Made time-stamp optional</li>
+        <li class="" style="">Added optional time-stamp to beacon element</li>
+        <li class="" style="">Added comment reflecting that query time-stamp applies to GPS coordinates if beacons provide own time-stamps</li>
+        <li class="" style="">Updated schema to reflect changes.</li>
+      </ul>
+     (ht)
+    </div><h4>Version 0.2 (2008-12-17)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Updated examples to be conform with XEP-0080 (use lat and lon instead of latitude and longitude).</li>
+        <li class="" style="">Fixed wrong closing tag for &lt;type&gt; in examples.</li>
+        <li class="" style="">Added signal strength to beacon data.</li>
+      </ul>
+     (ht)
+    </div><h4>Version 0.1 (2008-11-13)</h4><div class="indent"><p class="" style="">Initial published version.</p> (psa)
+    </div><h4>Version 0.0.3 (2008-11-07)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Removed &lt;error/&gt; child of geoloc element (arc minutes).</li>
+        <li class="" style="">Added &lt;accuracy/&gt; (meters).</li>
+        <li class="" style="">Updated notes on GPS data submitted in location query.</li>
+        <li class="" style="">Replaced language encoding 'en-UK' with 'en-US' to avoid UK/GB confusion.</li>
+      </ul>
+     (ht)
+    </div><h4>Version 0.0.2 (2008-11-03)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Corrected XML namespace.</li>
+        <li class="" style="">Added country code reference.</li>
+      </ul>
+     (ht)
+    </div><h4>Version 0.0.1 (2008-10-28)</h4><div class="indent"><p class="" style="">First draft.</p> (ht/st/rs)
+    </div></div><hr /><p>END</p></body></html>

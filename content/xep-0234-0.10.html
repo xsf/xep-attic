@@ -1,0 +1,313 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0234: Jingle File Transfer</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Jingle File Transfer" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Description" content="This specification defines a Jingle application type for transferring files between two entities. The protocol provides a modular framework that enables the exchange of information about the file to be transferred as well as the negotiation of parameters such as the transport to be used." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2010-02-11" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0234" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2010 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0234: Jingle File Transfer</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines a Jingle application type for transferring files between two entities. The protocol provides a modular framework that enables the exchange of information about the file to be transferred as well as the negotiation of parameters such as the transport to be used.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Peter Saint-Andre</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2010 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.10</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2010-02-11</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#protocol">How It Works</a><br />3.  <a href="#request">Requesting a File</a><br />4.  <a href="#impl">Implementation Notes</a><br />   
+      4.1.  <a href="#impl-mti">Mandatory to Implement Technologies</a><br />   
+      4.2.  <a href="#impl-pref">Preference Order of Transport Methods</a><br />   
+      4.3.  <a href="#impl-migration">Migration from XEP-0096</a><br />5.  <a href="#security">Security Considerations</a><br />6.  <a href="#iana">IANA Considerations</a><br />7.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      7.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      7.2.  <a href="#registrar-versioning">Namespace Versioning</a><br />   
+      7.3.  <a href="#registrar-content">Jingle Application Formats</a><br />8.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style=""><span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0096.html">SI File Transfer</a></span>  [<a href="#nt-id193201">1</a>] was the original XMPP protocol extension for file transfer negotiation. However, that protocol has several drawbacks, most related to the <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0095.html">Stream Initiation</a></span>  [<a href="#nt-id193227">2</a>] protocol on which it depends:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">It does not enable a true, bidirectional negotiation; instead, the initiator sets the terms for the file transfer and the responder either accepts the terms or cancels the negotiation.</li>
+    <li class="" style="">It is the only technology in the Jabber/XMPP protocol "stack" that uses <span class="ref">XEP-095: Stream Initiation</span>. More modern technologies such as voice and video session negotiation use <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0166.html">Jingle</a></span>  [<a href="#nt-id193274">3</a>], and it would be helpful if implementors could re-use the same code for all negotiation use cases.</li>
+  </ol>
+  <p class="" style="">To overcome these drawbacks, this specification defines a file transfer negotiation method that meets the following requirements:</p>
+  <ul class="" style="">
+    <li class="" style="">Reuse the session negotiation semantics from <span class="ref">XEP-0166</span>.</li>
+    <li class="" style="">Reuse the file description format from <span class="ref">XEP-0096</span>.</li>
+    <li class="" style="">Define a clear upgrade path from <span class="ref">XEP-0096</span> to this specification.</li>
+  </ul>
+  <p class="" style="">Jingle file transfer is only as reliable as the transports on which it depends. In particular, SOCKS5 Bytestreams ("S5B") does not always result in NAT or firewall traversal. To work around that problem, this specification requires all implementations to support as a fallback mechanism In-Band Bytestreams ("IBB"), which usually results in a successful (if slow) file transfer.</p>
+  <p class="" style="">Note: It is likely that a future version of this specification will also recommend implementation of a Jingle transport method that emulates the IETF's ICE-TCP technology, which is currently a work in progress (see <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-ietf-mmusic-ice-tcp">TCP Candidates with Interactive Connectivity Establishment (ICE)</a></span>  [<a href="#nt-id193362">4</a>]); however, a future Jingle ICE-TCP transport method is dependent on the outcome of IETF work in this area.</p>
+<h2>2.
+       <a name="protocol" id="protocol">How It Works</a></h2>
+  <p class="" style="">This section provides a friendly introduction to Jingle file transfer.</p>
+  <p class="" style="">First, the party that wishes to initiate the file transfer determines the responder's capabilities (via <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0030.html">Service Discovery</a></span>  [<a href="#nt-id193408">5</a>] or <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0115.html">Entity Capabilities</a></span>  [<a href="#nt-id193434">6</a>]). Here we assume that the responder supports the following service discovery features:</p>
+  <ul class="" style="">
+    <li class="" style="">urn:xmpp:jingle:1 as described in XEP-0166</li>
+    <li class="" style="">urn:xmpp:jingle:apps:file-transfer:1 as defined in this document <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p></li>
+    <li class="" style="">urn:xmpp:jingle:transports:s5b:1 as defined in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0260.html">Jingle SOCKS5 Bytestreams Transport Method</a></span>  [<a href="#nt-id193500">7</a>]</li>
+    <li class="" style="">urn:xmpp:jingle:transports:ibb:0 as defined in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0261.html">Jingle In-Band Bytestreams Transport Method</a></span>  [<a href="#nt-id193525">8</a>]</li>
+  </ul>
+  <p class="" style="">The initiator then sends a Jingle session-initiation request to a potential responder. The content-type of the request specifies two things:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">An application type of "urn:xmpp:jingle:apps:file-transfer:1". In particular, the &lt;description/&gt; element contains an &lt;offer/&gt; or &lt;request/&gt; element that in turn contains a &lt;file/&gt; element qualified by the existing 'http://jabber.org/protocol/si/profile/file-transfer' namespace from <span class="ref">XEP-0096</span>.</li>
+    <li class="" style="">An appropriate transport method. So far the suggested methods are jingle-s5b (<span class="ref">XEP-0260</span>) and, as a fallback, jingle-ibb (<span class="ref">XEP-0261</span>).</li>
+  </ol>
+  <p class="" style="">In this example, the initiator is &lt;romeo@montague.lit&gt;, the responder is &lt;juliet@capulet.lit&gt;, the application type is a file offer, and the transport method is jingle-s5b.</p>
+  <p class="" style="">The flow is as follows.</p>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+Initiator                    Responder
+   |                             |
+   |   session-initiate          |
+   |   (with S5B)                |
+   |----------------------------&gt;|
+   |   ack                       |
+   |&lt;----------------------------|
+   |   session-accept            |
+   |&lt;----------------------------|
+   |   ack                       |
+   |----------------------------&gt;|
+   |   [ file transfer ]         |
+   |============================&gt;|
+   |   session-terminate         |
+   |&lt;----------------------------|
+   |   ack                       |
+   |----------------------------&gt;|
+   |                             |
+  </pre></div>
+  <p class="" style="">First the initiator sends a Jingle session-initiate.</p>
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Initiator sends session-initiate</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='nzu25s8'
+    to='juliet@capulet.lit/balcony'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-initiate'
+          initiator='romeo@montague.lit/orchard'
+          sid='851ba2'&gt;
+    &lt;content creator='initiator' name='a-file-offer'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:file-transfer:1'&gt;
+        &lt;offer&gt;
+          &lt;file xmlns='http://jabber.org/protocol/si/profile/file-transfer'
+                date='1969-07-21T02:56:15Z'
+                hash='552da749930852c69ae5d2141d3766b1'
+                name='test.txt'
+                size='1022'&gt;
+            &lt;desc&gt;This is a test. If this were a real file...&lt;/desc&gt;
+          &lt;/file&gt;
+        &lt;/offer&gt;
+      &lt;/description&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:s5b:1'
+        	 mode='tcp'
+                 sid='vj3hs98y'&gt;
+        &lt;streamhost 
+            host='192.168.4.1' 
+            jid='romeo@montague.lit/orchard' 
+            port='5086'/&gt;
+        &lt;streamhost 
+            host='24.24.24.1' 
+            jid='streamer.shakespeare.lit' 
+            type='proxy'
+            zeroconf='_jabber.bytestreams'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">The responder immediately acknowledges receipt of the Jingle session-initiate.</p>
+  <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Responder acknowledges session-initiate</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='nzu25s8'
+    to='romeo@montague.lit/orchard'
+    type='result'/&gt;
+  </pre></div>
+  <p class="" style="">The initiator then attempts to initiate a SOCKS5 Bytestream with the responder as described in <span class="ref">XEP-0260</span> and <span class="ref">XEP-0065</span>.</p>
+  <p class="" style="">If the responder is able to connect to one of the streamhosts, it returns a Jingle session-accept (including only the JID of the streamhost to which it connected).</p>
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Responder sends session-accept</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='jn2vs71g'
+    to='romeo@montague.lit/orchard'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-accept'
+          initiator='romeo@montague.lit/orchard'
+          sid='851ba2'&gt;
+    &lt;content creator='initiator' name='a-file-offer'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:file-transfer:1'&gt;
+        &lt;offer&gt;
+          &lt;file xmlns='http://jabber.org/protocol/si/profile/file-transfer'
+                name='test.txt'
+                size='1022'
+                hash='552da749930852c69ae5d2141d3766b1'
+                date='1969-07-21T02:56:15Z'&gt;
+            &lt;desc&gt;This is a test. If this were a real file...&lt;/desc&gt;
+          &lt;/file&gt;
+        &lt;/offer&gt;
+      &lt;/description&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:s5b:1'&gt;
+        &lt;streamhost-used jid='streamer.shakespeare.lit'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">The initiator acknowledges the Jingle session-accept.</p>
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Initiator acknowledges session-accept</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='jn2vs71g'
+    to='juliet@capulet.lit/balcony'
+    type='result'/&gt;
+  </pre></div>
+  <p class="" style="">Now the parties exchange the file using SOCKS5 Bytestreams.</p>
+  <p class="" style="">Once the transfer is completed, either party can terminate the Jingle session; preferably this is done by the entity that receives the file to ensure that the complete file (up to the advertised size) has been received.</p>
+  <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Receiver sends session-terminate</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='og61bvs98'
+    to='romeo@montague.lit/orchard'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-terminate'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;reason&gt;
+      &lt;success/&gt;
+    &lt;/reason&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">For a description of the transport fallback scenario (from SOCK5 Bytestreams to In-Band Bytestreams), refer to <span class="ref">XEP-0260</span>.</p>
+<h2>3.
+       <a name="request" id="request">Requesting a File</a></h2>
+  <p class="" style="">If the entity that hosts a file has advertised its existence (or if a previous file transfer attempt has failed and the receiver would like to initiate another attempt), the entity that wishes to receive the file can "pull" the file from the hosting entity. This is done by sending a Jingle session-initiate to the hosting entity, including a &lt;description/&gt; element qualified by the 'urn:xmpp:jingle:apps:file-transfer:1' namespace and containing a &lt;request/&gt; element that defines the requested file.</p>
+  <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Receiver requests hosted file</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='wsn361c3'
+    to='romeo@montague.lit/orchard'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-initiate'
+          initiator='romeo@montague.lit/orchard'
+          sid='uj3b2'&gt;
+    &lt;content creator='initiator' name='a-file-request'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:file-transfer:1'&gt;
+        &lt;request&gt;
+          &lt;file xmlns='http://jabber.org/protocol/si/profile/file-transfer'
+                hash='552da749930852c69ae5d2141d3766b1'/&gt;
+        &lt;/request&gt;
+      &lt;/description&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:s5b:1'
+        	 mode='tcp'
+                 sid='xig361fj'&gt;
+        &lt;streamhost 
+            host='24.24.24.2' 
+            jid='proxy.capulet.lit' 
+            type='proxy'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">The parties would then complete a session negotiation flow similar to that outlined above for offering a file.</p>
+  <p class="" style="">Note: If the requesting entity knows the hash of the file, then it can include only that metadata in its request. If not, the requesting entity needs include enough metadata to uniquely identify the file, such as the date, name, and size. For similar considerations, see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5547">RFC 5547</a></span>  [<a href="#nt-id193809">9</a>].</p>
+<h2>4.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <div class="indent"><h3>4.1 <a name="impl-mti" id="impl-mti">Mandatory to Implement Technologies</a></h3>
+    <p class="" style="">All implementations MUST support the In-Band Bytestreams transport method as a reliable method of last resort. An implementation SHOULD support other transport methods as well, especially SOCKS5 Bytestreams.</p>
+  </div>
+  <div class="indent"><h3>4.2 <a name="impl-pref" id="impl-pref">Preference Order of Transport Methods</a></h3>
+    <p class="" style="">An application MAY present transport methods in any order, except that the In-Band Bytestreams method MUST be the lowest preference.</p>
+  </div>
+  <div class="indent"><h3>4.3 <a name="impl-migration" id="impl-migration">Migration from XEP-0096</a></h3>
+    <p class="" style="">Support for Jingle file transfer can be determined through discovery of the 'urn:xmpp:jingle:apps:file-transfer:1' namespace (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number), via either service discovery (<span class="ref">XEP-0030</span>) or entity capabilities (<span class="ref">XEP-0115</span>). If the initiator knows that the responder supports Jingle file transfer, it SHOULD first attempt negotiation using Jingle rather than SI.</p>
+  </div>
+<h2>5.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">In order to secure the data stream, implementations SHOULD use encryption methods appropriate to the transport method being used. For example, end-to-end encryption can be negotiated over either SOCKS5 Bytestreams or In-Band Bytestreams as described in <span class="ref">XEP-0260</span> and <span class="ref">XEP-0261</span>.</p>
+<h2>6.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">No interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id193940">10</a>] is required as a result of this document.</p>
+<h2>7.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>7.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:jingle:apps:file-transfer:1</li>
+    </ul>
+    <p class="" style="">Upon advancement of this specification from a status of Experimental to a status of Draft, the <span class="ref" style=""><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id194008">11</a>] shall add the foregoing namespace to the registry located at &lt;<a href="http://xmpp.org/registrar/namespaces.html">http://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function</a></span>  [<a href="#nt-id194045">12</a>].</p>
+  </div>
+  <div class="indent"><h3>7.2 <a name="registrar-versioning" id="registrar-versioning">Namespace Versioning</a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+  <div class="indent"><h3>7.3 <a name="registrar-content" id="registrar-content">Jingle Application Formats</a></h3>
+    <p class="" style="">The XMPP Registrar shall include "file-transfer" in its registry of Jingle application formats. The registry submission is as follows:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;application&gt;
+  &lt;name&gt;file-transfer&lt;/name&gt;
+  &lt;desc&gt;Jingle sessions for the transfer of a file&lt;/desc&gt;
+  &lt;transport&gt;streaming&lt;/transport&gt;
+  &lt;doc&gt;XEP-0234&lt;/doc&gt;
+&lt;/application&gt;
+    </pre></div>
+  </div>
+<h2>8.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:jingle:apps:file-transfer:1'
+    xmlns='urn:xmpp:jingle:apps:file-transfer:1'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:import 
+      namespace='http://jabber.org/protocol/si/profile/file-transfer'
+      schemaLocation='http://www.xmpp.org/schemas/file-transfer.xsd'/&gt;
+
+  &lt;xs:element name='description'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:choice&gt;
+        &lt;xs:element name='offer' type='fileTransferElementType'/&gt;
+        &lt;xs:element name='request' type='fileTransferElementType'/&gt;
+      &lt;/xs:choice&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:complexType name='fileTransferElementType'&gt;
+    &lt;xs:sequence xmlns:ft='http://jabber.org/protocol/si/profile/file-transfer'&gt;
+      &lt;xs:element ref='ft:file'/&gt;
+    &lt;/xs:sequence&gt;
+  &lt;/xs:complexType&gt;
+
+&lt;/xs:schema&gt;
+  </pre></div>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0234<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.10<br />
+            Last Updated: 2010-02-11<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0047, XEP-0065, XEP-0096, XEP-0166<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0234.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0234.xml/rss.xml">RSS</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Peter Saint-Andre</h3><p class="indent">
+        Email:
+        <a href="mailto:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        JabberID: 
+        <a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        URI: 
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2010 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XMPP Standards Foundation, c/o Peter Saint-Andre, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id193201" id="nt-id193201">1</a>. XEP-0096: SI File Transfer &lt;<a href="http://xmpp.org/extensions/xep-0096.html">http://xmpp.org/extensions/xep-0096.html</a>&gt;.</p><p><a name="nt-id193227" id="nt-id193227">2</a>. XEP-0095: Stream Initiation &lt;<a href="http://xmpp.org/extensions/xep-0095.html">http://xmpp.org/extensions/xep-0095.html</a>&gt;.</p><p><a name="nt-id193274" id="nt-id193274">3</a>. XEP-0166: Jingle &lt;<a href="http://xmpp.org/extensions/xep-0166.html">http://xmpp.org/extensions/xep-0166.html</a>&gt;.</p><p><a name="nt-id193362" id="nt-id193362">4</a>. TCP Candidates with Interactive Connectivity Establishment (ICE) &lt;<a href="http://tools.ietf.org/html/draft-ietf-mmusic-ice-tcp">http://tools.ietf.org/html/draft-ietf-mmusic-ice-tcp</a>&gt;. Work in progress.</p><p><a name="nt-id193408" id="nt-id193408">5</a>. XEP-0030: Service Discovery &lt;<a href="http://xmpp.org/extensions/xep-0030.html">http://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id193434" id="nt-id193434">6</a>. XEP-0115: Entity Capabilities &lt;<a href="http://xmpp.org/extensions/xep-0115.html">http://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-id193500" id="nt-id193500">7</a>. XEP-0260: Jingle SOCKS5 Bytestreams Transport Method &lt;<a href="http://xmpp.org/extensions/xep-0260.html">http://xmpp.org/extensions/xep-0260.html</a>&gt;.</p><p><a name="nt-id193525" id="nt-id193525">8</a>. XEP-0261: Jingle In-Band Bytestreams Transport Method &lt;<a href="http://xmpp.org/extensions/xep-0261.html">http://xmpp.org/extensions/xep-0261.html</a>&gt;.</p><p><a name="nt-id193809" id="nt-id193809">9</a>. A Session Description Protocol (SDP) Offer/Answer Mechanism to Enable File Transfer &lt;<a href="http://tools.ietf.org/html/rfc5547">http://tools.ietf.org/html/rfc5547</a>&gt;.</p><p><a name="nt-id193940" id="nt-id193940">10</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id194008" id="nt-id194008">11</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id194045" id="nt-id194045">12</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.10 (2010-02-11)</h4><div class="indent"><p class="" style="">Described the file retrieval case; updated referenced namespaces.</p> (psa)
+    </div><h4>Version 0.9 (2009-02-19)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Moved Jingle definitions of S5B and IBB transports to standalone documents.</li>
+        <li class="" style="">Because the jingle-s5b and jingle-ibb transport methods are backward-incompatible, incremented protocol version number from 0 to 1 and changed namespace from urn:xmpp:jingle:apps:file-transfer:0 to urn:xmpp:jingle:apps:file-transfer:1.</li>
+        <li class="" style="">Moved transport fallback scenario to XEP-0260.</li>
+      </ul>
+     (psa)
+    </div><h4>Version 0.8 (2008-09-30)</h4><div class="indent"><p class="" style="">Corrected fallback scenario to use transport-replace and transport-accept.</p> (psa)
+    </div><h4>Version 0.7 (2008-09-25)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Deleted content-replace from session flows.</li>
+        <li class="" style="">Modified namespaces to incorporate namespace versioning.</li>
+        <li class="" style="">Cleaned up XML schemas.</li>
+      </ul>
+     (psa)
+    </div><h4>Version 0.6 (2008-07-31)</h4><div class="indent"><p class="" style="">Harmonized with XEP-0166; modified fallback to use transport-replace and transport-accept.</p> (psa)
+    </div><h4>Version 0.5 (2008-06-05)</h4><div class="indent"><p class="" style="">Modified fallback scenario to use content-replace action during pending state.</p> (psa)
+    </div><h4>Version 0.4 (2008-06-04)</h4><div class="indent"><p class="" style="">Harmonized negotiation flows with other Jingle application types.</p> (psa)
+    </div><h4>Version 0.3 (2008-05-29)</h4><div class="indent"><p class="" style="">Corrected and more clearly explained negotiation flows for consistency with XEP-0166 and other Jingle specifications.</p> (psa)
+    </div><h4>Version 0.2 (2008-03-20)</h4><div class="indent"><p class="" style="">Added transport negotiation scenario.</p> (psa)
+    </div><h4>Version 0.1 (2008-03-05)</h4><div class="indent"><p class="" style="">Initial published version.</p> (psa)
+    </div><h4>Version 0.0.3 (2008-02-29)</h4><div class="indent"><p class="" style="">Corrected use of content-replace action; specified that the In-Band Bytestreams transport method is mandatory-to-implement but must have the lowest preference order.</p> (psa)
+    </div><h4>Version 0.0.2 (2008-02-28)</h4><div class="indent">Modified negotiation flow to use new content-replace action. (psa)
+    </div><h4>Version 0.0.1 (2008-01-29)</h4><div class="indent">First draft. (psa)
+    </div></div><hr /><p>END</p></body></html>

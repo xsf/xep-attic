@@ -1,0 +1,1036 @@
+<html>
+<head>
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+<title>JEP-0072: SOAP Over XMPP</title>
+<link rel="stylesheet" type="text/css" href="jep.css">
+<link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+<meta name="DC.Title" content="SOAP Over XMPP">
+<meta name="DC.Creator" content="Fabio Forno">
+<meta name="DC.Creator" content="Peter Saint-Andre">
+<meta name="DC.Description" content="This JEP defines methods for transporting SOAP messages over XMPP.">
+<meta name="DC.Publisher" content="Jabber Software Foundation">
+<meta name="DC.Contributor" content="JEP Editor">
+<meta name="DC.Date" content="2005-01-06">
+<meta name="DC.Type" content="Jabber Enhancement Proposal">
+<meta name="DC.Format" content="XHTML">
+<meta name="DC.Identifier" content="JEP-0072">
+<meta name="DC.Language" content="en">
+<meta name="DC.Rights" content="This Jabber Enhancement Proposal is copyright 1999 - 2005 by the Jabber Software Foundation (JSF) and is in full conformance with the JSF's Intellectual Property Rights Policy &lt;http://www.jabber.org/jsf/ipr-policy.php&gt;. This material may be distributed only subject to the terms and conditions set forth in the Open Publication License, v1.0 or later (the latest version is presently available at &lt;http://www.opencontent.org/openpub/&gt;).">
+</head>
+<body bgcolor="#FFFFFF">
+<h1>JEP-0072: SOAP Over XMPP</h1>
+<p>This JEP defines methods for transporting SOAP messages over XMPP.</p>
+<p><hr></p>
+<p style="color:red">WARNING: This Standards-Track JEP is Experimental. Publication as a Jabber Enhancement Proposal does not imply approval of this proposal by the Jabber Software Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems should not deploy implementations of this protocol until it advances to a status of Draft.</p>
+<p><hr></p>
+<h2>JEP Information</h2>
+<p class="indent">
+            Status: Experimental<br>
+            Type: Standards Track<br>
+            Number: 0072<br>
+            Version: 0.4<br>
+            Last Updated: 2005-01-06<br>
+            JIG: Standards JIG<br>
+                Approving Body: Jabber Council<br>Dependencies: XMPP Core, SOAP 1.2<br>
+                Supersedes: None<br>
+                Superseded By: None<br>
+            Short Name: None<br>
+</p>
+<h2>Author Information</h2>
+<h3>Fabio Forno</h3>
+<p class="indent">
+        Email: fabio.forno@polito.it<br>
+        JID: sciasbat@jabber.linux.it</p>
+<h3>Peter Saint-Andre</h3>
+<p class="indent">
+        Email: stpeter@jabber.org<br>
+        JID: stpeter@jabber.org</p>
+<h2>Legal Notice</h2>
+<p class="indent">This Jabber Enhancement Proposal is copyright 1999 - 2005 by the <a href="http://www.jabber.org/jsf/">Jabber Software Foundation</a> (JSF) and is in full conformance with the JSF's Intellectual Property Rights Policy &lt;<a href="http://www.jabber.org/jsf/ipr-policy.php">http://www.jabber.org/jsf/ipr-policy.php</a>&gt;. This material may be distributed only subject to the terms and conditions set forth in the Open Publication License, v1.0 or later (the latest version is presently available at &lt;<a href="http://www.opencontent.org/openpub/">http://www.opencontent.org/openpub/</a>&gt;).</p>
+<h2>Discussion Venue</h2>
+<p class="indent">The preferred venue for discussion of this document is the Standards-JIG discussion list: &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards-jig">http://mail.jabber.org/mailman/listinfo/standards-jig</a>&gt;.</p>
+<h2>Relation to XMPP</h2>
+<p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the Jabber Software Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocols defined in this JEP have been developed outside the Internet Standards Process and are to be understood as extensions to XMPP rather than as an evolution, development, or modification of XMPP itself.</p>
+<h2>Conformance Terms</h2>
+<p class="indent">The keywords &quot;MUST&quot;, &quot;MUST NOT&quot;, &quot;REQUIRED&quot;, &quot;SHALL&quot;, &quot;SHALL NOT&quot;, &quot;SHOULD&quot;, &quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;NOT RECOMMENDED&quot;, &quot;MAY&quot;, and &quot;OPTIONAL&quot; in this document are to be interpreted as described in RFC 2119.</p>
+<p><hr></p>
+<h2>Table of Contents</h2>
+<dl>
+<dt>1.  <a href="#intro">Introduction</a>
+</dt>
+<dt>2.  <a href="#transport">Transport of SOAP Envelopes</a>
+</dt>
+<dl>
+<dt>2.1.  <a href="#transport-iq">Synchronous Transport within IQ Stanzas</a>
+</dt>
+<dt>2.2.  <a href="#transport-message">Asynchronous Transport within Message Stanzas</a>
+</dt>
+<dt>2.3.  <a href="#errors">Error Reporting</a>
+</dt>
+</dl>
+<dt>3.  <a href="#encoding">Encoding</a>
+</dt>
+<dt>4.  <a href="#attachments">Attachments</a>
+</dt>
+<dt>5.  <a href="#wsdl">WSDL Definition with XMPP Binding</a>
+</dt>
+<dt>6.  <a href="#gateways">HTTP &lt;-&gt; XMPP Gateways</a>
+</dt>
+<dt>7.  <a href="#binding">SOAP XMPP Binding</a>
+</dt>
+<dl>
+<dt>7.1.  <a href="#binding-name">Binding Name</a>
+</dt>
+<dt>7.2.  <a href="#binding-features">Supported Features</a>
+</dt>
+<dt>7.3.  <a href="#binding-patterns">Supported Message Exchange Patterns</a>
+</dt>
+<dt>7.4.  <a href="#binding-operation">Operation of Request-Response Message Exchange Pattern</a>
+</dt>
+<dl>
+<dt>7.4.1.  <a href="#binding-operation-request">Behavior of Requesting SOAP Node</a>
+</dt>
+<dl>
+<dt>7.4.1.1.  <a href="#binding-operation-request-init">Init</a>
+</dt>
+<dt>7.4.1.2.  <a href="#binding-operation-request-requesting">Requesting</a>
+</dt>
+<dt>7.4.1.3.  <a href="#binding-operation-request-sendingreceiving">Sending+Receiving</a>
+</dt>
+<dt>7.4.1.4.  <a href="#binding-operation-request-successfail">Success and Fail</a>
+</dt>
+</dl>
+<dt>7.4.2.  <a href="#binding-operation-response">Behavior of Responding SOAP Node</a>
+</dt>
+<dl>
+<dt>7.4.2.1.  <a href="#binding-operation-response-init">Init</a>
+</dt>
+<dt>7.4.2.2.  <a href="#binding-operation-response-receiving">Receiving</a>
+</dt>
+<dt>7.4.2.3.  <a href="#binding-operation-response-receivingsending">Receiving+Sending</a>
+</dt>
+<dt>7.4.2.4.  <a href="#binding-operation-response-successfail">Success and Fail</a>
+</dt>
+</dl>
+</dl>
+</dl>
+<dt>8.  <a href="#w3c">W3C Considerations</a>
+</dt>
+<dl>
+<dt>8.1.  <a href="#w3c-review">W3C Review</a>
+</dt>
+<dt>8.2.  <a href="#w3c-versions">SOAP Versioning</a>
+</dt>
+</dl>
+<dt>9.  <a href="#security">Security Considerations</a>
+</dt>
+<dt>10.  <a href="#iana">IANA Considerations</a>
+</dt>
+<dt>11.  <a href="#registrar">Jabber Registrar Considerations</a>
+</dt>
+<dl><dt>11.1.  <a href="#registrar-ns">Protocol Namespaces</a>
+</dt></dl>
+<dt>12.  <a href="#schema">XML Schema</a>
+</dt>
+<dt>13.  <a href="#acknowledgements">Acknowledgements</a>
+</dt>
+<dt><a href="#notes">Notes</a></dt>
+<dt><a href="#revs">Revision History</a></dt>
+</dl>
+<p><hr></p>
+<h2>1.
+       <a name="intro">Introduction</a>
+</h2>
+  <p class="" style="">
+<span class="ref">Simple Object Access Protocol (SOAP)</span>  [<a href="#nt-id2596256">1</a>] is a lightweight protocol that defines a method for the exchange of messages independently from the programming language and platform. For interoperability, the SOAP specification is also agnostic about possible transport protocols, though almost all existing implementations use mainly HTTP.</p>
+  <p class="" style="">The primary limitation of HTTP consists in the fact that HTTP-based message exchanges allow only synchronous RPC-like calls. To overcome this limitation, SMTP is often used to carry asynchronous messages, but it is a complex protocol and inefficient for passing short and frequent messages that should be delivered in close to real time.</p>
+  <p class="" style="">Thus XMPP (see <span class="ref">XMPP Core</span>  [<a href="#nt-id2596203">2</a>]) can be the ideal transport protocol for many of the application fields of web services, since it can carry efficiently and reliably both types of messages, synchronous and asynchronous. Moreover, XMPP-based web services will not need complex support protocols, such as <span style="font-weight: bold">WS-Routing</span>  [<a href="#nt-id2596216">3</a>] and <span style="font-weight: bold">WS-Referral</span>  [<a href="#nt-id2596233">4</a>], in order to deliver messages to entities that cannot be identified by static public IP addresses. Therefore, this JEP defines a binding of SOAP to XMPP as an alternative to the existing HTTP and SMTP bindings.</p>
+  <p class="" style="">(Note: The main body of this JEP provides descriptive text suitable for use by XMPP developers. A formal description of the SOAP XMPP Binding itself is provided in the section of this document entitled <a href="#binding">SOAP XMPP Binding</a>.)</p>
+<h2>2.
+       <a name="transport">Transport of SOAP Envelopes</a>
+</h2>
+  <p class="" style="">Since SOAP envelopes can transport both RPC-like calls and asynchronous one-way messages, both &lt;iq/&gt; and &lt;message/&gt; with &lt;soap/&gt; child elements are used in order to assure maximum flexibility. It is up to implementors to choose the appropriate stanza type for their applications:</p>
+  <ol start="" type="">
+    <li>&lt;iq/&gt; stanzas MUST be used for RPC calls and when an immediate answer is required.</li>
+    <li>&lt;message/&gt; stanzas MUST be used for asynchronous one-way communications, and when store and forward may be necessary.</li>
+  </ol>
+  <p class="" style="">These approaches are defined in the following sections.</p>
+  <div class="indent">
+<h3>2.1 <a name="transport-iq">Synchronous Transport within IQ Stanzas</a>
+</h3>
+    <p class="" style="">The transport with &lt;iq/&gt; stanzas is performed in a way similar to that described for XML-RPC in <span class="ref">Jabber-RPC</span>  [<a href="#nt-id2596360">5</a>]. Request envelopes are carried by &lt;iq/&gt; stanzas of type &quot;set&quot;, and answer envelopes by &lt;iq/&gt; stanzas of type &quot;result&quot;. SOAP errors are encoded with standard SOAP envelopes, and returned in stanzas of type &quot;error&quot; with appropriate codes in order to distinguish them from errors specific to the XMPP transport layer. </p>
+    <p class="" style="">Each &lt;iq/&gt; stanza MUST contain a unique SOAP envelope as the first-level child element, since it already represents a properly namespaced XML subtree qualified by the 'http://schemas.xmlsoap.org/soap/envelope' namespace.</p>
+    <p class="caption">Example 1. A SOAP request inserted into an IQ stanza</p>
+<div class="indent"><pre>
+&lt;iq from='requester@company-a.com/soap-client'
+    id='soap1'
+    to='responder@company-a.com/soap-server' 
+    type='set'&gt; 
+  &lt;env:Envelope xmlns:env='http://www.w3.org/2003/05/soap-envelope'&gt;
+    &lt;env:Body&gt;
+      &lt;m:GetLastTradePrice 
+          xmlns:m='Some-URI'
+          env:encodingStyle='http://www.w3.org/2003/05/soap-encoding'&gt;
+        &lt;m:symbol&gt;DIS&lt;/m:symbol&gt;
+      &lt;/m:GetLastTradePrice&gt;
+    &lt;/env:Body&gt;
+  &lt;/env:Envelope&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="caption">Example 2. A SOAP response, inserted into an IQ stanza</p>
+<div class="indent"><pre>
+&lt;iq from='responder@company-a.com/soap-server' 
+    id='soap1'
+    to='requester@company-a.com/soap-client' 
+    type='result'&gt;
+  &lt;env:Envelope xmlns:env='http://www.w3.org/2003/05/soap-envelope'&gt;
+    &lt;env:Body&gt;
+      &lt;m:GetLastTradePriceResponse 
+          xmlns:m='Some-URI'
+          env:encodingStyle='http://www.w3.org/2003/05/soap-encoding'&gt;
+        &lt;m:Price&gt;34.5&lt;/m:Price&gt;
+      &lt;/m:GetLastTradePriceResponse&gt;
+    &lt;/env:Body&gt;
+  &lt;/env:Envelope&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+
+  <div class="indent">
+<h3>2.2 <a name="transport-message">Asynchronous Transport within Message Stanzas</a>
+</h3>
+    <p class="" style="">Message stanzas MUST carry one SOAP envelope as a first-level child element, as is done with &lt;iq/&gt; stanzas; the only difference is given by the different semantics and benefits of &lt;message/&gt; stanzas, such as store and forward. The 'id' attribute MUST be used to track SOAP messages and eventually associate errors or answers with the relative requests.</p>
+    <p class="caption">Example 3. A SOAP envelope carrying an RDF description of a RSS feed inserted into a message stanza</p>
+<div class="indent"><pre>
+&lt;message to='endpoint@company-a.com/soap-client' id='soap2'&gt;
+  &lt;env:Envelope xmlns:env='http://www.w3.org/2003/05/soap-envelope'&gt;
+    &lt;env:Body&gt;
+      &lt;rdf:RDF 
+          xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+          xmlns='http://my.netscape.com/rdf/simple/0.9/'&gt;
+        &lt;channel&gt;
+          &lt;title&gt;Slashdot&lt;/title&gt;
+          &lt;link&gt;http://slashdot.org/&lt;/link&gt;
+          &lt;description&gt;News for nerds, stuff that matters&lt;/description&gt;
+        &lt;/channel&gt;
+        &lt;item&gt;
+          &lt;title&gt;Jabber/XMPP now supports SOAP&lt;/title&gt;
+          &lt;link&gt;http://slashdot.org/somepath&lt;/link&gt;
+        &lt;/item&gt;
+      &lt;/rdf:RDF&gt;
+    &lt;/env:Body&gt;
+  &lt;/env:Envelope&gt;
+&lt;/message&gt;
+    </pre></div>
+  </div>
+
+  <div class="indent">
+<h3>2.3 <a name="errors">Error Reporting</a>
+</h3>
+    <p class="" style="">SOAP provides its own encoding scheme for errors due to message processing or application execution, and it uses SOAP envelopes for reporting. The SOAP HTTP Binding maps these errors to corresponding HTTP status codes. Since &lt;iq/&gt; stanzas have the same behavior as typical HTTP request/response interactions, SOAP faults are mapped in a similar way in &lt;iq/&gt; stanzas of type &quot;error&quot;. This approach should facilitate the design of HTTP&lt;-&gt;XMPP gateways for web services. The following table provides a mapping between SOAP, HTTP, and &lt;iq/&gt; error codes (for Jabber/XMPP error syntax, see Section 9.3.3 of <span style="font-weight: bold">XMPP Core</span>, and also <span class="ref">Error Condition Mappings</span>  [<a href="#nt-id2602177">6</a>]).</p>
+
+    <p class="caption">Table 1: Mapping of SOAP Error codes</p>
+<table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <th colspan="" rowspan="">SOAP Error</th>
+        <th colspan="" rowspan="">HTTP Code</th>
+        <th colspan="" rowspan="">IQ Error Description</th>
+      </tr>
+
+      <tr class="body">
+        <td align="" colspan="" rowspan="">env:VersionMismatch</td>
+        <td align="" colspan="" rowspan="">500</td>
+        <td align="" colspan="" rowspan="">&lt;internal-server-error/&gt;</td>
+      </tr>
+      
+      <tr class="body">
+        <td align="" colspan="" rowspan="">env:MustUnderstand</td>
+        <td align="" colspan="" rowspan="">500</td>
+        <td align="" colspan="" rowspan="">&lt;internal-server-error/&gt;</td>
+      </tr>
+
+      <tr class="body">
+        <td align="" colspan="" rowspan="">env:Sender</td>
+        <td align="" colspan="" rowspan="">400</td>
+        <td align="" colspan="" rowspan="">&lt;bad-request/&gt;</td>
+      </tr>
+      
+      <tr class="body">
+        <td align="" colspan="" rowspan="">env:Receiver</td>
+        <td align="" colspan="" rowspan="">500</td>
+        <td align="" colspan="" rowspan="">&lt;internal-server-error/&gt;</td>
+      </tr>
+
+      <tr class="body">
+        <td align="" colspan="" rowspan="">env:DataEncodingUnknown</td>
+        <td align="" colspan="" rowspan="">500</td>
+        <td align="" colspan="" rowspan="">&lt;internal-server-error/&gt;</td>
+      </tr>
+    </table>
+    
+    <p class="caption">Example 4. A SOAP response with error, inserted into an IQ stanza</p>
+<div class="indent"><pre>
+&lt;iq type='error' to='requesterr@company-a.com/soap-client' id='soap1'&gt;
+  &lt;env:Envelope
+      xmlns:env='http://www.w3.org/2003/05/soap-envelope'
+      xmlns:rpc='http://www.w3.org/2003/05/soap-rpc'&gt;
+    &lt;env:Body&gt;
+      &lt;env:Fault&gt;
+        &lt;env:Code&gt;
+          &lt;env:Value&gt;env:Sender&lt;/env:Value&gt;
+          &lt;env:Subcode&gt;
+            &lt;env:Value&gt;rpc:BadArguments&lt;/env:Value&gt;
+          &lt;/env:Subcode&gt;
+        &lt;/env:Code&gt;
+        &lt;env:Reason&gt;
+          &lt;env:Text xml:lang='en-US'&gt;Processing error&lt;/env:Text&gt;
+        &lt;/env:Reason&gt;
+        &lt;env:Detail&gt;
+          &lt;e:myFaultDetails xmlns:e='http://travelcompany.example.org/faults'&gt;
+            &lt;e:message&gt;Name does not match card number&lt;/e:message&gt;
+            &lt;e:errorcode&gt;999&lt;/e:errorcode&gt;
+          &lt;/e:myFaultDetails&gt;
+        &lt;/env:Detail&gt;
+      &lt;/env:Fault&gt;
+    &lt;/env:Body&gt;
+  &lt;/env:Envelope&gt;
+  &lt;error code='500' type='cancel'&gt;
+    &lt;internal-server-error xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">Since errors could occur also for asynchronous interaction using &lt;message/&gt; stanzas, the same error mapping scheme of &lt;iq/&gt; stanzas SHOULD be used. A typical situation where this can happen is a service receiving regular messages reporting remote sensor readings with asynchronous messages. If the controlling device detects some malfunctions in the sensors, it can send a &lt;message/&gt; stanza of type &quot;error&quot; to the monitoring application.</p>
+    
+    <p class="" style="">When errors are due to the XMPP transport protocol, and not to the application layer defined by SOAP, errors MUST be reported with standard XMPP error codes only (i.e., not including the SOAP envelope).</p> 
+    <p class="caption">Example 5. An XMPP entity reports that it cannot handle SOAP messages</p>
+<div class="indent"><pre>
+&lt;iq type='result' to='requester@company-a.com/soap-client' id='soap1'&gt;
+  &lt;error code='503' type='cancel'&gt;
+    &lt;service-unavailable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+<h2>3.
+       <a name="encoding">Encoding</a>
+</h2>
+  <p class="" style="">Because XMPP does not require the parsing of arbitrary and complete XML documents, and does not require implementations to support the full XML specification, transported SOAP envelopes MUST comply with the XML restrictions specified in Section 11 (&quot;XML Usage Within XMPP&quot;) of <span style="font-weight: bold">XMPP Core</span>. In particular, all envelope elements MUST be properly namespaced (SOAP allows elements within the default namespace, but they are deprecated since SOAP 1.2).</p>
+  <p class="" style="">SOAP envelopes may contain arbitrary data encoded in valid XML, and also byte arrays encoded with SOAP-specific elements. The SOAP specification recommends to encode byte arrays in Base 64 (see <span class="ref">RFC 3548</span>  [<a href="#nt-id2602519">7</a>]), with the result that envelopes with binary data can be transported within regular XMPP stanzas. All the remaining PCDATA MUST be encoded with UTF-8 in order to match the XML stream encoding.</p>
+<h2>4.
+       <a name="attachments">Attachments</a>
+</h2>
+  <p class="" style="">Binary data could grow significantly in size, and messages carrying it could be penalized by servers with &quot;karma&quot; (bandwidth restriction) settings tuned for normal textual chats. The problem could be bypassed by servers having special karma settings for larger messages, or by SOAP-enabled entities being implemented as components; however, server-to-server communications risk becoming a serious bottleneck, especially in terms of latency and responsiveness when too many large messages are sent.</p>
+  <p class="" style="">However, SOAP provides several methods to transport binary data as attachments; the most common are:</p>
+  <ul>
+    <li>Inserting a link to the file directly into the SOAP envelope</li>
+    <li>Encoding SOAP envelopes and attachments as MIME multipart messages  [<a href="#nt-id2602474">8</a>]</li>
+    <li>Using other protocols designed to transport SOAP and binary data together, such as <span style="font-weight: bold">WS-Attachments</span> 
+     [<a href="#nt-id2602496">9</a>] and SOAP-over-BEEP as defined in <span class="ref">RFC 3080</span>  [<a href="#nt-id2602633">10</a>]</li>
+  </ul>
+  <p class="" style="">The first method, using the file link in the envelope, is a general one, and can be used by XMPP clients if they are able to retrieve the file (e.g, using <span class="ref">Out-of-Band Data</span>  [<a href="#nt-id2602568">11</a>]). However, the other methods cannot be used directly with XMPP, since MIME messages do not fit in XML streams, and WS-Attachments and BEEP are just other transport protocols.</p>
+  <p class="caption">Example 6. SOAP attachment using MIME</p>
+<div class="indent"><pre>
+MIME-Version: 1.0
+Content-Type: Multipart/Related; boundary=MIME_boundary; type=text/xml;
+        start=&quot;&lt;claim061400a.xml@claiming-it.com&gt;&quot;
+Content-Description: This is the optional message description.
+
+--MIME_boundary
+Content-Type: text/xml; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Content-ID: &lt;claim061400a.xml@claiming-it.com&gt;
+
+&lt;?xml version='1.0' ?&gt;
+&lt;env:Envelope
+xmlns:env='http://www.w3.org/2003/05/soap-envelope'&gt;
+&lt;env:Body&gt;
+..
+&lt;theSignedForm href='cid:claim061400a.tiff@claiming-it.com'/&gt;
+..
+&lt;/env:Body&gt;
+&lt;/env:Envelope&gt;
+
+--MIME_boundary
+Content-Type: image/tiff
+Content-Transfer-Encoding: binary
+Content-ID: &lt;claim061400a.tiff@claiming-it.com&gt;
+...
+  </pre></div>
+  <p class="" style="">For the transport of binary data where a URL cannot be provided, the file transfer method described in <span class="ref">File Transfer</span>  [<a href="#nt-id2602616">12</a>] SHOULD be used.</p>
+  <ol start="" type="">
+    <li>When some attachment must be sent, references are included in the relative SOAP envelope; fields using attachments for data have the 'href' attribute set to a unique ID designating the file, as shown above for multipart messages.</li>
+    <li>After having sent the envelope, the sender begins a file transfer negotiation as described in JEP-0096. The 'name' attribute of the &lt;file&gt; element MUST be set to the value of the previous 'href' attribute in order to match attachments with the associated envelopes.</li>
+    <li>The receiver picks a transfer mode, retrieves all the attachments, and then replies to the SOAP messages if required.</li>
+  </ol>
+  <p class="caption">Example 7. SOAP attachment using file transfer</p>
+<div class="indent"><pre>
+
+&lt;iq type='set' id='offer1' to='receiver@jabber.org/resource'&gt;
+  &lt;si xmlns='http://jabber.org/protocol/si' 
+      id='a0'
+      mime-type='img/tiff'
+      profile='http://jabber.org/protocol/si/profile/file-transfer'&gt;
+    &lt;file xmlns='http://jabber.org/protocol/si/profile/file-transfer'
+          name='claim061400a.tiff@claiming-it.com'
+          size='100228'
+          hash='552da749930852c69ae5d2141d3766b1'
+          date='1972-02-02T02:56:15Z'/&gt;
+    &lt;feature xmlns='http://jabber.org/protocol/feature-neg'&gt;
+      &lt;x xmlns='jabber:x:data' type='form'&gt;
+        &lt;field var='stream-method' type='list-single'&gt;
+          &lt;option&gt;&lt;value&gt;http://jabber.org/protocol/bytestreams&lt;/value&gt;&lt;/option&gt;
+          &lt;option&gt;&lt;value&gt;http://jabber.org/protocol/ibb&lt;/value&gt;&lt;/option&gt;
+        &lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/feature&gt;
+  &lt;/si&gt;
+&lt;/iq&gt;
+  </pre></div>
+<h2>5.
+       <a name="wsdl">WSDL Definition with XMPP Binding</a>
+</h2>
+
+<p class="" style="">
+<span class="ref">WSDL</span>  [<a href="#nt-id2602737">13</a>] provides a machine-readable, formal description of web services operations, protocol bindings, and end points (i.e., network addresses). This description is aimed at specifying a loose coupling of SOAP envelopes and their transports, in order to maintain their independence and flexibility. Thus the definition of an XMPP SOAP transport through WSDL is straightforward. The following elements are relevant for the XMPP transport:</p>
+<ol start="" type="">
+  <li>The 'transport' attribute of the &lt;soap:binding&gt; element MUST be set to &quot;http://jabber.org/protocol/soap&quot;.</li>
+  <li>The 'style' attribute of the &lt;soap:binding&gt; element SHOULD be set to 'rpc' for SOAP messages carried in &lt;iq/&gt; stanzas, and to 'document' for &lt;message/&gt; stanzas.</li>
+  <li>The 'soapAction' attribute of the &lt;soap:operation&gt; element MAY be used; if so, it SHOULD be transported in an appropriate env:Header element for compatibility with the HTTP transport.</li>
+  <li>A valid <span class="ref">XMPP URI</span>  [<a href="#nt-id2595918">14</a>] MUST be used for the 'location' attribute in the &lt;soap:address&gt; element.</li>
+ </ol>
+<p class="caption">Example 8. Example of WSDL definition for a SOAP-based translator over XMPP</p>
+<div class="indent"><pre>
+&lt;definitions 
+    name='BabelFishService' 
+    targetNamespace='http://www.example.org/services/BabelFishService.wsdl'&gt;
+  ...
+  &lt;binding name='BabelFishBinding' type='tns:BabelFishPortType'&gt;
+    &lt;soap:binding style='rpc' transport='http://jabber.org/protocol/soap'&gt;
+    &lt;operation name='Translate'&gt;
+      &lt;soap:operation soapAction='urn:googleBabelFish#BabelFish'/&gt;
+      &lt;input&gt;...&lt;/input&gt;
+      &lt;output&gt;...&lt;/output&gt;
+    &lt;/operation&gt;
+  &lt;/binding&gt;
+  &lt;service name='BabelFishService'&gt;
+    &lt;documentation&gt;
+      Translates text using Google's Babelfish.
+    &lt;/documentation&gt;
+    &lt;port name='BabelFishPort' binding='tns:BabelFishBinding'&gt;
+      &lt;soap:address location='xmpp:babel@jabber.example.org'/&gt;
+    &lt;/port&gt;
+  &lt;/service&gt;
+&lt;/definitions&gt;
+</pre></div>
+<p class="" style="">Although there is no standard procedure to publish WSDL documents, usually they are made available through HTTP at some URL discoverable with public registries such as UDDI servers. WSDL descriptions for XMPP bindings MAY follow the same publishing process, or MAY be discoverable through Jabber/XMPP specific mechanisms such as <span class="ref">Service Discovery</span>  [<a href="#nt-id2595978">15</a>] or <span class="ref">Publish-Subscribe</span>  [<a href="#nt-id2603123">16</a>].</p>
+<h2>6.
+       <a name="gateways">HTTP &lt;-&gt; XMPP Gateways</a>
+</h2>
+<p class="" style=""><span style="font-style: italic">This section is non-normative.</span></p>
+<p class="" style="">This section provides an example of a gateway between XMPP-based and HTTP-based web services and it is not meant to be part of the SOAP over XMPP specifications. Its purpose is only to demonstrate how HTTP and XMPP can be used together in web services, and how to invoke any web services already accessible through HTTP from XMPP clients.</p>
+<p class="" style="">
+<span style="font-weight: bold">WS-Routing</span>, whose aim is to dynamically compose SOAP message paths and processing sequences, can be used in order to reference web services outside of an XMPP network from within it. WS-Routing extends SOAP Envelope Headers with the &lt;path/&gt; element, which specifies the following for the message: the sender's URL (&lt;from/&gt;), the final destination's URL (&lt;to/&gt;), a forward (&lt;forward/&gt;) path with an arbitrary number of intermediaries (&lt;via/&gt;), and an optional return path (&lt;reverse/&gt;). Each intermediary MUST process the &lt;path/&gt; header and update it accordingly to the already performed path; moreover it MAY process the Body of the message.</p>
+
+<p class="" style="">A SOAP message originated by an XMPP entity ('xmpp:orig@A.com/soap'), and directed to an end point accessible through HTTP ('http://C.com/some/endpoint'), could be built using a &lt;path/&gt; header having:</p>
+ <ol start="" type="">
+  <li>the &lt;to/&gt; element set to 'http://C.com/some/endpoint'</li>
+  <li>one &lt;via/&gt; element set to an HTTP&lt;-&gt;XMPP gateway, such as 'xmpp:soapgw@B.com/soap', in the forward path</li>
+  <li>an appropriate SOAP action in the  &lt;action&gt; element of the &lt;path/&gt; header (this may be required by the HTTP end point)</li>
+  <li>a blank return path</li>
+ </ol>
+<p class="" style="">Then the SOAP message can be sent within an &lt;iq/&gt; stanza to the gateway's JID. The gateway processes the SOAP headers, and looking through the headers it discovers that it must act only as intermediary. From the &lt;to/&gt; element it reads the URL of the final end point, extracts the SOAP action, changes the path removing the step already performed, and issues an HTTP request with the modified envelope and appropriate HTTP headers. Once it has received a response, it prepares a new &lt;iq/&gt; stanza of type &quot;result&quot; or &quot;error&quot; and sends its reply to the original requester. The following example shows the possible SOAP headers of the described process.</p>
+
+<p class="caption">Example 9. Gateway-generated SOAP headers</p>
+<div class="indent"><pre>
+&lt;S:Envelope xmlns:S='http://www.w3.org/2003/05/soap-envelope'&gt;
+   &lt;S:Header&gt;
+      &lt;m:path xmlns:m='http://www.soap.org/path'&gt;
+         &lt;m:action&gt;http://www.im.org/chat&lt;/m:action&gt;
+         &lt;m:to&gt;http://C.com/some/endpoint&lt;/m:to&gt;
+         &lt;m:forward&gt;
+            &lt;m:via&gt;xmpp:soapgw@B.com/soap&lt;/m:via&gt;
+         &lt;/m:forwawd&gt;
+         &lt;m:reverse&gt;
+            &lt;m:via/&gt;
+         &lt;/m:reverse&gt;
+         &lt;m:from&gt;xmpp:orig@A.com/soap&lt;/m:from&gt;
+         &lt;m:id&gt;uuid:84b9f5d0-33fb-4a81-b02b-5b760641c1d6&lt;/m:id&gt;
+      &lt;/m:path&gt;
+   &lt;/S:Header&gt;
+   &lt;S:Body&gt;
+      ...
+   &lt;/S:Body&gt;
+&lt;/S:Envelope&gt;
+</pre></div>
+
+<h2>7.
+       <a name="binding">SOAP XMPP Binding</a>
+</h2>
+  <p class="" style="">Section 4 of <span class="ref">SOAP Version 1.2 Part 1</span>  [<a href="#nt-id2603322">17</a>] defines a SOAP Protocol Binding Framework; two instantiations of that framework are the SOAP HTTP Binding (specified in Section 7 of <span class="ref">SOAP Version 1.2 Part 2</span>  [<a href="#nt-id2603247">18</a>]) and the <span class="ref">SOAP Email Binding</span>  [<a href="#nt-id2603267">19</a>]. As an alternative to the HTTP and Email bindings, this section formally defines the SOAP XMPP Binding in accordance with the SOAP Protocol Binding Framework.</p>
+  <p class="" style="">Note: The SOAP XMPP Binding is optional, and SOAP nodes are not required to implement it. A SOAP node that correctly and completely implements the SOAP XMPP Binding as described herein may be said to &quot;conform to the SOAP 1.2 XMPP Binding&quot;.</p>
+  <div class="indent">
+<h3>7.1 <a name="binding-name">Binding Name</a>
+</h3>
+    <p class="" style="">The SOAP XMPP Binding is identified by the following URI:</p>
+    <ul>
+      <li>http://jabber.org/protocol/soap</li> 
+    </ul>
+  </div>
+  <div class="indent">
+<h3>7.2 <a name="binding-features">Supported Features</a>
+</h3>
+    <p class="" style="">XMPP is a pure XML streaming protocol used to exchange snippets of structured data called &quot;XML stanzas&quot; (see Section 4.1 of <span style="font-weight: bold">RFC 3920</span>) between any two network endpoints.</p>
+    <p class="" style="">Because XMPP is a direct messaging protocol, it does not possess the equivalent of web methods such as the HTTP GET, PUT, POST, and DELETE methods. Therefore, it is NOT RECOMMENDED for a SOAP node that supports only the SOAP XMPP Binding to provide the &quot;SOAP Web Method Feature&quot; described in Section 6.4 of <span style="font-weight: bold">SOAP Version 1.2 Part 2</span>. (A SOAP gateway between XMPP and HTTP should support the SOAP Web Method Feature in order to ensure interoperability; however, description of such gateways is outside the scope of this document.)</p>
+    <p class="" style="">Because XMPP is a pure XML protocol, it does not use MIME types (<span class="ref">RFC 2045</span>  [<a href="#nt-id2603489">20</a>]) or XML media types (<span class="ref">RFC 3023</span>  [<a href="#nt-id2603512">21</a>]), but rather sends XML directly over the wire. Therefore, it is NOT RECOMMENDED for a SOAP node that supports only the SOAP XMPP Binding to provide the &quot;SOAP Action Feature&quot; described in Section 6.5 of <span style="font-weight: bold">SOAP Version 1.2 Part 2</span>. (A SOAP gateway between XMPP and HTTP should support the SOAP Action Feature in order to ensure interoperability; however, description of such gateways is outside the scope of this document.)</p>
+  </div>
+  <div class="indent">
+<h3>7.3 <a name="binding-patterns">Supported Message Exchange Patterns</a>
+</h3>
+    <p class="" style="">XMPP inherently provides request-response semantics via the &lt;iq/&gt; stanza type and &lt;message/&gt; stanza type, where the &lt;iq/&gt; stanza type requires more formality regarding preservation of request-response semantics in the context of synchronous communications, whereas the &lt;message/&gt; stanza provides a looser mapping to request-response semantics as well as the ability to ensure store-and-forward capabilities similar to those provided by email. Because both stanza types support request-response semantics, an implementation of the SOAP XMPP Binding MUST support only the following message exchange pattern (MEP) defined in the core SOAP 1.2 specification:</p>
+    <ul>
+      <li>http://www.w3.org/2003/05/soap/mep/request-response/</li>
+    </ul>
+  </div>
+  <div class="indent">
+<h3>7.4 <a name="binding-operation">Operation of Request-Response Message Exchange Pattern</a>
+</h3>
+    <p class="" style="">The request-response message exchange pattern is described in Section 6.2 of <span style="font-weight: bold">SOAP Version 1.1 Part 2</span>. For binding instances conforming to the specification of the SOAP XMPP Binding:</p>
+    <ul>
+      <li>A SOAP node instantiated at an XMPP entity may assume the role (i.e., the <tt>http://www.w3.org/2003/05/soap/bindingFramework/ExchangeContext/Role</tt> property) of &quot;RequestingSOAPNode&quot;.</li>
+      <li>A SOAP node instantiated at an XMPP entity may assume the role (i.e., the <tt>http://www.w3.org/2003/05/soap/bindingFramework/ExchangeContext/Role</tt> property) of &quot;RespondingSOAPNode&quot;.</li>
+    </ul>
+    <p class="" style="">The remainder of this section describes the message exchange pattern (MEP) state machine and its relation to XMPP as described in <span style="font-weight: bold">RFC 3920</span>. For the sake of brevity, relative URIs are used (the base URI being <tt>http://www.w3.org/2003/05/soap/bindingFramework/ExchangeContext/Role</tt>), the string &quot;fail:&quot; is used as a conventional prefix for the namespace <tt>http://www.example.org/2001/12/soap/mep/FailureReasons/</tt>, and the string &quot;reqresp:&quot; is used as a conventional prefix for the namespace <tt>http://www.example.org/2001/12/soap/mep/request-response/</tt>. In the state tables below, the states are defined as values of the <tt>http://www.w3.org/2003/05/soap/bindingFramework/ExchangeContext/State</tt> property (see Section 6.2 of <span style="font-weight: bold">SOAP Version 1.2 Part 2</span>) and are of type xs:anyURI.</p>
+    <div class="indent">
+<h3>7.4.1 <a name="binding-operation-request">Behavior of Requesting SOAP Node</a>
+</h3>
+      <p class="" style="">The overall flow of the behavior of a Requesting SOAP Node follows the outline state machine description contained in Section 6.2 of <span style="font-weight: bold">SOAP Version 1.2 Part 2</span>. The following subsections describe each state in more detail, where &quot;Requesting SOAP Node&quot; is to be understood as a logical entity made up of the binding and the local SOAP node associated with the XMPP entity that generates a SOAP request.</p>
+      <div class="indent">
+<h3>7.4.1.1 <a name="binding-operation-request-init">Init</a>
+</h3>
+        <p class="" style="">The following table formally describes the &quot;Init&quot; state of the Requesting SOAP Node in the SOAP XMPP Binding:</p>
+	<p class="caption">Table 2: Init: State Description (Requesting)</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Feature</th>
+	    <th colspan="" rowspan="">Value / Description</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">State Name</td>
+	    <td align="" colspan="" rowspan="">Init</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Description</td>
+	    <td align="" colspan="" rowspan="">Formulate and send request message</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Pre-Conditions</td>
+	    <td align="" colspan="" rowspan="">Control of the outbound transport message exchange context is transferred from the local SOAP node to the binding</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Actions</td>
+	    <td align="" colspan="" rowspan="">Formulate and send XMPP &lt;iq/&gt; or &lt;message/&gt; request stanza (see table &quot;Init: XMPP Fields (Requesting)&quot;) encapsulating SOAP envelope transferred from local SOAP node to binding</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Post-Conditions</td>
+	    <td align="" colspan="" rowspan="">None</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Transitions</td>
+	    <td align="" colspan="" rowspan="">See table &quot;Init: Transitions (Requesting)&quot;</td>
+	  </tr>
+	</table>
+        <p class="" style="">In the &quot;Init&quot; state, an XMPP stanza (either &lt;iq/&gt; or &lt;message/&gt;) is formulated by the Requesting SOAP Node according to the following table:</p>
+	<p class="caption">Table 3: Init: XMPP Fields (Requesting)</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Field</th>
+	    <th colspan="" rowspan="">Value / Description</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">XMPP Method</td>
+	    <td align="" colspan="" rowspan="">For XMPP &lt;iq/&gt; stanzas, the value of the XMPP 'type' attribute MUST be &quot;set&quot;; does not apply to XMPP &lt;message/&gt; stanzas</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Originator</td>
+	    <td align="" colspan="" rowspan="">The XMPP address (JID) carried in the <tt>reqresp:ImmediateSender</tt> property of the message exchange context is encapsulated as the value of the XMPP 'from' attribute; normally this is set by the XMPP server to which the originator connects</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Destination</td>
+	    <td align="" colspan="" rowspan="">The XMPP address (JID) carried in the <tt>reqresp:ImmediateDestination</tt> property of the message exchange context is encapsulated as the value of the XMPP 'to' attribute</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Correlation Request Message ID</td>
+	    <td align="" colspan="" rowspan="">As required for XMPP &lt;iq/&gt; stanzas in general and required for XMPP &lt;message/&gt; stanzas sent in the context of the SOAP XMPP Binding, a correlation request message ID is generated by the sender and encapsulated as the value of the XMPP 'id' attribute</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">XMPP Stanza Contents</td>
+	    <td align="" colspan="" rowspan="">The XML of the SOAP envelope carried in the <tt>reqresp:OutboundMessage</tt> property of the transport message exchange context is encapsulated as a direct child element of the XMPP &lt;iq/&gt; or &lt;message/&gt; stanza</td>
+	  </tr>
+	</table>
+        <p class="" style="">The following table summarizes the transitions from the &quot;Init&quot; state of the Requesting SOAP Node:</p>
+	<p class="caption">Table 4: Init: Transitions (Requesting)</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Event / Condition</th>
+	    <th colspan="" rowspan="">Next State</th>
+	    <th colspan="" rowspan="">Failure Reason</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Request Successfully Sent</td>
+	    <td align="" colspan="" rowspan="">Requesting</td>
+	    <td align="" colspan="" rowspan="">N/A</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Failure to Send Request</td>
+	    <td align="" colspan="" rowspan="">Fail</td>
+	    <td align="" colspan="" rowspan="">fail:TransmissionFailure</td>
+	  </tr>
+	</table>
+      </div>
+      <div class="indent">
+<h3>7.4.1.2 <a name="binding-operation-request-requesting">Requesting</a>
+</h3>
+        <p class="" style="">The following table formally describes the &quot;Requesting&quot; state of the Requesting SOAP Node in the SOAP XMPP Binding:</p>
+	<p class="caption">Table 5: Requesting: State Description</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Feature</th>
+	    <th colspan="" rowspan="">Value / Description</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">State Name</td>
+	    <td align="" colspan="" rowspan="">Requesting</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Description</td>
+	    <td align="" colspan="" rowspan="">Waiting for correlated XMPP response (Request Message completely sent on exit from Init state)</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Pre-Conditions</td>
+	    <td align="" colspan="" rowspan="">Completion of Init state</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Actions</td>
+	    <td align="" colspan="" rowspan="">Wait for a receive XMPP response stanza</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Post-Conditions</td>
+	    <td align="" colspan="" rowspan="">Instantiate or replace the <tt>reqresp:ImmediateSender</tt> property with an XMPP address (JID) that denotes the sender of the XMPP response stanza</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Transitions</td>
+	    <td align="" colspan="" rowspan="">See table &quot;Requesting: Transitions&quot;</td>
+	  </tr>
+	</table>
+        <p class="" style="">The following table summarizes the transitions from the &quot;Requesting&quot; state of the Requesting SOAP Node:</p>
+	<p class="caption">Table 6: Requesting: Transitions</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Event / Condition</th>
+	    <th colspan="" rowspan="">Next State</th>
+	    <th colspan="" rowspan="">Failure Reason</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Received Correlated XMPP Response</td>
+	    <td align="" colspan="" rowspan="">Sending+Receiving</td>
+	    <td align="" colspan="" rowspan="">N/A</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Reception Failure (various XMPP errors)</td>
+	    <td align="" colspan="" rowspan="">Fail</td>
+	    <td align="" colspan="" rowspan="">fail:ReceptionFailure</td>
+	  </tr>
+	</table>
+	<p class="" style="">For a listing of relevant XMPP error conditions, refer to Sections 9.3.3 and 4.7.3 of <span style="font-weight: bold">RFC 3920</span>.</p>
+      </div>
+      <div class="indent">
+<h3>7.4.1.3 <a name="binding-operation-request-sendingreceiving">Sending+Receiving</a>
+</h3>
+        <p class="" style="">The following table formally describes the &quot;Sending+Receiving&quot; state of the Requesting SOAP Node in the SOAP XMPP Binding:</p>
+	<p class="caption">Table 7: Sending+Receiving: State Description</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Feature</th>
+	    <th colspan="" rowspan="">Value / Description</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">State Name</td>
+	    <td align="" colspan="" rowspan="">Sending+Receiving</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Description</td>
+	    <td align="" colspan="" rowspan="">Receive correlated XMPP response including SOAP envelope</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Pre-Conditions</td>
+	    <td align="" colspan="" rowspan="">Completion of Receiving state</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Actions</td>
+	    <td align="" colspan="" rowspan="">Process XMPP &lt;iq/&gt; or &lt;message/&gt; response stanza and included SOAP envelope, instantiating or replacing the <tt>reqresp:InboundMessage</tt> property with an infoset representation of the SOAP envelope contained in the XMPP response stanza</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Post-Conditions</td>
+	    <td align="" colspan="" rowspan="">Control of the inbound transport message exchange context is transferred from the binding to the local SOAP node</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Transitions</td>
+	    <td align="" colspan="" rowspan="">See table &quot;Sending+Receiving: Transitions&quot;</td>
+	  </tr>
+	</table>
+        <p class="" style="">The following table summarizes the transitions from the &quot;Sending+Receiving&quot; state of the Requesting SOAP Node:</p>
+	<p class="caption">Table 8: Sending+Receiving: Transitions</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Event / Condition</th>
+	    <th colspan="" rowspan="">Next State</th>
+	    <th colspan="" rowspan="">Failure Reason</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Received Well-Formed Response Message</td>
+	    <td align="" colspan="" rowspan="">Success</td>
+	    <td align="" colspan="" rowspan="">N/A</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Reception Failure (various XMPP errors)</td>
+	    <td align="" colspan="" rowspan="">Fail</td>
+	    <td align="" colspan="" rowspan="">fail:ReceptionFailure</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Malformed Response Message (invalid SOAP envelope)</td>
+	    <td align="" colspan="" rowspan="">Fail</td>
+	    <td align="" colspan="" rowspan="">fail:BadRequestMessage</td>
+	  </tr>
+	</table>
+	<p class="" style="">For a listing of relevant XMPP error conditions, refer to Sections 9.3.3 and 4.7.3 of <span style="font-weight: bold">RFC 3920</span>.</p>
+      </div>
+      <div class="indent">
+<h3>7.4.1.4 <a name="binding-operation-request-successfail">Success and Fail</a>
+</h3>
+        <p class="" style="">A given instance of a request-response transport message exchange terminates when the state &quot;Success&quot; or &quot;Fail&quot; is reached; control over the transport message exchange context returns to the Requesting SOAP Node.</p>
+      </div>
+    </div>
+    <div class="indent">
+<h3>7.4.2 <a name="binding-operation-response">Behavior of Responding SOAP Node</a>
+</h3>
+      <p class="" style="">The overall flow of the behavior of a Responding SOAP Node follows the outline state machine description contained in Section 6.2 of <span style="font-weight: bold">SOAP Version 1.2 Part 2</span>. The following subsections describe each state in more detail, where &quot;Responding SOAP Node&quot; is to be understood as a logical entity made up of the binding and the local SOAP node associated with the XMPP entity that responds to a SOAP request.</p>
+      <div class="indent">
+<h3>7.4.2.1 <a name="binding-operation-response-init">Init</a>
+</h3>
+        <p class="" style="">The following table formally describes the &quot;Init&quot; state of the Responding SOAP Node in the SOAP XMPP Binding:</p>
+	<p class="caption">Table 9: Init: State Description (Responding)</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Feature</th>
+	    <th colspan="" rowspan="">Value / Description</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">State Name</td>
+	    <td align="" colspan="" rowspan="">Init</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Description</td>
+	    <td align="" colspan="" rowspan="">Receive request message</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Pre-Conditions</td>
+	    <td align="" colspan="" rowspan="">None</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Actions</td>
+	    <td align="" colspan="" rowspan="">Receive and validate inbound XMPP &lt;iq/&gt; or &lt;message/&gt; request stanza; instantiate or replace the <tt>reqresp:ImmediateSender</tt> property with an XMPP address (JID) that denotes the sender of the XMPP request; instantiate or replace the <tt>reqresp:InboundMessage</tt> property with an infoset representation of the included SOAP envelope</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Post-Conditions</td>
+	    <td align="" colspan="" rowspan="">Control of the inbound transport message exchange context is transferred from the binding to the local SOAP node</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Transitions</td>
+	    <td align="" colspan="" rowspan="">See table &quot;Init: Transitions (Responding)&quot;</td>
+	  </tr>
+	</table>
+        <p class="" style="">The following table summarizes the transitions from the &quot;Init&quot; state of the Responding SOAP Node:</p>
+	<p class="caption">Table 10: Init: Transitions (Responding)</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Event / Condition</th>
+	    <th colspan="" rowspan="">Next State</th>
+	    <th colspan="" rowspan="">Failure Reason</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Received Well-Formed Request Message</td>
+	    <td align="" colspan="" rowspan="">Receiving</td>
+	    <td align="" colspan="" rowspan="">N/A</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Reception Failure (various XMPP errors)</td>
+	    <td align="" colspan="" rowspan="">Fail</td>
+	    <td align="" colspan="" rowspan="">fail:ReceptionFailure</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Malformed Response Message (invalid SOAP envelope)</td>
+	    <td align="" colspan="" rowspan="">Fail</td>
+	    <td align="" colspan="" rowspan="">fail:BadRequestMessage</td>
+	  </tr>
+	</table>
+	<p class="" style="">For a listing of relevant XMPP error conditions, refer to Section 9.3.3 of <span style="font-weight: bold">RFC 3920</span>.</p>
+      </div>
+      <div class="indent">
+<h3>7.4.2.2 <a name="binding-operation-response-receiving">Receiving</a>
+</h3>
+        <p class="" style="">The following table formally describes the &quot;Receiving&quot; state of the Responding SOAP Node in the SOAP XMPP Binding:</p>
+	<p class="caption">Table 11: Receiving: State Description</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Feature</th>
+	    <th colspan="" rowspan="">Value / Description</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">State Name</td>
+	    <td align="" colspan="" rowspan="">Receiving</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Description</td>
+	    <td align="" colspan="" rowspan="">Waiting for local SOAP node to return response message</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Pre-Conditions</td>
+	    <td align="" colspan="" rowspan="">Completion of Init state</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Actions</td>
+	    <td align="" colspan="" rowspan="">None</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Post-Conditions</td>
+	    <td align="" colspan="" rowspan="">Control of the outbound transport message exchange context is transferred from the local SOAP node to the binding</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Transitions</td>
+	    <td align="" colspan="" rowspan="">See table &quot;Receiving: Transitions&quot;</td>
+	  </tr>
+	</table>
+        <p class="" style="">The following table summarizes the transitions from the &quot;Receiving&quot; state of the Responding SOAP Node:</p>
+	<p class="caption">Table 12: Receiving: Transitions</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Event / Condition</th>
+	    <th colspan="" rowspan="">Next State</th>
+	    <th colspan="" rowspan="">Failure Reason</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Response Message Becomes Available</td>
+	    <td align="" colspan="" rowspan="">Receiving+Sending</td>
+	    <td align="" colspan="" rowspan="">N/A</td>
+	  </tr>
+	</table>
+      </div>
+      <div class="indent">
+<h3>7.4.2.3 <a name="binding-operation-response-receivingsending">Receiving+Sending</a>
+</h3>
+        <p class="" style="">The following table formally describes the &quot;Receiving+Sending&quot; state of the Responding SOAP Node in the SOAP XMPP Binding:</p>
+	<p class="caption">Table 13: Receiving+Sending: State Description</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Feature</th>
+	    <th colspan="" rowspan="">Value / Description</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">State Name</td>
+	    <td align="" colspan="" rowspan="">Receiving+Sending</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Description</td>
+	    <td align="" colspan="" rowspan="">Waiting for local SOAP node to return response message</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Pre-Conditions</td>
+	    <td align="" colspan="" rowspan="">Completion of Receiving state</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Actions</td>
+	    <td align="" colspan="" rowspan="">Formulate and send XMPP &lt;iq/&gt; or &lt;message/&gt; response stanza (see table &quot;Receiving+Sending: XMPP Fields&quot;)</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Post-Conditions</td>
+	    <td align="" colspan="" rowspan="">None</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Transitions</td>
+	    <td align="" colspan="" rowspan="">See table &quot;Receiving+Sending: Transitions&quot;</td>
+	  </tr>
+	</table>
+        <p class="" style="">In the &quot;Receiving+Sending&quot; state, an XMPP stanza (either &lt;iq/&gt; or &lt;message/&gt;) is formulated by the Responding SOAP Node according to the following table:</p>
+	<p class="caption">Table 14: Receiving+Sending: XMPP Fields</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Field</th>
+	    <th colspan="" rowspan="">Value / Description</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">XMPP Method</td>
+	    <td align="" colspan="" rowspan="">For XMPP &lt;iq/&gt; stanzas, the value of the XMPP 'type' attribute MUST be &quot;result&quot;; does not apply to XMPP &lt;message/&gt; stanzas</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Originator</td>
+	    <td align="" colspan="" rowspan="">The XMPP address (JID) carried in the <tt>reqresp:ImmediateSender</tt> property of the message exchange context is encapsulated as the value of the XMPP 'from' attribute; normally set by the XMPP server to which the originator connects</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Destination</td>
+	    <td align="" colspan="" rowspan="">The XMPP address (JID) carried in the <tt>reqresp:ImmediateDestination</tt> property of the message exchange context is encapsulated as the value of the XMPP 'to' attribute</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Correlation Request Message ID</td>
+	    <td align="" colspan="" rowspan="">As required for XMPP &lt;iq/&gt; stanzas in general and required for XMPP &lt;message/&gt; stanzas sent in the context of the SOAP XMPP Binding, the correlation request message ID is copied from the ID of the request and encapsulated as the value of the XMPP 'id' attribute</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">XMPP Stanza Contents</td>
+	    <td align="" colspan="" rowspan="">The XML of the SOAP envelope carried in the <tt>reqresp:OutboundMessage</tt> property of the transport message exchange context is encapsulated as a direct child element of the XMPP &lt;iq/&gt; or &lt;message/&gt; stanza</td>
+	  </tr>
+	</table>
+        <p class="" style="">The following table summarizes the transitions from the &quot;Receiving+Sending&quot; state of the Responding SOAP Node:</p>
+	<p class="caption">Table 15: Receiving: Transitions</p>
+<table border="1" cellpadding="3" cellspacing="0">
+	  <tr class="body">
+	    <th colspan="" rowspan="">Event / Condition</th>
+	    <th colspan="" rowspan="">Next State</th>
+	    <th colspan="" rowspan="">Failure Reason</th>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Response Message Successfully Sent</td>
+	    <td align="" colspan="" rowspan="">Success</td>
+	    <td align="" colspan="" rowspan="">N/A</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Failure to Send Response Message</td>
+	    <td align="" colspan="" rowspan="">Fail</td>
+	    <td align="" colspan="" rowspan="">fail:TransmissionFailure</td>
+	  </tr>
+	</table>
+      </div>
+      <div class="indent">
+<h3>7.4.2.4 <a name="binding-operation-response-successfail">Success and Fail</a>
+</h3>
+        <p class="" style="">A given instance of a request-response transport message exchange terminates when the state &quot;Success&quot; or &quot;Fail&quot; is reached; from the perspective of the Responding SOAP Node, the transport message exchange has completed.</p>
+      </div>
+    </div>
+  </div>
+<h2>8.
+       <a name="w3c">W3C Considerations</a>
+</h2>
+  <p class="" style="">The main body of text that addresses the requirements of the W3C with regard to SOAP bindings is provided in the preceding section of this document (<a href="#binding">SOAP XMPP Binding</a>). This section addresses only the topic of organizational interaction between the W3C and the <span class="ref">Jabber Software Foundation (JSF)</span>  [<a href="#nt-id2606173">22</a>] regarding this JEP.</p>
+  <div class="indent">
+<h3>8.1 <a name="w3c-review">W3C Review</a>
+</h3>
+    <p class="" style="">As was done with <span class="ref">XHTML-IM</span>  [<a href="#nt-id2606106">23</a>], the SOAP binding defined herein should be reviewed informally by an appropriate expert from the W3C before the <span class="ref">Jabber Council</span>  [<a href="#nt-id2606134">24</a>] advances it to a status of Draft within the JSF's standards process. Before this specification proceeds to a status of Final within the JSF's standards process, it should undergo a formal review through communication with the W3C's XML Protocol Working Group.</p>
+  </div>
+  <div class="indent">
+<h3>8.2 <a name="w3c-versions">SOAP Versioning</a>
+</h3>
+    <p class="" style="">This specification addresses SOAP 1.2 only. This specification may be superseded or supplemented in the future by a Jabber Enhancement Proposal that defines methods for encapsulating content defined by future versions of SOAP as defined by the W3C.</p>
+  </div>
+<h2>9.
+       <a name="security">Security Considerations</a>
+</h2>
+    <p class="" style="">SOAP has been supplemented by several support protocols that help ensure message integrity and confidentiality (<span style="font-weight: bold">WS-Security</span>  [<a href="#nt-id2606223">25</a>]) as well as transaction management for failing message exchanges (<span style="font-weight: bold">WS-Transaction</span>
+     [<a href="#nt-id2606242">26</a>]). These protocols are all based on SOAP messages and take into account that the underlying protocols can be unreliable and not trusted, thus there are no arguments against their application with XMPP. Alternatively, implementations MAY use native XMPP security such as <span class="ref">XMPP E2E</span>  [<a href="#nt-id2606359">27</a>].</p>
+<h2>10.
+       <a name="iana">IANA Considerations</a>
+</h2>
+  <p class="" style="">No interaction with the <span class="ref">Internet Assigned Numbers Authority (IANA)</span>  [<a href="#nt-id2606303">28</a>] is required as a result of this JEP.</p>
+<h2>11.
+       <a name="registrar">Jabber Registrar Considerations</a>
+</h2>
+  <div class="indent">
+<h3>11.1 <a name="registrar-ns">Protocol Namespaces</a>
+</h3>
+    <p class="" style="">The <span class="ref">Jabber Registrar</span>  [<a href="#nt-id2606460">29</a>] shall include 'http://jabber.org/protocol/soap' in its registry of protocol namespaces.</p>
+  </div>
+<h2>12.
+       <a name="schema">XML Schema</a>
+</h2>
+  <p class="" style="">Because the SOAP envelope is included as a first-level child element of an &lt;iq/&gt; or &lt;message/&gt; stanza via standard XMPP extension mechanisms, an XML schema is not required for this JEP. An XML schema for the SOAP envelope element is provided in the SOAP 1.2 Specification.</p>
+<h2>13.
+       <a name="acknowledgements">Acknowledgements</a>
+</h2>
+  <p class="" style="">Some text in the <a href="#binding">SOAP XMPP Binding</a> section of this document is closely modelled on Section 7 of <span style="font-weight: bold">SOAP Version 1.2 Part 2</span> and on <span style="font-weight: bold">SOAP Version 1.2 Email Binding</span>.</p>
+<p><hr></p>
+<a name="notes"></a><h2>Notes</h2>
+<p>
+<a name="nt-id2596256">1</a>. Simple Object Access Protocol (SOAP) &lt;<a href="http://www.w3.org/TR/SOAP/">http://www.w3.org/TR/SOAP/</a>&gt;.</p>
+<p>
+<a name="nt-id2596203">2</a>. RFC 3920: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://www.ietf.org/rfc/rfc3920.txt">http://www.ietf.org/rfc/rfc3920.txt</a>&gt;.</p>
+<p>
+<a name="nt-id2596216">3</a>. WS-Routing Specification &lt;<a href="http://msdn.microsoft.com/library/en-us/dnglobspec/html/ws-routing.asp">http://msdn.microsoft.com/library/en-us/dnglobspec/html/ws-routing.asp</a>&gt;.</p>
+<p>
+<a name="nt-id2596233">4</a>. WS-Referral Specification &lt;<a href="http://msdn.microsoft.com/library/en-us/dnglobspec/html/ws-referral.asp">http://msdn.microsoft.com/library/en-us/dnglobspec/html/ws-referral.asp</a>&gt;.</p>
+<p>
+<a name="nt-id2596360">5</a>. JEP-0009: Transporting XML-RPC over Jabber &lt;<a href="http://www.jabber.org/jeps/jep-0009.html">http://www.jabber.org/jeps/jep-0009.html</a>&gt;.</p>
+<p>
+<a name="nt-id2602177">6</a>. JEP-0086: Error Condition Mappings &lt;<a href="http://www.jabber.org/jeps/jep-0086.html">http://www.jabber.org/jeps/jep-0086.html</a>&gt;.</p>
+<p>
+<a name="nt-id2602519">7</a>. RFC 3548: The Base16, Base32, and Base64 Data Encodings &lt;<a href="http://www.ietf.org/rfc/rfc3548.txt">http://www.ietf.org/rfc/rfc3548.txt</a>&gt;.</p>
+<p>
+<a name="nt-id2602474">8</a>. SOAP Messages with Attachments &lt;<a href="http://www.w3.org/TR/SOAP-attachments">http://www.w3.org/TR/SOAP-attachments</a>&gt;.</p>
+<p>
+<a name="nt-id2602496">9</a>. WS-Attachments &lt;<a href="http://www.watersprings.org/pub/id/draft-nielsen-dime-soap-01.txt">http://www.watersprings.org/pub/id/draft-nielsen-dime-soap-01.txt</a>&gt; (work in progress).</p>
+<p>
+<a name="nt-id2602633">10</a>. RFC 3080: The Blocks Extensible Exchange Protocol Core (BEEP) &lt;<a href="http://www.ietf.org/rfc/rfc3080.txt">http://www.ietf.org/rfc/rfc3080.txt</a>&gt;.</p>
+<p>
+<a name="nt-id2602568">11</a>. JEP-0066: Out of Band Data &lt;<a href="http://www.jabber.org/jeps/jep-0066.html">http://www.jabber.org/jeps/jep-0066.html</a>&gt;.</p>
+<p>
+<a name="nt-id2602616">12</a>. JEP-0096: File Transfer &lt;<a href="http://www.jabber.org/jeps/jep-0096.html">http://www.jabber.org/jeps/jep-0096.html</a>&gt;.</p>
+<p>
+<a name="nt-id2602737">13</a>. WSDL 1.1 Specification &lt;<a href="http://www.w3.org/TR/wsdl">http://www.w3.org/TR/wsdl</a>&gt;.</p>
+<p>
+<a name="nt-id2595918">14</a>. A Uniform Resource Identifier (URI) Scheme for the Extensible Messaging and Presence Protocol (XMPP) &lt;<a href="http://www.ietf.org/internet-drafts/draft-saintandre-xmpp-uri-08.txt">http://www.ietf.org/internet-drafts/draft-saintandre-xmpp-uri-08.txt</a>&gt; (work in progress).</p>
+<p>
+<a name="nt-id2595978">15</a>. JEP-0030: Service Discovery &lt;<a href="http://www.jabber.org/jeps/jep-0030.html">http://www.jabber.org/jeps/jep-0030.html</a>&gt;.</p>
+<p>
+<a name="nt-id2603123">16</a>. JEP-0060: Publish-Subscribe &lt;<a href="http://www.jabber.org/jeps/jep-0060.html">http://www.jabber.org/jeps/jep-0060.html</a>&gt;.</p>
+<p>
+<a name="nt-id2603322">17</a>. SOAP Version 1.2 Part 1: Messaging &lt;<a href="http://www.w3.org/TR/soap12-part1">http://www.w3.org/TR/soap12-part1</a>&gt;.</p>
+<p>
+<a name="nt-id2603247">18</a>. SOAP Version 1.2 Part 2: Adjuncts &lt;<a href="http://www.w3.org/TR/soap12-part2">http://www.w3.org/TR/soap12-part2</a>&gt;.</p>
+<p>
+<a name="nt-id2603267">19</a>. SOAP Version 1.2 Email Binding &lt;<a href="http://www.w3.org/TR/soap12-email">http://www.w3.org/TR/soap12-email</a>&gt;.</p>
+<p>
+<a name="nt-id2603489">20</a>. RFC 2045: Multipurpose Internet Mail Extensions (MIME) Part One: Format of Internet Message Bodies &lt;<a href="http://www.ietf.org/rfc/rfc2045.txt">http://www.ietf.org/rfc/rfc2045.txt</a>&gt;.</p>
+<p>
+<a name="nt-id2603512">21</a>. RFC 3023: XML Media Types &lt;<a href="http://www.ietf.org/rfc/rfc3023.txt">http://www.ietf.org/rfc/rfc3023.txt</a>&gt;.</p>
+<p>
+<a name="nt-id2606173">22</a>. The Jabber Software Foundation (JSF) is an independent, non-profit organization that develops open application protocols on top of the IETF's Extensible Messaging and Presence Protocol (XMPP). For further information, see &lt;<a href="http://www.jabber.org/jsf/">http://www.jabber.org/jsf/</a>&gt;.</p>
+<p>
+<a name="nt-id2606106">23</a>. JEP-0071: XHTML-IM &lt;<a href="http://www.jabber.org/jeps/jep-0071.html">http://www.jabber.org/jeps/jep-0071.html</a>&gt;.</p>
+<p>
+<a name="nt-id2606134">24</a>. The Jabber Council is a technical steering committee, authorized by the JSF Board of Directors and elected by JSF members, that approves of new Jabber protocols and oversees the JSF's standards process. For further information, see &lt;<a href="http://www.jabber.org/council/">http://www.jabber.org/council/</a>&gt;.</p>
+<p>
+<a name="nt-id2606223">25</a>. WS-Security &lt;<a href="http://msdn.microsoft.com/ws/2002/04/Security/">http://msdn.microsoft.com/ws/2002/04/Security/</a>&gt;.</p>
+<p>
+<a name="nt-id2606242">26</a>. WS-Transaction &lt;<a href="http://msdn.microsoft.com/library/en-us/dnglobspec/html/ws-transaction.asp">http://msdn.microsoft.com/library/en-us/dnglobspec/html/ws-transaction.asp</a>&gt;.</p>
+<p>
+<a name="nt-id2606359">27</a>. RFC 3923: End-to-End Signing and Object Encryption for the Extensible Messaging and Presence Protocol (XMPP) &lt;<a href="http://www.ietf.org/rfc/rfc3923.txt">http://www.ietf.org/rfc/rfc3923.txt</a>&gt;.</p>
+<p>
+<a name="nt-id2606303">28</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p>
+<p>
+<a name="nt-id2606460">29</a>. The Jabber Registrar maintains a list of reserved Jabber protocol namespaces as well as registries of parameters used in the context of protocols approved by the Jabber Software Foundation. For further information, see &lt;<a href="http://www.jabber.org/registrar/">http://www.jabber.org/registrar/</a>&gt;.</p>
+<p><hr></p>
+<a name="revs"></a><h2>Revision History</h2>
+<div class="indent">
+<h4>Version 0.4 (2005-01-06)</h4>
+<div class="indent">Added W3C Considerations and formal description of SOAP XMPP Binding. (psa)
+    </div>
+<h4>Version 0.3 (2004-05-10)</h4>
+<div class="indent">Changed namespaces to keep in sync with latest SOAP specs. Removed the encodingStyle attribute, since in SOAP 1.2 it is allowed only in child elements of the Body. Removed the &lt;soap&gt; element from the error message example. Fixed the Fault encoding. Explicitly prohibited SOAP elements within the default namespace. (ff)
+    </div>
+<h4>Version 0.2 (2003-11-11)</h4>
+<div class="indent">Deleted the superfluous &lt;soap&gt; element for envelope encapsulation; Changed error reporting semantics; Added a WSDL Binding example; Added a routing example for HTTP&lt;-&gt;XMPP gateways; Added XML Schema; References to Jabber changed in references to XMPP; Other minor changes. (ff)
+    </div>
+<h4>Version 0.1 (2003-02-17)</h4>
+<div class="indent">Initial version. (ff)
+    </div>
+</div>
+<p><hr></p>
+<p>END</p>
+</body>
+</html>

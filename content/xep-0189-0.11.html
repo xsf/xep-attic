@@ -1,0 +1,340 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0189: Public Key Publishing</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Public Key Publishing" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Creator" content="Dirk Meyer" /><meta name="DC.Creator" content="Ian Paterson" /><meta name="DC.Description" content="This specification defines a method by which an entity can publish its public keys over XMPP." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2009-12-17" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0189" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2009 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0189: Public Key Publishing</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines a method by which an entity can publish its public keys over XMPP.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Peter Saint-Andre, Dirk Meyer, Ian Paterson</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2009 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.11</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2009-12-17</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#approach">Approach</a><br />3.  <a href="#keys">Public Keys</a><br />4.  <a href="#revocations">Revocations</a><br />5.  <a href="#attestations">Attestations</a><br />6.  <a href="#pep">Publication via PEP</a><br />7.  <a href="#request">Requesting a Public Key Directly</a><br />8.  <a href="#send">Sending a Public Key Directly</a><br />9.  <a href="#generate">Signalling Key Generation</a><br />10.  <a href="#support">Determining Support</a><br />11.  <a href="#security">Security Considerations</a><br />12.  <a href="#iana">IANA Considerations</a><br />13.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      13.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      13.2.  <a href="#registrar-versioning">Protocol Versioning</a><br />14.  <a href="#schema">XML Schemas</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">End-to-end encryption between XMPP clients and mutual authentication between a client and a server are desirable goals for the XMPP network. To enable these features, typically an XMPP user will need to possess a public key (or multiple keys), along with an associated private key that is not made public. The goal of this document is to provide simple methods for the exchange of public keys among XMPP users -- specifically, data formats that enable an XMPP entity to complete the following use cases:</p>
+  <ul class="" style="">
+    <li class="" style="">Publish its current public keys.</li>
+    <li class="" style="">Revoke keys that are no longer in use.</li>
+    <li class="" style="">Publish signed copies of its public keys (called attestations).</li>
+    <li class="" style="">Discover and retrieve public keys published by other entities.</li>
+  </ul>
+<h2>2.
+       <a name="approach" id="approach">Approach</a></h2>
+  <p class="" style="">This document assumes that each user will have a privately-generated key. A user <span class="strong">might</span> have more than one key (e.g., different keys for different clients) and the user's key <span class="strong">might</span> be signed by other entities, such as a certification authority (CA) or another user. However, the simplest case is a single key per user.</p>
+  <p class="" style="">The data formats defined here are deliberately kept very simple, with the key itself represented as ASCII output (of the kind supported by most cryptographic libraries) and any metadata represented using a few straightforward XML elements and attributes. This document does not use the 'http://www.w3.org/2000/09/xmldsig#' namespace as specified in <span class="ref" style=""><a href="http://www.w3.org/TR/2002/REC-xmldsig-core-20020212/">XML Signature</a></span>  [<a href="#nt-id166995">1</a>]; although that format is quite powerful, it introduces unnecessary levels of complexity for this use case.</p>
+  <p class="" style="">We define three payload elements:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">The &lt;pubkey/&gt; element (qualified by the 'urn:xmpp:pubkey:1' namespace) specifies a single public key for a user.</li>
+    <li class="" style="">The &lt;revoke/&gt; element (qualified by the 'urn:xmpp:revoke:1' namespace) specifies old keys that a user once used but has now revoked.</li>
+    <li class="" style="">The &lt;attest/&gt; element (qualified by the 'urn:xmpp:attest:1' namespace) specifies one or more signed copies of a user's public key.</li>
+  </ol>
+  <p class="" style="">An entity MAY support only public key publishing (the 'urn:xmpp:pubkey:1' namespace) and not support revocations and attestations.</p>
+<h2>3.
+       <a name="keys" id="keys">Public Keys</a></h2>
+  <p class="" style="">A single public key is contained in a &lt;pubkey/&gt; element qualified by the 'urn:xmpp:pubkey:1' namespace (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number), for which the defined child elements are as follows:</p>
+  <div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: Children of the &lt;pubkey/&gt; Element</p><table border="1" cellpadding="3" cellspacing="0">
+    <tr class="body">
+      <th colspan="" rowspan="">Element</th>
+      <th colspan="" rowspan="">Description</th>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;begin/&gt;</td>
+      <td colspan="" rowspan="">The UTC DateTime before which the key shall not be considered valid, formatted according to <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles</a></span>  [<a href="#nt-id167139">2</a>].</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;end/&gt;</td>
+      <td colspan="" rowspan="">The UTC DateTime after which the key shall not be considered valid, formatted according to <span class="ref">XEP-0082</span>.</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;jid/&gt;</td>
+      <td colspan="" rowspan="">The XMPP address associated with this key.</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;key/&gt;</td>
+      <td colspan="" rowspan="">The ASCII output representation of an RSA public key generated in accordance with <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3447">RFC 3447</a></span>  [<a href="#nt-id167217">3</a>].</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;print/&gt;</td>
+      <td colspan="" rowspan="">The SHA-256 fingerprint for this key.</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;uri/&gt;</td>
+      <td colspan="" rowspan="">A URI at which the key can be retrieved outside the XMPP network; this element is OPTIONAL.</td>
+    </tr>
+  </table></div>
+  <p class="" style="">An example follows.</p>
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. A public key</p><div class="indent"><pre class="prettyprint">
+&lt;pubkey xmlns='urn:xmpp:pubkey:1'&gt;
+  &lt;begin&gt;2009-12-11T20:12:37&lt;/begin&gt;
+  &lt;end&gt;2010-12-11T23:59:59&lt;/end&gt;
+  &lt;jid&gt;peter@jabber.org&lt;/jid&gt;
+  &lt;key&gt;
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA25/Y7oonF3+pRjZCk0cQ
+    lQFiUFvyMeUOnn01NLfqfBeT4xjahsxaYFPd+V8jIHtpO3nbkpfrBh5aLPCkqDzS
+    UFvmLaVSIMUt085kcT/Yv72BUWUGaISt7swSNfictRbVZ0k8TbXUDLIAYWN8lsie
+    NVxL13PS9pu3WNoORuKAV5RuzDS3djnjb6fti7fTwEUpQVwRrJXY6jNhv4c4zE3x
+    Pjm48gIlHbZrxuWNrXnKT6uwXnr6PJ6O3YspferJG1oA3kmOwm41yWDkalbKgkNZ
+    WeS+ahB/i9LIG+41CdekPpI0Kr0Ll9X7+zaPV6xzjlG8dYy7ZGm4eTL9STuWlPdL
+    +wIDAQAB
+  &lt;/key&gt;
+  &lt;print&gt;13475c8e27399908b4447d7c52ab30822872832eba3a654f0d80e07fb4157673&lt;/print&gt;
+&lt;/pubkey&gt;
+  </pre></div>
+<h2>4.
+       <a name="revocations" id="revocations">Revocations</a></h2>
+  <p class="" style="">A user can revoke his own key. The revocation is contained in a &lt;revoke/&gt; element qualified by the 'urn:xmpp:revoke:1' namespace (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number), for which the defined child elements are as follows:</p>
+  <div class="indent"><p class="caption"><a name="table-2" id="table-2"></a>Table 2: Children of the &lt;revoke/&gt; Element</p><table border="1" cellpadding="3" cellspacing="0">
+    <tr class="body">
+      <th colspan="" rowspan="">Element</th>
+      <th colspan="" rowspan="">Description</th>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;key/&gt;</td>
+      <td colspan="" rowspan="">The public key that was revoked.</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;keyprint/&gt;</td>
+      <td colspan="" rowspan="">The SHA-256 fingerprint of the public key that was revoked.</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;signature/&gt;</td>
+      <td colspan="" rowspan="">A signature for the revocation, as described below.</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;revocationprint/&gt;</td>
+      <td colspan="" rowspan="">The SHA-256 fingerprint of the key used to sign the revocation.</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;revocationtime/&gt;</td>
+      <td colspan="" rowspan="">The UTC DateTime at which the key was revoked, formatted according to <span class="ref">XEP-0082</span>.</td>
+    </tr>
+  </table></div>
+  <p class="" style="">The data that is signed MUST be the revoked public key (i.e., the XML character data of the &lt;key/&gt; element), the SHA-256 fingerprint of the revoked public key (i.e., the XML character data of the &lt;keyprint/&gt; element), the SHA-256 fingerprint of the key used to sign the revocation (i.e., the XML character data of the &lt;revocationprint/&gt; element), and the time of the revocation (i.e., the XML character data of the &lt;revocationtime/&gt; element), concatenated together with no spaces or other additional characters.</p>
+  <p class="" style="">As an example, consider a revocation of the key from Example 1, where the SHA-256 fingerprint of the revoked key is 13475c8e27399908b4447d7c52ab30822872832eba3a654f0d80e07fb4157673, the SHA-256 fingerprint of the key used to sign the revocation is becb78566783166f4a1a7c64e28dae288fe1a0f2825f6b593b336ce186c6b056, and the time of the revocation is 2009-12-14T20:49:16Z. The string to be signed would be as follows (where line breaks are not significant).</p>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA25/Y7oonF3+pRjZCk0cQ
+    lQFiUFvyMeUOnn01NLfqfBeT4xjahsxaYFPd+V8jIHtpO3nbkpfrBh5aLPCkqDzS
+    UFvmLaVSIMUt085kcT/Yv72BUWUGaISt7swSNfictRbVZ0k8TbXUDLIAYWN8lsie
+    NVxL13PS9pu3WNoORuKAV5RuzDS3djnjb6fti7fTwEUpQVwRrJXY6jNhv4c4zE3x
+    Pjm48gIlHbZrxuWNrXnKT6uwXnr6PJ6O3YspferJG1oA3kmOwm41yWDkalbKgkNZ
+    WeS+ahB/i9LIG+41CdekPpI0Kr0Ll9X7+zaPV6xzjlG8dYy7ZGm4eTL9STuWlPdL
+    +wIDAQAB13475c8e27399908b4447d7c52ab30822872832eba3a654f0d80e07f
+    b4157673becb78566783166f4a1a7c64e28dae288fe1a0f2825f6b593b336ce1
+    86c6b0562009-12-14T20:49:16Z
+  </pre></div>
+  <p class="" style="">An example follows.</p>
+  <p class="caption"><a name="example-2" id="example-2"></a>Example 2. A revocation</p><div class="indent"><pre class="prettyprint">
+&lt;revocation xmlns='urn:xmpp:revoke:1'&gt;
+  &lt;key&gt;
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA25/Y7oonF3+pRjZCk0cQ
+    lQFiUFvyMeUOnn01NLfqfBeT4xjahsxaYFPd+V8jIHtpO3nbkpfrBh5aLPCkqDzS
+    UFvmLaVSIMUt085kcT/Yv72BUWUGaISt7swSNfictRbVZ0k8TbXUDLIAYWN8lsie
+    NVxL13PS9pu3WNoORuKAV5RuzDS3djnjb6fti7fTwEUpQVwRrJXY6jNhv4c4zE3x
+    Pjm48gIlHbZrxuWNrXnKT6uwXnr6PJ6O3YspferJG1oA3kmOwm41yWDkalbKgkNZ
+    WeS+ahB/i9LIG+41CdekPpI0Kr0Ll9X7+zaPV6xzjlG8dYy7ZGm4eTL9STuWlPdL
+    +wIDAQAB
+  &lt;/key&gt;
+  &lt;keyprint&gt;60561AEE-4187-4122-8A71-ACF9195DE572&lt;/keyprint&gt;
+  &lt;revocationprint&gt;becb78566783166f4a1a7c64e28dae288fe1a0f2825f6b593b336ce186c6b056&lt;/revocationprint&gt;
+  &lt;revocationtime&gt;2009-12-14T20:49:16Z&lt;/revocationtime&gt;
+  &lt;signature&gt;
+    iEYEARECAAYFAksnvfsACgkQNL8k5A2w/vyVHgCglI5fPQfcu1e5PTA3bMPKiL0F
+    J5cAnirpKzJ45OD+03b66UHoIosKQ31O
+    =PGFT
+  &lt;/signature&gt;
+&lt;/revocation&gt;
+  </pre></div>
+<h2>5.
+       <a name="attestations" id="attestations">Attestations</a></h2>
+  <p class="" style="">Whether in the context of the public key infrastructure (PKI) or a web of trust, a user might want to publish signed copies of his public key, where the signer might be another user or a trusted third party such as a certification authority (CA). The signing key could even be another key owned by the user (e.g., a primary key used to sign a secondary key associated with a particular device controlled by the user). Furthermore, the signing material might be an RSA key, a DSA key, an X.509 certificate, an OpenPGP key, or any other format.</p>
+  <p class="" style="">Each signed copy is contained in an &lt;attest/&gt; element qualified by the 'urn:xmpp:attest:1' namespace (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number), for which the defined child elements are as follows:</p>
+  <div class="indent"><p class="caption"><a name="table-3" id="table-3"></a>Table 3: Children of the &lt;attest/&gt; Element</p><table border="1" cellpadding="3" cellspacing="0">
+    <tr class="body">
+      <th colspan="" rowspan="">Element</th>
+      <th colspan="" rowspan="">Description</th>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;keyprint/&gt;</td>
+      <td colspan="" rowspan="">The SHA-256 fingerprint of the public key that was signed.</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;signature/&gt;</td>
+      <td colspan="" rowspan="">The signature itself, as described below.</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;signerjid/&gt;</td>
+      <td colspan="" rowspan="">The XMPP address of the signer.</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;signerprint/&gt;</td>
+      <td colspan="" rowspan="">The SHA-256 fingerprint of the signer's key.</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">&lt;signtime/&gt;</td>
+      <td colspan="" rowspan="">The UTC DateTime at which the key was signed, formatted according to <span class="ref">XEP-0082</span>.</td>
+    </tr>
+  </table></div>
+  <p class="" style="">The data that is signed MUST be the user's public key (i.e., the XML character data of the &lt;key/&gt; element), the SHA-256 fingerprint of the user's public key (i.e., the XML character data of the &lt;keyprint/&gt; element), the signer's JID (i.e., the XML character data of the &lt;signerjid/&gt; element), the SHA-256 fingerprint of the signer's key (i.e., the XML character data of the &lt;signerprint/&gt; element), and the time of the attestation (i.e., the XML character data of the &lt;signtime/&gt; element), concatenated together with no spaces or other additional characters.</p>
+  <p class="" style="">As an example, consider an attestation of the key from Example 1, where the signer's JID is stpeter@jabber.org, the fingerprint of the signer's key is "becb78566783166f4a1a7c64e28dae288fe1a0f2825f6b593b336ce186c6b056", and the time of the attestation is 2009-12-14T18:43:00Z. The string to be signed would be as follows (where line breaks are not significant).</p>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA25/Y7oonF3+pRjZCk0cQ
+    lQFiUFvyMeUOnn01NLfqfBeT4xjahsxaYFPd+V8jIHtpO3nbkpfrBh5aLPCkqDzS
+    UFvmLaVSIMUt085kcT/Yv72BUWUGaISt7swSNfictRbVZ0k8TbXUDLIAYWN8lsie
+    NVxL13PS9pu3WNoORuKAV5RuzDS3djnjb6fti7fTwEUpQVwRrJXY6jNhv4c4zE3x
+    Pjm48gIlHbZrxuWNrXnKT6uwXnr6PJ6O3YspferJG1oA3kmOwm41yWDkalbKgkNZ
+    WeS+ahB/i9LIG+41CdekPpI0Kr0Ll9X7+zaPV6xzjlG8dYy7ZGm4eTL9STuWlPdL
+    +wIDAQAB13475c8e27399908b4447d7c52ab30822872832eba3a654f0d80e07f
+    b4157673stpeter@jabber.orgbecb78566783166f4a1a7c64e28dae288fe1a0
+    f2825f6b593b336ce186c6b0562009-12-14T18:43:00Z
+  </pre></div>
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. RSA public key signed by OpenPGP key</p><div class="indent"><pre class="prettyprint">
+&lt;attest xmlns='urn:xmpp:attest:1'&gt;
+  &lt;keyprint&gt;60561AEE-4187-4122-8A71-ACF9195DE572&lt;/keyprint&gt;
+  &lt;signature&gt;
+    iEYEARECAAYFAksnyJ0ACgkQNL8k5A2w/vy9DgCfc1eOYZlp1P456NkjgvCtJaRX
+    Wi4AoIGhfzr7XMzeOzOBi9A/bxopH8O4
+    =MMuz
+  &lt;/signature&gt;
+  &lt;signerjid&gt;stpeter@jabber.org&lt;/signerjid&gt;
+  &lt;signerprint&gt;becb78566783166f4a1a7c64e28dae288fe1a0f2825f6b593b336ce186c6b056&lt;/signerprint&gt;
+  &lt;signtime&gt;2009-12-14T18:43:00Z&lt;/signtime&gt;
+&lt;/attest&gt;
+  </pre></div>
+<h2>6.
+       <a name="pep" id="pep">Publication via PEP</a></h2>
+  <p class="" style="">A user SHOULD publish public keys, attestations, and revocations via <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0163.html">Personal Eventing Protocol</a></span>  [<a href="#nt-id167702">4</a>], in particular adhering to the best practices defined in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0222.html">Best Practices for Persistent Storage of Public Data via Publish-Subscribe</a></span>  [<a href="#nt-id167727">5</a>].</p>
+  <p class="" style="">Any other authorized entity can then receive notifications related to the user's public keys, and retrieve keys, attestations, and revocations.</p>
+  <p class="" style="">If the user has only one public key (the simplest and most common case), then the pubkey PEP node SHOULD have only one item, with an ItemID of "current".</p>
+<h2>7.
+       <a name="request" id="request">Requesting a Public Key Directly</a></h2>
+  <p class="" style="">If it is not possible for the user to publish his key via PEP, or for a contact to retrieve the user's key via PEP, the contact MAY request the user's key directly by sending an &lt;iq/&gt; of type 'get' to the user's particular full JID, containing an empty &lt;pubkey/&gt; element qualified by the 'urn:xmpp:pubkey:1' namespace (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number).</p>
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Public key request</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='maineboy@jabber.org/bar'
+    to='peter@jabber.org/foo'
+    id='hfgt654s'
+    type='get'&gt;
+  &lt;pubkey xmlns='urn:xmpp:pubkey:1'/&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">The receiving client then return its public key (which might be different from the overall key for the user, e.g. a key for only a particular device).</p>
+  <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Public key response</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='peter@jabber.org/foo'
+    to='maineboy@jabber.org/bar'
+    id='hfgt654s'
+    type='result'&gt;
+  &lt;pubkey xmlns='urn:xmpp:pubkey:1'&gt;
+    &lt;begin&gt;2009-12-11T20:12:37&lt;/begin&gt;
+    &lt;end&gt;2010-12-11T23:59:59&lt;/end&gt;
+    &lt;jid&gt;peter@jabber.org&lt;/jid&gt;
+    &lt;key&gt;
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA25/Y7oonF3+pRjZCk0cQ
+      lQFiUFvyMeUOnn01NLfqfBeT4xjahsxaYFPd+V8jIHtpO3nbkpfrBh5aLPCkqDzS
+      UFvmLaVSIMUt085kcT/Yv72BUWUGaISt7swSNfictRbVZ0k8TbXUDLIAYWN8lsie
+      NVxL13PS9pu3WNoORuKAV5RuzDS3djnjb6fti7fTwEUpQVwRrJXY6jNhv4c4zE3x
+      Pjm48gIlHbZrxuWNrXnKT6uwXnr6PJ6O3YspferJG1oA3kmOwm41yWDkalbKgkNZ
+      WeS+ahB/i9LIG+41CdekPpI0Kr0Ll9X7+zaPV6xzjlG8dYy7ZGm4eTL9STuWlPdL
+      +wIDAQAB
+    &lt;/key&gt;
+    &lt;print&gt;13475c8e27399908b4447d7c52ab30822872832eba3a654f0d80e07fb4157673&lt;/print&gt;
+  &lt;/pubkey&gt;
+&lt;/iq&gt;
+  </pre></div>
+<h2>8.
+       <a name="send" id="send">Sending a Public Key Directly</a></h2>
+  <p class="" style="">An entity might need to send its public key to another entity, for example if it has generated a new key but does not have a way to publish the new key (or does not wish to publish the key in a world-readable fashion). In this case the entity MAY include the key directly in a &lt;message/&gt; stanza.</p>
+  <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Sending a key in a message</p><div class="indent"><pre class="prettyprint">
+&lt;message from='peter@jabber.org/foo'
+         to='maineboy@jabber.org/bar'&gt;
+  &lt;pubkey xmlns='urn:xmpp:pubkey:1'&gt;
+    &lt;begin&gt;2009-12-11T20:12:37&lt;/begin&gt;
+    &lt;end&gt;2010-12-11T23:59:59&lt;/end&gt;
+    &lt;jid&gt;peter@jabber.org&lt;/jid&gt;
+    &lt;key&gt;
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA25/Y7oonF3+pRjZCk0cQ
+      lQFiUFvyMeUOnn01NLfqfBeT4xjahsxaYFPd+V8jIHtpO3nbkpfrBh5aLPCkqDzS
+      UFvmLaVSIMUt085kcT/Yv72BUWUGaISt7swSNfictRbVZ0k8TbXUDLIAYWN8lsie
+      NVxL13PS9pu3WNoORuKAV5RuzDS3djnjb6fti7fTwEUpQVwRrJXY6jNhv4c4zE3x
+      Pjm48gIlHbZrxuWNrXnKT6uwXnr6PJ6O3YspferJG1oA3kmOwm41yWDkalbKgkNZ
+      WeS+ahB/i9LIG+41CdekPpI0Kr0Ll9X7+zaPV6xzjlG8dYy7ZGm4eTL9STuWlPdL
+      +wIDAQAB
+    &lt;/key&gt;
+    &lt;print&gt;13475c8e27399908b4447d7c52ab30822872832eba3a654f0d80e07fb4157673&lt;/print&gt;
+  &lt;/pubkey&gt;
+&lt;/message&gt;
+  </pre></div>
+<h2>9.
+       <a name="generate" id="generate">Signalling Key Generation</a></h2>
+  <p class="" style="">There are several situations in which it is helpful for an entity to signal that it is currently generating a key. For example, a client that does not have access to permanent storage might generate a key on startup, but key generation might not be complete when the client sends initial presence upon establishing an XMPP session. In this case the client might signal support for the public key format in the entity capabilities data that it includes in its initial presence broadcast, but also include an indication that it is currently generating a key.</p>
+  <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Key generation in progress</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='peter@jabber.org/foo'&gt;
+  &lt;generating xmlns='urn:xmpp:pubkey:1'/&gt;
+&lt;/presence&gt;
+  </pre></div>
+  <p class="" style="">After key generation is complete, the entity could publish the new key to the appropriate PEP node (if available) and signal that key generation is complete so that any interested parties can request the new key.</p>
+  <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Key generation completed</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='peter@jabber.org/foo'&gt;
+  &lt;generated xmlns='urn:xmpp:pubkey:1'/&gt;
+&lt;/presence&gt;
+  </pre></div>
+<h2>10.
+       <a name="support" id="support">Determining Support</a></h2>
+  <p class="" style="">To advertise its support for public keys, revocations, and attestations, when replying to <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0030.html">Service Discovery</a></span>  [<a href="#nt-id167914">6</a>] information requests an entity MUST return features for 'urn:xmpp:pubkey:1', 'urn:xmpp:revoke:1', and 'urn:xmpp:attest:1' respectively.</p>
+  <p class="" style="">In order for an application to determine whether an entity supports this protocol, where possible it SHOULD use the dynamic, presence-based profile of service discovery defined in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0115.html">Entity Capabilities</a></span>  [<a href="#nt-id167946">7</a>]. However, if an application has not received entity capabilities information from an entity, it SHOULD use explicit service discovery instead.</p>
+<h2>11.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">The reliable association between a user or entity and its public keys is beyond the scope of this document. However, each client SHOULD maintain its own secure library of the public keys it associates with other users.</p>
+<h2>12.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id168002">8</a>].</p>
+<h2>13.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>13.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p class="" style="">This specification defines the following XML namespaces:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:attest:1</li>
+      <li class="" style="">urn:xmpp:pubkey:1</li>
+      <li class="" style="">urn:xmpp:revoke:1</li>
+    </ul>
+    <p class="" style="">Upon advancement of this specification to a status of Draft, the <span class="ref" style=""><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id168092">9</a>] shall add these namespaces to the registry located at &lt;<a href="http://xmpp.org/registrar/namespaces.html">http://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function</a></span>  [<a href="#nt-id168126">10</a>].</p>
+  </div>
+  <div class="indent"><h3>13.2 <a name="registrar-versioning" id="registrar-versioning">Protocol Versioning</a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+<h2>14.
+       <a name="schema" id="schema">XML Schemas</a></h2>
+  <p class="" style="">To follow.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0189<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.11<br />
+            Last Updated: 2009-12-17<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0060, XEP-0163<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0189.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0189.xml/rss.xml">RSS</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Peter Saint-Andre</h3><p class="indent">
+        Email:
+        <a href="mailto:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        JabberID: 
+        <a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        URI: 
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p><h3>Dirk Meyer</h3><p class="indent">
+        Email:
+        <a href="mailto:dmeyer@tzi.de">dmeyer@tzi.de</a><br />
+        JabberID: 
+        <a href="xmpp:dmeyer@jabber.org">dmeyer@jabber.org</a><br /></p><h3>Ian Paterson</h3><p class="indent">
+        Email:
+        <a href="mailto:ian.paterson@clientside.co.uk">ian.paterson@clientside.co.uk</a><br />
+        JabberID: 
+        <a href="xmpp:ian@zoofy.com">ian@zoofy.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2009 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XMPP Standards Foundation, c/o Peter Saint-Andre, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id166995" id="nt-id166995">1</a>. XML Signature Syntax and Processing &lt;<a href="http://www.w3.org/TR/2002/REC-xmldsig-core-20020212/">http://www.w3.org/TR/2002/REC-xmldsig-core-20020212/</a>&gt;.</p><p><a name="nt-id167139" id="nt-id167139">2</a>. XEP-0082: XMPP Date and Time Profiles &lt;<a href="http://xmpp.org/extensions/xep-0082.html">http://xmpp.org/extensions/xep-0082.html</a>&gt;.</p><p><a name="nt-id167217" id="nt-id167217">3</a>. RFC 3447: Public-Key Cryptography Standards (PKCS) #1: RSA Cryptography Specifications Version 2.1 &lt;<a href="http://tools.ietf.org/html/rfc3447">http://tools.ietf.org/html/rfc3447</a>&gt;.</p><p><a name="nt-id167702" id="nt-id167702">4</a>. XEP-0163: Personal Eventing Protocol &lt;<a href="http://xmpp.org/extensions/xep-0163.html">http://xmpp.org/extensions/xep-0163.html</a>&gt;.</p><p><a name="nt-id167727" id="nt-id167727">5</a>. XEP-0222: Best Practices for Persistent Storage of Public Data via Publish-Subscribe &lt;<a href="http://xmpp.org/extensions/xep-0222.html">http://xmpp.org/extensions/xep-0222.html</a>&gt;.</p><p><a name="nt-id167914" id="nt-id167914">6</a>. XEP-0030: Service Discovery &lt;<a href="http://xmpp.org/extensions/xep-0030.html">http://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id167946" id="nt-id167946">7</a>. XEP-0115: Entity Capabilities &lt;<a href="http://xmpp.org/extensions/xep-0115.html">http://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-id168002" id="nt-id168002">8</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id168092" id="nt-id168092">9</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id168126" id="nt-id168126">10</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.11 (2009-12-17)</h4><div class="indent"><p class="" style="">Added back example of sending public key in a message; defined presence extension to signal key generation in progress.</p> (psa)
+    </div><h4>Version 0.10 (2009-12-15)</h4><div class="indent"><p class="" style="">Major revision; split into three namespaces and three corresponding PEP nodes, one each for public keys, attestations, and revocations; iterated the version number for public keys to urn:xmpp:pubkey:1; added detailed data to each node payload; removed some use cases to simply the protocol.</p> (psa)
+    </div><h4>Version 0.9 (2009-03-08)</h4><div class="indent"><p class="" style="">Required specification of an algorithm for elements with hashes; removed fingerprint in &lt;keyinfo/&gt;; added sign request; added guidelines for key management; improved examples; changed namespace from urn:xmpp:tmp:pubkey to urn:xmpp:pubkey:0.</p> (dm/psa)
+    </div><h4>Version 0.8 (2008-09-08)</h4><div class="indent"><p class="" style="">Change KeyInfo element from W3C XML Signature to ASCII and add signature support</p> (dm)
+    </div><h4>Version 0.7 (2008-03-03)</h4><div class="indent"><p class="" style="">Changed temporary namespace per XEP-0053 procedures; corrected several small errors in the text and examples.</p> (psa)
+    </div><h4>Version 0.6 (2007-08-15)</h4><div class="indent"><p class="" style="">More clearly explained node creation and key publication workflows.</p> (psa)
+    </div><h4>Version 0.5 (2007-03-05)</h4><div class="indent"><p class="" style="">Merged node creation and first publish examples; recommended the value of each &lt;KeyName/&gt; element and id attribute is set to the key fingerprint; added fprint element and more examples</p> (ip)
+    </div><h4>Version 0.4 (2006-11-27)</h4><div class="indent"><p class="" style="">Added jid attribute and send use case; changed namespace</p> (ip)
+    </div><h4>Version 0.3 (2006-11-20)</h4><div class="indent"><p class="" style="">Specified that PEP nodes SHOULD be persistent</p> (ip)
+    </div><h4>Version 0.2 (2006-09-29)</h4><div class="indent"><p class="" style="">Replaced pubkey and key elements with the KeyInfo element defined in W3C XML Signature</p> (ip)
+    </div><h4>Version 0.1 (2006-07-18)</h4><div class="indent"><p class="" style="">Initial version.</p> (ip)
+    </div></div><hr /><p>END</p></body></html>

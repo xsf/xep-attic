@@ -1,0 +1,955 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0336: Data Forms - Dynamic Forms</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Data Forms - Dynamic Forms" /><meta name="DC.Creator" content="Peter Waher" /><meta name="DC.Description" content="&#10;            This specification provides extensions to the data forms model defined in previous XEPs that permit enhanced end-user interaction and&#10;            a better user experience. These extensions permit forms to react on user input by permitting the addition, updating or removal of fields in the form&#10;&#9;&#9;&#9;and server-side validation of fields. The extension also defines new states making it possible to display disabled controls,&#10;            controls with undefined values or error messages, while still being backwards compatible with the existing data form model with available&#10;&#9;&#9;&#9;extensions.&#10;        " /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2014-01-08" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0336" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2014 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0336: Data Forms - Dynamic Forms</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>
+            This specification provides extensions to the data forms model defined in previous XEPs that permit enhanced end-user interaction and
+            a better user experience. These extensions permit forms to react on user input by permitting the addition, updating or removal of fields in the form
+			and server-side validation of fields. The extension also defines new states making it possible to display disabled controls,
+            controls with undefined values or error messages, while still being backwards compatible with the existing data form model with available
+			extensions.
+        </td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Peter Waher</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2015 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2014-01-08</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />   
+      1.1.  <a href="#sect-idp1545408">Comparison to Ad-hoc commands</a><br />2.  <a href="#glossary">Glossary</a><br />3.  <a href="#usecases">Use Cases</a><br />   
+      3.1.  <a href="#sect-idp1586656">Publishing post-back fields</a><br />   
+      3.2.  <a href="#sect-idp1590688">Performing a server post-back</a><br />   
+      3.3.  <a href="#sect-idp1600896">Publishing read-only fields</a><br />   
+      3.4.  <a href="#sect-idp1614144">Publishing fields with undefined values</a><br />   
+      3.5.  <a href="#sect-idp1627216">Publishing fields containing errors</a><br />   
+      3.6.  <a href="#sect-idp1634016">Cancelling a dynamic form</a><br />   
+      3.7.  <a href="#sect-idp1644224">Dynamic form not found during post-back</a><br />   
+      3.8.  <a href="#sect-idp1648384">Other error during post-back</a><br />   
+      3.9.  <a href="#sect-idp1650704">Asynchronous updates of forms (server push)</a><br />4.  <a href="#support">Determining Support</a><br />5.  <a href="#impl">Implementation Notes</a><br />   
+      5.1.  <a href="#sect-idp1672032">Dynamic Form Sessions</a><br />   
+      5.2.  <a href="#sect-idp1675536">Session Timeouts</a><br />   
+      5.3.  <a href="#clientsidevalues">Merging Client-Side Values</a><br />6.  <a href="#security">Security Considerations</a><br />7.  <a href="#iana">IANA Considerations</a><br />8.  <a href="#registrar">XMPP Registrar Considerations</a><br />9.  <a href="#schema">XML Schema</a><br />10.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+        <p>
+            Data forms are used in many XEPs and provide a mechanism whereby a form can be hosted on one end and displayed on another. XMPP data forms are
+            defined and enhanced in many different XEPs, as is shown in the following list:
+        </p>
+        <ul>
+            <li>
+                <p>
+                    <span class="ref"><a href="http://xmpp.org/extensions/xep-0004.html">Data Forms (XEP-0004)</a></span>  [<a href="#nt-idp688496">1</a>] defines the basics of data forms: How forms are defined, sent to the recipient, how the recipient submits forms (or cancels them)
+                    and how results can be returned. It defines the concepts of field, field type and field value.
+                </p>
+            </li>
+            <li>
+                <p>
+                    <span class="ref"><a href="http://xmpp.org/extensions/xep-0122.html">Data Forms Validation (XEP-0122)</a></span>  [<a href="#nt-idp676304">2</a>] enhances the data forms architecture permitting rules for client-side validation of fields in the form.
+                </p>
+            </li>
+            <li>
+                <p>
+                    <span class="ref"><a href="http://xmpp.org/extensions/xep-0137.html">Publishing Stream Initiation Requests (XEP-0137)</a></span>  [<a href="#nt-idp679728">3</a>] defines a new data type that can be used to publish file upload controls.
+                </p>
+            </li>
+            <li>
+                <p>
+                    <span class="ref"><a href="http://xmpp.org/extensions/xep-0141.html">Data Forms Layout (XEP-0141)</a></span>  [<a href="#nt-idp683120">4</a>] enhances the data forms architecture permitting the form to have pages or tabs with sections containing grouped controls.
+                </p>
+            </li>
+            <li>
+                <p>
+                    <span class="ref"><a href="http://xmpp.org/extensions/xep-0221.html">Data Forms Media Element (XEP-0221)</a></span>  [<a href="#nt-idp686480">5</a>] defines a means to include content such as images, video or audio in forms.
+                </p>
+            </li>
+            <li>
+                <p>
+                    <span class="ref"><a href="http://xmpp.org/extensions/xep-0331.html">Data Forms - Color Field Types (XEP-0331)</a></span>  [<a href="#nt-idp1537248">6</a>] permits the publication of color fields, where the end user can be presented with a color picker dialog instead of having to
+                    enter a color value manually or select one from a limited list of colors.
+                </p>
+            </li>
+        </ul>
+        <p>
+            This specification enhances the data form model further by providing the following features:
+        </p>
+        <ul>
+            <li>
+                <p>
+                    Form post-back when fields flagged for post-back are edited. This permits the form to adapt itself based on user input, i.e. creating, changing
+					or removing fields in the form, creating dynamic forms. It also provides a mechanism to publish server-side validation of fields during user input.
+                </p>
+            </li>
+            <li>
+                <p>
+                    Allows fields to be disabled. They will be shown as normal controls, but in a disabled state. Combining post-back form
+                    fields it is possible to enable and disable (or add or remove) fields depending on user input.
+                </p>
+            </li>
+            <li>
+                <p>
+                    Allows fields to have not well-defined values. This can be used for instance, when a value is unknown or when multiple objects
+                    are edited at the same time in the same form and the objects have different values for the corresponding field.
+                </p>
+            </li>
+            <li>
+                <p>
+                    Permits fields to have errors flagged on them. This can be used to give users intuitive feedback on errors in forms. Together
+                    with post-back fields, this provides a mechanism whereby server-side validation of fields can be made while the user is still
+                    editing the form.
+                </p>
+            </li>
+			<li>
+				<p>
+					Permits spontaneous updates of the form, pushed from the form server to the client showing the form. This might be necessary in
+					cases where the process of aquiring current values may take some time, but the client is required to show a form right away.
+				</p>
+			</li>
+        </ul>
+        <p>
+            <span class="strong">Note:</span> This extension is only dependent upon the <a href="http://xmpp.org/extensions/xep-0004.html">Data Forms</a> XEP. It works in
+            parallel with any of the above mentioned data form extensions, but do not require that any of them are supported. The examples provided
+            in this document may still reference extensions made in other documents, but these are considered to be examples only, used to illustrate
+            a specific point or example.
+        </p>
+		<div class="indent"><h3>1.1 <a name="sect-idp1545408" id="sect-idp1545408">Comparison to Ad-hoc commands</a></h3>
+			<p>
+				<span class="ref"><a href="http://xmpp.org/extensions/xep-0050.html">Ad-Hoc Commands (XEP-0050)</a></span>  [<a href="#nt-idp1548560">7</a>] defines a mechanism to enhance data forms creating dialog wizards with actions that guide the user through pages, where each page
+				can depend on the input from previous pages. The following list consists of a comparison of the differences between Ad-hoc commands and
+				Dynamic Forms, and why this extension is not based on the concepts defined in XEP-0050:
+			</p>
+			<ul>
+				<li>
+					<p>
+						The main point of this extension is to make the current form dynamic. Pages in a wizard, as defined in ad-hoc commands, are still static
+						requiring page navigation for the dialog to be updated.
+					</p>
+				</li>
+				<li>
+					<p>
+						There might be a desire to make individual pages inside a wizard dynamic by themselves. In this case, this extension might be used to
+						extend Ad-hoc commands with dynamic pages inside wizards.
+					</p>
+				</li>
+				<li>
+					<p>
+						Wizards order their pages linearly, in a one-dimensional array of pages. Navigation is only performed using prev and next actions, and completed with the execute or
+						complete actions. This might work sufficiently well where page output only is based on input from the previous page. But as soon as the input depends on more pages, 
+						navigation becomes unnecessarily cumbersome. For example a dialog with country, region, city, area, street, building, apartment. To change the country parameter when you
+						are on the apartment page, requires you to back through many pages, while in the dynamic form you just change the parameter directly, since all are visible
+						in the same form.
+					</p>
+					<p>
+						The problem gets worse if this is a normal behavior for a form. Say a dialog with a post carrier field, followed by country, city, office, etc.
+						When the user comes to office and notices that the selected carrier has no office close to you, you change carrier, but don't want to change country and city, if
+						possible.
+					</p>
+				</li>
+				<li>
+					<p>
+						The pages in a wizard do not allow for spontaneous or immediate feedback to the user. Such immediate feedback is of great importance in user-friendly
+						forms, where complex input is required. Consider the following simple example:
+					</p>
+					<p>
+						Imagine a dialog used for configuring a TCP port scanner to search for specific devices in a network. It might take five parameters: IP range, port range, number of threads,
+						connection timeout (ms) and number of tries before failing. However, the operator wants to know how much time the operation will take (which is #IP-addresses *
+						#port numbers * Connection Timeout * Nr Tries / #Threads). To see this in a separate page and then have to go back to the different pages, forwarding to the
+						time estimate calculation page, etc., is a very cumbersome process. Presenting all this information on a single page using Dynamic Forms is creates a much
+						better and richer user experience. Changing the value of any of the five parameters will directly update a text parameter presenting the total expected time of the
+						operation.
+					</p>
+				</li>
+				<li>
+					<p>
+						Wizards as defined in Ad-hoc commands are hard-wired to commands as such. Navigation actions are defined outside of the scope of the form itself. This extensions
+						defines Dynamic Forms as an extension of the Data Form concept. All navigation, post-back fields, etc., are defined within the actual form itself. This makes
+						it re-usable everywhere data forms are used, including pages inside an Ad-Hoc command wizard.
+					</p>
+				</li>
+				<li>
+					<p>
+						Ad-hoc command wizards include the feature to return notes including information, warnings or error information to the user. This information however, is associated
+						with the current page in the wizard itself. Dynamic Forms contains a means to attach error information directly to individual fields, making feedback more precise.
+						Together with the server post-back feature immediate server-side validation during user input is possible.
+					</p>
+				</li>
+				<li>
+					<p>
+						Dynamic Forms contains a feature that ad-hoc command wizards do not: Read-only fields. These differs from other text fields in that they are rendered as normal
+						controls, except input is read-only. Together with the server post-back feature this allows the server to enable and disable parameters depending on user
+						input on the same page. An example can be a checkbox that enabled another field if checked, as a security measure.
+					</p>
+				</li>
+				<li>
+					<p>
+						Dynamic Forms defines the concept of an undefined field value. These fields are presented with the available value (if any), but greyed out, signaling to the user that
+						the value is not well defined for some reason. Perhaps it is only one of many values held my multiple objects in the case when editing multiple objects at once.
+						Undefined values are not sent back to the server when the form is posted back. When the user edits such a field, the undefined flag is cleared and the field is
+						presented as a normal control. The main purpose of this flag is to allow for editing multiple objects at once or for editing control forms where current states are
+						not known at the moment if creating the form.
+					</p>
+				</li>
+				<li>
+					<p>
+						Dynamic Forms supports asynchronous updates of the form, where the server can push changes to the form not resulting from user input. This is a powerful feature that
+						allows the server to update a form being edited by the user to reflect changes on the server. Consider the following examples:
+					</p>
+					<p>
+						Consider a control form containing control fields on a remote device. At the time of displaying the form, the current states of some fields might be unknown. So the fields
+						are marked perhaps with some default values, but with the undefined flag set for the corresponding fields. At the time of creating the form, a parallel request is made
+						to the device by the form server, requesting information about current states of the device. When these are received by the server, it issues an update of the form to the
+						client with the newly received and current field values. The request for values might take some time, so using this mechanism provides a form to the user quickly, clearly
+						indicating what is missing, and then complements the form when data is available.
+					</p>
+					<p>
+						Another example might be a dialog showing contents on the form server in a multi-user environment where updates to the contents is made. An example can be a file system.
+						If changes to the contents is made by another user, the server has the possibility to update any current forms to reflect changes made. This decreases the possibility
+						of inconsistencies in the system, and at the same time increases the user-friendliness of the end-user experience of the application.
+					</p>
+				</li>
+			</ul>
+		</div>
+	<h2>2.
+       <a name="glossary" id="glossary">Glossary</a></h2>
+        <p>The following table lists terms and corresponding descriptions or definitions for use throughout this document.</p>
+        <div class="indent"><dl>
+            <di>
+                <dt><strong>Control</strong></dt>
+                <dd>
+                    The visual control used to display a <span class="strong">field</span>.
+                </dd>
+            </di>
+            <di>
+                <dt><strong>Data Form</strong></dt>
+                <dd>
+                    A form of parameters (a.k.a. fields), as defined in <a href="http://xmpp.org/extensions/xep-0004.html">Data Forms</a>.
+                </dd>
+            </di>
+            <di>
+                <dt><strong>Field</strong></dt>
+                <dd>
+                    A field representing a parameter or control, in a data form, as defined in <a href="http://xmpp.org/extensions/xep-0004.html">Data Forms</a>.
+                </dd>
+            </di>
+            <di>
+                <dt><strong>Form Client</strong></dt>
+                <dd>
+                    For simplicity, we will call the XMPP client that fills in the data form, the <span class="strong">form client</span>.
+                </dd>
+            </di>
+            <di>
+                <dt><strong>Form Server</strong></dt>
+                <dd>
+                    For simplicity, we will call the XMPP client that hosts a data form, the <span class="strong">form server</span>.
+                </dd>
+            </di>
+            <di>
+                <dt><strong>Parameter</strong></dt>
+                <dd>
+                    Used sometimes synonymously with <span class="strong">field</span>.
+                </dd>
+            </di>
+        </dl></div>
+    <h2>3.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+        <p>
+            The following subsections list use cases for the different enhancements defined by this extension. Elements are defined using the namespace
+            <span class="strong">urn:xmpp:xdata:dynamic</span> and namespace prefix <span class="strong">xdd</span>.
+        </p>
+        <div class="indent"><h3>3.1 <a name="sect-idp1586656" id="sect-idp1586656">Publishing post-back fields</a></h3>
+            <p>
+                Post-back fields are fields that require the client to post the form to the server after being edited. This permits the server
+                to perform server-side validation on the field, provide immediate user feed-back and change the form according to user input.
+            </p>
+            <p>
+                Post-back fields are declared as normal fields in a form, except they also have the <span class="strong">xdd:postBack</span> flag present in
+                the declaration, as is shown in the following example:
+            </p>
+            <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Publishing post-back fields</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;x xmlns="jabber:x:data" type="form"
+       xmlns:xdd="urn:xmpp:xdata:dynamic" 
+       xmlns:xdv="http://jabber.org/protocol/xdata-validate"&gt;
+        &lt;title&gt;Current location&lt;/title&gt;
+        &lt;instructions&gt;Select your current location to continue.&lt;/instructions&gt;
+        &lt;field var='xdd session' type='hidden'&gt;
+            &lt;value&gt;009c7956-001c-43fb-8edb-76bcf74272c9&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var="Country_ISO_3166_1" type="list-single" label="Country:"&gt;
+            &lt;desc&gt;Select your country of residence.&lt;/desc&gt;
+            &lt;xdv:validate xmlns:xdv="http://jabber.org/protocol/xdata-validate" datatype="xs:string"&gt;
+                &lt;xdv:basic/&gt;
+            &lt;/xdv:validate&gt;
+            &lt;value/&gt;
+            &lt;xdd:postBack/&gt;
+            &lt;option label="Chile"&gt;
+                &lt;value&gt;CL&lt;/value&gt;
+            &lt;/option&gt;
+            &lt;option label="Sweden"&gt;
+                &lt;value&gt;SE&lt;/value&gt;
+            &lt;/option&gt;
+            &lt;option label="United States"&gt;
+                &lt;value&gt;US&lt;/value&gt;
+            &lt;/option&gt;
+            ...
+        &lt;/field&gt;
+    &lt;/x&gt;
+            </pre></div>
+            <p>
+                <span class="strong">Note:</span> A system maintaining multiple dynamic forms open at the same time needs to maintain control
+                of available open forms. This can be done using a hidden session variable, as is shown in the example above. How this
+                is done however, is implementation specific.
+            </p>
+        </div>
+        <div class="indent"><h3>3.2 <a name="sect-idp1590688" id="sect-idp1590688">Performing a server post-back</a></h3>
+            <p>
+                A server post-back is performed by sending an IQ set stanza with a <span class="strong">submit</span> child element containing the
+                current state of the form. The type of the form must be <span class="strong">submit</span>. The client should also provide the current
+                user language in a <span class="strong">xml:lang</span> attribute, if available.
+            </p>
+            <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Performing a server post-back</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;iq type='set'
+        from='formclient@clayster.com/client'
+        to='formserver@clayster.com'
+        id='1'&gt;
+        &lt;submit xmlns='urn:xmpp:xdata:dynamic' xml:lang='en'&gt;
+            &lt;x xmlns="jabber:x:data" type="submit"&gt;
+                &lt;field var='xdd session'&gt;
+                    &lt;value&gt;009c7956-001c-43fb-8edb-76bcf74272c9&lt;/value&gt;
+                &lt;/field&gt;
+                &lt;field var="Country_ISO_3166_1"&gt;
+                    &lt;value&gt;CL&lt;/value&gt;
+                &lt;/field&gt;
+            &lt;/x&gt;
+        &lt;/submit&gt;
+    &lt;/iq&gt;
+            </pre></div>
+            <p>
+                It is important to note that this server post-back is part of editing the form, and must not be treated by the server as a final
+                submission of the data form.
+            </p>
+            <p>
+                As a response to a successful form post-back, the server returns the new data form, as is shown in the following example:
+            </p>
+            <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Post-back response</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;iq type='result'
+        from='formserver@clayster.com'
+        to='formclient@clayster.com/client'
+        id='1'&gt;
+        &lt;x xmlns="jabber:x:data" type="form"
+           xmlns:xdd="urn:xmpp:xdata:dynamic" 
+           xmlns:xdv="http://jabber.org/protocol/xdata-validate"&gt;
+            &lt;title&gt;Current location&lt;/title&gt;
+            &lt;instructions&gt;Select your current location to continue.&lt;/instructions&gt;
+            &lt;field var='xdd session' type='hidden'&gt;
+                &lt;value&gt;009c7956-001c-43fb-8edb-76bcf74272c9&lt;/value&gt;
+            &lt;/field&gt;
+            &lt;field var="Country_ISO_3166_1" type="list-single" label="Country:"&gt;
+                &lt;desc&gt;Select your country of residence.&lt;/desc&gt;
+                &lt;xdv:validate xmlns:xdv="http://jabber.org/protocol/xdata-validate" datatype="xs:string"&gt;
+                    &lt;xdv:basic/&gt;
+                &lt;/xdv:validate&gt;
+                &lt;value&gt;CL&lt;/value&gt;
+                &lt;xdd:postBack/&gt;
+                &lt;option label="Chile"&gt;
+                    &lt;value&gt;CL&lt;/value&gt;
+                &lt;/option&gt;
+                &lt;option label="Sweden"&gt;
+                    &lt;value&gt;SE&lt;/value&gt;
+                &lt;/option&gt;
+                &lt;option label="United States"&gt;
+                    &lt;value&gt;US&lt;/value&gt;
+                &lt;/option&gt;
+                ...
+            &lt;/field&gt;
+            &lt;field var="Region_ISO_3166_2" type="list-single" label="Region:"&gt;
+                &lt;desc&gt;Select your region of residence.&lt;/desc&gt;
+                &lt;xdv:validate xmlns:xdv="http://jabber.org/protocol/xdata-validate" datatype="xs:string"&gt;
+                    &lt;xdv:basic/&gt;
+                &lt;/xdv:validate&gt;
+                &lt;value/&gt;
+                &lt;xdd:postBack/&gt;
+                &lt;option label="Antofagasta"&gt;
+                    &lt;value&gt;AN&lt;/value&gt;
+                &lt;/option&gt;
+                &lt;option label="Arica y Parinacota"&gt;
+                    &lt;value&gt;AP&lt;/value&gt;
+                &lt;/option&gt;
+                &lt;option label="Atacama"&gt;
+                    &lt;value&gt;AT&lt;/value&gt;
+                &lt;/option&gt;
+                ...
+            &lt;/field&gt;
+        &lt;/x&gt;
+    &lt;/iq&gt;
+            </pre></div>
+            <p>
+                In this example, the server adds a new parameter to the form, containing options that depend on the value of the first parameter.
+            </p>
+            <p>
+                <span class="strong">Note:</span> Server post-back should be made after the user is done editing a post-back field, but before actually navigating to the
+                next field. It should not be done while the user is editing the field. For check boxes or list boxes, it is easy for the application 
+                to decide when the field has been edited, since the application can react to the controls click event. But for text edit boxes, you 
+                cannot perform a server post-back only just because the text property of the control has changed. You need to wait until the user 
+                leaves the control or something similar. However, as new fields can be added to the form, the client should wait for the response 
+                before deciding which control is the next control to go to.
+            </p>
+        </div>
+        <div class="indent"><h3>3.3 <a name="sect-idp1600896" id="sect-idp1600896">Publishing read-only fields</a></h3>
+            <p>
+                Read-only fields should be laid out on the form just as a similar but editable field would, except editing should be disabled. Together with
+                post-back fields, this option allows the form to enable/disable fields depending on user input. Read-only fields are declared as normal fields 
+                in a form, except they also have the <span class="strong">xdd:readOnly</span> flag present in the declaration, as is shown in the following example:
+            </p>
+            <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Publishing read-only fields</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;x xmlns="jabber:x:data" type="form"
+       xmlns:xdd="urn:xmpp:xdata:dynamic" 
+       xmlns:xdv="http://jabber.org/protocol/xdata-validate"&gt;
+        &lt;title&gt;Object properties&lt;/title&gt;
+        &lt;field var='xdd session' type='hidden'&gt;
+            &lt;value&gt;009c7956-001c-43fb-8edb-76bcf74272c9&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var="ID" type="text-single" label="ID:"&gt;
+            &lt;desc&gt;ID of object.&lt;/desc&gt;
+            &lt;xdv:validate xmlns:xdv="http://jabber.org/protocol/xdata-validate" datatype="xs:string"&gt;
+                &lt;xdv:basic/&gt;
+            &lt;/xdv:validate&gt;
+            &lt;value&gt;Object 1&lt;/value&gt;
+            &lt;xdd:readOnly/&gt;
+        &lt;/field&gt;
+        &lt;field var="RenameID" type="boolean" label="Rename object"&gt;
+            &lt;desc&gt;To avoid accidental renaming of the objcet, this box must be checked to rename the object.&lt;/desc&gt;
+            &lt;value&gt;0&lt;/value&gt;
+            &lt;xdd:postBack/&gt;
+        &lt;/field&gt;
+        ...
+    &lt;/x&gt;
+            </pre></div>
+            <p>
+                <span class="strong">Note:</span> Using this flag is different from the field type <span class="strong">fixed</span> defined in
+                <a href="http://xmpp.org/extensions/xep-0004.html">Data Forms</a>. Fields of type <span class="strong">fixed</span>
+                can also be used to display read-only content. However, this is done as static text, and not as a disabled
+                control, specific for the type of content corresponding to the data in question. Using the <span class="strong">readOnly</span>
+                flag instead, gives greater flexibility when it comes to presentation, as well as permitting the form server
+                to enable and disable controls during the lifetime of the form.
+            </p>
+			<p>
+				<span class="strong">Note 2:</span> Make sure to check the implementation note <a href="#clientsidevalues">Merging Client-Side Values</a> for information
+				on how to merge updates received from the server with current input made by the client.
+			</p>
+        </div>
+        <div class="indent"><h3>3.4 <a name="sect-idp1614144" id="sect-idp1614144">Publishing fields with undefined values</a></h3>
+            <p>
+                There are many cases where you want to flag a control as having an <span class="strong">undefined value</span> or an
+                <span class="strong">uncertain</span> value, instead of simply a missing value. This permits the form client to display the 
+                control in a specific way (for instance greyed), and omit the field when submitting the form back to the server,
+                to avoid errors.
+            </p>
+            <p>
+                This technique can be used for instance, when editing the properties of multiple objects at the same time. Attributes
+                that are equal among the objects can be reported as normal fields, while attributes that have different values among
+                the objects, can be reported as having a value that is not the same everywhere. The  client can then show the
+                corresponding control greyed and omitting it in submissions of the form. If the user edits the control however, the
+                form client can remove the flag and render the control normally. Submitting the now well-defined field value will
+                set the corresponding attribute in all objects to the same new value. Omitting undefined values makes sure that
+                the corresponding attributes are left as-is.
+            </p>
+            <p>
+                Fields with undefined or uncertain values are declared as normal fields in a form, except they also have the 
+                <span class="strong">xdd:notSame</span> flag present in the declaration, as is shown in the following example:
+            </p>
+            <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Publishing fields with undefined values</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;x xmlns="jabber:x:data" type="form"
+       xmlns:xdd="urn:xmpp:xdata:dynamic" 
+       xmlns:xdv="http://jabber.org/protocol/xdata-validate"&gt;
+        &lt;title&gt;Communication properties&lt;/title&gt;
+        &lt;field var='xdd session' type='hidden'&gt;
+            &lt;value&gt;009c7956-001c-43fb-8edb-76bcf74272c9&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var="Address" type="text-single" label="Bus Address:"&gt;
+            &lt;desc&gt;Enter the bus address of the device.&lt;/desc&gt;
+            &lt;xdv:validate xmlns:xdv="http://jabber.org/protocol/xdata-validate" datatype="xs:int"&gt;
+                &lt;xdv:range min="1" max="250"/&gt;
+            &lt;/xdv:validate&gt;
+            &lt;value&gt;1&lt;/value&gt;
+            &lt;xdd:notSame/&gt;
+        &lt;/field&gt;
+        &lt;field var="BaudRate" type="list-single" label="Baud rate:"&gt;
+            &lt;desc&gt;Baud rate to use when communicating with the device.&lt;/desc&gt;
+            &lt;value&gt;2400&lt;/value&gt;
+            &lt;option label='300 baud'&gt;&lt;value&gt;300&lt;/value&gt;&lt;/option&gt;
+            &lt;option label='2400 baud'&gt;&lt;value&gt;2400&lt;/value&gt;&lt;/option&gt;
+        &lt;/field&gt;
+        ...
+    &lt;/x&gt;
+            </pre></div>
+            <p>
+                In the above example communication properties of a set of objects are edited. The form contains two fields, one address field, which will contain
+                unique values for each individual object and therefore be flagged with the <span class="strong">xdd:notSame</span> flag, and
+                a second baud rate field. This second field will probably contain the same value, if devices are connected to the
+                same bus. Therefore, the field value is not flagged with the <span class="strong">xdd:notSame</span> flag.
+            </p>
+            <p>
+                <span class="strong">Note:</span> If the <span class="strong">xdd:notSame</span> flag is available in a field, the field must not be
+                flagged as being <span class="strong">required</span>. They must also be omitted in any form submissions unless they have been
+                edited first. Furthermore, any field submitted in a post-back as described in this document, must not be returned
+                in the post-back response having the <span class="strong">xdd:notSame</span> flag.
+            </p>
+            <p>
+                Notice also that there's a difference between a missing value, i.e. a field without a <span class="strong">value</span> element defined, and
+                a field with a <span class="strong">value</span> defined, but with the <span class="strong">xdd:notSame</span> flag present. In the latter example,
+                the value might represent the value of one of the objects in a set of objects being edited.
+            </p>
+        </div>
+        <div class="indent"><h3>3.5 <a name="sect-idp1627216" id="sect-idp1627216">Publishing fields containing errors</a></h3>
+            <p>
+                A field can be flagged with an error message using the <span class="strong">xdd:error</span> element. Together with the post-back feature this allows
+                for more advanced server-side validation of field values, as is shown in the following example.
+            </p>
+            <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Publishing fields with undefined values</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;x xmlns="jabber:x:data" type="form"
+       xmlns:xdd="urn:xmpp:xdata:dynamic" 
+       xmlns:xdv="http://jabber.org/protocol/xdata-validate"&gt;
+        &lt;title&gt;Expression&lt;/title&gt;
+        &lt;field var='xdd session' type='hidden'&gt;
+            &lt;value&gt;009c7956-001c-43fb-8edb-76bcf74272c9&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var="Expression" type="text-single" label="Expression:"&gt;
+            &lt;desc&gt;Enter the expression you want to plot.&lt;/desc&gt;
+            &lt;xdv:validate xmlns:xdv="http://jabber.org/protocol/xdata-validate" datatype="xs:string"&gt;
+                &lt;xdv:basic/&gt;
+            &lt;/xdv:validate&gt;
+            &lt;value&gt;sin(x&lt;/value&gt;
+            &lt;xdd:postBack/&gt;
+            &lt;xdd:error&gt;Unexpected end of expression. ) expected.&lt;/xdd:error&gt;
+        &lt;/field&gt;
+        ...
+    &lt;/x&gt;
+            </pre></div>
+            <p>
+                In the above example, the user can enter a script expression into a text box using a server-specific scripting language.
+                There's no way for the client to validate the script expression. However, by flagging the field with <span class="strong">xdd:postBack</span>
+                the client posts the form back to the server when the user is finished writing the expression, and the server can validate it.
+                In the example, the user has made an error, and the server returns the field, with an <span class="strong">xdd:error</span> flag, containing
+                an error message that can be displayed to the user in an appropriate way.
+            </p>
+            <p>
+                <span class="strong">Note:</span> If a field is flagged with an error, and the user starts editing it, the client should remove the error 
+                flag of the field. The field can be flagged again with a new error flag during the next post-back.
+            </p>
+        </div>
+        <div class="indent"><h3>3.6 <a name="sect-idp1634016" id="sect-idp1634016">Cancelling a dynamic form</a></h3>
+            <p>
+                The <a href="http://xmpp.org/extensions/xep-0004.html">Data Forms</a> XEP provides a mechanism to cancel forms, by submitting the
+                form using <span class="strong">type='cancel'</span>. The <a href="http://xmpp.org/extensions/xep-0004.html">Data Forms</a> XEP stipulates that 
+				fields should not be included when using the form type cancel. However dynamic forms, i.e. forms containing post-back fields, will need 
+				the fields, since any dynamic form session will be identified using hidden fields in the form. So, to cancel a dynamic form, the 
+				<span class="strong">xdd:cancel</span> element with the entire submitted form should be sent to the form server using an IQ set stanza, as is shown 
+				in the following example:
+            </p>
+            <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Cancelling a dynamic form</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;iq type='set'
+        from='formclient@clayster.com/client'
+        to='formserver@clayster.com'
+        id='4'&gt;
+        &lt;cancel xmlns='urn:xmpp:xdata:dynamic'&gt;
+            &lt;x xmlns="jabber:x:data" type="submit"&gt;
+                &lt;field var='xdd session'&gt;
+                    &lt;value&gt;009c7956-001c-43fb-8edb-76bcf74272c9&lt;/value&gt;
+                &lt;/field&gt;
+                ...
+            &lt;/x&gt;
+        &lt;/cancel&gt;
+    &lt;/iq&gt;
+            </pre></div>
+            <p>
+                After receiving the cancel request the form server returns an empty response if the form was found (and therefore cancelled), or an 
+				IQ error stanza with an <span class="strong">item-not-found</span> error if the form was not found. The following example shows a response where
+				the form was found and cancelled:
+            </p>
+            <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Dynamic form cancelled</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;iq type='result'
+        from='formserver@clayster.com'
+        to='formclient@clayster.com/client'
+        id='4'/&gt;
+            </pre></div>
+            <p>
+                <span class="strong">Note:</span> If cancelling a dynamic form using the approach described in this document, there's no need to also submit
+                a cancel form as defined in the <a href="http://xmpp.org/extensions/xep-0004.html">Data Forms</a> XEP. The form server automatically
+                makes sure the form is cancelled in all instances on the form server.
+            </p>
+			<p>
+				<span class="strong">Note 2:</span> If the dynamic form is invoked from a specific operation that includes its own cancel procedure, like 
+				Ad-hoc command sessions, the dynamic form is automatically and implicitly cancelled if the corresponding operation is cancelled.
+				There is no need to explicitly cancel the dynamic form as explained in this section in such cases.
+			</p>
+        </div>
+        <div class="indent"><h3>3.7 <a name="sect-idp1644224" id="sect-idp1644224">Dynamic form not found during post-back</a></h3>
+            <p>
+                It might happen that the form server does not find the dynamic form posted by the form client during a post back. Reasons for this can be
+                that the form does not include a post-back field, or that a form session timeout has occurred and the form server has discarded the dynamic
+                form to avoid memory leaks. Regardless of the reason, the form server responds using an IQ error stanza with the <span class="strong">item-not-found</span> 
+				error, when the client posts a form that is not found back.
+            </p>
+            <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Dynamic form not found during post-back</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;iq type='error'
+        from='formserver@clayster.com'
+        to='formclient@clayster.com/client'
+        id='2'&gt;
+        &lt;error type='cancel'&gt;
+            &lt;item-not-found xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+        &lt;/error&gt;
+    &lt;/iq&gt;
+            </pre></div>
+            <p>
+                <span class="strong">Note:</span> Form post-back must only be performed on forms containing post-back fields. The form server
+                is not required to maintain dynamic form sessions for forms that lack post-back fields.
+            </p>
+        </div>
+        <div class="indent"><h3>3.8 <a name="sect-idp1648384" id="sect-idp1648384">Other error during post-back</a></h3>
+            <p>
+                If another error occurs during post-back, the form server can inform the client about this by using the relevant error element and
+				provide further information in a <span class="strong">text</span> element to describe the error, as is shown in the following example:
+            </p>
+            <p class="caption"><a name="example-10" id="example-10"></a>Example 10. Other error during post-back</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;iq type='error'
+        from='formserver@clayster.com'
+        to='formclient@clayster.com/client'
+        id='3'&gt;
+        &lt;error type='cancel'&gt;
+            &lt;internal-server-error xmlns='urn:ietf:params:xml:ns:xmpp-streams'/&gt;
+            &lt;text&gt;An internal error occurred: Stack limit has been reached.&lt;/text&gt;
+        &lt;/error&gt;
+    &lt;/iq&gt;
+            </pre></div>
+        </div>
+		<div class="indent"><h3>3.9 <a name="sect-idp1650704" id="sect-idp1650704">Asynchronous updates of forms (server push)</a></h3>
+			<p>
+				The server may send asynchronous updates to open forms on the client. This can be done if the server detects changes that it wants to inform
+				the client about. Changes are made by sending a <span class="strong">message</span> stanza including a <span class="strong">updated</span> element which in turn
+				contains the new updated form.
+			</p>
+			<p>
+				Examples can include a control form showing control parameters. While the server is trying to retrieve the current values
+				it presents the control form with undefined values, and later when values are received by the server, it sends an update to the client with
+				actual values. 
+			</p>
+			<p>
+				Another example can include a dialog containing information on items on the server in a multi-user environment (for instance a file system).
+				Changes made by users can be displayed in open dialogs to other users as they change.
+			</p>
+			<p>
+				The client may have more than one form open at any given time. It might also be so that the form has been closed prior to receiving or handling the update message, 
+				and is therefore no longer visible. To be able to identify to which form the update corresponds, the <span class="strong">updated</span>
+				element is required to include a <span class="strong">sessionVariable</span> attribute in which it identifies a <span class="strong">unique</span> identifying
+				field in the form. When the client receives the update, it goes through all forms it has open. If a form has a field variable with a corresponding
+				name, and the field variable has a value equal to the value in the updated form, the form should be updated by the contents of the message. If no form is found, 
+				the update is simply ignored. If multiple forms are found, all should be updated.
+			</p>
+			<p class="caption"><a name="example-11" id="example-11"></a>Example 11. Asynchronous update of form (server push)</p><div class="indent"><pre class="prettyprint">
+				
+    &lt;x xmlns="jabber:x:data" type="form"
+       xmlns:xdd="urn:xmpp:xdata:dynamic" 
+       xmlns:xdv="http://jabber.org/protocol/xdata-validate"&gt;
+        &lt;title&gt;Control parameters&lt;/title&gt;
+        &lt;field var='xdd session' type='hidden'&gt;
+            &lt;value&gt;009c7956-001c-43fb-8edb-76bcf74272c9&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var="AnalogOutput" type="text-single" label="Analog Output:"&gt;
+            &lt;desc&gt;Enter a new value for the analog output.&lt;/desc&gt;
+            &lt;xdv:validate xmlns:xdv="http://jabber.org/protocol/xdata-validate" datatype="xs:int"&gt;
+                &lt;xdv:range min="0" max="65535"/&gt;
+            &lt;/xdv:validate&gt;
+            &lt;value&gt;0&lt;/value&gt;
+            &lt;xdd:notSame/&gt;
+        &lt;/field&gt;
+    &lt;/x&gt;
+
+    ...
+    &lt;message from='server@clayster.com'
+             to='client@clayster.com/client'&gt;
+        &lt;updated xmlns='urn:xmpp:xdata:dynamic' sessionVariable='xdd session' xml:lang='en'&gt;
+            &lt;x xmlns="jabber:x:data" type="form"
+               xmlns:xdd="urn:xmpp:xdata:dynamic" 
+               xmlns:xdv="http://jabber.org/protocol/xdata-validate"&gt;
+                &lt;title&gt;Control parameters&lt;/title&gt;
+                &lt;field var='xdd session' type='hidden'&gt;
+                    &lt;value&gt;009c7956-001c-43fb-8edb-76bcf74272c9&lt;/value&gt;
+                &lt;/field&gt;
+                &lt;field var="AnalogOutput" type="text-single" label="Analog Output:"&gt;
+                    &lt;desc&gt;Enter a new value for the analog output.&lt;/desc&gt;
+                    &lt;xdv:validate xmlns:xdv="http://jabber.org/protocol/xdata-validate" datatype="xs:int"&gt;
+                        &lt;xdv:range min="0" max="65535"/&gt;
+                    &lt;/xdv:validate&gt;
+                    &lt;value&gt;49152&lt;/value&gt;
+                &lt;/field&gt;
+            &lt;/x&gt;
+        &lt;/updated&gt;
+    &lt;/message&gt;
+			</pre></div>
+			<p>
+				<span class="strong">Note:</span> Make sure to check the implementation note <a href="#clientsidevalues">Merging Client-Side Values</a> for information
+				on how to merge updates received from the server with current input made by the client.
+			</p>
+			<p>
+				<span class="strong">Note 2:</span> The client should also provide the current user language in a <span class="strong">xml:lang</span> attribute in the <span class="strong">updated</span>
+				element, if available, as is shown in the example above. 
+			</p>
+		</div>
+    <h2>4.
+       <a name="support" id="support">Determining Support</a></h2>
+        <p>If an entity supports the protocol specified herein, regardless if the entity represents a form server or a form client; it MUST advertise 
+        that fact by returning a feature of "urn:xmpp:xdata:dynamic" in response to <span class="ref"><a href="http://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idp1668528">8</a>] information requests.</p>
+        <p class="caption"><a name="example-12" id="example-12"></a>Example 12. Service discovery information request</p><div class="indent"><pre class="prettyprint">
+            
+    &lt;iq type='get'
+        from='formclient@clayster.com/client'
+        to='formserver@clayster.com'
+        id='disco1'&gt;
+        &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+    &lt;/iq&gt;
+        </pre></div>
+        <p class="caption"><a name="example-13" id="example-13"></a>Example 13. Service discovery information response</p><div class="indent"><pre class="prettyprint">
+            
+    &lt;iq type='result'
+        from='formserver@clayster.com'
+        to='formclient@clayster.com/client'
+        id='disco1'&gt;
+        &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+            ...
+            &lt;feature var='urn:xmpp:xdata:dynamic'/&gt;
+            ...
+        &lt;/query&gt;
+    &lt;/iq&gt;
+        </pre></div>
+        <p>
+            In order for an application to determine whether an entity supports this protocol, where possible it SHOULD use the dynamic, presence-based profile of service discovery defined
+            in <span class="ref"><a href="http://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idp1678512">9</a>]. However, if an application has not received entity capabilities information from an entity, it SHOULD use explicit service discovery instead.
+        </p>
+    <h2>5.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+        <div class="indent"><h3>5.1 <a name="sect-idp1672032" id="sect-idp1672032">Dynamic Form Sessions</a></h3>
+            <p>
+                For a form server to maintain the status of the dynamic form, it will probably need to publish state or session
+                information using hidden fields in the dynamic form. It's important that form clients be aware that such hidden
+                fields are available and must always return them in all submissions of the form to the server.
+            </p>
+            <p>
+                A form client that supports dynamic forms and opens a dynamic form, i.e. containing parameters requiring post-back,
+                must call the specific <span class="strong">cancel</span> method described in this document to cancel the form if not
+                submitted. This to let the form server to release any dynamic form session resources it maintains.
+            </p>
+            <p>
+                <span class="strong">Note:</span> When submitting a dynamic form the normal way, any dynamic form session resources are also 
+                automatically released.
+            </p>
+        </div>
+        <div class="indent"><h3>5.2 <a name="sect-idp1675536" id="sect-idp1675536">Session Timeouts</a></h3>
+            <p>
+                The form server must be aware that some form clients do not support dynamic forms. This in turn implies that form clients
+                may not call the correct cancel method to cancel a dynamic form. To protect the form server from memory leaks, it must
+                include a session timeout, and release any dynamic form session resources if no activity has been made during the
+                corresponding time period. If the client would perform a post-back after the timeout period, an <span class="strong">item-not-found</span>
+                error message must be returned, to show the corresponding dynamic form session no longer exists, and therefore could
+                not be found.
+            </p>
+            <p>
+                For normal operations, a dynamic form session timeout of 15 minutes is sufficient.
+            </p>
+        </div>
+		<div class="indent"><h3>5.3 <a name="clientsidevalues" id="clientsidevalues">Merging Client-Side Values</a></h3>
+			<p>
+				When receiving asynchronous form updates from the server, or when performing a server post-back of a form, it is important
+				to know how to merge responses from the server with the current form being displayed to the user. As the operation is
+				asynchronous, and since user input is quick, the user might have input things not known to the server and therefore not
+				available in form updates. Also, fields not marked for post-back might not have been reported at all to the server, and
+				therefore, the client is the only one that knows what the user has entered into these fields.
+			</p>
+			<p>
+				So, when receiving form updates, either asynchronously, or as part of a server post-back response, the client needs to merge
+				the updated form, with the current form. The following rules must be applied. Here, the <span class="strong">updated form</span> represents the
+				form in the recent message from the server, the <span class="strong">current form</span> represents the form currently being edited by the user
+				and the <span class="strong">resulting form</span> represents the result of the merger of the updated form and the current form.
+			</p>
+			<ul>
+				<li>
+					<p>
+						New fields in the updated form not available in the <span class="strong">current form</span>, are added as-is to the <span class="strong">resulting form</span>.
+					</p>
+				</li>
+				<li>
+					<p>
+						Fields not available in the <span class="strong">updated form</span> but available in the <span class="strong">current form</span>, must be removed from the
+						<span class="strong">resulting form</span> regardless if user input is available. Any such user input is lost.
+					</p>
+				</li>
+				<li>
+					<p>
+						The order of fields in the resulting form must be the same as the order of fields in the <span class="strong">updated form</span>.
+					</p>
+				</li>
+				<li>
+					<p>
+						Fields available in both the <span class="strong">updated form</span> and the <span class="strong">current form</span> are handled depending on if the user has entered
+						values in the corresponding field in the <span class="strong">current form</span> or not:
+					</p>
+					<ul>
+						<li>
+							If the user has <span class="strong">not</span> edited the value in the corresponding field, the value from the <span class="strong">updated form</span> is used.
+						</li>
+						<li>
+							If the user has edited the value the corresponding field, the value from the <span class="strong">current form</span> is used.
+						</li>
+						<li>
+							If the user has edited the value of the corresponding field in the <span class="strong">current form</span>, but the value is the same as the value 
+							available in the <span class="strong">updated form</span>, the flag stating that user input has occurred in the field can be cleared.
+						</li>
+					</ul>
+					<br />
+				</li>
+				<li>
+					<p>
+						If a field in the <span class="strong">updated form</span> is flagged as <span class="strong">undefined</span>, but the <span class="strong">current form</span> has an edited value,
+						the form in the <span class="strong">resulting form</span> must <span class="strong">not</span> be marked as <span class="strong">undefined</span>.
+					</p>
+				</li>
+				<li>
+					<p>
+						All other properties for fields must be taken from the <span class="strong">updated form</span> and copied to the <span class="strong">resulting form</span>.
+					</p>
+				</li>
+			</ul>
+			<p>
+				How the above merger is made is implementation specific. One simple implementation can simply be taking the updated form, adding any client-side values to it
+				(i.e. values edited in the current form) perhaps removing any undefined value flags, and then use the result as a model for the resulting form.
+			</p>
+		</div>
+    <h2>6.
+       <a name="security" id="security">Security Considerations</a></h2>
+        <p>
+            There are no security concerns related to this specification above, beyond those described in the relevant section of <span class="strong">XMPP Core</span>.
+        </p>
+    <h2>7.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+        <p>
+            <p>This document requires no interaction with the <span class="ref"><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idp1707520">10</a>].</p>
+        </p>
+    <h2>8.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+        <p>
+            The <a href="#schema">protocol schema</a> needs to be added to the list of <a href="http://xmpp.org/resources/schemas/">XMPP protocol schemas</a>.
+        </p>
+    <h2>9.
+       <a name="schema" id="schema">XML Schema</a></h2>
+        <p class="caption"></p><div class="indent"><pre class="prettyprint">
+            
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:xdata:dynamic'
+    xmlns='urn:xmpp:xdata:dynamic'
+    xmlns:xd="jabber:x:data"
+    elementFormDefault='qualified'&gt;
+ 
+    &lt;xs:import namespace='jabber:x:data'/&gt;
+ 
+    &lt;xs:element name='postBack'&gt;
+        &lt;xs:annotation&gt;
+            &lt;xs:documentation&gt;Flags a field as requiring server post-back after having been edited.&lt;/xs:documentation&gt;
+        &lt;/xs:annotation&gt;
+        &lt;xs:complexType/&gt;
+    &lt;/xs:element&gt;
+ 
+    &lt;xs:element name='readOnly'&gt;
+        &lt;xs:annotation&gt;
+            &lt;xs:documentation&gt;Flags a field as being read-only.&lt;/xs:documentation&gt;
+        &lt;/xs:annotation&gt;
+        &lt;xs:complexType/&gt;
+    &lt;/xs:element&gt;
+ 
+    &lt;xs:element name='notSame'&gt;
+        &lt;xs:annotation&gt;
+            &lt;xs:documentation&gt;Flags a field as having an undefined or uncertain value.&lt;/xs:documentation&gt;
+        &lt;/xs:annotation&gt;
+        &lt;xs:complexType/&gt;
+    &lt;/xs:element&gt;
+ 
+    &lt;xs:element name='error'&gt;
+        &lt;xs:annotation&gt;
+            &lt;xs:documentation&gt;Flags a field as having an error.&lt;/xs:documentation&gt;
+        &lt;/xs:annotation&gt;
+        &lt;xs:simpleType&gt;
+            &lt;xs:restriction base='xs:string'/&gt;
+        &lt;/xs:simpleType&gt;
+    &lt;/xs:element&gt;
+ 
+    &lt;xs:element name='submit'&gt;
+        &lt;xs:complexType&gt;
+            &lt;xs:sequence&gt;
+                &lt;xs:element ref='xd:x' minOccurs='1' maxOccurs='1'/&gt;
+            &lt;/xs:sequence&gt;
+        &lt;/xs:complexType&gt;
+    &lt;/xs:element&gt;
+ 
+    &lt;xs:element name='updated'&gt;
+        &lt;xs:complexType&gt;
+            &lt;xs:sequence&gt;
+                &lt;xs:element ref='xd:x' minOccurs='1' maxOccurs='1'/&gt;
+            &lt;/xs:sequence&gt;
+            &lt;xs:attribute name='sessionVariable' type='xs:string' use='required'/&gt;
+        &lt;/xs:complexType&gt;
+    &lt;/xs:element&gt;
+ 
+    &lt;xs:element name='cancel'&gt;
+        &lt;xs:complexType&gt;
+            &lt;xs:sequence&gt;
+                &lt;xs:element ref='xd:x' minOccurs='1' maxOccurs='1'/&gt;
+            &lt;/xs:sequence&gt;
+        &lt;/xs:complexType&gt;
+    &lt;/xs:element&gt;
+ 
+&lt;/xs:schema&gt;
+        </pre></div>
+    <h2>10.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+		<p>Thanks to Karin Forsell and Lance Stout for all valuable feedback.</p>
+	<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0336<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2014-01-08<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0004<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: dynamic-forms<br />
+              Source Control: 
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0336.xml">HTML</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0336.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0336.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Peter Waher</h3><p class="indent">
+        Email:
+        <a href="mailto:peter.waher@clayster.com">peter.waher@clayster.com</a><br />
+        JabberID: 
+        <a href="xmpp:peter.waher@jabber.org">peter.waher@jabber.org</a><br />
+        URI: 
+        <a href="http://www.linkedin.com/in/peterwaher">http://www.linkedin.com/in/peterwaher</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2014 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/">http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/</a>&gt; or obtained by writing to XMPP Standards Foundation, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idp688496" id="nt-idp688496">1</a>. XEP-0004: Data Forms &lt;<a href="http://xmpp.org/extensions/xep-0004.html">http://xmpp.org/extensions/xep-0004.html</a>&gt;.</p><p><a name="nt-idp676304" id="nt-idp676304">2</a>. XEP-0122: Data Forms Validation &lt;<a href="http://xmpp.org/extensions/xep-0122.html">http://xmpp.org/extensions/xep-0122.html</a>&gt;.</p><p><a name="nt-idp679728" id="nt-idp679728">3</a>. XEP-0137: Publishing Stream Initiation Requests &lt;<a href="http://xmpp.org/extensions/xep-0137.html">http://xmpp.org/extensions/xep-0137.html</a>&gt;.</p><p><a name="nt-idp683120" id="nt-idp683120">4</a>. XEP-0141: Data Forms Layout &lt;<a href="http://xmpp.org/extensions/xep-0141.html">http://xmpp.org/extensions/xep-0141.html</a>&gt;.</p><p><a name="nt-idp686480" id="nt-idp686480">5</a>. XEP-0221: Data Forms Media Element &lt;<a href="http://xmpp.org/extensions/xep-0221.html">http://xmpp.org/extensions/xep-0221.html</a>&gt;.</p><p><a name="nt-idp1537248" id="nt-idp1537248">6</a>. XEP-0331: Data Forms - Color Field Types &lt;<a href="http://xmpp.org/extensions/xep-0331.html">http://xmpp.org/extensions/xep-0331.html</a>&gt;.</p><p><a name="nt-idp1548560" id="nt-idp1548560">7</a>. XEP-0050: Ad-Hoc Commands &lt;<a href="http://xmpp.org/extensions/xep-0050.html">http://xmpp.org/extensions/xep-0050.html</a>&gt;.</p><p><a name="nt-idp1668528" id="nt-idp1668528">8</a>. XEP-0030: Service Discovery &lt;<a href="http://xmpp.org/extensions/xep-0030.html">http://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idp1678512" id="nt-idp1678512">9</a>. XEP-0115: Entity Capabilities &lt;<a href="http://xmpp.org/extensions/xep-0115.html">http://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-idp1707520" id="nt-idp1707520">10</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2014-01-08)</h4><div class="indent"><p>Initial published version approved by the XMPP Council.</p> (psa)
+    </div><h4>Version 0.0.4 (2013-12-18)</h4><div class="indent">
+				<p>The element formPostBack has been renamed to <span class="strong">submit</span>.</p>
+				<p>The element formUpdated has been renamed to <span class="strong">updated</span>.</p>
+				<p>The elements formPostBackResponse and cancelResponse have been removed. Error handling has been updated to conform to use IQ error stanzas and error codes.</p>
+			 (pw)
+    </div><h4>Version 0.0.3 (2013-12-04)</h4><div class="indent">
+				<p>Namespace changed to urn:xmpp:xdata:dynamic.</p>
+			 (pw)
+    </div><h4>Version 0.0.2 (2013-10-29)</h4><div class="indent">
+				<p>Added comparison to XEP-0050, Ad-hoc commands.</p>
+				<p>Added support for server push of asynchronous form changes.</p>
+				<p>Added an implementation note regarding client-side values.</p>
+			 (pw)
+    </div><h4>Version 0.0.1 (2013-07-23)</h4><div class="indent">
+                <p>First draft.</p>
+             (pw)
+    </div></div><hr /><p>END</p></body></html>

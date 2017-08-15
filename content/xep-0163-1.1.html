@@ -1,0 +1,454 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0163: Personal Eventing via Pubsub</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Personal Eventing via Pubsub" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Creator" content="Kevin Smith" /><meta name="DC.Description" content="This document specifies XMPP semantics for using the publish-subscribe protocol to broadcast state change events associated with an instant messaging and presence account." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2007-09-26" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0163" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2010 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0163: Personal Eventing via Pubsub</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This document specifies XMPP semantics for using the publish-subscribe protocol to broadcast state change events associated with an instant messaging and presence account.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Peter Saint-Andre, Kevin Smith</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2010 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Draft</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>1.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2007-09-26</td></tr></table><hr /><p style="color:green">NOTICE: The protocol defined herein is a <strong>Draft Standard</strong> of the XMPP Standards Foundation. Implementations are encouraged and the protocol is appropriate for deployment in production systems, but some changes to the protocol are possible before it becomes a Final Standard.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />   
+      1.1.  <a href="#motivation">Motivation</a><br />   
+      1.2.  <a href="#howitworks">How It Works</a><br />2.  <a href="#approach">Concepts and Approach</a><br />   
+      2.1.  <a href="#approach-everyjid">Every Account a Pubsub Service</a><br />   
+      2.2.  <a href="#approach-publisher">One Publisher Per Node</a><br />   
+      2.3.  <a href="#approach-onenode">One Node Per Namespace</a><br />   
+      2.4.  <a href="#approach-presence">Use Presence</a><br />   
+      2.5.  <a href="#approach-filter">Filtered Notifications</a><br />   
+      2.6.  <a href="#approach-defaults">Smart Defaults</a><br />3.  <a href="#publish">Publishing Events</a><br />4.  <a href="#notify">Receiving Event Notifications</a><br />   
+      4.1.  <a href="#notify-autosubscribe">Automatic Subscriptions</a><br />   
+      4.2.  <a href="#notify-filterednotifications">Notification Filtering</a><br />   
+      4.3.  <a href="#notify-generate">Generating Notifications</a><br />      
+      4.3.1.  <a href="#notify-addressing">Addressing</a><br />      
+      4.3.2.  <a href="#notify-num">Number of Notifications</a><br />      
+      4.3.3.  <a href="#notify-when">When to Generate Notifications</a><br />      
+      4.3.4.  <a href="#notify-last">Sending the Last Published Item</a><br />5.  <a href="#defaults">Recommended Defaults</a><br />6.  <a href="#disco">Service Discovery</a><br />   
+      6.1.  <a href="#disco-owner">Account Owner Service Discovery</a><br />   
+      6.2.  <a href="#disco-contact">Contact Service Discovery</a><br />7.  <a href="#impl">Implementation Notes</a><br />   
+      7.1.  <a href="#impl-subscriptions">Cancelling Subscriptions</a><br />8.  <a href="#security">Security Considerations</a><br />9.  <a href="#iana">IANA Considerations</a><br />10.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      10.1.  <a href="#registrar-disco">Service Discovery Category/Type</a><br />11.  <a href="#schema">XML Schema</a><br />12.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <div class="indent"><h3>1.1 <a name="motivation" id="motivation">Motivation</a></h3>
+    <p class="" style="">Personal eventing provides a way for a Jabber/XMPP user to send updates or "events" to other users, who are typically contacts in the user's roster. An event can be anything that a user wants to make known to other people, such as those described in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0080.html">User Geolocation</a></span>  [<a href="#nt-id179605">1</a>], <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0107.html">User Mood</a></span>  [<a href="#nt-id179629">2</a>], <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0108.html">User Activity</a></span>  [<a href="#nt-id179652">3</a>], and <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0118.html">User Tune</a></span>  [<a href="#nt-id179674">4</a>].  While the XMPP <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0060.html">Publish-Subscribe</a></span>  [<a href="#nt-id179695">5</a>] extension ("pubsub") can be used to broadcast such events associated, the full pubsub protocol is often thought of as complicated and therefore has not been widely implemented. 
+     [<a href="#nt-id179617">6</a>] To make publish-subscribe functionality more accessible (especially to instant messaging and presence applications that conform to <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3921">XMPP IM</a></span>  [<a href="#nt-id179723">7</a>]), this document defines a simplified subset of pubsub that can be followed by instant messaging client and server developers to more easily deploy personal eventing services across the Jabber/XMPP network. We label this subset "Personal Eventing via Pubsub" or PEP.</p>
+    <p class="em" style="">Note: Any use cases not described herein are described in <span class="ref">XEP-0060</span>. Also, this document does not show error flows related to the generic publish-subscribe use cases referenced herein, since they are exhaustively defined in <span class="ref">XEP-0060</span>. The reader is referred to <span class="ref">XEP-0060</span> for all relevant protocol details related to the XMPP publish-subscribe extension. This document merely defines a "subset" or "profile" of XMPP publish-subscribe.</p>
+  </div>
+  <div class="indent"><h3>1.2 <a name="howitworks" id="howitworks">How It Works</a></h3>
+    <p class="" style="">This section provides a friendly introduction to personal eventing via pubsub (PEP).</p>
+    <p class="" style="">Imagine that you are a Shakespearean character named Juliet and that you want to generate events about what music you're listening to, which anyone may see as long as they are authorized to see your online/offline presence (i.e., a pubsub access model of "presence").</p>
+    <p class="" style="">We assume that you have three contacts with the following relationship to you:</p>
+    <ol start="1" class="" style="">
+      <li class="" style="">benvolio@montague.lit, who has no subscription to your presence</li>
+      <li class="" style="">nurse@capulet.lit, who has a bidirectional subscription to your presence and who is in your "Servants" roster group</li>
+      <li class="" style="">romeo@montague.lit, who has a bidirectional subscription to your presence and who is in your "Friends" roster group</li>
+    </ol>
+    <p class="" style="">We also assume that your server (capulet.lit) supports PEP and that your client discovered that support when you logged in.</p>
+    <p class="" style="">Now you start playing a song on your music playing software. Your client captures that "event" and publishes it to your server:</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Publishing an event</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony' type='set' id='pub1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='http://jabber.org/protocol/tune'&gt;
+      &lt;item&gt;
+        &lt;tune xmlns='http://jabber.org/protocol/tune'&gt;
+          &lt;artist&gt;Gerald Finzi&lt;/artist&gt;
+          &lt;length&gt;255&lt;/length&gt;
+          &lt;source&gt;Music for "Love's Labors Lost" (Suite for small orchestra)&lt;/source&gt;
+          &lt;title&gt;Introduction (Allegro vigoroso)&lt;/title&gt;
+          &lt;track&gt;1&lt;/track&gt;
+        &lt;/tune&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">Note the following about your publish request:</p>
+    <ol start="1" class="" style="">
+      <li class="" style="">It is sent with no 'to' address (see <a href="#approach-everyjid">Every Account a Pubsub Service</a>).</li>
+      <li class="" style="">It specifies a node of "http://jabber.org/protocol/tune" (see <a href="#approach-onenode">One Node per Namespace</a>).</li>
+    </ol>
+    <p class="" style="">If all goes well (see <a href="#publish">Publishing Events</a>), everyone who is interested in what you are listening to will receive notification of the event:</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Interested parties receive event notifications</p><div class="indent"><pre class="prettyprint">
+&lt;message from='juliet@capulet.lit'
+         to='romeo@montague.lit/orchard'
+         type='headline'
+         id='tunefoo1'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='http://jabber.org/protocol/tune'&gt;
+      &lt;item&gt;
+        &lt;tune xmlns='http://jabber.org/protocol/tune'&gt;
+          &lt;artist&gt;Gerald Finzi&lt;/artist&gt;
+          &lt;length&gt;255&lt;/length&gt;
+          &lt;source&gt;Music for "Love's Labors Lost" (Suite for small orchestra)&lt;/source&gt;
+          &lt;title&gt;Introduction (Allegro vigoroso)&lt;/title&gt;
+          &lt;track&gt;1&lt;/track&gt;
+        &lt;/tune&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+
+&lt;message from='juliet@capulet.lit'
+         to='nurse@capulet.lit/chamber'
+         type='headline'
+         id='tunefoo2'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='http://jabber.org/protocol/tune'&gt;
+      &lt;item&gt;
+        &lt;tune xmlns='http://jabber.org/protocol/tune'&gt;
+          &lt;artist&gt;Gerald Finzi&lt;/artist&gt;
+          &lt;length&gt;255&lt;/length&gt;
+          &lt;source&gt;Music for "Love's Labors Lost" (Suite for small orchestra)&lt;/source&gt;
+          &lt;title&gt;Introduction (Allegro vigoroso)&lt;/title&gt;
+          &lt;track&gt;1&lt;/track&gt;
+        &lt;/tune&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+    </pre></div>
+    <p class="" style="">Because PEP services must send notifications to the account owner, you too receive the notification at each of your resources (here "balcony" and "chamber").</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Publisher receives event notification</p><div class="indent"><pre class="prettyprint">
+&lt;message from='juliet@capulet.lit'
+         to='juliet@capulet.lit/balcony'
+         type='headline'
+         id='tunefoo3'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='http://jabber.org/protocol/tune'&gt;
+      &lt;item&gt;
+        &lt;tune xmlns='http://jabber.org/protocol/tune'&gt;
+          &lt;artist&gt;Gerald Finzi&lt;/artist&gt;
+          &lt;length&gt;255&lt;/length&gt;
+          &lt;source&gt;Music for "Love's Labors Lost" (Suite for small orchestra)&lt;/source&gt;
+          &lt;title&gt;Introduction (Allegro vigoroso)&lt;/title&gt;
+          &lt;track&gt;1&lt;/track&gt;
+        &lt;/tune&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+
+&lt;message from='juliet@capulet.lit'
+         to='juliet@capulet.lit/chamber'
+         type='headline'
+         id='tunefoo4'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='http://jabber.org/protocol/tune'&gt;
+      &lt;item&gt;
+        &lt;tune xmlns='http://jabber.org/protocol/tune'&gt;
+          &lt;artist&gt;Gerald Finzi&lt;/artist&gt;
+          &lt;length&gt;255&lt;/length&gt;
+          &lt;source&gt;Music for "Love's Labors Lost" (Suite for small orchestra)&lt;/source&gt;
+          &lt;title&gt;Introduction (Allegro vigoroso)&lt;/title&gt;
+          &lt;track&gt;1&lt;/track&gt;
+        &lt;/tune&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+    </pre></div>
+    <p class="" style="">But how do Romeo and the Nurse tell your server that they are interested in knowing what you're listening to? In generic pubsub they typically need to explicitly subscribe to your "http://jabber.org/protocol/tune" node.  [<a href="#nt-id179929">8</a>] But PEP services support two special features:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">"auto-subscribe" -- because they are subscribed to your presence, they automatically receive your events (see <a href="#approach-presence">Use Presence</a>).</li>
+      <li class="" style="">"filtered-notification" -- they can include some special flags in their <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0115.html">Entity Capabilities</a></span>  [<a href="#nt-id179998">9</a>] information to specify which event types (payloads) they want to receive (see <a href="#approach-filter">Filtered Notifications</a>).</li>
+    </ol>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Romeo sends presence with caps</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='romeo@montague.lit/orchard'&gt;
+  &lt;c xmlns='http://jabber.org/protocol/caps'
+     node='http://www.chatopus.com/ec'
+     ver='054H4A7280JuT6+IroVYxgCAjZo='/&gt;
+&lt;/presence&gt;
+    </pre></div>
+    <p class="" style="">Your server knows to send tune information to Romeo because when the server unpacks the value of the 'ver' attribute ("054H4A7280JuT6+IroVYxgCAjZo=") in accordance with <span class="ref">XEP-0115</span>, it discovers that Romeo's client advertises a service discovery feature of "http://jabber.org/protocol/tune+notify", where the "+notify" suffix indicates interest in receiving notifications related to the protocol that precedes the suffix. The server can verify this support if needed by sending a service discovery request to Romeo's full JID, where the response would be as follows:</p>
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Disco#info result from extension</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    to='juliet@capulet.lit'
+    type='result'
+    id='disco123'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;feature var='http://jabber.org/protocol/disco#info'/&gt;
+    &lt;feature var='http://jabber.org/protocol/disco#items'/&gt;
+    &lt;feature var='http://jabber.org/protocol/geoloc'/&gt;
+    &lt;feature var='http://jabber.org/protocol/geoloc+notify'/&gt;
+    &lt;feature var='http://jabber.org/protocol/tune'/&gt;
+    &lt;feature var='http://jabber.org/protocol/tune+notify'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">Naturally your server doesn't need to send out a disco#info request every time, since it will quickly create a large cache of 'ver' values.</p>
+    <p class="" style="">So that's the general idea.</p>
+  </div>
+<h2>2.
+       <a name="approach" id="approach">Concepts and Approach</a></h2>
+  <p class="" style="">Personal eventing via pubsub ("PEP") is based on the following principles:</p>
+  <ol start="1" class="" style="">
+    <li class="" style="">Every account a pubsub service.</li>
+    <li class="" style="">One publisher per node.</li>
+    <li class="" style="">One node per namespace.</li>
+    <li class="" style="">Use presence.</li>
+    <li class="" style="">Filter notifications based on expressed interest.</li>
+    <li class="" style="">Smart defaults.</li>
+  </ol>
+  <p class="" style="">These principles are described more fully below.</p>
+  <div class="indent"><h3>2.1 <a name="approach-everyjid" id="approach-everyjid">Every Account a Pubsub Service</a></h3>
+    <p class="" style="">When a user creates an account (or has an account provisioned) at a Jabber/XMPP server that supports PEP, the server associates a virtual pubsub service with the account. This greatly simplifies the task of discovering the account owner's personal pubsub nodes, since the root pubsub node simply is the account owner's bare JID ((&lt;localpart@domain.tld&gt; or &lt;domain.tld&gt;)). This assumption also simplifies publishing and subscribing.</p>
+  </div>
+  <div class="indent"><h3>2.2 <a name="approach-publisher" id="approach-publisher">One Publisher Per Node</a></h3>
+    <p class="" style="">There is no need for multiple publishers to a PEP service, since by definition the service generates information associated with only one entity. The owner-publisher for every node is the bare JID of the account owner.</p>
+  </div>
+  <div class="indent"><h3>2.3 <a name="approach-onenode" id="approach-onenode">One Node Per Namespace</a></h3>
+    <p class="" style="">There is only one publish-subscribe node associated with any given payload type (XML namespace) for the account owner (e.g., there is one pubsub node for geolocation events, one node for tune events, and one node for mood events). This simplifies node creation, discovery, publishing, and subscribing.</p>
+  </div>
+  <div class="indent"><h3>2.4 <a name="approach-presence" id="approach-presence">Use Presence</a></h3>
+    <p class="" style="">Although generic publish-subscribe services do not necessarily have access to presence information about subscribers, PEP services are integrated with presence in the following ways:</p>
+    <ul class="" style="">
+      <li class="" style="">Each messaging and presence account simply <span class="em">is</span> a virtual publish-subscribe service.</li>
+      <li class="" style="">The default access model is "presence".</li>
+      <li class="" style="">A contact's subscription to an account owner's personal eventing data is automatically created because the contact has an XMPP presence subscription (the "auto-subscribe" feature).</li>
+      <li class="" style="">Services take account of subscriber presence in the generation of notifications.  [<a href="#nt-id180239">10</a>]</li>
+      <li class="" style="">A service automatically sends notifications to all of the account owner's connected resources.</li>
+    </ul>
+    <p class="" style="">These uses of presence simplify the task of developing compliant clients (cf. <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0134.html">XMPP Design Guidelines</a></span>  [<a href="#nt-id180284">11</a>]).</p>
+  </div>
+  <div class="indent"><h3>2.5 <a name="approach-filter" id="approach-filter">Filtered Notifications</a></h3>
+    <p class="" style="">By default, the existence of an XMPP presence subscription is used to establish a PEP subscription to the account owner's personal eventing data. In order to filter which notifications are sent by the PEP service, the contact's client includes extended <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0115.html">Entity Capabilities</a></span>  [<a href="#nt-id180311">12</a>] information in the presence notifications it sends to the account owner. Because the PEP service supports the "filtered-notifications" feature, it sends only those notifications that match the contact's expressed notification preferences.</p>
+  </div>
+  <div class="indent"><h3>2.6 <a name="approach-defaults" id="approach-defaults">Smart Defaults</a></h3>
+    <p class="" style="">Most pubsub configuration options and metadata are not needed for personal eventing. Instead, PEP services offer smart defaults to simplify node creation and management.</p>
+  </div>
+<h2>3.
+       <a name="publish" id="publish">Publishing Events</a></h2>
+  <p class="" style="">An account owner publishes an item to a node by following the protocol specified in <span class="ref">XEP-0060</span>:</p>
+  <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Account owner publishes item</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony' type='set' id='pub1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='http://jabber.org/protocol/tune'&gt;
+      &lt;item&gt;
+        &lt;tune xmlns='http://jabber.org/protocol/tune'&gt;
+          &lt;artist&gt;Gerald Finzi&lt;/artist&gt;
+          &lt;length&gt;255&lt;/length&gt;
+          &lt;source&gt;Music for "Love's Labors Lost" (Suite for small orchestra)&lt;/source&gt;
+          &lt;title&gt;Introduction (Allegro vigoroso)&lt;/title&gt;
+          &lt;track&gt;1&lt;/track&gt;
+        &lt;/tune&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">If the node does not already exist, the PEP service MUST create the node. This "auto-create" feature (defined in <span class="ref">XEP-0060</span>) MUST be supported by a PEP service. (Naturally, the account owner's client MAY follow the node creation use case specified in <span class="ref">XEP-0060</span> before attempting to publish an item.)</p>
+  <p class="" style="">A PEP service SHOULD also support the "publish-options" feature defined in <span class="ref">XEP-0060</span>.</p>
+  <p class="" style="">If the publication logic dictates that event notifications shall be sent, the account owner's server generates notifications and sends them to all appropriate entities as described in the <a href="#notify">Receiving Event Notifications</a> section of this document, as well as to any of the account owner's available resources.</p>
+<h2>4.
+       <a name="notify" id="notify">Receiving Event Notifications</a></h2>
+  <p class="" style="">An entity shall receive event notifications if:</p>
+  <ol start="1" class="" style="">
+    <li class="" style="">The node has an open access model and the entity has explicitly or implicitly subscribed to the node as explained in <span class="ref">XEP-0060</span>.</li>
+    <li class="" style="">The entity shares presence with the account owner (see <a href="#notify-presence">Presence Sharing</a>), is authorized to receive events from the node in accordance with the node access model (see <span class="ref">XEP-0060</span>), and advertises an interest in the payload type (see <a href="#notify-filter">Notification Filtering</a>).</li>
+    <li class="" style="">The entity is the account owner itself, in which case the PEP service shall send notifications to all of the account owner's available resources (subject to <a href="#notify-filter">notification filtering</a>).</li>
+  </ol>
+  <div class="indent"><h3>4.1 <a name="notify-autosubscribe" id="notify-autosubscribe">Automatic Subscriptions</a></h3>
+    <p class="" style="">A PEP service MUST support the "auto-subscribe" feature defined in Section 10.1 of <span class="ref">XEP-0060</span>. This implies that when a user has an XMPP presence subscription to the account owner's presence, the user automatically also has a pubsub subscription account owner's root collection node (i.e., bare JID), with a subscription_type of "items" and a subscription_depth of "all".</p>
+  </div>
+  <div class="indent"><h3>4.2 <a name="notify-filterednotifications" id="notify-filterednotifications">Notification Filtering</a></h3>
+    <p class="" style="">A PEP service MUST support the "filtered-notifications" feature defined in Section 10.2 of <span class="ref">XEP-0060</span>. This implies that when an automatic subscriber can specify which event payloads it wants to receive by including appropriate feature bundles in the <span class="ref">XEP-0115</span> information it broadcasts.</p>
+  </div>
+  <div class="indent"><h3>4.3 <a name="notify-generate" id="notify-generate">Generating Notifications</a></h3>
+    <div class="indent"><h3>4.3.1 <a name="notify-addressing" id="notify-addressing">Addressing</a></h3>
+      <ol start="1" class="" style="">
+        <li class="" style=""><p class="" style="">The server MUST set the 'from' address on the notification to the bare JID ((&lt;localpart@domain.tld&gt; or &lt;domain.tld&gt;)) of the account owner (in these examples, "juliet@capulet.lit").</p></li>
+        <li class="" style=""><p class="" style="">Any errors generated by the recipient or the recipient's server in relation to the notification MUST be directed to the JID of the 'from' address on the notification (i.e., the bare JID) so that bounce processing can be handled by the PEP service rather than by the publishing client.</p></li>
+        <li class="" style=""><p class="" style="">When sending notifications to an entity that has a presence subscription to the account owner, the server SHOULD include an <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0033.html">Extended Stanza Addressing</a></span>  [<a href="#nt-id180613">13</a>] "replyto" extension specifying the publishing resource (in this example, "juliet@capulet.lit/balcony"); this enables the subscriber's client to differentiate between information received from each of the account owner's resources (for example, different resources may be in different places and therefore may need to specify distinct geolocation data). However, a server MUST NOT include the "replyto" address when sending a notification to an entity that does not have a presence subscription to the account owner.</p></li>
+        <li class="" style=""><p class="" style="">If the PEP service has presence information about the intended recipient, it SHOULD direct the notification(s) to the full JID(s) of the recipients ((&lt;localpart@domain.tld/resource&gt; or &lt;domain.tld/resource&gt;)); if the PEP service does not have presence information about a subscriber, it MUST address the notification to the subscriber's bare JID ((&lt;localpart@domain.tld&gt; or &lt;domain.tld&gt;)).</p></li>
+      </ol>
+    </div>
+    <div class="indent"><h3>4.3.2 <a name="notify-num" id="notify-num">Number of Notifications</a></h3>
+      <ol start="1" class="" style="">
+        <li class="" style=""><p class="" style="">If a subscriber subscribed using a full JID ((&lt;localpart@domain.tld/resource&gt; or &lt;domain.tld/resource&gt;)), domain identifier (), or domain plus resource (), a PEP service MUST send one notification only, addressed to the subscribed JID.</p></li>
+        <li class="" style=""><p class="" style="">If a subscriber subscribed using a bare JID ((&lt;localpart@domain.tld&gt; or &lt;domain.tld&gt;)) and a PEP service does not have appropriate presence information about the subscriber, a PEP service MUST send at most one notification, addressed to the bare JID ((&lt;localpart@domain.tld&gt; or &lt;domain.tld&gt;)) of the subscriber, and MAY choose not to send any notification. (By "appropriate presence information" is meant an available presence stanza with non-negative priority and <span class="ref">XEP-0115</span> data that indicates interest in the relevant data format.)</p></li>
+        <li class="" style=""><p class="" style="">If a subscriber subscribed using a bare JID ((&lt;localpart@domain.tld&gt; or &lt;domain.tld&gt;)) and a PEP service has appropriate presence information about the subscriber, the PEP service MUST send one notification to the full JID ((&lt;localpart@domain.tld/resource&gt; or &lt;domain.tld/resource&gt;)) of each of the subscriber's available resources that have specified non-negative presence priority and included <span class="ref">XEP-0115</span> information that indicates an interest in the data format.</p></li>
+      </ol>
+    </div>
+    <div class="indent"><h3>4.3.3 <a name="notify-when" id="notify-when">When to Generate Notifications</a></h3>
+      <ol start="1" class="" style="">
+        <li class="" style=""><p class="" style="">When an account owner publishes an item to a node, a PEP service MUST generate a notification and send it to all appropriate subscribers (where the number of notifications is determined by the foregoing rules).</p></li>
+        <li class="" style=""><p class="" style="">When a PEP service receives initial presence information from a subscriber's resource with a non-negative priority and including <span class="ref">XEP-0115</span> information that indicates an interest in the data format, it MUST generate a notification containing the last published item for that node and send it to the newly-available resource.</p></li>
+        <li class="" style=""><p class="" style="">As an exception to the foregoing MUST rules, a PEP service MUST NOT send notifications to a subscriber if the user has blocked the subscriber from receiving all or any kinds of stanza (presence, message, IQ, or any combination thereof) using communiations blocking as specified in <span class="ref">XMPP IM</span>.</p></li>
+      </ol>
+    </div>
+    <div class="indent"><h3>4.3.4 <a name="notify-last" id="notify-last">Sending the Last Published Item</a></h3>
+      <p class="" style="">As mentioned, a PEP service MUST send the last published item to all new subscribers and to all newly-available resources for each subscriber, including the account owner itself. (That is, the default value of the "pubsub#send_last_published_item" node configuration field must be "on_sub_and_presence"; this behavior essentially mimics the functionality of presence as defined in <span class="ref">XMPP IM</span>.)</p>
+      <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Subscriber sends presence from newly-available resource</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='romeo@montague.lit/orchard'&gt;
+  &lt;c xmlns='http://jabber.org/protocol/caps'
+     node='http://www.chatopus.com/ec'
+     ver='2.1'
+     ext='sendmeloc sendmetunes'/&gt;
+&lt;/presence&gt;
+      </pre></div>
+      <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Subscriber's server sends presence from newly-available resource to publisher's bare JID (i.e., PEP service)</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='romeo@montague.lit/orchard' to='juliet@capulet.lit'&gt;
+  &lt;c xmlns='http://jabber.org/protocol/caps'
+     node='http://www.chatopus.com/ec'
+     ver='2.1'
+     ext='sendmeloc sendmetunes'/&gt;
+&lt;/presence&gt;
+      </pre></div>
+      <p class="caption"><a name="example-9" id="example-9"></a>Example 9. PEP service sends last published item to newly-available resource</p><div class="indent"><pre class="prettyprint">
+&lt;message from='juliet@capulet.lit'
+         to='romeo@montague.lit/orchard'
+         type='headline'
+         id='foo'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='http://jabber.org/protocol/tune'&gt;
+      &lt;item&gt;
+        &lt;tune xmlns='http://jabber.org/protocol/tune'&gt;
+          &lt;artist&gt;Gerald Finzi&lt;/artist&gt;
+          &lt;length&gt;255&lt;/length&gt;
+          &lt;source&gt;Music for "Love's Labors Lost" (Suite for small orchestra)&lt;/source&gt;
+          &lt;title&gt;Introduction (Allegro vigoroso)&lt;/title&gt;
+          &lt;track&gt;1&lt;/track&gt;
+        &lt;/tune&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+  &lt;delay xmlns='urn:xmpp:delay' stamp='2003-12-13T23:58:37Z'/&gt;
+&lt;/message&gt;
+      </pre></div>
+    </div>
+  </div>
+<h2>5.
+       <a name="defaults" id="defaults">Recommended Defaults</a></h2>
+  <p class="" style="">A PEP service MUST:</p>
+  <ul class="" style="">
+    <li class="" style="">Support the node discovery, node creation, node deletion, publish item, subscribe, unsubscribe, and item retrieval use cases specified in <span class="ref">XEP-0060</span>.</li>
+    <li class="" style="">Support the "auto-create", "auto-subscribe", and "filtered-notifications" features.</li>
+    <li class="" style="">Support the "owner" and "subscriber" affiliations.</li>
+    <li class="" style="">Support the "presence" access model and set it to the default.</li>
+    <li class="" style="">Support the "open", "roster", and "whitelist" access models.</li>
+    <li class="" style="">Treat the account owner's bare JID ((&lt;localpart@domain.tld&gt; or &lt;domain.tld&gt;)) as a collection node (i.e., as the root collection node for the account's virtual pubsub service).</li>
+    <li class="" style="">Default the 'deliver_notifications' configuration option to true (i.e., deliver payloads by default).</li>
+    <li class="" style="">Default the 'send_last_published_item' configuration option to true (i.e., send the last publish item by default).</li>
+  </ul>
+  <p class="" style="">A PEP service MAY support other use cases, affiliations, access models, and features, but such support is OPTIONAL.</p>
+<h2>6.
+       <a name="disco" id="disco">Service Discovery</a></h2>
+  <div class="indent"><h3>6.1 <a name="disco-owner" id="disco-owner">Account Owner Service Discovery</a></h3>
+    <p class="" style="">Naturally, before an account owner attempts to complete any PEP use cases, its client SHOULD determine whether the account owner's server supports PEP; to do so, it MUST send a <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0030.html">Service Discovery</a></span>  [<a href="#nt-id181049">14</a>] information request to the server:</p>
+    <p class="caption"><a name="example-10" id="example-10"></a>Example 10. Account owner queries server regarding protocol support</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    to='capulet.lit'
+    id='disco1'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">If a server supports PEP, it MUST return an identity of "pubsub/pep" (as well as a list of the namespaces and other features it supports, including all supported <span class="ref">XEP-0060</span> features):</p>
+    <p class="caption"><a name="example-11" id="example-11"></a>Example 11. Server communicates protocol support</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='capulet.lit'
+    to='juliet@capulet.lit/balcony'
+    id='disco1'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity category='server' type='im'/&gt;
+    &lt;identity category='pubsub' type='pep'/&gt;
+    &lt;feature var='http://jabber.org/protocol/pubsub#access-presence'/&gt;
+    &lt;feature var='http://jabber.org/protocol/pubsub#auto-create'/&gt;
+    &lt;feature var='http://jabber.org/protocol/pubsub#auto-subscribe'/&gt;
+    &lt;feature var='http://jabber.org/protocol/pubsub#config-node'/&gt;
+    &lt;feature var='http://jabber.org/protocol/pubsub#create-and-configure'/&gt;
+    &lt;feature var='http://jabber.org/protocol/pubsub#create-nodes'/&gt;
+    &lt;feature var='http://jabber.org/protocol/pubsub#filtered-notifications'/&gt;
+    &lt;feature var='http://jabber.org/protocol/pubsub#persistent-items'/&gt;
+    &lt;feature var='http://jabber.org/protocol/pubsub#publish'/&gt;
+    &lt;feature var='http://jabber.org/protocol/pubsub#retrieve-items'/&gt;
+    &lt;feature var='http://jabber.org/protocol/pubsub#subscribe'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+  <div class="indent"><h3>6.2 <a name="disco-contact" id="disco-contact">Contact Service Discovery</a></h3>
+    <p class="" style="">A contact MAY send service discovery requests to the account owner's bare JID ((&lt;localpart@domain.tld&gt; or &lt;domain.tld&gt;)). If the contact already has a subscription to the account owner's presence, this is not necessary in order to receive notifications from the account owner via personal eventing. However, a user without a presence subscription needs to do so in order to discover if the account owner is a virtual pubsub service and to discover the account owner's eventing nodes. The relevant protocol flows are demonstrated in <span class="ref">XEP-0060</span>.</p>
+    <p class="" style="">Note: When returning disco#info results, the account owner's server MUST check the access model for each of the account owner's PEP nodes and MUST return as service discovery items only those nodes to which the contact is allowed to subscribe or from which the contact is allowed to retrieve items without first subscribing.</p>
+  </div>
+<h2>7.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <div class="indent"><h3>7.1 <a name="impl-subscriptions" id="impl-subscriptions">Cancelling Subscriptions</a></h3>
+    <p class="" style="">In order to ensure appropriate access to information published at nodes of type "presence" and "roster", a PEP service MUST re-calculate access controls when:</p>
+    <ol start="1" class="" style="">
+      <li class="" style="">A presence subscription state changes (e.g., when a subscription request is approved).</li>
+      <li class="" style="">A roster item is modified (e.g., when the item is moved to a new roster group).</li>
+    </ol>
+    <p class="" style="">If the modification results in a loss of access, the service MUST cancel the entity's subscription. In addition, the service MAY send a message to the (former) subscriber informing it of the cancellation (for information about the format of messages sent to notify subscribers of subscription cancellation, see the "Notification of Subscription Denial or Cancellation" section of <span class="ref">XEP-0060</span>).</p>
+  </div>
+<h2>8.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">A PEP service MAY enforce additional privacy and security policies when determining whether an entity is allowed to subscribe to a node or retrieve items from a node; however, any such policies shall be considered specific to an implementation or deployment and are out of scope for this document.</p>
+<h2>9.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id181242">15</a>].</p>
+<h2>10.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>10.1 <a name="registrar-disco" id="registrar-disco">Service Discovery Category/Type</a></h3>
+    <p class="" style="">The <span class="ref" style=""><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id181318">16</a>] includes a category of "pubsub" in its registry of Service Discovery identities (see &lt;<a href="http://xmpp.org/registrar/disco-categories.html">http://xmpp.org/registrar/disco-categories.html</a>&gt;); as a result of this document, the Registrar includes a type of "pep" to that category.</p>
+    <p class="" style="">The registry submission is as follows:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;category&gt;
+  &lt;name&gt;pubsub&lt;/name&gt;
+  &lt;type&gt;
+    &lt;name&gt;pep&lt;/name&gt;
+    &lt;desc&gt;
+      A personal eventing service that supports the 
+      publish-subscribe subset defined in XEP-0163.
+    &lt;/desc&gt;
+    &lt;doc&gt;XEP-0163&lt;/doc&gt;
+  &lt;/type&gt;
+&lt;/category&gt;
+    </pre></div>
+  </div>
+<h2>11.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="" style="">Because Personal Eventing via Pubsub simply reuses the protocol specified in <span class="ref">XEP-0060</span>, a separate schema is not needed.</p>
+<h2>12.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+  <p class="" style="">The authors wish to thank the participants in the XMPP Interoperability Testing Event held July 24 and 25, 2006, who provided valuable feedback that resulted in radical simplification of the protocol.</p>
+  <p class="" style="">Thanks also to the many members of the standards@xmpp.org discussion list who patiently suffered through seemingly endless discussion of the auto-create and publish-and-configure features.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0163<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Draft">Draft</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 1.1<br />
+            Last Updated: 2007-09-26<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XMPP IM, XEP-0030, XEP-0060, XEP-0115<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: pep<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0163.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0163.xml/rss.xml">RSS</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Peter Saint-Andre</h3><p class="indent">
+        Email:
+        <a href="mailto:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        JabberID: 
+        <a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        URI: 
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p><h3>Kevin Smith</h3><p class="indent">
+        Email:
+        <a href="mailto:kevin@kismith.co.uk">kevin@kismith.co.uk</a><br />
+        JabberID: 
+        <a href="xmpp:kevdadrum@jabber.ex.ac.uk">kevdadrum@jabber.ex.ac.uk</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2010 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XMPP Standards Foundation, c/o Peter Saint-Andre, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id179605" id="nt-id179605">1</a>. XEP-0080: User Geolocation &lt;<a href="http://xmpp.org/extensions/xep-0080.html">http://xmpp.org/extensions/xep-0080.html</a>&gt;.</p><p><a name="nt-id179629" id="nt-id179629">2</a>. XEP-0107: User Mood &lt;<a href="http://xmpp.org/extensions/xep-0107.html">http://xmpp.org/extensions/xep-0107.html</a>&gt;.</p><p><a name="nt-id179652" id="nt-id179652">3</a>. XEP-0108: User Activity &lt;<a href="http://xmpp.org/extensions/xep-0108.html">http://xmpp.org/extensions/xep-0108.html</a>&gt;.</p><p><a name="nt-id179674" id="nt-id179674">4</a>. XEP-0118: User Tune &lt;<a href="http://xmpp.org/extensions/xep-0118.html">http://xmpp.org/extensions/xep-0118.html</a>&gt;.</p><p><a name="nt-id179695" id="nt-id179695">5</a>. XEP-0060: Publish-Subscribe &lt;<a href="http://xmpp.org/extensions/xep-0060.html">http://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-id179617" id="nt-id179617">6</a>. Instead, many "extended presence" formats are currently sent using the &lt;presence/&gt; stanza type; unfortunately, this overloads presence, results in unnecessary presence traffic, and does not provide fine-grained control over access. The use of publish-subscribe rather than presence is therefore preferable.</p><p><a name="nt-id179723" id="nt-id179723">7</a>. RFC 3921: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc3921">http://tools.ietf.org/html/rfc3921</a>&gt;.</p><p><a name="nt-id179929" id="nt-id179929">8</a>. That may still be necessary for open access model nodes in PEP if another user does not send you presence, such as benvolio@montague.lit in our scenario.</p><p><a name="nt-id179998" id="nt-id179998">9</a>. XEP-0115: Entity Capabilities &lt;<a href="http://xmpp.org/extensions/xep-0115.html">http://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-id180239" id="nt-id180239">10</a>. This works only if the subscription state is "both" (see <span class="ref">RFC 3921</span>).</p><p><a name="nt-id180284" id="nt-id180284">11</a>. XEP-0134: XMPP Design Guidelines &lt;<a href="http://xmpp.org/extensions/xep-0134.html">http://xmpp.org/extensions/xep-0134.html</a>&gt;.</p><p><a name="nt-id180311" id="nt-id180311">12</a>. XEP-0115: Entity Capabilities &lt;<a href="http://xmpp.org/extensions/xep-0115.html">http://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-id180613" id="nt-id180613">13</a>. XEP-0033: Extended Stanza Addressing &lt;<a href="http://xmpp.org/extensions/xep-0033.html">http://xmpp.org/extensions/xep-0033.html</a>&gt;.</p><p><a name="nt-id181049" id="nt-id181049">14</a>. XEP-0030: Service Discovery &lt;<a href="http://xmpp.org/extensions/xep-0030.html">http://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id181242" id="nt-id181242">15</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id181318" id="nt-id181318">16</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 1.1 (2007-09-26)</h4><div class="indent"><p class="" style="">In accordance with XMPP Council consensus (1) explicitly defined auto-create, auto-subscribe, filtered-notifications, and last-published features, (2) moved them to XEP-0060, and (3) added appropriate references to XEP-0060 throughout; also added friendly but non-normative How It Works section and removed references to private data storage; updated to reflect changes to entity capabilities and pubsub.</p> (psa)
+    </div><h4>Version 1.0 (2006-09-20)</h4><div class="indent"><p class="" style="">Per a vote of the Jabber Council, advanced status to Draft.</p> (psa)
+    </div><h4>Version 0.15 (2006-08-30)</h4><div class="indent"><p class="" style="">Added the deliver_notifications and send_last_published_item configuration options to the recommended defaults.</p> (psa)
+    </div><h4>Version 0.14 (2006-08-02)</h4><div class="indent"><p class="" style="">Changed various recommended defaults from SHOULD to MUST; corrected several errors in the text and examples.</p> (psa)
+    </div><h4>Version 0.13 (2006-08-01)</h4><div class="indent"><p class="" style="">Recommended node creation with default configuration on initial publish; corrected several errors and clarified several points in the text.</p> (psa)
+    </div><h4>Version 0.12 (2006-08-01)</h4><div class="indent"><p class="" style="">Simplified the subscription process using XMPP presence and entity capabilities.</p> (psa)
+    </div><h4>Version 0.11 (2006-07-20)</h4><div class="indent"><p class="" style="">Clarified rules regarding number of notifications and when to generate notifications; corrected several errors in the text and examples.</p> (psa)
+    </div><h4>Version 0.10 (2006-07-07)</h4><div class="indent"><p class="" style="">Updated to reflect version 1.8 of XEP-0060.</p> (psa)
+    </div><h4>Version 0.9 (2006-06-15)</h4><div class="indent"><p class="" style="">Updated to reflect use of data forms in XEP-0060.</p> (psa)
+    </div><h4>Version 0.8 (2006-04-10)</h4><div class="indent"><p class="" style="">Clarified terminology and defaults.</p> (psa)
+    </div><h4>Version 0.7 (2006-04-10)</h4><div class="indent"><p class="" style="">Specified that notifications are to be sent from bare JID, not full JID.</p> (psa)
+    </div><h4>Version 0.6 (2006-04-10)</h4><div class="indent"><p class="" style="">Updated to reflect pubsub changes; clarified business rules for generation of notifications and cancellation of subscriptions.</p> (psa)
+    </div><h4>Version 0.5 (2006-03-09)</h4><div class="indent"><p class="" style="">Modified roster groups example to use jabber:x:data; added note about advertising client support for PEP.</p> (psa)
+    </div><h4>Version 0.4 (2006-02-02)</h4><div class="indent"><p class="" style="">Specified rules for generation of notifications, including use of presence in determining address of intended recipient for notifications and sending of last published item on receipt of presence information; changed name to Personal Eventing Protocol; specified service discovery identity of pubsub/pep; removed section on service types; added Kevin Smith as co-author.</p> (psa/ks)
+    </div><h4>Version 0.3 (2006-01-30)</h4><div class="indent"><p class="" style="">Specified that a service may enforce additional privacy and security policies; specified that an account owner must always be allowed to subscribe and to retrieve items; specified that an implementation should enforce access modifications resulting from roster state changes.</p> (psa)
+    </div><h4>Version 0.2 (2006-01-11)</h4><div class="indent"><p class="" style="">Updated to reflect proposed XEP-0060 modifications.</p> (psa)
+    </div><h4>Version 0.1 (2005-11-02)</h4><div class="indent"><p class="" style="">Initial version.</p> (psa)
+    </div><h4>Version 0.0.2 (2005-10-25)</h4><div class="indent"><p class="" style="">Added more details and examples.</p> (psa)
+    </div><h4>Version 0.0.1 (2005-10-24)</h4><div class="indent"><p class="" style="">First draft.</p> (psa)
+    </div></div><hr /><p>END</p></body></html>

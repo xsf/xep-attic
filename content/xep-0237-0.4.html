@@ -1,0 +1,292 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0237: Data Sequencing</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><meta name="DC.Title" content="Data Sequencing" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Description" content="This specification defines an XMPP extension that enables a requesting entity to receive a large data set only if the set has changed; the primary use case is sequencing of roster changes for more efficient downloading of the roster information." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2008-09-17" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0237" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright (c) 1999 - 2009 by the XMPP Standards Foundation (XSF)." /></head><body><h1>XEP-0237: Data Sequencing</h1><p>Copyright (c) 1999 - 2009 <a href="http://xmpp.org/">XMPP Standards Foundation</a>. See <a href="#appendix-legal">Legal Notices</a>.</p><hr /><p>This specification defines an XMPP extension that enables a requesting entity to receive a large data set only if the set has changed; the primary use case is sequencing of roster changes for more efficient downloading of the roster information.</p><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems should not deploy implementations of this protocol until it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#format">Data Format</a><br />3.  <a href="#roster">Use With Rosters</a><br />   
+      3.1.  <a href="#roster-get">Roster Get</a><br />   
+      3.2.  <a href="#roster-unchanged">Roster Is Unchanged</a><br />   
+      3.3.  <a href="#roster-changed">Roster Has Changed</a><br />   
+      3.4.  <a href="#roster-push">Subsequent Roster Pushes</a><br />4.  <a href="#disco">Use With Service Discovery</a><br />   
+      4.1.  <a href="#disco-get">Items Request</a><br />   
+      4.2.  <a href="#disco-unchanged">Disco Items Are Unchanged</a><br />   
+      4.3.  <a href="#disco-changed">Disco Items Have Changed</a><br />   
+      4.4.  <a href="#disco-notify">Subsequent Notifications</a><br />5.  <a href="#support">Determining Support</a><br />   
+      5.1.  <a href="#support-stream">Stream Feature</a><br />   
+      5.2.  <a href="#support-disco">Service Discovery</a><br />6.  <a href="#security">Security Considerations</a><br />7.  <a href="#iana">IANA Considerations</a><br />8.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      8.1.  <a href="#ns">Protocol Namespaces</a><br />9.  <a href="#schemas">XML Schemas</a><br />10.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">Certain XMPP technologies can return large data sets to users (examples are rosters as specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3921">XMPP IM</a></span>  [<a href="#nt-id2254602">1</a>] and item lists as specified in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0030.html">Service Discovery</a></span>  [<a href="#nt-id2251040">2</a>]). Although <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0059.html">Result Set Management</a></span>  [<a href="#nt-id2251066">3</a>] provides a generic way to page through such data sets, it does not provide a way to learn if the data set has changed since it was last retrieved. If the client could cache the data set (e.g., the roster) and retrieve only changes to the data set, certain use cases (e.g., the login process) could be significantly streamlined. This feature might be especially valuable over low-bandwidth connections such as those common in mobile environments. This document defines a method for such streamlining, via the concept of data sequencing.</p>
+<h2>2.
+       <a name="format" id="format">Data Format</a></h2>
+  <p class="" style="">This document defines a &lt;seq/&gt; element qualified by the 'urn:xmpp:tmp:seq' namespace (see <a href="#ns">Protocol Namespaces</a> regarding issuance of one or more permanent namespaces). This element can be included in any IQ request that might result in a large data set. Because only one child element is allowed in an IQ stanza, the &lt;seq/&gt; element MUST be included as a child of the payload element (i.e., as a grandchild of the IQ stanza).</p>
+  <p class="" style="">The &lt;seq/&gt; element is defined as empty (except when used to advertise a <a href="#support-stream">stream feature</a>). It possesses a single attribute: 'num'.</p>
+  <p class="" style="">The value of the 'num' attribute MUST be a non-negative integer representing a strictly increasing sequence number that is increased (but not necessarily incremented-by-one) with any change to the data set.</p>
+<h2>3.
+       <a name="roster" id="roster">Use With Rosters</a></h2>
+  <div class="indent"><h3>3.1 <a name="roster-get" id="roster-get">Roster Get</a></h3>
+    <p class="" style="">If a client supports data sequencing and knows that the server does so (see <a href="#support">Determining Support</a>), it SHOULD include the &lt;seq/&gt; element in its request for the roster, where the 'num' attribute is set to the sequence number associated with its last cache of the roster.</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Roster get with sequence number</p><div class="indent"><pre>
+&lt;iq from='romeo@montague.lit/home' id='r1' to='romeo@montague.lit' type='get'&gt;
+  &lt;query xmlns='jabber:iq:roster'&gt;
+    &lt;seq xmlns='urn:xmpp:tmp:seq' num='305'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">If the client has not yet cached the roster or the cache is lost or corrupted, but the client wishes to bootstrap the use of data sequencing, it SHOULD include the &lt;seq/&gt; element with the 'num' attribute set to a value of zero (0).</p>
+    <p class="" style="">Naturally, if the client does not support data sequencing or does not wish to bootstrap use of data sequencing, it will behave like an RFC-3921-compliant client by not including the &lt;seq/&gt; element.</p>
+  </div>
+  <div class="indent"><h3>3.2 <a name="roster-unchanged" id="roster-unchanged">Roster Is Unchanged</a></h3>
+    <p class="" style="">If the roster has not changed since the version enumerated by the client, the server MUST return an empty IQ-result.</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Roster result (unchanged)</p><div class="indent"><pre>
+&lt;iq from='romeo@montague.lit' id='r1' type='result'/&gt;
+    </pre></div>
+  </div>
+  <div class="indent"><h3>3.3 <a name="roster-changed" id="roster-changed">Roster Has Changed</a></h3>
+    <p class="" style="">If the roster has changed since the version enumerated by the client, the server MUST return a &lt;query/&gt; element that includes the latest sequence number.</p>
+    <p class="" style="">The &lt;query/&gt; element MUST either contain the complete roster (including the sequence number to indicate that the roster has changed) or be empty (indicating that roster changes will be sent as interim roster pushes).</p>
+    <p class="" style="">In general, if returning the complete roster would use less bandwidth than sending individual roster pushes to the client (e.g., if the roster contains only a few items), the server SHOULD return the complete roster.</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Roster result with complete roster</p><div class="indent"><pre>
+&lt;iq from='romeo@montague.lit' id='r1' to='romeo@montague.lit/home' type='result'&gt;
+  &lt;query xmlns='jabber:iq:roster'&gt;
+    &lt;item jid='bill@shakespeare.lit' subscription='both'/&gt;
+    &lt;item jid='nurse@capulet.lit' name='Nurse' subscription='both'&gt;
+      &lt;group&gt;Servants&lt;/group&gt;
+    &lt;/item&gt;
+    &lt;seq xmlns='urn:xmpp:tmp:seq' num='317'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">However, if returning the complete roster would use more bandwidth than sending individual roster pushes to the client (e.g., if the roster contains many items, only a few of which have changed), the server SHOULD return an empty &lt;query/&gt; element, then send individual roster pushes.</p>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Roster result with no items</p><div class="indent"><pre>
+&lt;iq from='romeo@montague.lit' id='r1' to='romeo@montague.lit/home' type='result'&gt;
+  &lt;query xmlns='jabber:iq:roster'&gt;
+    &lt;seq xmlns='urn:xmpp:tmp:seq' num='317'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Interim roster pushes</p><div class="indent"><pre>
+&lt;iq from='romeo@montague.lit' id='p1' to='romeo@montague.lit/home' type='set'&gt;
+  &lt;query xmlns='jabber:iq:roster'&gt;
+    &lt;item jid='shylock@shakespeare.lit' subscription='remove'/&gt;
+    &lt;seq xmlns='urn:xmpp:tmp:seq' num='313'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+
+&lt;iq from='romeo@montague.lit' id='p2' to='romeo@montague.lit/home' type='set'&gt;
+  &lt;query xmlns='jabber:iq:roster'&gt;
+    &lt;item jid='bill@shakespeare.lit' subscription='both'/&gt;
+    &lt;seq xmlns='urn:xmpp:tmp:seq' num='317'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">The interim roster pushes can be understood as follows:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">Imagine that the client had an active presence session for the entire time between its cached roster version (in this case, 305) and the new roster version (317).</li>
+      <li class="" style="">During that time, the client might have received roster pushes related to data sequence numbers 306, 307, 310, 311, 313, 314, 315, and 317 (the sequence numbers must be strictly increasing but there is no requirement that the sequence shall be continuous).</li>
+      <li class="" style="">However, some of those roster pushes might have contained intermediate updates to the same roster item (e.g., changes in the subscription state for bill@shakespeare.lit from "none" to "to" and from "to" to "both").</li>
+      <li class="" style="">The interim roster pushes would not include all of the intermediate steps, only the final result of all changes applied while the client was in fact offline.</li>
+    </ol>
+    <p class="" style="">The client can determine when the interim roster pushes have ended by comparing the sequence number it received on the empty &lt;query/&gt; element against the sequence number it receives in roster pushes.</p>
+  </div>
+  <div class="indent"><h3>3.4 <a name="roster-push" id="roster-push">Subsequent Roster Pushes</a></h3>
+    <p class="" style="">When the server sends subsequent roster pushes to the client, it MUST include the updated data sequence number. Roster pushes MUST occur in sequence order. The sequence number contained in a roster push MUST be unique. A "change to the roster" is any addition of, update to, or removal of a roster item that would result in a roster push, including changes in subscription states, as described in <span class="ref">RFC 3921</span> or <span class="ref">rfc3921bis</span>.</p> 
+    <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Roster push</p><div class="indent"><pre>
+&lt;iq from='romeo@montague.lit' id='p3' to='romeo@montague.lit/home' type='set'&gt;
+  &lt;query xmlns='jabber:iq:roster'&gt;
+    &lt;item jid='muse@shakespeare.lit' name='The Muse' subscription='to'/&gt;
+    &lt;seq xmlns='urn:xmpp:tmp:seq' num='317'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+<h2>4.
+       <a name="disco" id="disco">Use With Service Discovery</a></h2>
+  <div class="indent"><h3>4.1 <a name="disco-get" id="disco-get">Items Request</a></h3>
+    <p class="" style="">If the requesting supports data sequencing and knows that another entity does so (see <a href="#support">Determining Support</a>), it MAY include the &lt;seq/&gt; element in its disco#items request, where the 'num' attribute is set to the sequence number associated with its last cache of the items.</p>
+    <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Items request with sequence number</p><div class="indent"><pre>
+&lt;iq from='bill@shakespeare.lit/globe'
+    id='disco2'
+    to='chat.shakespeare.lit'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#items'&gt;
+    &lt;seq xmlns='urn:xmpp:tmp:seq' num='3'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">As above, if the requesting entity has not yet cached the data set (or the cache is lost or corrupted) but wishes to bootstrap the use of data sequencing, it SHOULD include the &lt;seq/&gt; element with the 'num' attribute set to a value of zero (0).</p>
+  </div>
+  <div class="indent"><h3>4.2 <a name="disco-unchanged" id="disco-unchanged">Disco Items Are Unchanged</a></h3>
+    <p class="" style="">If the set of disco items has not changed since the version enumerated by the requesting entity, the responding entity MUST return an empty IQ-result.</p>
+    <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Disco items result (unchanged)</p><div class="indent"><pre>
+&lt;iq from='chat.shakespeare.lit'
+    id='r1'
+    to='bill@shakespeare.lit/globe'
+    type='result'/&gt;
+    </pre></div>
+  </div>
+  <div class="indent"><h3>4.3 <a name="disco-changed" id="disco-changed">Disco Items Have Changed</a></h3>
+    <p class="" style="">If the set of disco items has changed since the version enumerated by the client, the server MUST return a &lt;query/&gt; element that includes the latest sequence number.</p>
+    <p class="" style="">The &lt;query/&gt; element MUST either contain the complete set of items (including the sequence number to indicate that the set has changed) or be empty (indicating that changes will be sent as notifications as specified in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0230.html">Service Discovery Notifications</a></span>  [<a href="#nt-id2251409">4</a>]).</p>
+    <p class="" style="">In general, if returning the complete set of items would use less bandwidth than sending individual notifications (e.g., if the set contains only a few items), the server SHOULD return the complete set.</p>
+    <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Disco items result with complete set</p><div class="indent"><pre>
+&lt;iq from='chat.shakespeare.lit'
+    id='disco2'
+    to='bill@shakespeare.lit/globe'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#items'&gt;
+    &lt;item jid='heath@chat.shakespeare.lit'
+          name='A Lonely Heath'/&gt;
+    &lt;item jid='darkcave@chat.shakespeare.lit'
+          name='A Dark Cave'/&gt;
+    &lt;item jid='forres@chat.shakespeare.lit'
+          name='The Palace'/&gt;
+    &lt;item jid='inverness@chat.shakespeare.lit'
+          name='Macbeth&amp;apos;s Castle'/&gt;
+    &lt;seq xmlns='urn:xmpp:tmp:seq' num='5'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">However, if returning the complete set would use more bandwidth than sending individual notifications (e.g., if the complete set contains many items, only a few of which have changed), the server SHOULD return an empty &lt;query/&gt; element, then send individual notifications.</p>
+    <p class="caption"><a name="example-10" id="example-10"></a>Example 10. Disco items result with no items</p><div class="indent"><pre>
+&lt;iq from='chat.shakespeare.lit'
+    id='disco2'
+    to='bill@shakespeare.lit/globe'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#items'&gt;
+    &lt;seq xmlns='urn:xmpp:tmp:seq' num='5'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="caption"><a name="example-11" id="example-11"></a>Example 11. Interim notifications</p><div class="indent"><pre>
+&lt;message from='chat.shakespeare.lit' to='bill@shakespeare.lit' id='foo'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='http://jabber.org/protocol/disco#items'&gt;
+      &lt;item id='ae890ac52d0df67ed7cfdf51b644e901'&gt;
+        &lt;item xmlns='http://jabber.org/protocol/disco#items'
+              jid='henry-the-fifth@chat.shakespeare.lit'&gt;
+          &lt;seq xmlns='urn:xmpp:tmp:seq' num='4'/&gt;
+        &lt;/item&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+
+&lt;message from='chat.shakespeare.lit' to='bill@shakespeare.lit' id='bar'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='http://jabber.org/protocol/disco#items'&gt;
+      &lt;retract id='fa890ca52d0df67de7fcfd51b644c701'&gt;
+        &lt;item xmlns='http://jabber.org/protocol/disco#items'
+              jid='cardenio@chat.shakespeare.lit'&gt;
+          &lt;seq xmlns='urn:xmpp:tmp:seq' num='5'/&gt;
+        &lt;/item&gt;
+      &lt;/retract&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+    </pre></div>
+    <p class="" style="">The client can determine when the interim notifications have ended by comparing the sequence number it received on the empty &lt;query/&gt; element against the sequence number it receives in the notifications.</p>
+  </div>
+  <div class="indent"><h3>4.4 <a name="disco-notify" id="disco-notify">Subsequent Notifications</a></h3>
+    <p class="" style="">When the responding entity sends subsequent notifications to the requesting entity, it MUST include the updated sequence number. Notifications MUST occur in sequence order. The sequence number contained in a notification MUST be unique.</p>
+    <p class="caption"><a name="example-12" id="example-12"></a>Example 12. A subsequent notification</p><div class="indent"><pre>
+&lt;message from='chat.shakespeare.lit' to='bill@shakespeare.lit' id='baz'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='http://jabber.org/protocol/disco#items'&gt;
+      &lt;retract id='fa890ca52d0df67de7fcfd51b644c701'&gt;
+        &lt;item xmlns='http://jabber.org/protocol/disco#items'
+              jid='darkcave@chat.shakespeare.lit'&gt;
+          &lt;seq xmlns='urn:xmpp:tmp:seq' num='6'/&gt;
+        &lt;/item&gt;
+      &lt;/retract&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+    </pre></div>
+  </div>
+<h2>5.
+       <a name="support" id="support">Determining Support</a></h2>
+  <div class="indent"><h3>5.1 <a name="support-stream" id="support-stream">Stream Feature</a></h3>
+    <p class="" style="">If a server supports data sequencing, it MUST inform the connecting entity when returning stream features during the stream negotiation process; at the latest, when informing a client that resource binding is required. This is done by including a &lt;seq/&gt; element qualified by the 'urn:xmpp:tmp:seq' namespace (see <a href="#ns">Protocol Namespaces</a> regarding issuance of one or more permanent namespaces).</p>
+    <p class="caption"><a name="example-13" id="example-13"></a>Example 13. Stream features</p><div class="indent"><pre>
+&lt;stream:features&gt;
+  &lt;bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'&gt;
+    &lt;required/&gt;
+  &lt;/bind&gt;
+  &lt;seq xmlns='urn:xmpp:tmp:seq'&gt;
+    &lt;optional/&gt;
+  &lt;/seq&gt;
+&lt;/stream:features&gt;
+    </pre></div>
+  </div>
+  <div class="indent"><h3>5.2 <a name="support-disco" id="support-disco">Service Discovery</a></h3>
+    <p class="" style="">In order for an application to determine whether an entity supports this protocol, where possible it SHOULD use the dynamic, presence-based profile of service discovery defined in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0115.html">Entity Capabilities</a></span>  [<a href="#nt-id2262116">5</a>]. However, if an application has not received entity capabilities information from an entity, it SHOULD use explicit service discovery instead.</p>
+  </div>
+<h2>6.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">It is possible that caching of data sets (rather than holding them in memory only for the life of the session) could introduce new vulnerabilities. Implementations are advised to appropriately protect cached data sets.</p>
+<h2>7.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id2262178">6</a>].</p> 
+<h2>8.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>8.1 <a name="ns" id="ns">Protocol Namespaces</a></h3>
+    <p class="" style="">Until this specification advances to a status of Draft, the associated namespace for its stream feature shall be "urn:xmpp:tmp:seq". Upon advancement of this specification, the <span class="ref" style=""><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id2262271">7</a>] shall issue a permanent namespace in accordance with the process defined in Section 4 of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function</a></span>  [<a href="#nt-id2262245">8</a>]; the requested namespace is "urn:xmpp:seq", which is thought to be unique per the XMPP Registrar's requirements.</p>
+  </div>
+<h2>9.
+       <a name="schemas" id="schemas">XML Schemas</a></h2>
+  <p class="caption"></p><div class="indent"><pre>
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:tmp:seq'
+    xmlns='urn:xmpp:tmp:seq'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='seq'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:choice minOccurs='0'&gt;
+        &lt;xs:element name='optional' type='empty' minOccurs='0'/&gt;
+        &lt;xs:element name='required' type='empty' minOccurs='0'/&gt;
+      &lt;/xs:choice&gt;
+      &lt;xs:attribute name='num' type='xs:string' use='optional'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+  </pre></div>
+<h2>10.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+  <p class="" style="">Thanks to Dave Cridland, Richard Dobson, Fabio Forno, Alexander Gnauck, Juha Hartikainen, Joe Hildebrand, Justin Karneges, and Pedro Melo for their comments.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://www.xmpp.org/extensions/">XEP</a><br />
+            Number: 0237<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.4<br />
+            Last Updated: 2008-09-17<br />
+                Approving Body: <a href="http://www.xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XMPP IM<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0237.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0237.xml/rss.xml">RSS</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Peter Saint-Andre</h3><p class="indent">
+        JabberID: 
+        <a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        URI: 
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright (c) 1999 - 2009 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. In no event shall the XMPP Standards Foundation or the authors of this Specification be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising out of the use or inability to use the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which may be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XSF, P.O. Box 1641, Denver, CO 80201 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata may be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id2254602" id="nt-id2254602">1</a>. RFC 3921: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc3921">http://tools.ietf.org/html/rfc3921</a>&gt;.</p><p><a name="nt-id2251040" id="nt-id2251040">2</a>. XEP-0030: Service Discovery &lt;<a href="http://xmpp.org/extensions/xep-0030.html">http://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id2251066" id="nt-id2251066">3</a>. XEP-0059: Result Set Management &lt;<a href="http://xmpp.org/extensions/xep-0059.html">http://xmpp.org/extensions/xep-0059.html</a>&gt;.</p><p><a name="nt-id2251409" id="nt-id2251409">4</a>. XEP-0230: Service Discovery Notifications &lt;<a href="http://xmpp.org/extensions/xep-0230.html">http://xmpp.org/extensions/xep-0230.html</a>&gt;.</p><p><a name="nt-id2262116" id="nt-id2262116">5</a>. XEP-0115: Entity Capabilities &lt;<a href="http://xmpp.org/extensions/xep-0115.html">http://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-id2262178" id="nt-id2262178">6</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id2262271" id="nt-id2262271">7</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id2262245" id="nt-id2262245">8</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><div class="indent"><h4>Version 0.4 (2008-09-17)</h4><div class="indent"><p class="" style="">Defined new namespace and generalized to handle service discovery and other use cases in addition to rosters.</p> (psa)
+    </div><h4>Version 0.3 (2008-04-21)</h4><div class="indent"><p class="" style="">Defined protocol solely in terms of full rosters and roster pushes (no more roster diffs); added implementation notes; clarified server behavior if cached version is unavailable.</p> (psa)
+    </div><h4>Version 0.2 (2008-03-06)</h4><div class="indent"><p class="" style="">Renamed to data sequencing; clarified server behavior.</p> (psa)
+    </div><h4>Version 0.1 (2008-03-05)</h4><div class="indent"><p class="" style="">Initial published version; per Council consensus, removed optionality regarding semantics of the version attribute.</p> (psa)
+    </div><h4>Version 0.0.3 (2008-03-05)</h4><div class="indent"><p class="" style="">Corrected semantics of version attribute (should be a strictly increasing sequence number but may be any unique identifier).</p> (psa)
+    </div><h4>Version 0.0.2 (2008-03-04)</h4><div class="indent"><p class="" style="">Clarified description of roster diff; added diff attribute and specified its use in roster results; specified use of version attribute in roster pushes.</p> (psa)
+    </div><h4>Version 0.0.1 (2008-03-04)</h4><div class="indent"><p class="" style="">First draft.</p> (psa)
+    </div></div><hr /><p>END</p></body></html>

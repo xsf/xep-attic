@@ -1,0 +1,248 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0383: Burner JIDs</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Burner JIDs" /><meta name="DC.Creator" content="Sam Whited" /><meta name="DC.Description" content="&#10;    A mechanism by which users may request anonymous, ephemeral &quot;burner&quot; JIDs.&#10;  " /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2016-12-07" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0383" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2016 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0383: Burner JIDs</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>
+    A mechanism by which users may request anonymous, ephemeral "burner" JIDs.
+  </td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Sam Whited</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2016 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2016-12-07</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#glossary">Glossary</a><br />3.  <a href="#usecases">Use Cases</a><br />4.  <a href="#rules">Business Rules</a><br />5.  <a href="#support">Determining Support</a><br />6.  <a href="#impl">Implementation Notes</a><br />7.  <a href="#security">Security Considerations</a><br />8.  <a href="#iana">IANA Considerations</a><br />9.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      9.1.  <a href="#registrar-disco">Service Discovery Category/Type</a><br />   
+      9.2.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      9.3.  <a href="#registrar-versioning">Namespace Versioning</a><br />10.  <a href="#schema">XML Schema</a><br />11.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p>
+    In many XMPP applications it is desirable to be able to act anonymously to
+    prevent leaking personally identifiable information (PII) to a third party.
+    Traditionally this is accomplished using SASL authentication and the
+    ANONYMOUS mechanism as detailed in <span class="ref"><a href="http://xmpp.org/extensions/xep-0175.html">Best Practices for Use of SASL ANONYMOUS (XEP-0175)</a></span>  [<a href="#nt-idp737920">1</a>], however, the ANONYMOUS
+    mechanism is in reality an authorization mechanism and does not provide
+    authentication of users.
+  </p>
+  <p>
+    This specification solves these problems by decoupling anonymous identity
+    management from authentication (auth) and authorization (authz).
+    This allows logged in users (authenticated or anonymous at the server
+    operators disgression) to request a new temporary identifier, a "burner"
+    JID, which may be used by its owner to construct a new session with the
+    server that is authorized to communicate anonymously with third parties and
+    is (optionally) locally authenticated.
+  </p>
+<h2>2.
+       <a name="glossary" id="glossary">Glossary</a></h2>
+  <div class="indent"><dl>
+    <di>
+      <dt><strong>Burner JID</strong></dt>
+      <dd>
+        A temporary JID that is not valid for the purpose of authentication but
+        which may be authorized by an existing pre-authenticated session.
+      </dd>
+    </di>
+    <di>
+      <dt><strong>Ephemeral identity</strong></dt>
+      <dd>
+        The identity of a user on the server comprising a burner JID and any
+        other associated data.
+      </dd>
+    </di>
+    <di>
+      <dt><strong>Authentication identity</strong></dt>
+      <dd>
+        The users normal identity and JID which they use to authenticate with
+        the server and create new XMPP sessions.
+      </dd>
+    </di>
+  </dl></div>
+<h2>3.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <ul>
+    <li>
+      As a user concerned about spam I want to join a public chat room
+      anonymously to prevent JID harvesting.
+    </li>
+    <li>
+      As the author of a social website I want to allow users to create
+      ephemeral identities which can be used to contact them even if they have
+      not granted access to their personal information.
+    </li>
+    <li>
+      As a server operator I want to allow users to act anonymously, but also
+      want a way to rate limit the creation of ephemeral identities associated
+      with a given authentication identity.
+    </li>
+  </ul>
+<h2>4.
+       <a name="rules" id="rules">Business Rules</a></h2>
+  <p>
+    The user requests an ephemeral identity from the server or another XMPP
+    service by sending an IQ containing an "identity" payload qualified by the
+    urn:xmpp:burner:0 namespace.
+  </p>
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. User requests ephemeral identity</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='caiusmarcius@example.net/corioli'
+    id='h7ns81g'
+    to='example.net'
+    type='get'&gt;
+  &lt;identity xmlns='urn:xmpp:burner:0'/&gt;
+&lt;/iq&gt;</pre></div>
+  <p>
+    If the service wishes to issue an ephemeral identity to the user it replies
+    with a new burner JID:
+  </p>
+  <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Server issues burner JID</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='example.net'
+    id='h7ns81g'
+    to='caiusmarcius@example.net/corioli'
+    type='result'&gt;
+  &lt;identity xmlns='urn:xmpp:burner:0'&gt;
+    &lt;jid&gt;
+      hfgnINTSA-ciCLz6NhTtCD5Jr0k:1477672278884j@example.net
+    &lt;/jid&gt;
+  &lt;/identity&gt;
+&lt;/iq&gt;</pre></div>
+  <p>
+    The burner JID MUST be a bare JID.
+    Burner JIDs are not valid for the purpose of authentication, but may be
+    authorized to perform actions.
+    To use the burner JID the client then attempts to establish a new session
+    with the server using the account that requested the burner JID as the
+    authentication identity and the burner JID as the authorization identity as
+    defined in <span class="ref"><a href="http://tools.ietf.org/html/rfc4422">RFC 4422</a></span>  [<a href="#nt-idp621744">2</a>] §2. If the server does not support SASL, or does
+    not support any SASL mechanisms that support authorization identities,
+    burner JIDs cannot be used.
+  </p>
+<h2>5.
+       <a name="support" id="support">Determining Support</a></h2>
+  <p>
+    Services that support issuing burner JIDs MUST advertise the fact in
+    responses to <span class="ref"><a href="http://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idp625712">3</a>] "disco#info" requests by returning an identity of
+    "authz/ephemeral":
+  </p>
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Service responds to disco#info query</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result'
+    from='muc.example.net'
+    to='caiusmarcius@example.net/corioli'
+    id='k3hs5174'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity type='im' name='MyServer' category='server'/&gt;
+    &lt;identity type='pep' name='MyServer' category='pubsub'/&gt;
+    &lt;identity type='ephemeral' category='authz'/&gt;
+    …
+    &lt;feature var='http://jabber.org/protocol/disco#info'/&gt;
+    &lt;feature var='http://jabber.org/protocol/disco#items'/&gt;
+    &lt;feature var='http://jabber.org/protocol/muc'/&gt;
+    …</pre></div>
+<h2>6.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <p>
+    It may be impractical to store verification information for every burner JID
+    issued by the system.
+    To this end servers that implement this specification MAY choose to encode
+    information into the localpart of issued burner JIDs which can be verified
+    when a user attempts to authorize a new session to use the burner JID.
+    If an implementation chooses to do this it is RECOMMENDED that an
+    <span class="ref"><a href="http://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf">HMAC</a></span>  [<a href="#nt-idp635312">4</a>] be used.
+    This HMAC MAY include the JID of the associated authentication identity, an
+    expiration or issued time for the burner JID, session information, TLS
+    channel binding data, or any other information the server wishes to verify.
+    The format of this key or its input values is left as an implementation
+    decision.
+  </p>
+  <p>
+    As with persistent JIDs, the client MUST NOT assign any meaning to the
+    localpart or resourcepart of a burner JID.
+  </p>
+<h2>7.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p>
+    To prevent burner JIDs from being abused for spamming, implementations
+    SHOULD rate limit all burner JIDs in use by an authentication identity as a
+    single unit.
+  </p>
+  <p>
+    If TLS channel binding information is encoded in the burner JID it is
+    RECOMMENDED that the tls-unique channel binding value be used as defined by
+    <span class="ref"><a href="http://tools.ietf.org/html/rfc5929">RFC 5929</a></span>  [<a href="#nt-idp633168">5</a>] §3.
+    However, for resumed sessions the JIDs SHOULD be considered invalid unless
+    the master-secret fix from <span class="ref"><a href="http://tools.ietf.org/html/rfc7627">RFC 7627</a></span>  [<a href="#nt-idp638416">6</a>] has been implemented because otherwise
+    resumption does not include enough context to successfully verify the
+    binding.
+  </p>
+  <p>
+    Implementations that choose to encode information in the localpart of burner
+    JIDs should take care when choosing a hash function.
+    For current recommendations see <span class="ref"><a href="http://xmpp.org/extensions/xep-0300.html">Use of Cryptographic Hash Functions in XMPP (XEP-0300)</a></span>  [<a href="#nt-idp641712">7</a>].
+  </p>
+<h2>8.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p>This docment requires no interaction with the the <span class="ref"><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idp643568">8</a>].</p>
+<h2>9.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>9.1 <a name="registrar-disco" id="registrar-disco">Service Discovery Category/Type</a></h3>
+    <p>
+      Upon advancement of this proposal from experimental to draft status the
+      <span class="ref"><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idp1558496">9</a>] will include a category of "authz" in its registry at
+      &lt;<a href="http://xmpp.org/registrar/disco-categories.html">http://xmpp.org/registrar/disco-categories.html</a>&gt;.
+      The registrar will also add a value of "ephemeral" to that category.
+      The registry submission is as follows:
+    </p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;category&gt;
+  &lt;name&gt;authz&lt;/name&gt;
+  &lt;desc&gt;Services and nodes that provide authorization identities.&lt;/desc&gt;
+  &lt;type&gt;
+    &lt;name&gt;ephemeral&lt;/name&gt;
+    &lt;desc&gt;
+      An authorization service that provides ephemeral identities.
+    &lt;/desc&gt;
+    &lt;doc&gt;XEP-0383&lt;/doc&gt;
+  &lt;/type&gt;
+&lt;/category&gt;
+</pre></div>
+    <p>
+      Future submissions to the XMPP Registrar may register additional types.
+    </p>
+  </div>
+  <div class="indent"><h3>9.2 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p>This specification defines the following XML namespaces:</p>
+    <ul>
+      <li>urn:xmpp:burner:0</li>
+    </ul>
+    <p>
+      Upon advancement of this proposal from experimental to draft status the
+      registrar will include the foregoing namespaces in its registry at
+      &lt;<a href="http://xmpp.org/registrar/namespaces.html">http://xmpp.org/registrar/namespaces.html</a>&gt; as governed by <span class="ref"><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idp1566976">10</a>].
+    </p>
+    <p></p>
+  </div>
+  <div class="indent"><h3>9.3 <a name="registrar-versioning" id="registrar-versioning">Namespace Versioning</a></h3>
+    <p>If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+<h2>10.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p>TODO.</p>
+<h2>11.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+  <p>The author wishes to thank Philipp Hancke for his feedback.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0383<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2016-12-07<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, RFC 4422<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: burner<br />
+              Source Control: 
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0383.xml">HTML</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0383.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0383.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Sam Whited</h3><p class="indent">
+        Email:
+        <a href="mailto:sam@samwhited.com">sam@samwhited.com</a><br />
+        JabberID: 
+        <a href="xmpp:sam@samwhited.com">sam@samwhited.com</a><br />
+        URI: 
+        <a href="https://blog.samwhited.com/">https://blog.samwhited.com/</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2016 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/">http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="http://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idp737920" id="nt-idp737920">1</a>. XEP-0175: Best Practices for Use of SASL ANONYMOUS &lt;<a href="http://xmpp.org/extensions/xep-0175.html">http://xmpp.org/extensions/xep-0175.html</a>&gt;.</p><p><a name="nt-idp621744" id="nt-idp621744">2</a>. RFC 4422: Simple Authentication and Security Layer (SASL) &lt;<a href="http://tools.ietf.org/html/rfc4422">http://tools.ietf.org/html/rfc4422</a>&gt;.</p><p><a name="nt-idp625712" id="nt-idp625712">3</a>. XEP-0030: Service Discovery &lt;<a href="http://xmpp.org/extensions/xep-0030.html">http://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idp635312" id="nt-idp635312">4</a>. The Keyed-Hash Message Authentication Code (HMAC): Federal Information Processing Standards Publication 198-1 &lt;<a href="http://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf">http://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf</a>&gt;.</p><p><a name="nt-idp633168" id="nt-idp633168">5</a>. RFC 5929: Channel Bindings for TLS &lt;<a href="http://tools.ietf.org/html/rfc5929">http://tools.ietf.org/html/rfc5929</a>&gt;.</p><p><a name="nt-idp638416" id="nt-idp638416">6</a>. RFC 7627: Transport Layer Security (TLS) Session Hash and Extended Master Secret Extension &lt;<a href="http://tools.ietf.org/html/rfc7627">http://tools.ietf.org/html/rfc7627</a>&gt;.</p><p><a name="nt-idp641712" id="nt-idp641712">7</a>. XEP-0300: Use of Cryptographic Hash Functions in XMPP &lt;<a href="http://xmpp.org/extensions/xep-0300.html">http://xmpp.org/extensions/xep-0300.html</a>&gt;.</p><p><a name="nt-idp643568" id="nt-idp643568">8</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idp1558496" id="nt-idp1558496">9</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idp1566976" id="nt-idp1566976">10</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2016-12-07)</h4><div class="indent"><p>Initial version approved by the council.</p> (XEP Editor: ssw)
+    </div></div><hr /><p>END</p></body></html>

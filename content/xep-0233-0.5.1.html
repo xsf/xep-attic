@@ -1,0 +1,143 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0233: XMPP Server Registration for use with Kerberos V5</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="XMPP Server Registration for use with Kerberos V5" /><meta name="DC.Creator" content="Matthew Miller" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Creator" content="Joe Hildebrand" /><meta name="DC.Creator" content="Mili Verma" /><meta name="DC.Description" content="This specification defines the Kerberos principal name of an XMPP server. It also details a method by which a connecting client can determine this Kerberos principal name when authenticating using the &quot;GSSAPI&quot; SASL mechanism." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2017-03-03" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0233" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2017 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0233: XMPP Server Registration for use with Kerberos V5</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines the Kerberos principal name of an XMPP server. It also details a method by which a connecting client can determine this Kerberos principal name when authenticating using the "GSSAPI" SASL mechanism.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Matthew Miller, Peter Saint-Andre, Joe Hildebrand, Mili Verma</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2017 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Proposed</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.5.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2017-03-03</td></tr></table><hr /><p style="color:red">NOTICE: This document is currently within Last Call or under consideration by the XMPP Council for advancement to the next stage in the XSF standards process.
+            The Last Call ends on 2017-03-01.
+            
+            Please send your feedback to the <a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a> discussion list.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#hostname">Client Determination of Hostname</a><br />3.  <a href="#principal">Kerberos Principal Name in the GSS-API environment</a><br />4.  <a href="#windows">Kerberos Principal Name in the Microsoft SSPI environment</a><br />5.  <a href="#interop">Interoperability between GSS-API and SSPI</a><br />6.  <a href="#examples">Examples</a><br />7.  <a href="#security">Security Considerations</a><br />8.  <a href="#iana">IANA Considerations</a><br />9.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      9.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      9.2.  <a href="#registrar-versioning">Protocol Versioning</a><br />10.  <a href="#schema">XML Schema</a><br />11.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p>The Kerberos Network Authentication Service (V5) is described in <span class="ref"><a href="http://tools.ietf.org/html/rfc4120">RFC 4120</a></span>  [<a href="#nt-idp630032">1</a>]. An application can call the Kerberos library through the Generic Security Services Application Programming Interface (GSS-API) described in <span class="ref"><a href="http://tools.ietf.org/html/rfc4121">RFC 4121</a></span>  [<a href="#nt-idp645328">2</a>] or the proprietary Microsoft Windows Security Service Provider Interface (SSPI).</p>
+  <p>The Simple Authentication and Security Layer or SASL (<span class="ref"><a href="http://tools.ietf.org/html/rfc4422">RFC 4422</a></span>  [<a href="#nt-idp632640">3</a>]) is a framework for adding authentication support to connection-based protocols. The SASL mechanism used in environments that make use of Kerberos V5 is called "GSSAPI" and is described in <span class="ref"><a href="http://tools.ietf.org/html/rfc4752">RFC 4752</a></span>  [<a href="#nt-idp635120">4</a>]. Note that the <span class="ref">RFC 4121</span> API has a hyphen and the SASL mechanism does not.</p>
+  <p>Before using the "GSSAPI" SASL mechanism to authenticate to an XMPP server (which is referred to as the "acceptor" in Kerberos terminology), a connecting client needs to obtain a Kerberos ticket from the Key Distribution Centre (KDC). For this the client needs to determine the Kerberos principal name of the XMPP server. This scenario was not addressed in <span class="ref"><a href="http://tools.ietf.org/html/rfc3920">RFC 3920</a></span>  [<a href="#nt-idp643408">5</a>] or <span class="ref"><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idp639664">6</a>].</p>
+  <p>This specification sets out the rules that must be followed when registering the Kerberos principal name of an XMPP server. It also details how a client can determine the hostname of the XMPP server which can then be used to construct the Kerberos principal name.</p>
+<h2>2.
+       <a name="hostname" id="hostname">Client Determination of Hostname</a></h2>
+  <p>An XMPP client will initiate a connection to the XMPP server.</p>
+  <p>The XMPP server will communicate its hostname in a child element of the &lt;mechanisms/&gt; element during SASL negotation, as allowed by <span class="ref">RFC 6120</span> (see Section 6.3.5 and the schema for the 'urn:ietf:params:xml:ns:xmpp-sasl' namespace in Appendix A.4).</p>
+  <p>This child element is &lt;hostname/&gt; qualified by the 'urn:xmpp:domain-based-name:1' namespace. (see <a href="#ns">Protocol Namespaces</a> regarding issuance of one or more permanent namespaces).</p>
+  <p>The XML character data of the &lt;hostname/&gt; element specifies the fully-qualified name of the XMPP server. This should be used for constructing the Kerberos principal name and is independent of the usual rules that an XMPP client uses for establishing a network connection to the XMPP server which may use insecure DNS queries (also see <span class="ref"><a href="http://tools.ietf.org/html/rfc4120">RFC 4120</a></span>  [<a href="#nt-idp630032">1</a>]).</p>
+<h2>3.
+       <a name="principal" id="principal">Kerberos Principal Name in the GSS-API environment</a></h2>
+  <p>When the XMPP server is implemented using GSS-API, the domain-based service name (<span class="ref"><a href="http://tools.ietf.org/html/rfc5178">RFC 5178</a></span>  [<a href="#nt-idp1601200">7</a>], <span class="ref"><a href="http://tools.ietf.org/html/rfc5179">RFC 5179</a></span>  [<a href="#nt-idp1596992">8</a>]) is used as the Kerberos principal name. Domain-based service names contain a domain name in addition to a hostname. This allows naming clustered servers after the domain which they service.</p>
+  <p>The domain-based service name is mapped to the Kerberos principal name following the format specified in <span class="ref">RFC 5179</span> (i.e., "service/hostname/domain@REALM") and setting the values as follows:</p>
+  <ul>
+    <li>The <span class="strong">service</span> string MUST be "xmpp".</li>
+    <li>The <span class="strong">hostname</span> string MUST be the hostname of the XMPP server, as provided by the server in the XML character data of the &lt;hostname/&gt; element during SASL negotiation.</li>
+    <li>The <span class="strong">domain</span> string MUST be the canonical name of the service. This is typically communicated by the client in the 'to' address of the initial stream header.</li>
+    <li>The <span class="strong">REALM</span> string SHOULD be determined according to the network policies in effect (usually the domain name, in an uppercase mapping).</li>
+  </ul>
+<h2>4.
+       <a name="windows" id="windows">Kerberos Principal Name in the Microsoft SSPI environment</a></h2>
+  <p>Microsoft Windows provides the proprietary SSPI to support the "GSSAPI" SASL mechanism. This section describes the Windows equivalent of the domain-based service name for an XMPP server.</p>
+  <p>In the Microsoft Windows environment, the concept of Service Principal Name (SPN) is used, which is specified in <a href="https://msdn.microsoft.com/en-us/library/ms677601%28v=vs.85%29.aspx">https://msdn.microsoft.com/en-us/library/ms677601%28v=vs.85%29.aspx</a>. This format ("service class/host:port/service name") is similar to the one specified in <span class="ref">RFC 5179</span>. The SPN can be generated by setting the values as follows:</p>
+  <ul>
+    <li>The <span class="strong">service class</span> string MUST be "xmpp".</li>
+    <li>The <span class="strong">host</span> string MUST be the hostname of the XMPP server, as provided by the server in the XML character data of the &lt;hostname/&gt; element during SASL negotiation.</li>
+    <li>The <span class="strong">port</span> is optional. It can be used to differentiate between multiple XMPP servers on a single host computer and should be omitted if the XMPP server uses the default port of 5222 for accepting client connections.</li>
+    <li>The <span class="strong">service name</span> string MUST be the canonical name of the service. This is typically communicated by the client in the 'to' address of the initial stream header.</li>
+  </ul>
+<h2>5.
+       <a name="interop" id="interop">Interoperability between GSS-API and SSPI</a></h2>
+  <p>The goal of this section is to help developers of applications so that clients and servers implemented over SSPI can interoperate with servers and clients implemented over GSS-API.</p>
+  <p>Interoperability is achieved by the GSS-API system joining the Windows Active Directory domain or by having a cross-realm trust between the KDCs of the GSS-API and SSPI systems.</p>
+  <p>The SPN of the SSPI server does not specify a realm. A GSS-API client constucts the Kerberos principal name according to the rules in the GSS-API environment and adds a realm to the Kerberos principal name, but the Kerberos principal name is mapped to the correct XMPP server on SSPI.</p>
+  <p>When the server uses GSS-API, the SPN for the server needs to be created in the SSPI environment. The SPN constructed by the SSPI client according to the rules in the SSPI environment is then mapped to the correct GSS-API XMPP server.</p>
+  <p>The domain-based service name of GSS-API does not specify a port, so the port option of the SPN in SSPI should only be used in testing scenarios when both the XMPP client and the XMPP server are implemented using SSPI. The port SHOULD NOT be used in any other scenarios.</p>
+  <p>So in effect, whether an endpoint uses SSPI or GSS-API does not affect interoperability as long as the port in SSPI is not used.</p>
+<h2>6.
+       <a name="examples" id="examples">Examples</a></h2>
+  <p>Consider the example of an XMPP service "example.com" offered by the XMPP server located on the host "auth42.us.example.com", using the default port of 5222 for accepting client connections. When a client connects to the XMPP server, the server communicates its hostname along with supported SASL mechanisms as follows:</p>
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Communicating the hostname</p><div class="indent"><pre class="prettyprint">
+&lt;mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'&gt;
+  &lt;mechanism&gt;GSSAPI&lt;/mechanism&gt;
+  &lt;mechanism&gt;DIGEST-MD5&lt;/mechanism&gt;
+  &lt;hostname xmlns='urn:xmpp:domain-based-name:1'&gt;auth42.us.example.com&lt;/hostname&gt;
+&lt;/mechanisms&gt;
+</pre></div>
+  <p>To use the "GSSAPI" SASL mechanism, the client needs to determine the Kerberos principal name of the XMPP server, which will be:</p>
+  <ul>
+    <li>the domain-based service name "xmpp/auth42.us.example.com/example.com@EXAMPLE.COM" if the client is using GSS-API.</li>
+    <li>the SPN "xmpp/auth42.us.example.com/example.com" if the client is using SSPI.</li>
+  </ul>
+<h2>7.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p>The communication of the XMPP server's hostname during SASL negotiation is not known to introduce new security vulnerabilities, as long as it is done after the underlying channel has been secured using Transport Layer Security (TLS; <span class="ref"><a href="http://tools.ietf.org/html/rfc5246">RFC 5246</a></span>  [<a href="#nt-idp1624800">9</a>]) as described for XMPP in <span class="ref">RFC 6120</span>. For additional security considerations, refer to <span class="ref">RFC 5178</span> and <span class="ref">RFC 5179</span>.</p>
+<h2>8.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p>This document requires no interaction with the <span class="ref"><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idp1634576">10</a>].</p>
+<h2>9.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>9.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p>This specification defines the following XML namespace:</p>
+    <ul>
+      <li>urn:xmpp:domain-based-name:1</li>
+    </ul>
+    <p>Upon advancement of this specification from a status of Experimental to a status of Draft, the <span class="ref"><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idp1636752">11</a>] shall add the foregoing namespace to the registry located at &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref"><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idp1640432">12</a>].</p>
+  </div>
+  <div class="indent"><h3>9.2 <a name="registrar-versioning" id="registrar-versioning">Protocol Versioning</a></h3>
+    <p>If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+<h2>10.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:domain-based-name:1'
+    xmlns='urn:xmpp:domain-based-name:1'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='hostname' type='xs:string'/&gt;
+
+&lt;/xs:schema&gt;
+</pre></div>
+<h2>11.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+  <p>Thanks to Owen Friel, Shane Hannon, Seamus Kerrigan, Eliot Lear, Alexey Melnikov, Klaas Wierenga, and Dave Cridland for their comments.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0233<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Proposed">Proposed</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.5.1<br />
+            Last Updated: 2017-03-03<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, RFC 5178, RFC 5179<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: kerberos5<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0233.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0233.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0233.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Matthew Miller</h3><p class="indent">
+        Email:
+        <a href="mailto:linuxwolf@outer-planes.net">linuxwolf@outer-planes.net</a><br />
+        JabberID:
+        <a href="xmpp:linuxwolf@outer-planes.net">linuxwolf@outer-planes.net</a><br /></p><h3>Peter Saint-Andre</h3><p class="indent">
+        Email:
+        <a href="mailto:peter@andyet.net">peter@andyet.net</a><br />
+        JabberID:
+        <a href="xmpp:stpeter@stpeter.im">stpeter@stpeter.im</a><br />
+        URI:
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p><h3>Joe Hildebrand</h3><p class="indent">
+        Email:
+        <a href="mailto:jhildebr@cisco.com">jhildebr@cisco.com</a><br />
+        JabberID:
+        <a href="xmpp:hildjj@jabber.org">hildjj@jabber.org</a><br /></p><h3>Mili Verma</h3><p class="indent">
+        Email:
+        <a href="mailto:mili.verma@isode.com">mili.verma@isode.com</a><br />
+        JabberID:
+        <a href="xmpp:mili.verma@isode.com">mili.verma@isode.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2017 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="http://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idp630032" id="nt-idp630032">1</a>. RFC 4120: The Kerberos Network Authentication Service (V5) &lt;<a href="http://tools.ietf.org/html/rfc4120">http://tools.ietf.org/html/rfc4120</a>&gt;.</p><p><a name="nt-idp645328" id="nt-idp645328">2</a>. RFC 4121: The Kerberos Version 5 Generic Security Service Application Program Interface (GSS-API) Mechanism: Version 2 &lt;<a href="http://tools.ietf.org/html/rfc4121">http://tools.ietf.org/html/rfc4121</a>&gt;.</p><p><a name="nt-idp632640" id="nt-idp632640">3</a>. RFC 4422: Simple Authentication and Security Layer (SASL) &lt;<a href="http://tools.ietf.org/html/rfc4422">http://tools.ietf.org/html/rfc4422</a>&gt;.</p><p><a name="nt-idp635120" id="nt-idp635120">4</a>. RFC 4752: The Kerberos V5 ("GSSAPI") Simple Authentication and Security Layer (SASL) Mechanism  &lt;<a href="http://tools.ietf.org/html/rfc4752">http://tools.ietf.org/html/rfc4752</a>&gt;.</p><p><a name="nt-idp643408" id="nt-idp643408">5</a>. RFC 3920: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc3920">http://tools.ietf.org/html/rfc3920</a>&gt;.</p><p><a name="nt-idp639664" id="nt-idp639664">6</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idp1601200" id="nt-idp1601200">7</a>. RFC 5178: Generic Security Service Application Program Interface (GSS-API) Internationalization and Domain-Based Service Names and Name Type &lt;<a href="http://tools.ietf.org/html/rfc5178">http://tools.ietf.org/html/rfc5178</a>&gt;.</p><p><a name="nt-idp1596992" id="nt-idp1596992">8</a>. RFC 5179: Generic Security Service Application Program Interface (GSS-API) Domain-Based Service Names Mapping for the Kerberos V GSS Mechanism &lt;<a href="http://tools.ietf.org/html/rfc5179">http://tools.ietf.org/html/rfc5179</a>&gt;.</p><p><a name="nt-idp1624800" id="nt-idp1624800">9</a>. RFC 5246: The Transport Layer Security (TLS) Protocol Version 1.2 &lt;<a href="http://tools.ietf.org/html/rfc5246">http://tools.ietf.org/html/rfc5246</a>&gt;.</p><p><a name="nt-idp1634576" id="nt-idp1634576">10</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idp1636752" id="nt-idp1636752">11</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idp1640432" id="nt-idp1640432">12</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.5.1 (2017-03-03)</h4><div class="indent"><p>Clarified regarding insecure DNS queries.</p> (mv)
+    </div><h4>Version 0.5 (2015-10-20)</h4><div class="indent"><p>Included support for Microsoft SSPI (Mili Verma).</p> (mv)
+    </div><h4>Version 0.4 (2011-08-26)</h4><div class="indent"><p>Focused the document purely on the Kerberos use case, with the intent of handling the non-Kerberos use case in a separate specification; incremented the protocol version number to prevent confusion with deployed uses of the non-Kerberos functionality.</p> (psa)
+    </div><h4>Version 0.3 (2011-06-22)</h4><div class="indent"><p>Tightened the conformance terminology in several places; updated references.</p> (psa)
+    </div><h4>Version 0.2 (2010-06-10)</h4><div class="indent"><p>Expanded use beyond Kerberos; updated namespace; corrected schema; updated references.</p> (psa)
+    </div><h4>Version 0.1 (2008-01-30)</h4><div class="indent"><p>Initial published version.</p> (psa)
+    </div><h4>Version 0.0.2 (2007-12-11)</h4><div class="indent"><p>Corrected syntax.</p> (mm/psa)
+    </div><h4>Version 0.0.1 (2007-12-05)</h4><div class="indent"><p>First draft.</p> (mm/psa)
+    </div></div><hr /><p>END</p></body></html>

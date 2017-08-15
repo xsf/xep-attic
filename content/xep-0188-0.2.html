@@ -1,0 +1,948 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>XEP-0188: Cryptographic Design of Encrypted Sessions</title>
+<link rel="stylesheet" type="text/css" href="/xmpp.css">
+<link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+<meta name="DC.Title" content="Cryptographic Design of Encrypted Sessions">
+<meta name="DC.Creator" content="Ian Paterson">
+<meta name="DC.Description" content="This document describes the requirements and cryptographic design that underpin the XMPP protocol extensions Encrypted Sessions and Offline Encrypted Sessions.">
+<meta name="DC.Publisher" content="Jabber Software Foundation">
+<meta name="DC.Contributor" content="XMPP Extensions Editor">
+<meta name="DC.Date" content="2006-07-19">
+<meta name="DC.Type" content="XMPP Extension Protocol">
+<meta name="DC.Format" content="XHTML">
+<meta name="DC.Identifier" content="XEP-0188">
+<meta name="DC.Language" content="en">
+<meta name="DC.Rights" content="This XMPP Extension Protocol is copyright 1999 - 2006 by the Jabber Software Foundation (JSF) and is in full conformance with the JSF's Intellectual Property Rights Policy &lt;http://www.xmpp.org/extensions/ipr-policy.shtml&gt;. This material may be distributed only subject to the terms and conditions set forth in the Creative Commons Attribution License (&lt;http://creativecommons.org/licenses/by/2.5/&gt;).">
+</head>
+<body>
+<h1>XEP-0188: Cryptographic Design of Encrypted Sessions</h1>
+<p>This document describes the requirements and cryptographic design that underpin the XMPP protocol extensions Encrypted Sessions and Offline Encrypted Sessions.</p>
+<p><hr></p>
+<p style="color:red">WARNING: This Informational document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the Jabber Software Foundation. Implementation of the best practice or protocol profile described herein is encouraged in exploratory implementations, although production systems should not deploy implementations of this protocol until it advances to a status of Draft.</p>
+<p><hr></p>
+<h2>XEP Information</h2>
+<p class="indent">
+            Status: 
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br>
+            Type:
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#types-Informational">Informational</a><br>
+            Number: 0188<br>
+            Version: 0.2<br>
+            Last Updated: 2006-07-19<br>
+            Publishing Organization: <a href="http://www.jabber.org/jsf/">Jabber Software Foundation</a><br>
+                Approving Body: <a href="http://www.jabber.org/council/">XMPP Council</a><br>Dependencies: XMPP Core, RFC 2104<br>
+                Supersedes: None<br>
+                Superseded By: None<br>
+            Short Name: cryptoesession<br>
+              Wiki Page: &lt;<a href="http://wiki.jabber.org/index.php/Cryptographic%20Design%20of%20Encrypted%20Sessions%20(XEP-0188)">http://wiki.jabber.org/index.php/Cryptographic Design of Encrypted Sessions (XEP-0188)</a>&gt;
+            </p>
+<h2>Author Information</h2>
+<div class="indent">
+<h3>Ian Paterson</h3>
+<p class="indent">
+        Email:
+        <a href="mailto:ian.paterson@clientside.co.uk">ian.paterson@clientside.co.uk</a><br>
+        JID: 
+        <a href="xmpp:ian@zoofy.com">ian@zoofy.com</a></p>
+</div>
+<h2>Legal Notice</h2>
+<p class="indent">This XMPP Extension Protocol is copyright 1999 - 2006 by the <a href="http://www.jabber.org/jsf/">Jabber Software Foundation</a> (JSF) and is in full conformance with the JSF's Intellectual Property Rights Policy &lt;<a href="http://www.xmpp.org/extensions/ipr-policy.shtml">http://www.xmpp.org/extensions/ipr-policy.shtml</a>&gt;. This material may be distributed only subject to the terms and conditions set forth in the Creative Commons Attribution License (&lt;<a href="http://creativecommons.org/licenses/by/2.5/">http://creativecommons.org/licenses/by/2.5/</a>&gt;).</p>
+<h2>Discussion Venue</h2>
+<p class="indent">The preferred venue for discussion of this document is the Standards-JIG discussion list: &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards-jig">http://mail.jabber.org/mailman/listinfo/standards-jig</a>&gt;.</p>
+<p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the JSF-IETF list may also be appropriate (see &lt;<a href="http://mail.jabber.org/mailman/listinfo/jsf-ietf">http://mail.jabber.org/mailman/listinfo/jsf-ietf</a>&gt; for details).</p>
+<h2>Relation to XMPP</h2>
+<p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the Jabber Software Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p>
+<h2>Conformance Terms</h2>
+<p class="indent">The following keywords as used in this document are to be interpreted as described in RFC 2119: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p>
+<p><hr></p>
+<h2>Table of Contents</h2>
+<div class="indent"><dl>
+<dt>1.  <a href="#intro">Introduction</a>
+</dt>
+<dt>2.  <a href="#scope">Scope</a>
+</dt>
+<dt>3.  <a href="#approach">The Session Approach</a>
+</dt>
+<dt>4.  <a href="#personae">Dramatis Personae</a>
+</dt>
+<dt>5.  <a href="#reqs">Requirements</a>
+</dt>
+<dl>
+<dt>5.1.  <a href="#reqs-sec">Security Requirements</a>
+</dt>
+<dl>
+<dt>5.1.1.  <a href="#reqs-encrypt">Confidentiality</a>
+</dt>
+<dt>5.1.2.  <a href="#reqs-integrity">Integrity</a>
+</dt>
+<dt>5.1.3.  <a href="#reqs-replay">Replay Protection</a>
+</dt>
+<dt>5.1.4.  <a href="#reqs-forward">Perfect Forward Secrecy</a>
+</dt>
+<dt>5.1.5.  <a href="#reqs-auth">Authentication</a>
+</dt>
+<dt>5.1.6.  <a href="#reqs-id-protect">Identity Protection</a>
+</dt>
+<dt>5.1.7.  <a href="#reqs-repudiate">Repudiability</a>
+</dt>
+<dt>5.1.8.  <a href="#reqs-upgrade">Upgradability</a>
+</dt>
+</dl>
+<dt>5.2.  <a href="#reqs-xmpp">Application Requirements</a>
+</dt>
+<dl>
+<dt>5.2.1.  <a href="#reqs-generality">Generality</a>
+</dt>
+<dt>5.2.2.  <a href="#reqs-implement">Implementability</a>
+</dt>
+<dt>5.2.3.  <a href="#reqs-usable">Usability</a>
+</dt>
+<dt>5.2.4.  <a href="#reqs-efficient">Efficiency</a>
+</dt>
+<dt>5.2.5.  <a href="#reqs-flexible">Flexibility</a>
+</dt>
+<dt>5.2.6.  <a href="#reqs-usable">Interoperability</a>
+</dt>
+<dt>5.2.7.  <a href="#reqs-offline">Offline Sessions</a>
+</dt>
+<dt>5.2.8.  <a href="#reqs-offline">Object Encryption</a>
+</dt>
+</dl>
+</dl>
+<dt>6.  <a href="#foundations">Cryptographic Origins - SIGMA</a>
+</dt>
+<dl>
+<dt>6.1.  <a href="#foundations-intro">Introduction</a>
+</dt>
+<dt>6.2.  <a href="#foundations-parameters">SIGMA Parameter Descriptions</a>
+</dt>
+<dt>6.3.  <a href="#foundations-skeleton-i">SIGMA-I Overview</a>
+</dt>
+<dt>6.4.  <a href="#foundations-skeleton-r">SIGMA-R Overview</a>
+</dt>
+<dt>6.5.  <a href="#foundations-core-i">SIGMA-I Key Exchange</a>
+</dt>
+<dt>6.6.  <a href="#foundations-core-r">SIGMA-R Key Exchange</a>
+</dt>
+</dl>
+<dt>7.  <a href="#design">Cryptographic Design</a>
+</dt>
+<dl>
+<dt>7.1.  <a href="#design-parameters">ESession Parameter Descriptions</a>
+</dt>
+<dt>7.2.  <a href="#design-online-i">Online ESession-I Negotiation</a>
+</dt>
+<dt>7.3.  <a href="#design-online-r">Online ESession-R Negotiation</a>
+</dt>
+<dt>7.4.  <a href="#design-offline">Offline ESession Negotiation</a>
+</dt>
+</dl>
+<dt>8.  <a href="#sec">Security Considerations</a>
+</dt>
+<dt>9.  <a href="#iana">IANA Considerations</a>
+</dt>
+<dt>10.  <a href="#registrar">XMPP Registrar Considerations</a>
+</dt>
+<dt>11.  <a href="#acknowledgments">Acknowledgments</a>
+</dt>
+<dt><a href="#notes">Notes</a></dt>
+<dt><a href="#revs">Revision History</a></dt>
+</dl></div>
+<p><hr></p>
+<h2>1.
+       <a name="intro">Introduction</a>
+</h2>
+  <p class="" style=""><span style="font-style: italic">Note: The protocols developed according to the requirements and cryptographic design described in this document are described in <span class="ref" style="">Encrypted Sessions</span>  [<a href="#nt-id2250844">1</a>] and <span class="ref" style="">Offline Encrypted Sessions</span>  [<a href="#nt-id2250868">2</a>]. The information in those documents should be sufficient for implementors. This purely informative document is primarily for people interested in the design and analysis of those protocols.</span></p>
+  <p class="" style="">As specified in <span class="ref" style="">RFC 3920</span>  [<a href="#nt-id2251176">3</a>], XMPP is an XML streaming protocol that enables the near-real-time exchange of XML fragments between any two (or more) network endpoints. To date, the main application built on top of the core XML streaming layer is instant messaging (IM) and presence, the base extensions for which are specified in <span class="ref" style="">RFC 3921</span>  [<a href="#nt-id2251205">4</a>]. There are three first-level elements of XML streams (&lt;message/&gt;, &lt;presence/&gt;, and &lt;iq/&gt;); each of these "XML stanza" types has different semantics, which can complicate the task of defining a generalized approach to end-to-end encryption for XMPP. In addition, XML stanzas can be extended (via properly-namespaced child elements) for a wide variety of functionality.</p>
+  <p class="" style="">XMPP is a session-oriented communication technology: normally, a client authenticates with a server and maintains a long-lived connection that defines the client's XMPP session. Such stream-level sessions may be secured via channel encryption using Transport Level Security (<span class="ref" style="">RFC 2246</span>  [<a href="#nt-id2250891">5</a>]), as specified in Section 5 of <span style="font-weight: bold">RFC 3920</span>. However, there is no guarantee that all hops will implement or enforce channel encryption (or that intermediate servers are trustworthy), which makes end-to-end encryption desirable.</p>
+  <p class="" style="">The encrypted stanzas should be understood by an intermediate server only to the extent required to route them. (One complicating factor is that routing information may include not only the stanza's 'to', 'from', 'type, and 'id' attributes, but also <span class="ref" style="">Advanced Message Processing</span>  [<a href="#nt-id2250933">6</a>] extensions.)</p>
+  <p class="" style="">The session metaphor also applies to communication between endpoints: for instance, in IM applications, most instant messaging exchanges occur in bursts within limited time periods (e.g., two people may send a fairly large number of messages during a five-minute chat and then not exchange messages again for hours or even days). The XML stanzas exchanged during such a session may not be limited to &lt;message/&gt; stanzas; for instance, the session may be triggered by a change in one of the parties' presence status (e.g., changing from away to available) and the session may involve the exchange of &lt;iq/&gt; stanzas (e.g., to transfer a file as specified in <span class="ref" style="">File Transfer</span>  [<a href="#nt-id2250973">7</a>]).</p>
+  <p class="" style="">The foregoing XMPP communications exist in the context of a one-to-one communication session between two entities. However, several forms of XMPP communication exist outside the context of one-to-one communication sessions:</p>
+  <ul>
+    <li>Many-to-many sessions, such as a text conference in a chatroom as specified in <span class="ref" style="">Multi-User Chat</span>  [<a href="#nt-id2251011">8</a>].</li>
+    <li>One-to-many "broadcast", such as undirected presence stanzas sent from one user to many contacts (see <span style="font-weight: bold">RFC 3921</span>) and data syndication implemented using <span class="ref" style="">Publish-Subscribe</span>  [<a href="#nt-id2251054">9</a>].</li>
+    <li>One-to-one communications that are stored for later delivery rather than delivered immediately, such as so-called "offline messages".</li>
+  </ul>
+<h2>2.
+       <a name="scope">Scope</a>
+</h2>
+  <p class="" style="">Ideally, any technology for end-to-end encryption in XMPP could be extended to cover all the scenarios above as well as one-to-one communication sessions. However, both many-to-many sessions and one-to-many broadcast are deemed out of scope for this document.</p>
+  <p class="" style="">Offline communications are handled via a simple extension to the protocol for one-to-one sessions between two entities that are online simultaneously (see below).</p>
+<h2>3.
+       <a name="approach">The Session Approach</a>
+</h2>
+  <p class="" style="">Existing approaches to encryption of Internet communications have generally assumed that the "thing" to be encrypted has a stable identity or is best understood as a standalone object (e.g., a file or email message); the term "object encryption" well captures this assumption. Both <span class="ref" style="">Current Jabber OpenPGP Usage</span>  [<a href="#nt-id2251115">10</a>] and <span class="ref" style="">RFC 3923</span>  [<a href="#nt-id2251144">11</a>] assume that XMPP communications are more like the exchange of email messages than they are like an interactive session -- while <span style="font-weight: bold">Current Jabber OpenPGP Usage</span> uses "old-style" PGP object encryption and <span style="font-weight: bold">RFC 3923</span> uses "new-style" S/MIME object encryption, both specify the use of object encryption. </p>
+  <p class="" style="">However, because XMPP is a session-oriented communication technology, encryption schemes that are appropriate for other Internet technologies may not be appropriate for XMPP. XMPP, with its in-order delivery of XML stanzas, is able to take advantage of more secure approaches to encryption that are not feasible for less dynamic technologies (like email).</p>
+  <p class="" style="">The session-oriented nature of XMPP implies that the focus should be on "session encryption" rather than "object encryption". The paradigm for XMPP encryption should be something closer to the widely-deployed Secure Shell technology (see <span class="ref" style="">RFC 4301</span>  [<a href="#nt-id2260470">12</a>] and <span class="ref" style="">RFC 4253</span>  [<a href="#nt-id2260493">13</a>]) than to traditional encryption of files and standalone email messages.</p>
+  <p class="" style="">Therefore, this document specifies a method for encrypted sessions ("ESessions") that takes advantage of the inherent possibilities and strengths of session encryption as opposed to object encryption. The conceptual model for this approach was inspired by "off-the-record" (OTR) communication, as implemented in the Gaim encryption plugin and described in <span class="ref" style="">Off-the-Record Communication</span>  [<a href="#nt-id2260529">14</a>]. The basic concept is that of an encrypted session which acts as a secure tunnel between two endpoints. Once the tunnel is established, the content of all one-to-one XML stanzas exchanged between the endpoints will be encrypted and then transmitted within a "wrapper" protocol element.</p>
+  <p class="" style="">Note: In order to gain a thorough understanding of this document, it is recommended that the <span style="font-weight: bold">Off-the-Record Communication</span> paper is read first.</p>
+<h2>4.
+       <a name="personae">Dramatis Personae</a>
+</h2>
+  <p class="" style="">This document introduces two characters to help the reader follow the necessary exchanges:</p>
+  <ol start="1" type="">
+    <li>"Alice" is the name of the initiator of the ESession.</li>
+    <li>"Bob" is the name of the other participant in the ESession started by Alice.</li>
+  </ol>
+  <p class="" style="">While Alice and Bob are introduced as "end users", they are simply meant to be examples of Jabber entities. Any directly addressable Jabber entity may participate in an ESession.</p>
+<h2>5.
+       <a name="reqs">Requirements</a>
+</h2>
+  <div class="indent">
+<h3>5.1 <a name="reqs-sec">Security Requirements</a>
+</h3>
+    <p class="" style="">This document stipulates the following security requirements for end-to-end encryption of XMPP communications:</p>
+    <ul>
+      <li>Confidentiality</li>
+      <li>Integrity</li>
+      <li>Replay protection</li>
+      <li>Perfect forward secrecy</li>
+      <li>Authentication</li>
+      <li>Identity Protection</li>
+      <li>Repudiability</li>
+      <li>Upgradability</li>
+    </ul>
+    <p class="" style="">Each of these requirements is explained in greater depth below.</p>
+    <div class="indent">
+<h3>5.1.1 <a name="reqs-encrypt">Confidentiality</a>
+</h3>
+      <p class="" style="">The one-to-one XML stanzas exchanged between two entities MUST NOT be understandable to any other entity that might intercept the communications.</p>
+    </div>
+    <div class="indent">
+<h3>5.1.2 <a name="reqs-integrity">Integrity</a>
+</h3>
+      <p class="" style="">Alice and Bob MUST be sure that no other entity may change the content of the XML stanzas they exchange, or remove or insert stanzas into the ESession undetected.</p>
+    </div>
+    <div class="indent">
+<h3>5.1.3 <a name="reqs-replay">Replay Protection</a>
+</h3>
+      <p class="" style="">Alice or Bob MUST be able to identify and reject any communications that are copies of their previous communications resent by another entity.</p>
+    </div>
+    <div class="indent">
+<h3>5.1.4 <a name="reqs-forward">Perfect Forward Secrecy</a>
+</h3>
+      <p class="" style="">The encrypted communication MUST NOT be revealed even if long-lived keys are compromised in the future (e.g., Steve steals Bob's computer).  [<a href="#nt-id2260723">15</a>]</p>
+    </div>
+    <div class="indent">
+<h3>5.1.5 <a name="reqs-auth">Authentication</a>
+</h3>
+      <p class="" style="">Each party to a conversation MUST know that the other party is who he says he is (Alice must be able to know that Bob really is Bob, and vice versa).  [<a href="#nt-id2260748">16</a>]</p>
+    </div>
+    <div class="indent">
+<h3>5.1.6 <a name="reqs-id-protect">Identity Protection</a>
+</h3>
+      <p class="" style="">No other entity should be able to identify Alice or Bob. The JIDs they use to route their stanzas are unavoidably vulnerable to interception. However, the public keys they use SHOULD NOT be revealed to other entities using a passive attack. Bob SHOULD also be able to choose between protecting either his public key or Alice's public key from disclosure through active ("man-in-the-middle") attacks.</p>
+    </div>
+    <div class="indent">
+<h3>5.1.7 <a name="reqs-repudiate">Repudiability</a>
+</h3>
+      <p class="" style="">Alice and Bob MUST be able to repudiate any stanza that occurs within an ESession. After an ESession has finished, it SHOULD NOT be possible to <span style="font-style: italic">prove cryptographically</span> that any transcript has not been modified by a third party.  [<a href="#nt-id2260798">17</a>]</p>
+    </div>
+    <div class="indent">
+<h3>5.1.8 <a name="reqs-upgrade">Upgradability</a>
+</h3>
+      <p class="" style="">The protocol must be upgradable so that, if a vulnerability is discovered, a new version can fix it. Alice MUST tell Bob which versions of the protocol she is prepared to support. Then Bob MUST either choose one or reject the ESession.  [<a href="#nt-id2260823">18</a>]</p>
+    </div>
+  </div>
+  <div class="indent">
+<h3>5.2 <a name="reqs-xmpp">Application Requirements</a>
+</h3>
+    <p class="" style="">In addition to the foregoing security profile, this document also stipulates the following application-specific requirements for encrypted communication in the context of Jabber/XMPP technologies:</p>
+    <ul>
+      <li>Generality</li>
+      <li>Implementability</li>
+      <li>Usability</li>
+      <li>Efficiency</li>
+      <li>Flexibility</li>
+      <li>Interoperability</li>
+      <li>Offline "sessions"</li>
+      <li>Object encryption</li>
+    </ul>
+    <p class="" style="">Each of these is explained in greater depth below.</p>
+    <div class="indent">
+<h3>5.2.1 <a name="reqs-generality">Generality</a>
+</h3>
+      <p class="" style="">The solution should be generally applicable to the full content of any XML stanza type (&lt;message/&gt;, &lt;presence/&gt;, &lt;iq/&gt;) sent between two entities. It is deemed acceptable for now if the solution does not apply to many-to-many stanzas (e.g., groupchat messages sent within the context of multi-user chat) or one-to-many stanzas (e.g., presence "broadcasts" and pubsub notifications); end-to-end encryption of such stanzas may require separate solutions or extensions to the one-to-one session solution.</p>
+    </div>
+    <div class="indent">
+<h3>5.2.2 <a name="reqs-implement">Implementability</a>
+</h3>
+      <p class="" style="">The only good security technology is an implemented security technology. The solution should be one that typical client developers can implement in a relatively straightforward and interoperable fashion.</p>
+    </div>
+    <div class="indent">
+<h3>5.2.3 <a name="reqs-usable">Usability</a>
+</h3>
+      <p class="" style="">The requirement of usability takes implementability one step further by stipulating that the solution must be one that organizations may deploy and humans may use with 100% transparency (with the ease-of-use of https:). Experience has shown that: solutions requiring a full public key infrastructure do not get widely deployed, and solutions requiring any user action are not widely used. We can do better.</p>
+    </div>
+    <div class="indent">
+<h3>5.2.4 <a name="reqs-efficient">Efficiency</a>
+</h3>
+      <p class="" style="">Cryptographic operations are highly CPU intensive, particularly public key and Diffie-Hellman operations. Cryptographic data structures can be relatively large especially public keys and certificates. The solution should perform efficiently even when CPU and network bandwidth are constrained. The number of stanzas required for ESession negotiation should be minimized.</p>
+    </div>
+    <div class="indent">
+<h3>5.2.5 <a name="reqs-flexible">Flexibility</a>
+</h3>
+      <p class="" style="">The solution should be compatible with existing (and future) cryptographic algorithms and identity certification schemes (including X.509 and PGP). The protocol should also be able to evolve to correct the weaknesses that are inevitably discovered once any cryptographic protocol is in widespread use.</p>
+    </div>
+    <div class="indent">
+<h3>5.2.6 <a name="reqs-usable">Interoperability</a>
+</h3>
+      <p class="" style="">Ideally, it would be possible for an XMPP user to exchange encrypted messages (and, potentially, presence information) with users of non-XMPP messaging systems.</p>
+    </div>
+    <div class="indent">
+<h3>5.2.7 <a name="reqs-offline">Offline Sessions</a>
+</h3>
+      <p class="" style="">Ideally, it should be possible to encrypt one-to-one communications that are stored for later delivery instead of being delivered immediately, such as so-called "offline messages". However, any vulnerabilities introduced to enable offline communications must not make online communications more vulnerable.</p>
+    </div>
+    <div class="indent">
+<h3>5.2.8 <a name="reqs-offline">Object Encryption</a>
+</h3>
+      <p class="" style="">For cases where a session is not desired, it should be possible to encrypt, sign and send a single stanza in isolation, so-called "object encryption".</p>
+    </div>
+  </div>
+<h2>6.
+       <a name="foundations">Cryptographic Origins - SIGMA</a>
+</h2>
+  <div class="indent">
+<h3>6.1 <a name="foundations-intro">Introduction</a>
+</h3>
+    <p class="" style="">Authenticated key-exchange is the most challenging part of the design of any secure communication protocol. The ESessions key exchange essentially translates the <span class="ref" style="">SIGMA</span>  [<a href="#nt-id2261111">19</a>] [<a href="#nt-id2261272">20</a>] key-exchange protocol into the syntax of XMPP. The SIGMA approach to Diffie-Hellman Key Agreement (see <span class="ref" style="">RFC 2631</span>  [<a href="#nt-id2261154">21</a>]) underpins several standard key-exchange protocols including the Internet Key Exchange (IKE) protocol versions 1 and 2 (see <span class="ref" style="">RFC 2409</span>  [<a href="#nt-id2261177">22</a>] and <span class="ref" style="">RFC 4306</span>  [<a href="#nt-id2261198">23</a>]).</p>
+    <p class="" style="">Note: Although this section provides an overview of SIGMA, it is recommended that the <span style="font-weight: bold">SIGMA</span> paper is read first in order to gain a thorough understanding of this document.</p>
+    <p class="" style="">The 3-message SIGMA-I-based key exchange protects the identity of the <span style="font-style: italic">initiator</span> against active attacks. The 4-message SIGMA-R-based key exchange defends the <span style="font-style: italic">responder's</span> identity against active attacks. The differences between the two versions of the SIGMA protocol are highlighted in the diagrams below.</p>
+  </div>
+  <div class="indent">
+<h3>6.2 <a name="foundations-parameters">SIGMA Parameter Descriptions</a>
+</h3>
+    <p class="caption">Table 1: SIGMA Overview Parameters</p>
+<table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <th colspan="" rowspan="">Parameter</th>
+        <th colspan="" rowspan="">Description</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">g</td>
+        <td align="" colspan="" rowspan="">Diffie-Hellman generator</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">x, y</td>
+        <td align="" colspan="" rowspan="">Alice and Bob's private Diffie-Hellman keys</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">g<span class="super" style="">x</span>, g<span class="super" style="">y</span>
+</td>
+        <td align="" colspan="" rowspan="">Alice and Bob's public Diffie-Hellman keys</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">KS<span class="sub" style="">A</span>, KS<span class="sub" style="">B</span>
+</td>
+        <td align="" colspan="" rowspan="">The MAC keys that Alice and Bob use to calculate mac<span class="sub" style="">A</span> and mac<span class="sub" style="">B</span>
+</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pubKey<span class="sub" style="">A</span>, pubKey<span class="sub" style="">B</span>
+</td>
+        <td align="" colspan="" rowspan="">The public keys that represent the identity of Alice and Bob, and are used to verify their signatures</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">mac<span class="sub" style="">A</span>, mac<span class="sub" style="">B</span>
+</td>
+        <td align="" colspan="" rowspan="">The MAC values that associate the shared secret with the identity of Alice or Bob</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">signKey<span class="sub" style="">A</span>, signKey<span class="sub" style="">B</span>
+</td>
+        <td align="" colspan="" rowspan="">The private keys that Alice and Bob use to sign</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">sign<span class="sub" style="">A</span>, sign<span class="sub" style="">B</span>
+</td>
+        <td align="" colspan="" rowspan="">Alice's and Bob's signatures of the shared secret</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">KC<span class="sub" style="">A</span>, KC<span class="sub" style="">B</span>
+</td>
+        <td align="" colspan="" rowspan="">The cipher keys that Alice and Bob use to encrypt</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">ID<span class="sub" style="">A</span>, ID<span class="sub" style="">B</span>
+</td>
+        <td align="" colspan="" rowspan="">The encrypted parameters that identify Alice and Bob to each other</td>
+      </tr>
+    </table>
+    <p class="caption">Table 2: Key Exchange Parameters</p>
+<table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <th colspan="" rowspan="">Parameter</th>
+        <th colspan="" rowspan="">Description</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">p</td>
+        <td align="" colspan="" rowspan="">Diffie-Hellman prime</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">e, d</td>
+        <td align="" colspan="" rowspan="">Alice and Bob's public Diffie-Hellman keys (the same as g<span class="super" style="">x</span>, g<span class="super" style="">y</span>)</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">K</td>
+        <td align="" colspan="" rowspan="">Shared secret</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">HASH</td>
+        <td align="" colspan="" rowspan="">Selected hash algorithm</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>
+</td>
+        <td align="" colspan="" rowspan="">Alice and Bob's session freshness nonces (ESession IDs)</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">C<span class="sub" style="">A</span>, C<span class="sub" style="">B</span>
+</td>
+        <td align="" colspan="" rowspan="">Block cipher initial counter value for blocks sent by Alice and Bob</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">n</td>
+        <td align="" colspan="" rowspan="">Block size of selected cipher algorithm in bits</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">KM<span class="sub" style="">A</span>, KM<span class="sub" style="">B</span>
+</td>
+        <td align="" colspan="" rowspan="">The MAC keys that Alice and Bob use to protect the integrity of encrypted data</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">M<span class="sub" style="">A</span>, M<span class="sub" style="">B</span>
+</td>
+        <td align="" colspan="" rowspan="">The MAC values that Alice and Bob use to confirm the integrity of encrypted data</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="indent">
+<h3>6.3 <a name="foundations-skeleton-i">SIGMA-I Overview</a>
+</h3>
+    <p class="" style="">The diagram below demonstrates the barest cryptographic skeleton of the SIGMA-I key exchange protocol. Here Bob allows Alice to protect her identity from active attacks, by allowing her to authenticate him before she communicates her identity. Note: The cipher keys (KC<span class="sub" style="">A</span> and KC<span class="sub" style="">B</span>) are different in each direction, making this exchange slightly more conservative than <span style="font-weight: bold">SIGMA</span>.</p>
+    <pre>
+<span style="font-weight: bold">ALICE</span>                                                <span style="font-weight: bold">BOB</span> 
+                                            g<span class="super" style="">x</span>
+                                      ------------&gt;
+
+                                                     mac<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(KS<span class="sub" style="">B</span>, {g<span class="super" style="">x</span>, g<span class="super" style="">y</span>, pubKey<span class="sub" style="">B</span>})
+                                                     sign<span class="sub" style="">B</span> = <span style="font-style: italic">sign</span>(signKey<span class="sub" style="">B</span>, mac<span class="sub" style="">B</span>)
+                                                     ID<span class="sub" style="">B</span> = <span style="font-style: italic">cipher</span>(KC<span class="sub" style="">B</span>, {pubKey<span class="sub" style="">B</span>, sign<span class="sub" style="">B</span>})
+                                         g<span class="super" style="">y</span>, ID<span class="sub" style="">B</span> 
+                                      &lt;------------
+
+<span style="font-style: italic">authenticate</span>(ID<span class="sub" style="">B</span>) 
+mac<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(KS<span class="sub" style="">A</span>, {g<span class="super" style="">y</span>, g<span class="super" style="">x</span>, pubKey<span class="sub" style="">A</span>})
+sign<span class="sub" style="">A</span> = <span style="font-style: italic">sign</span>(signKey<span class="sub" style="">A</span>, mac<span class="sub" style="">A</span>)
+ID<span class="sub" style="">A</span> = <span style="font-style: italic">cipher</span>(KC<span class="sub" style="">A</span>, {pubKey<span class="sub" style="">A</span>, sign<span class="sub" style="">A</span>})
+                                            ID<span class="sub" style="">A</span>
+                                      ------------&gt;
+
+                                                     <span style="font-style: italic">authenticate</span>(ID<span class="sub" style="">A</span>)
+    </pre>
+  </div>
+
+  <div class="indent">
+<h3>6.4 <a name="foundations-skeleton-r">SIGMA-R Overview</a>
+</h3>
+    <p class="" style="">The logic of the SIGMA-R protocol is similar to the SIGMA-I protocol. The diagram below demonstrates the skeleton of the key exchange. After receiving the first message from Alice, Bob chooses to protect his identity from active attacks by by delaying communicating his identity to Alice until he has authenticated her.</p>
+    <pre>
+<span style="font-weight: bold">ALICE</span>                                                <span style="font-weight: bold">BOB</span> 
+                                            g<span class="super" style="">x</span>
+                                      ------------&gt;
+
+                                                     mac<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(KS<span class="sub" style="">B</span>, {g<span class="super" style="">x</span>, g<span class="super" style="">y</span>, pubKey<span class="sub" style="">B</span>})
+                                                     sign<span class="sub" style="">B</span> = <span style="font-style: italic">sign</span>(signKey<span class="sub" style="">B</span>, mac<span class="sub" style="">B</span>)
+                                                     ID<span class="sub" style="">B</span> = <span style="font-style: italic">cipher</span>(KC<span class="sub" style="">B</span>, {pubKey<span class="sub" style="">B</span>, sign<span class="sub" style="">B</span>})
+                                            g<span class="super" style="">y</span>
+                                      &lt;------------
+
+mac<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(KS<span class="sub" style="">A</span>, {g<span class="super" style="">y</span>, g<span class="super" style="">x</span>, pubKey<span class="sub" style="">A</span>})
+sign<span class="sub" style="">A</span> = <span style="font-style: italic">sign</span>(signKey<span class="sub" style="">A</span>, mac<span class="sub" style="">A</span>)
+ID<span class="sub" style="">A</span> = <span style="font-style: italic">cipher</span>(KC<span class="sub" style="">A</span>, {pubKey<span class="sub" style="">A</span>, sign<span class="sub" style="">A</span>})
+                                           ID<span class="sub" style="">A</span>
+                                      ------------&gt;
+
+                                                     <span style="font-style: italic">authenticate</span>(ID<span class="sub" style="">A</span>)
+                                           ID<span class="sub" style="">B</span>
+                                      &lt;------------
+
+<span style="font-style: italic">authenticate</span>(ID<span class="sub" style="">B</span>)
+    </pre>
+    <p class="" style="">Note: In practice, Bob could delay calculating ID<span class="sub" style="">B</span> until after he has authenticated ID<span class="sub" style="">A</span>.</p>
+  </div>
+
+  <div class="indent">
+<h3>6.5 <a name="foundations-core-i">SIGMA-I Key Exchange</a>
+</h3>
+    <p class="" style="">The diagram below describes exactly the same SIGMA-I key exchange protocol as the <a href="#foundations-skeleton-i">SIGMA-I skeleton</a> above. It provides much more detail, without specifying any ESession-specific details. Note: The block cipher function, <span style="font-style: italic">cipher</span>, uses CTR mode.</p>
+    <pre>
+<span style="font-weight: bold">ALICE</span>                                        <span style="font-weight: bold">BOB</span> 
+
+x = <span style="font-style: italic">random</span>()
+e = g<span class="super" style="">x</span> mod p
+N<span class="sub" style="">A</span> = <span style="font-style: italic">random</span>()
+                                 e, N<span class="sub" style="">A</span>
+                             ------------&gt;
+                                             C<span class="sub" style="">A</span> = <span style="font-style: italic">random</span>()
+                                             y = <span style="font-style: italic">random</span>()
+                                             d = g<span class="super" style="">y</span> mod p
+                                             C<span class="sub" style="">B</span> = C<span class="sub" style="">A</span> XOR 2<span class="super" style="">n-1</span> 
+                                             <span style="font-style: italic">assert</span> 1 &lt; e &lt; p-1
+                                             K = HASH(e<span class="super" style="">y</span> mod p)
+                                             KC<span class="sub" style="">A</span> = HASH(0, K)
+                                             KC<span class="sub" style="">B</span> = HASH(1, K)
+                                             KM<span class="sub" style="">A</span> = HASH(2, K)
+                                             KM<span class="sub" style="">B</span> = HASH(3, K)
+                                             KS<span class="sub" style="">A</span> = HASH(4, K)
+                                             KS<span class="sub" style="">B</span> = HASH(5, K)
+                                             N<span class="sub" style="">B</span> = <span style="font-style: italic">random</span>()
+                                             mac<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">B</span>, {N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>, d, pubKey<span class="sub" style="">B</span>, C<span class="sub" style="">A</span>})
+                                             sign<span class="sub" style="">B</span> = <span style="font-style: italic">sign</span>(signKey<span class="sub" style="">B</span>, mac<span class="sub" style="">B</span>)
+                                             ID<span class="sub" style="">B</span> = <span style="font-style: italic">cipher</span>(KC<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, {pubKey<span class="sub" style="">B</span>, sign<span class="sub" style="">B</span>})
+                                             M<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+                               d, C<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>
+                             &lt;------------
+                                ID<span class="sub" style="">B</span>, M<span class="sub" style="">B</span> 
+C<span class="sub" style="">B</span> = C<span class="sub" style="">A</span> XOR 2<span class="super" style="">n-1</span> 
+<span style="font-style: italic">assert</span> 1 &lt; d &lt; p-1
+K = HASH(d<span class="super" style="">x</span> mod p)
+KC<span class="sub" style="">A</span> = HASH(0, K)
+KC<span class="sub" style="">B</span> = HASH(1, K)
+KM<span class="sub" style="">A</span> = HASH(2, K)
+KM<span class="sub" style="">B</span> = HASH(3, K)
+KS<span class="sub" style="">A</span> = HASH(4, K)
+KS<span class="sub" style="">B</span> = HASH(5, K)
+<span style="font-style: italic">assert</span> M<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+{pubKey<span class="sub" style="">B</span>, sign<span class="sub" style="">B</span>} = <span style="font-style: italic">decipher</span>(KC<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+mac<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">B</span>, {N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>, d, pubKey<span class="sub" style="">B</span>, C<span class="sub" style="">A</span>})
+<span style="font-style: italic">verify</span>(sign<span class="sub" style="">B</span>, pubKey<span class="sub" style="">B</span>, mac<span class="sub" style="">B</span>) 
+mac<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">A</span>, {N<span class="sub" style="">B</span>, N<span class="sub" style="">A</span>, e, pubKey<span class="sub" style="">A</span>})
+sign<span class="sub" style="">A</span> = <span style="font-style: italic">sign</span>(signKey<span class="sub" style="">A</span>, mac<span class="sub" style="">A</span>)
+ID<span class="sub" style="">A</span> = <span style="font-style: italic">cipher</span>(KC<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, {pubKey<span class="sub" style="">A</span>, sign<span class="sub" style="">A</span>})
+M<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, ID<span class="sub" style="">A</span>)
+                                  ID<span class="sub" style="">A</span>
+                             ------------&gt;
+                                   M<span class="sub" style="">A</span> 
+                                             <span style="font-style: italic">assert</span> M<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, ID<span class="sub" style="">A</span>)
+                                             {pubKey<span class="sub" style="">A</span>, sign<span class="sub" style="">A</span>} = <span style="font-style: italic">decipher</span>(KC<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, ID<span class="sub" style="">A</span>)
+                                             mac<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">A</span>, {N<span class="sub" style="">B</span>, N<span class="sub" style="">A</span>, e, pubKey<span class="sub" style="">A</span>})
+                                             <span style="font-style: italic">verify</span>(sign<span class="sub" style="">A</span>, pubKey<span class="sub" style="">A</span>, mac<span class="sub" style="">A</span>)
+    </pre>
+  </div>
+
+  <div class="indent">
+<h3>6.6 <a name="foundations-core-r">SIGMA-R Key Exchange</a>
+</h3>
+    <p class="" style="">The diagram below describes exactly the same SIGMA-R key exchange protocol as the <a href="#foundations-skeleton-r">SIGMA-R skeleton</a> above. It provides much more detail, without specifying any ESession-specific details. Note: The block cipher function, <span style="font-style: italic">cipher</span>, uses CTR mode.</p>
+    <pre>
+<span style="font-weight: bold">ALICE</span>                                        <span style="font-weight: bold">BOB</span> 
+
+x = <span style="font-style: italic">random</span>()
+e = g<span class="super" style="">x</span> mod p
+N<span class="sub" style="">A</span> = <span style="font-style: italic">random</span>()
+                                 e, N<span class="sub" style="">A</span>
+                             ------------&gt;
+                                             C<span class="sub" style="">A</span> = <span style="font-style: italic">random</span>()
+                                             y = <span style="font-style: italic">random</span>()
+                                             d = g<span class="super" style="">y</span> mod p
+                                             C<span class="sub" style="">B</span> = C<span class="sub" style="">A</span> XOR 2<span class="super" style="">n-1</span> 
+                                             <span style="font-style: italic">assert</span> 1 &lt; e &lt; p-1
+                                             K = HASH(e<span class="super" style="">y</span> mod p)
+                                             KC<span class="sub" style="">A</span> = HASH(0, K)
+                                             KC<span class="sub" style="">B</span> = HASH(1, K)
+                                             KM<span class="sub" style="">A</span> = HASH(2, K)
+                                             KM<span class="sub" style="">B</span> = HASH(3, K)
+                                             KS<span class="sub" style="">A</span> = HASH(4, K)
+                                             KS<span class="sub" style="">B</span> = HASH(5, K)
+                                             N<span class="sub" style="">B</span> = <span style="font-style: italic">random</span>()
+                                             mac<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">B</span>, {N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>, d, pubKey<span class="sub" style="">B</span>, C<span class="sub" style="">A</span>})
+                                             sign<span class="sub" style="">B</span> = <span style="font-style: italic">sign</span>(signKey<span class="sub" style="">B</span>, mac<span class="sub" style="">B</span>)
+                                             ID<span class="sub" style="">B</span> = <span style="font-style: italic">cipher</span>(KC<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, {pubKey<span class="sub" style="">B</span>, sign<span class="sub" style="">B</span>})
+                                             M<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+                               d, C<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>
+                             &lt;------------
+C<span class="sub" style="">B</span> = C<span class="sub" style="">A</span> XOR 2<span class="super" style="">n-1</span> 
+<span style="font-style: italic">assert</span> 1 &lt; d &lt; p-1
+K = HASH(d<span class="super" style="">x</span> mod p)
+KC<span class="sub" style="">A</span> = HASH(0, K)
+KC<span class="sub" style="">B</span> = HASH(1, K)
+KM<span class="sub" style="">A</span> = HASH(2, K)
+KM<span class="sub" style="">B</span> = HASH(3, K)
+KS<span class="sub" style="">A</span> = HASH(4, K)
+KS<span class="sub" style="">B</span> = HASH(5, K)
+mac<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">A</span>, {N<span class="sub" style="">B</span>, N<span class="sub" style="">A</span>, e, pubKey<span class="sub" style="">A</span>})
+sign<span class="sub" style="">A</span> = <span style="font-style: italic">sign</span>(signKey<span class="sub" style="">A</span>, mac<span class="sub" style="">A</span>)
+ID<span class="sub" style="">A</span> = <span style="font-style: italic">cipher</span>(KC<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, {pubKey<span class="sub" style="">A</span>, sign<span class="sub" style="">A</span>})
+M<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, ID<span class="sub" style="">A</span>)
+                                  ID<span class="sub" style="">A</span>
+                             ------------&gt;
+                                   M<span class="sub" style="">A</span> 
+                                             <span style="font-style: italic">assert</span> M<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, ID<span class="sub" style="">A</span>)
+                                             {pubKey<span class="sub" style="">A</span>, sign<span class="sub" style="">A</span>} = <span style="font-style: italic">decipher</span>(KC<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, ID<span class="sub" style="">A</span>)
+                                             mac<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">A</span>, {N<span class="sub" style="">B</span>, N<span class="sub" style="">A</span>, e, pubKey<span class="sub" style="">A</span>})
+                                             <span style="font-style: italic">verify</span>(sign<span class="sub" style="">A</span>, pubKey<span class="sub" style="">A</span>, mac<span class="sub" style="">A</span>)
+                                  ID<span class="sub" style="">B</span>
+                             &lt;------------
+                                   M<span class="sub" style="">B</span> 
+
+<span style="font-style: italic">assert</span> M<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+{pubKey<span class="sub" style="">B</span>, sign<span class="sub" style="">B</span>} = <span style="font-style: italic">decipher</span>(KC<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+mac<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">B</span>, {N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>, d, pubKey<span class="sub" style="">B</span>, C<span class="sub" style="">A</span>})
+<span style="font-style: italic">verify</span>(sign<span class="sub" style="">B</span>, pubKey<span class="sub" style="">B</span>, mac<span class="sub" style="">B</span>)
+    </pre>
+  </div>
+<h2>7.
+       <a name="design">Cryptographic Design</a>
+</h2>
+  <p class="" style="">This section provides an overview of the full ESession key-exchange protocol from a cryptographic point of view. This protocol is based on the <span style="font-style: italic">full fledge</span> protocol, as described in Appendix B of the <span style="font-weight: bold">SIGMA</span> paper. It also uses <span style="font-style: italic">variant (ii)</span>, as described in Secion 5.4 of the same paper.</p>
+  <div class="indent">
+<h3>7.1 <a name="design-parameters">ESession Parameter Descriptions</a>
+</h3>
+    <p class="" style="">The table below describes the parameters that are not found in the <a href="#foundations-parameters">Parameter Descriptions</a> tables at the start of the previous section.</p>
+    <p class="caption">Table 3: ESession Negotiation Parameters</p>
+<table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <th colspan="" rowspan="">Parameter</th>
+        <th colspan="" rowspan="">Description</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">options</td>
+        <td align="" colspan="" rowspan="">Includes a set of possible values for each and every ESession parameter (see the ESession Request sub-section in <span style="font-weight: bold">Encrypted Sessions</span>), including sets of possible values for p, g, HASH, CIPHER, SIGN</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">chosen</td>
+        <td align="" colspan="" rowspan="">Includes a chosen value for each ESession parameter</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">CIPHER</td>
+        <td align="" colspan="" rowspan="">Selected CTR-mode block cipher algorithm</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">DECIPHER</td>
+        <td align="" colspan="" rowspan="">Selected CTR-mode block decipher algorithm (corresponds to CIPHER)</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">SIGN</td>
+        <td align="" colspan="" rowspan="">Selected signature algorithm</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">VERIFY</td>
+        <td align="" colspan="" rowspan="">The selected signature verification algorithm (corresponds to SIGN)</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">x<span class="sub" style="">1</span>...x<span class="sub" style="">Z</span>
+</td>
+        <td align="" colspan="" rowspan="">Alice's private Diffie-Hellman keys - each value corresponds to one of Z different DH groups</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">e<span class="sub" style="">1</span>...e<span class="sub" style="">Z</span>
+</td>
+        <td align="" colspan="" rowspan="">The choice of public Diffie-Hellman keys that Alice offers Bob - each value corresponds to one of Z different DH groups (and a different value of x)</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">*signKeys<span class="sub" style="">A</span>
+</td>
+        <td align="" colspan="" rowspan="">All the private keys that Alice is able to use to create signatures</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">*signs<span class="sub" style="">B</span>
+</td>
+        <td align="" colspan="" rowspan="">The set of signatures of form<span class="sub" style="">B</span> (one for each of Bob's private keys)</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">*pubKeys<span class="sub" style="">A</span>
+</td>
+        <td align="" colspan="" rowspan="">All of Alice's public keys that Bob has access to</td>
+      </tr>
+    </table>
+    <p class="" style="">* Offline negotiation only</p>
+  </div>
+  <div class="indent">
+<h3>7.2 <a name="design-online-i">Online ESession-I Negotiation</a>
+</h3>
+    <p class="" style="">Alice uses this protocol when Bob is Online. In addition to the key exchange described in the <a href="#foundations-core-i">SIGMA-I Key Exchange</a> protocol above, she offers Bob a choice of Diffie-Hellman groups with her corresponding values of e, various algorithms and other parameters.</p>
+    
+    <pre>
+<span style="font-weight: bold">ALICE</span>                                    <span style="font-weight: bold">BOB</span> 
+
+<span style="font-style: italic">for</span> g,p ∈ options
+    x = <span style="font-style: italic">random</span>()
+    e = g<span class="super" style="">x</span> mod p
+N<span class="sub" style="">A</span> = <span style="font-style: italic">random</span>()
+form<span class="sub" style="">A</span> = {e<span class="sub" style="">1</span>...e<span class="sub" style="">Z</span>, options, N<span class="sub" style="">A</span>}
+                                form<span class="sub" style="">A</span>
+                             ---------&gt;
+
+                                         chosen = {p,g,HASH,CIPHER,SIGN...} = <span style="font-style: italic">choose</span>(options)
+                                         e = <span style="font-style: italic">choose</span>(e<span class="sub" style="">1</span>...e<span class="sub" style="">Z</span>, p)
+                                         C<span class="sub" style="">A</span> = <span style="font-style: italic">random</span>()
+                                         y = <span style="font-style: italic">random</span>()
+                                         d = g<span class="super" style="">y</span> mod p
+                                         C<span class="sub" style="">B</span> = C<span class="sub" style="">A</span> XOR 2<span class="super" style="">n-1</span> 
+                                         <span style="font-style: italic">assert</span> 1 &lt; e &lt; p-1
+                                         K = HASH(e<span class="super" style="">y</span> mod p)
+                                         KC<span class="sub" style="">A</span> = HASH(0, K)
+                                         KC<span class="sub" style="">B</span> = HASH(1, K)
+                                         KM<span class="sub" style="">A</span> = HASH(2, K)
+                                         KM<span class="sub" style="">B</span> = HASH(3, K)
+                                         KS<span class="sub" style="">A</span> = HASH(4, K)
+                                         KS<span class="sub" style="">B</span> = HASH(5, K)
+                                         N<span class="sub" style="">B</span> = <span style="font-style: italic">random</span>()
+                                         form<span class="sub" style="">B</span> = {C<span class="sub" style="">A</span>, chosen, d, N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>}
+                                         mac<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">B</span>, {N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>, d, pubKey<span class="sub" style="">B</span>, form<span class="sub" style="">B</span>})
+                                         sign<span class="sub" style="">B</span> = SIGN(signKey<span class="sub" style="">B</span>, mac<span class="sub" style="">B</span>)
+                                         ID<span class="sub" style="">B</span> = CIPHER(KC<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, {pubKey<span class="sub" style="">B</span>, sign<span class="sub" style="">B</span>})
+                                         M<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+                                form<span class="sub" style="">B</span>
+                             &lt;---------
+                               ID<span class="sub" style="">B</span>, M<span class="sub" style="">B</span> 
+<span style="font-style: italic">assert</span> chosen ∈ options
+x = <span style="font-style: italic">choose</span>(x<span class="sub" style="">1</span>...x<span class="sub" style="">Z</span>, p)
+e = g<span class="super" style="">x</span> mod p
+C<span class="sub" style="">B</span> = C<span class="sub" style="">A</span> XOR 2<span class="super" style="">n-1</span> 
+<span style="font-style: italic">assert</span> 1 &lt; d &lt; p-1
+K = HASH(d<span class="super" style="">x</span> mod p)
+KC<span class="sub" style="">A</span> = HASH(0, K)
+KC<span class="sub" style="">B</span> = HASH(1, K)
+KM<span class="sub" style="">A</span> = HASH(2, K)
+KM<span class="sub" style="">B</span> = HASH(3, K)
+KS<span class="sub" style="">A</span> = HASH(4, K)
+KS<span class="sub" style="">B</span> = HASH(5, K)
+<span style="font-style: italic">assert</span> M<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+{pubKey<span class="sub" style="">B</span>, sign<span class="sub" style="">B</span>} = DECIPHER(KC<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+mac<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">B</span>, {N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>, d, pubKey<span class="sub" style="">B</span>, form<span class="sub" style="">B</span>})
+VERIFY(sign<span class="sub" style="">B</span>, pubKey<span class="sub" style="">B</span>, mac<span class="sub" style="">B</span>) 
+mac<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">A</span>, {N<span class="sub" style="">B</span>, N<span class="sub" style="">A</span>, e, pubKey<span class="sub" style="">A</span>, form<span class="sub" style="">A</span>})
+sign<span class="sub" style="">A</span> = SIGN(signKey<span class="sub" style="">A</span>, mac<span class="sub" style="">A</span>)
+ID<span class="sub" style="">A</span> = CIPHER(KC<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, {pubKey<span class="sub" style="">A</span>, sign<span class="sub" style="">A</span>})
+M<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, ID<span class="sub" style="">A</span>)
+                                 ID<span class="sub" style="">A</span>
+                             ---------&gt;
+                               N<span class="sub" style="">B</span>, M<span class="sub" style="">A</span> 
+                                         <span style="font-style: italic">assert</span> M<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, ID<span class="sub" style="">A</span>)
+                                         {pubKey<span class="sub" style="">A</span>, sign<span class="sub" style="">A</span>} = DECIPHER(KC<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, ID<span class="sub" style="">A</span>)
+                                         mac<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">A</span>, {N<span class="sub" style="">B</span>, N<span class="sub" style="">A</span>, e, pubKey<span class="sub" style="">A</span>, form<span class="sub" style="">A</span>})
+                                         VERIFY(sign<span class="sub" style="">A</span>, pubKey<span class="sub" style="">A</span>, mac<span class="sub" style="">A</span>)
+    </pre>
+  </div>
+
+  <div class="indent">
+<h3>7.3 <a name="design-online-r">Online ESession-R Negotiation</a>
+</h3>
+    <p class="" style="">This protocol is similar to the <a href="#design-online-i">Online ESession-I Negotiation</a> above, except that after receiving the first message from Alice, Bob chooses to protect his identity from active attacks (by by delaying communicating his identity to Alice until he has authenticated her).</p>
+    <pre>
+<span style="font-weight: bold">ALICE</span>                                    <span style="font-weight: bold">BOB</span> 
+
+<span style="font-style: italic">for</span> g,p ∈ options
+    x = <span style="font-style: italic">random</span>()
+    e = g<span class="super" style="">x</span> mod p
+N<span class="sub" style="">A</span> = <span style="font-style: italic">random</span>()
+form<span class="sub" style="">A</span> = {e<span class="sub" style="">1</span>...e<span class="sub" style="">Z</span>, options, N<span class="sub" style="">A</span>}
+                                form<span class="sub" style="">A</span>
+                             ---------&gt;
+
+                                         chosen = {p,g,HASH,CIPHER,SIGN...} = <span style="font-style: italic">choose</span>(options)
+                                         e = <span style="font-style: italic">choose</span>(e<span class="sub" style="">1</span>...e<span class="sub" style="">Z</span>, p)
+                                         C<span class="sub" style="">A</span> = <span style="font-style: italic">random</span>()
+                                         y = <span style="font-style: italic">random</span>()
+                                         d = g<span class="super" style="">y</span> mod p
+                                         C<span class="sub" style="">B</span> = C<span class="sub" style="">A</span> XOR 2<span class="super" style="">n-1</span> 
+                                         <span style="font-style: italic">assert</span> 1 &lt; e &lt; p-1
+                                         K = HASH(e<span class="super" style="">y</span> mod p)
+                                         KC<span class="sub" style="">A</span> = HASH(0, K)
+                                         KC<span class="sub" style="">B</span> = HASH(1, K)
+                                         KM<span class="sub" style="">A</span> = HASH(2, K)
+                                         KM<span class="sub" style="">B</span> = HASH(3, K)
+                                         KS<span class="sub" style="">A</span> = HASH(4, K)
+                                         KS<span class="sub" style="">B</span> = HASH(5, K)
+                                         N<span class="sub" style="">B</span> = <span style="font-style: italic">random</span>()
+                                         form<span class="sub" style="">B</span> = {C<span class="sub" style="">A</span>, chosen, d, N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>}
+                                         mac<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">B</span>, {N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>, d, pubKey<span class="sub" style="">B</span>, form<span class="sub" style="">B</span>})
+                                         sign<span class="sub" style="">B</span> = SIGN(signKey<span class="sub" style="">B</span>, mac<span class="sub" style="">B</span>)
+                                         ID<span class="sub" style="">B</span> = CIPHER(KC<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, {pubKey<span class="sub" style="">B</span>, sign<span class="sub" style="">B</span>})
+                                         M<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+
+                                form<span class="sub" style="">B</span>
+                             &lt;---------
+<span style="font-style: italic">assert</span> chosen ∈ options
+x = <span style="font-style: italic">choose</span>(x<span class="sub" style="">1</span>...x<span class="sub" style="">Z</span>, p)
+e = g<span class="super" style="">x</span> mod p
+C<span class="sub" style="">B</span> = C<span class="sub" style="">A</span> XOR 2<span class="super" style="">n-1</span> 
+<span style="font-style: italic">assert</span> 1 &lt; d &lt; p-1
+K = HASH(d<span class="super" style="">x</span> mod p)
+KC<span class="sub" style="">A</span> = HASH(0, K)
+KC<span class="sub" style="">B</span> = HASH(1, K)
+KM<span class="sub" style="">A</span> = HASH(2, K)
+KM<span class="sub" style="">B</span> = HASH(3, K)
+KS<span class="sub" style="">A</span> = HASH(4, K)
+KS<span class="sub" style="">B</span> = HASH(5, K)
+mac<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">A</span>, {N<span class="sub" style="">B</span>, N<span class="sub" style="">A</span>, e, pubKey<span class="sub" style="">A</span>, form<span class="sub" style="">A</span>})
+sign<span class="sub" style="">A</span> = SIGN(signKey<span class="sub" style="">A</span>, mac<span class="sub" style="">A</span>)
+ID<span class="sub" style="">A</span> = CIPHER(KC<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, {pubKey<span class="sub" style="">A</span>, sign<span class="sub" style="">A</span>})
+M<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, ID<span class="sub" style="">A</span>)
+                                 ID<span class="sub" style="">A</span>
+                             ---------&gt;
+                               N<span class="sub" style="">B</span>, M<span class="sub" style="">A</span> 
+                                        <span style="font-style: italic">assert</span> M<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, ID<span class="sub" style="">A</span>)
+                                        {pubKey<span class="sub" style="">A</span>, sign<span class="sub" style="">A</span>} = DECIPHER(KC<span class="sub" style="">A</span>, C<span class="sub" style="">A</span>, ID<span class="sub" style="">A</span>)
+                                        mac<span class="sub" style="">A</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">A</span>, {N<span class="sub" style="">B</span>, N<span class="sub" style="">A</span>, e, pubKey<span class="sub" style="">A</span>, form<span class="sub" style="">A</span>})
+                                        VERIFY(sign<span class="sub" style="">A</span>, pubKey<span class="sub" style="">A</span>, mac<span class="sub" style="">A</span>)
+                                 ID<span class="sub" style="">B</span>
+                             &lt;---------
+                               N<span class="sub" style="">A</span>, M<span class="sub" style="">B</span> 
+
+<span style="font-style: italic">assert</span> M<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+{pubKey<span class="sub" style="">B</span>, sign<span class="sub" style="">B</span>} = DECIPHER(KC<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+mac<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">B</span>, {N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>, d, pubKey<span class="sub" style="">B</span>, form<span class="sub" style="">B</span>})
+VERIFY(sign<span class="sub" style="">B</span>, pubKey<span class="sub" style="">B</span>, mac<span class="sub" style="">B</span>)
+    </pre>
+  </div>
+
+  <div class="indent">
+<h3>7.4 <a name="design-offline">Offline ESession Negotiation</a>
+</h3>
+    <p class="" style="">Bob uses this protocol to send stanzas to Alice when she is Offline. Note: Since the full <span style="font-weight: bold">SIGMA</span> protocol cannot be used if Alice is offline, her identity is not protected.</p>
+    <p class="" style="">The diagram is split into three phases. First Alice publishes her ESession options before going offline. Later Bob completes the key exchange (and sends her encrypted stanzas that are not shown below) these are all stored by Alice's server. Finally when Alice comes online again she verifies and calculates the decryption key.</p>
+    <p class="" style="">The differences between this offline protocol and the <a href="#design-online-i">Online ESession-I Negotiation</a> protocol above are highlighted in the diagram below.</p>
+    <pre>
+<span style="font-weight: bold">ALICE</span>                    <span style="font-weight: bold">ALICE'S SERVER</span>              <span style="font-weight: bold">BOB</span> 
+
+<span style="font-style: italic">for</span> g,p ∈ options
+    x = <span style="font-style: italic">random</span>()
+    e = g<span class="super" style="">x</span> mod p
+N<span class="sub" style="">A</span> = <span style="font-style: italic">random</span>()
+form<span class="sub" style="">A</span> = {e<span class="sub" style="">1</span>...e<span class="sub" style="">Z</span>, options, N<span class="sub" style="">A</span>}
+signs<span class="sub" style="">A</span> = <span style="font-style: italic">multi_sign</span>(signKeys<span class="sub" style="">A</span>, form<span class="sub" style="">A</span>)
+<span style="font-style: italic">store</span>(N<span class="sub" style="">A</span>, x<span class="sub" style="">1</span>...x<span class="sub" style="">Z</span>, expireTime)
+                   form<span class="sub" style="">A</span>
+                 --------&gt;
+                   signs<span class="sub" style="">A</span> 
+
+                         <span style="font-style: italic">store</span>(form<span class="sub" style="">A</span>, signs<span class="sub" style="">A</span>)
+---------------------------------------------------------------------------------------------------------
+                         <span style="font-style: italic">retrieve</span>(form<span class="sub" style="">A</span>, signs<span class="sub" style="">A</span>)
+
+                                             form<span class="sub" style="">A</span>
+                                           --------&gt;
+                                             signs<span class="sub" style="">A</span> 
+
+                                                     <span style="font-style: italic">verify_one</span>(signs<span class="sub" style="">A</span>, pubKeys<span class="sub" style="">A</span>, form<span class="sub" style="">A</span>)
+                                                     chosen = {p,g,HASH,CIPHER,SIGN...} = <span style="font-style: italic">choose</span>(options)
+                                                     e = <span style="font-style: italic">choose</span>(e<span class="sub" style="">1</span>...e<span class="sub" style="">Z</span>, p)
+                                                     C<span class="sub" style="">A</span> = <span style="font-style: italic">random</span>()
+                                                     y = <span style="font-style: italic">random</span>()
+                                                     d = g<span class="super" style="">y</span> mod p
+                                                     C<span class="sub" style="">B</span> = C<span class="sub" style="">A</span> XOR 2<span class="super" style="">n-1</span> 
+                                                     <span style="font-style: italic">assert</span> 1 &lt; e &lt; p-1
+                                                     K = HASH(e<span class="super" style="">y</span> mod p)
+                                                     KC<span class="sub" style="">A</span> = HASH(0, K)
+                                                     KC<span class="sub" style="">B</span> = HASH(1, K)
+                                                     KM<span class="sub" style="">A</span> = HASH(2, K)
+                                                     KM<span class="sub" style="">B</span> = HASH(3, K)
+                                                     KS<span class="sub" style="">A</span> = HASH(4, K)
+                                                     KS<span class="sub" style="">B</span> = HASH(5, K)
+                                                     N<span class="sub" style="">B</span> = <span style="font-style: italic">random</span>()
+                                                     form<span class="sub" style="">B</span> = {C<span class="sub" style="">A</span>, chosen, d, N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>}
+                                                     mac<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">B</span>, {N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>, d, pubKey<span class="sub" style="">B</span>, form<span class="sub" style="">B</span>})
+                                                     sign<span class="sub" style="">B</span> = SIGN(signKey<span class="sub" style="">B</span>, mac<span class="sub" style="">B</span>)
+                                                     ID<span class="sub" style="">B</span> = CIPHER(KC<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, {pubKey<span class="sub" style="">B</span>, sign<span class="sub" style="">B</span>})
+                                                     M<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+
+                                             form<span class="sub" style="">B</span>
+                                           &lt;--------
+                                            ID<span class="sub" style="">B</span>, M<span class="sub" style="">B</span> 
+
+                         <span style="font-style: italic">store</span>(form<span class="sub" style="">B</span>,ID<span class="sub" style="">B</span>,M<span class="sub" style="">B</span>)
+---------------------------------------------------------------------------------------------------------
+                         <span style="font-style: italic">retrieve</span>(form<span class="sub" style="">B</span>,ID<span class="sub" style="">B</span>,M<span class="sub" style="">B</span>) 
+                   form<span class="sub" style="">B</span>
+                 &lt;--------
+                  ID<span class="sub" style="">B</span>, M<span class="sub" style="">B</span> 
+
+<span style="font-style: italic">retrieve</span>(N<span class="sub" style="">A</span>, x<span class="sub" style="">1</span>...x<span class="sub" style="">Z</span>, expireTime) 
+<span style="font-style: italic">assert</span> now &lt; expireTime
+<span style="font-style: italic">assert</span> chosen ∈ options
+x = <span style="font-style: italic">choose</span>(x<span class="sub" style="">1</span>...x<span class="sub" style="">Z</span>, p)
+e = g<span class="super" style="">x</span> mod p
+C<span class="sub" style="">B</span> = C<span class="sub" style="">A</span> XOR 2<span class="super" style="">n-1</span> 
+<span style="font-style: italic">assert</span> 1 &lt; d &lt; p-1
+K = HASH(d<span class="super" style="">x</span> mod p)
+KC<span class="sub" style="">A</span> = HASH(0, K)
+KC<span class="sub" style="">B</span> = HASH(1, K)
+KM<span class="sub" style="">A</span> = HASH(2, K)
+KM<span class="sub" style="">B</span> = HASH(3, K)
+KS<span class="sub" style="">A</span> = HASH(4, K)
+KS<span class="sub" style="">B</span> = HASH(5, K)
+<span style="font-style: italic">assert</span> M<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KM<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+{pubKey<span class="sub" style="">B</span>, sign<span class="sub" style="">B</span>} = DECIPHER(KC<span class="sub" style="">B</span>, C<span class="sub" style="">B</span>, ID<span class="sub" style="">B</span>)
+mac<span class="sub" style="">B</span> = <span style="font-style: italic">HMAC</span>(HASH, KS<span class="sub" style="">B</span>, {N<span class="sub" style="">A</span>, N<span class="sub" style="">B</span>, d, pubKey<span class="sub" style="">B</span>, form<span class="sub" style="">B</span>})
+VERIFY(sign<span class="sub" style="">B</span>, pubKey<span class="sub" style="">B</span>, mac<span class="sub" style="">B</span>)
+    </pre>
+    <p class="" style="">Note: KM<span class="sub" style="">B</span> is necessary only to allow Bob to terminate the ESession if he comes online before Alice terminates it. The calculation of KC<span class="sub" style="">B</span> and KS<span class="sub" style="">B</span> is not strictly necessary.</p>
+  </div>
+<h2>8.
+       <a name="sec">Security Considerations</a>
+</h2>
+  <p class="" style="">The security considerations are described in <span style="font-weight: bold">Encrypted Sessions</span> and <span style="font-weight: bold">Offline Encrypted Sessions</span>.</p>
+<h2>9.
+       <a name="iana">IANA Considerations</a>
+</h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style="">Internet Assigned Numbers Authority (IANA)</span>  [<a href="#nt-id2269210">24</a>]. </p>
+<h2>10.
+       <a name="registrar">XMPP Registrar Considerations</a>
+</h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style="">XMPP Registrar</span>  [<a href="#nt-id2269254">25</a>].</p>
+<h2>11.
+       <a name="acknowledgments">Acknowledgments</a>
+</h2>
+  <p class="" style="">The author would like to thank Ian Goldberg for the time he spent reviewing this protocol and for his invaluable suggestions and comments.</p>
+<p><hr></p>
+<a name="notes"></a><h2>Notes</h2>
+<div class="indent">
+<p><a name="nt-id2250844">1</a>. XEP-0116: Encrypted Sessions &lt;<a href="http://www.xmpp.org/extensions/xep-0116.html">http://www.xmpp.org/extensions/xep-0116.html</a>&gt;.</p>
+<p><a name="nt-id2250868">2</a>. XEP-0187: Offline Encrypted Sessions &lt;<a href="http://www.xmpp.org/extensions/xep-0187.html">http://www.xmpp.org/extensions/xep-0187.html</a>&gt;.</p>
+<p><a name="nt-id2251176">3</a>. RFC 3920: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://www.ietf.org/rfc/rfc3920.txt">http://www.ietf.org/rfc/rfc3920.txt</a>&gt;.</p>
+<p><a name="nt-id2251205">4</a>. RFC 3921: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://www.ietf.org/rfc/rfc3921.txt">http://www.ietf.org/rfc/rfc3921.txt</a>&gt;.</p>
+<p><a name="nt-id2250891">5</a>. RFC 2246: The TLS Protocol Version 1.0 &lt;<a href="http://www.ietf.org/rfc/rfc2246.txt">http://www.ietf.org/rfc/rfc2246.txt</a>&gt;.</p>
+<p><a name="nt-id2250933">6</a>. XEP-0079: Advanced Message Processing &lt;<a href="http://www.xmpp.org/extensions/xep-0079.html">http://www.xmpp.org/extensions/xep-0079.html</a>&gt;.</p>
+<p><a name="nt-id2250973">7</a>. XEP-0096: File Transfer &lt;<a href="http://www.xmpp.org/extensions/xep-0096.html">http://www.xmpp.org/extensions/xep-0096.html</a>&gt;.</p>
+<p><a name="nt-id2251011">8</a>. XEP-0045: Multi-User Chat &lt;<a href="http://www.xmpp.org/extensions/xep-0045.html">http://www.xmpp.org/extensions/xep-0045.html</a>&gt;.</p>
+<p><a name="nt-id2251054">9</a>. XEP-0060: Publish-Subscribe &lt;<a href="http://www.xmpp.org/extensions/xep-0060.html">http://www.xmpp.org/extensions/xep-0060.html</a>&gt;.</p>
+<p><a name="nt-id2251115">10</a>. XEP-0027: Current Jabber OpenPGP Usage &lt;<a href="http://www.xmpp.org/extensions/xep-0027.html">http://www.xmpp.org/extensions/xep-0027.html</a>&gt;.</p>
+<p><a name="nt-id2251144">11</a>. RFC 3923: End-to-End Signing and Object Encryption for the Extensible Messaging and Presence Protocol (XMPP) &lt;<a href="http://www.ietf.org/rfc/rfc3923.txt">http://www.ietf.org/rfc/rfc3923.txt</a>&gt;.</p>
+<p><a name="nt-id2260470">12</a>. RFC 4301: Security Architecture for the Internet Protocol &lt;<a href="http://www.ietf.org/rfc/rfc4301.txt">http://www.ietf.org/rfc/rfc4301.txt</a>&gt;.</p>
+<p><a name="nt-id2260493">13</a>. RFC 4253: The Secure Shell (SSH) Transport Layer Protocol &lt;<a href="http://www.ietf.org/rfc/rfc4253.txt">http://www.ietf.org/rfc/rfc4253.txt</a>&gt;.</p>
+<p><a name="nt-id2260529">14</a>. Off-the-Record Communication, or, Why Not to Use PGP &lt;<a href="http://www.isaac.cs.berkeley.edu/~iang/pubs/otr-wpes.pdf">http://www.isaac.cs.berkeley.edu/~iang/pubs/otr-wpes.pdf</a>&gt;.</p>
+<p><a name="nt-id2260723">15</a>. Long-lived keys are typically used for a few years, whereas Offline ESession keys are destroyed as soon as the stanza is decrypted - they typically exist for just a few hours. So Perfect Forward Secrecy should significantly enhance the security even of Offline ESessions.</p>
+<p><a name="nt-id2260748">16</a>. The reliable association between an entity and its public keys is beyond the scope of this document.</p>
+<p><a name="nt-id2260798">17</a>. Naturally, it is possible that Alice or Bob may retain cleartext versions of the exchanged communications; however, that threat is out of scope for this document.</p>
+<p><a name="nt-id2260823">18</a>. It is exceptionally difficult to design a truly secure authenticated key-exchange protocol. Weaknesses are often only discovered after years of expert cryptographic analysis. In many cases, only the widespread use of a protocol will motivate experts to undertake exhaustive analyses and recommend enhancements.</p>
+<p><a name="nt-id2261111">19</a>. SIGMA: the 'SIGn-and-MAc' Approach to Authenticated Diffie-Hellman and its Use in the IKE Protocols (Hugo Krawczyk, June 12 2003) &lt;<a href="http://web.archive.org/web/20040409013835/http://www.ee.technion.ac.il/~hugo/sigma.ps">http://www.ee.technion.ac.il/~hugo/sigma.ps</a>&gt;.</p>
+<p><a name="nt-id2261272">20</a>. Like <span style="font-weight: bold">RFC 2409</span>, this protocol uses <span style="font-style: italic">variant (ii)</span>, as described in Secion 5.4 of the <span style="font-weight: bold">SIGMA</span> paper.</p>
+<p><a name="nt-id2261154">21</a>. RFC 2631: Diffie-Hellman Key Agreement Method &lt;<a href="http://www.ietf.org/rfc/rfc2631.txt">http://www.ietf.org/rfc/rfc2631.txt</a>&gt;.</p>
+<p><a name="nt-id2261177">22</a>. RFC 2409: The Internet Key Exchange (IKE) &lt;<a href="http://www.ietf.org/rfc/rfc2409.txt">http://www.ietf.org/rfc/rfc2409.txt</a>&gt;.</p>
+<p><a name="nt-id2261198">23</a>. RFC 4306: Internet Key Exchange (IKEv2) Protocol &lt;<a href="http://www.ietf.org/rfc/rfc4306.txt">http://www.ietf.org/rfc/rfc4306.txt</a>&gt;.</p>
+<p><a name="nt-id2269210">24</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p>
+<p><a name="nt-id2269254">25</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the Jabber Software Foundation. For further information, see &lt;<a href="http://www.xmpp.org/registrar/">http://www.xmpp.org/registrar/</a>&gt;.</p>
+</div>
+<p><hr></p>
+<a name="revs"></a><h2>Revision History</h2>
+<div class="indent">
+<h4>Version 0.2 (2006-07-19)</h4>
+<div class="indent">
+<p class="" style="">Removed public key IDs from Offline options</p> (ip)
+    </div>
+<h4>Version 0.1 (2006-07-18)</h4>
+<div class="indent">
+<p class="" style="">Initial version (extracted from XEP-0116 version 0.9).</p> (ip)
+    </div>
+</div>
+<p><hr></p>
+<p>END</p>
+</body>
+</html>

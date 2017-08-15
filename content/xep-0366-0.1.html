@@ -1,0 +1,591 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0366: Entity Versioning</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Entity Versioning" /><meta name="DC.Creator" content="Sam Whited" /><meta name="DC.Creator" content="Doug Keen" /><meta name="DC.Description" content="&#10;    A method by which lists of items may be versioned so that servers will not&#10;    need to send the entire list if it has not been modified, saving bandwidth&#10;    and time with minimal state being stored by the server and client.&#10;  " /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2015-12-15" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0366" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2016 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0366: Entity Versioning</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>
+    A method by which lists of items may be versioned so that servers will not
+    need to send the entire list if it has not been modified, saving bandwidth
+    and time with minimal state being stored by the server and client.
+  </td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Sam Whited, Doug Keen</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2016 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2015-12-15</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#glossary">Glossary</a><br />4.  <a href="#use_cases">Use Cases</a><br />   
+      4.1.  <a href="#client_use_cases">Clients</a><br />   
+      4.2.  <a href="#server_use_cases">Servers</a><br />5.  <a href="#profiles">Entity Versioning Profiles</a><br />6.  <a href="#disco">Discovering Support</a><br />7.  <a href="#entity_sync">Entity Sync</a><br />   
+      7.1.  <a href="#version_tokens">Version Tokens</a><br />   
+      7.2.  <a href="#deletes">Cache Invalidation</a><br />   
+      7.3.  <a href="#sect-idp553840">Partial sync</a><br />   
+      7.4.  <a href="#sect-idp1540880">List search</a><br />   
+      7.5.  <a href="#agg_tokens">Aggregate Tokens</a><br />8.  <a href="#impl">Implementation Notes</a><br />9.  <a href="#security">Security Considerations</a><br />10.  <a href="#iana">IANA Considerations</a><br />11.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      11.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      11.2.  <a href="#registrar-versioning">Namespace Versioning</a><br />   
+      11.3.  <a href="#registrar-ev">Entity Versioning Profiles Registry</a><br />   
+      11.4.  <a href="#registrar-evprofile">Entity Versioning Profiles</a><br />12.  <a href="#schema">XML Schema</a><br />13.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p>
+    This problem of "downloading the world" (downloading the entire roster
+    every time a session is initialized or receiving an entire disco items
+    response every time a MUC list is queried, etc.) was partially addressed by
+    <span class="ref"><a href="http://xmpp.org/extensions/xep-0237.html">Roster Versioning (XEP-0237)</a></span>  [<a href="#nt-idp1137424">1</a>]  which was later merged into <span class="ref"><a href="http://tools.ietf.org/html/rfc6121">RFC 6121</a></span>  [<a href="#nt-idp1132080">2</a>] §2.6. While this solved
+    the problem for the roster, it didn't account for other entities.
+    Furthermore, roster versioning requires that the server maintain a great
+    deal of state (roster items which should be pushed for each entity on
+    reconnect, or monotonically increasing counters, etc.) which can be
+    difficult to store or synchronize in a large, distributed system. This XEP
+    defines a method by which generic entity lists can be versioned and cached,
+    and which is optimized for distributed systems with large entity lists (but
+    works equally well on small, single server deployments).
+  </p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <ul>
+    <li>
+      An extra round trip MUST NOT be required to initiate entity versioning.
+    </li>
+    <li>
+      Clients that do not implement the protocol (but which use servers that
+      do) MUST still be able to request and receive entities normally.
+    </li>
+    <li>
+      Servers which implement this protocol MUST NOT be required to store
+      multiple versions of an entity list or maintain other redundant state.
+    </li>
+    <li>
+      Inconsistant state between servers in a cluster should not cause cache
+      invalidation for the entire entity list.
+    </li>
+    <li>
+      Large changes SHOULD NOT be required for existing servers / clients.
+    </li>
+  </ul>
+<h2>3.
+       <a name="glossary" id="glossary">Glossary</a></h2>
+  <div class="indent"><dl>
+    <dt><strong>Aggregate Token</strong></dt>
+    <dd>
+      A hash which represents the state of a list of entities, and changes if
+      any of those entities changes.
+    </dd>
+    <dt><strong>Versioned Entity</strong></dt>
+    <dd>Any abstract object which may be versioned (eg. rooms, users).</dd>
+    <dt><strong>Version Token</strong></dt>
+    <dd>
+      A short, case sensitive string which represents an entity and changes if
+      that entity changes.
+    </dd>
+  </dl></div>
+<h2>4.
+       <a name="use_cases" id="use_cases">Use Cases</a></h2>
+  <div class="indent"><h3>4.1 <a name="client_use_cases" id="client_use_cases">Clients</a></h3>
+    <ul>
+      <li>
+        A client on a mobile device where bandwidth and throughput are limited
+        has a very large roster which cause connections to take an unacceptable
+        amount of time. With entity versioning, connections after the first
+        connection do not take as long, and use less bandwidth.
+      </li>
+      <li>
+        A client often wants to view the list of multi-user chat rooms
+        available on a servers MUC service. However, the list is very long and
+        takes a long time to download. After enabling entity versioning the
+        client can fetch the list, and then poll for changes at a later date
+        without re-requesting the entire list.
+      </li>
+      <li>
+        A client wishes to cache the features supported by servers of the
+        contacts in their roster since their disco items is not likely to
+        change often.
+      </li>
+    </ul>
+  </div>
+  <div class="indent"><h3>4.2 <a name="server_use_cases" id="server_use_cases">Servers</a></h3>
+    <ul>
+      <li>
+        A server is running in an environment where storing multiple versions
+        of each users roster may put too much pressure on the storage backend.
+        After enabling entity versioning, they only have to store a small token
+        per user and can calculate the diffs to send to the client afterwards.
+      </li>
+      <li>
+        A server maintains an out-of-band HTTP API for fetching information
+        about MUC rooms to display on their web page. They wish to use a
+        reverse proxy to cache API requests based on etags. Instead of
+        attempting to check if the backend page has changed and generate etags,
+        the room's entity version token is used as a weakly-validated ETag.
+      </li>
+    </ul>
+  </div>
+<h2>5.
+       <a name="profiles" id="profiles">Entity Versioning Profiles</a></h2>
+  <p>
+    Because entity versioning is designed to be a generic system for syncing
+    any sort of list in XMPP, and the format and requirements of various entity
+    lists may vary greatly, no specific wire format is defined in this
+    specification.  Instead, the specifics for various lists will be left up to
+    separate XEPs which will define entity versioning "profiles" which must be
+    registered with the XMPP registrar. These profiles will define exactly how
+    version tokens are represented in the specific list format for which they
+    wish to use entity versioning. The rest of this document will provide
+    details about entity versioning which will be common to all entity
+    versioning profiles and do not need to be redefined in EV profile XEPs. It
+    will also define an EV profile for fetching the roster.
+  </p>
+  <p>
+    The roster entity versioning profile which is used as an example throughout
+    this document will use the namespace 'urn:xmpp:entityver:profile:roster:0'
+    as described in the <a href="#registrar">XMPP Registrar
+    Considerations</a> section of this document.
+  </p>
+<h2>6.
+       <a name="disco" id="disco">Discovering Support</a></h2>
+  <p>
+    If a server supports entity versioning, it MUST inform the connecting
+    client when returning stream features during the stream negotiation
+    process. This is done by including a &lt;ver/&gt; element, qualified by the
+    'urn:xmpp:entityver:0' namespace with child &lt;profile&gt; nodes for each
+    supported entity versioning profile. At the latest, this SHOULD be done
+    when informing a client that resource binding is required. For example if
+    the server only supports versioning of rosters it might return:
+  </p>
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Stream Features</p><div class="indent"><pre class="prettyprint">
+&lt;stream:features&gt;
+  &lt;bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'&gt;
+    &lt;required/&gt;
+  &lt;/bind&gt;
+  &lt;ver xmlns='urn:xmpp:entityver:0'&gt;
+    &lt;profile xmlns='urn:xmpp:entityver:profile:roster:0'/&gt;
+  &lt;/ver&gt;
+&lt;/stream:features&gt;
+  </pre></div>
+  <p>
+    The entity versioning stream feature is merely informative and therefore
+    is never mandatory-to-negotiate.
+  </p>
+  <p>
+    Clients, servers, and other entities that support <span class="ref"><a href="http://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idp632816">3</a>] and entity
+    versioning must respond to service discovery requests with a feature of
+    'urn:xmpp:entityver:0' and with a feature for each EV profile supported by
+    the responding entity as described in the relavant specifications. Eg. a
+    response from a server that supports roster versioning for the requesting
+    entity might look like the following:
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Service discovery information response</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='ku6e51v3'
+    to='kingclaudius@shakespeare.lit/castle'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;feature var='urn:xmpp:entityver:0'/&gt;
+    &lt;feature var='urn:xmpp:entityver:profile:roster:0'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </p>
+<h2>7.
+       <a name="entity_sync" id="entity_sync">Entity Sync</a></h2>
+  <div class="indent"><h3>7.1 <a name="version_tokens" id="version_tokens">Version Tokens</a></h3>
+    <p>
+      Version tokens are short case-sensitive strings which are generated by
+      the server. Their format is not defined in this spec, but a
+      recommendation may be found in the <a href="#impl">Implementation
+      Notes</a>. Version tokens are akin to a weakly-validated etag for the
+      entity in question.
+    </p>
+    <p>
+      Servers that implement this protocol must assign such a version token to
+      each entity that is controlled by the server. The server SHOULD then
+      update this version every time any mutable property of the entity changes
+      (eg. when the subscription status of a user changes). The server MAY
+      choose to update this token at any time (to force the clients to
+      invalidate their cached representation fo the object). This version token
+      MUST then be included with every object representation of that entity
+      sent down in the stream. This is done by including a sub-node called
+      "version" qualified by the entity versioning XML namespace defined in
+      this document.  Similarly, clients MAY also add version nodes for each
+      version token they possess to the request for a list (not specifying a
+      version token will force the server to send information on that entity to
+      the client). If a server sends up a list of version tokens, the server
+      MUST then check to see if those tokens correspond to any entity which it
+      knows about, and not send down any entities with matching version tokens
+      in the response.
+    </p>
+    <p>
+      For example, a versioned roster request might look like this:
+      <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Roster Request</p><div class="indent"><pre class="prettyprint">
+&lt;!-- Client --&gt;
+&lt;iq from='romeo@montague.lit/home' id='56' to='romeo@montague.lit' type='get'&gt;
+  &lt;query xmlns='jabber:iq:roster'&gt;
+    &lt;item jid='bill@shakespeare.lit'&gt;
+      &lt;version xmlns='urn:xmpp:entityver:0'&gt;25P2A7H8&lt;/version&gt;
+    &lt;/item&gt;
+    &lt;item jid='anne@shakespeare.lit'&gt;
+      &lt;version xmlns='urn:xmpp:entityver:0'&gt;VIZSVF0D&lt;/version&gt;
+    &lt;/item&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+
+&lt;!-- Server --&gt;
+&lt;iq from='romeo@montague.lit' id='56' to='romeo@montague.lit/home' type='result&gt;
+  &lt;query xmlns='jabber:iq:roster'&gt;
+    &lt;item subscription='both' jid='bill@shakespeare.lit'&gt;
+      &lt;version xmlns='urn:xmpp:entityver:0'&gt;9ZFZXVP9&lt;/version&gt;
+    &lt;/item&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+        </pre></div>
+    </p>
+    <p>
+      Note that in this case there may be three roster items total (and the
+      client only knows about two of them), or there may be two total roster
+      items and the server is informing the client about a change to
+      "bill@shakespeare.lit". Version tokens MUST also be present in roster
+      pushes:
+      <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Roster Push</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit' id='ah382g678jka7' to='romeo@montague.lit/home' type='set'&gt;
+  &lt;query xmlns='jabber:iq:roster' ver='ver34'&gt;
+    &lt;item jid='tybalt@shakespeare.lit' subscription='remove'&gt;
+      &lt;version xmlns='urn:xmpp:entityver:0'&gt;XWE4MUUP&lt;/version&gt;
+    &lt;/item&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+      </pre></div>
+    </p>
+  </div>
+  <div class="indent"><h3>7.2 <a name="deletes" id="deletes">Cache Invalidation</a></h3>
+    <p>
+      When a client syncs with the server and indicates that it has a version
+      token in its cache that does not match any entity on the server (or when
+      the server wants to remove an entity from the clients cache for any other
+      reason), the server MUST reply with an empty &lt;version/&gt; node. When
+      the client receives such an empty version node it SHOULD purge the entity
+      from its cache. For example, the following would remove the roster item
+      'bill@shakespeare.lit' from the cache:
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Cache invalidation</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit' id='56' to='romeo@montague.lit/home' type='result&gt;
+  &lt;query xmlns='jabber:iq:roster'&gt;
+    &lt;item subscription='both' jid='bill@shakespeare.lit'&gt;
+      &lt;version xmlns='urn:xmpp:entityver:0'/&gt;
+    &lt;/item&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    </p>
+    <p>
+      Roster pushes that indicate a deleted item MUST also remove the version
+      from the cache (and need not contain an empty &lt;version/&gt; element).
+    </p>
+  </div>
+  <div class="indent"><h3>7.3 <a name="sect-idp553840" id="sect-idp553840">Partial sync</a></h3>
+    <p>
+      For very large groups fetching an entire list may not be practical or
+      necessary. For example, one might imagine a large corporation with a
+      shared roster that is too large for its version tokens to be sent up to
+      the server on every sync, or even to download fully the first time. To
+      solve this, servers MAY choose to send down only a part of an entity list
+      in response to a query (unless the individual EV profile forbids partial
+      list sync). How servers choose what items to return is an implementation
+      detail that is out of the scope of this document. Some suggestions may be
+      found in the <a href="#impl">Implementation Notes</a>. On subsequent
+      requests for the entity list, the server MAY choose to return more
+      entities (eg. based on changes in its internal selection criteria),
+      however it MUST NOT invalidate cached entities unless they have actually
+      been removed from the list.
+    </p>
+    <p>
+      XEPs defining entity versioning profiles MUST include a section to
+      indicate if partial sync is supported, and if so, how it will be
+      indicated to the client (and how the client can request a full list). If
+      no mechanism is specified, this is done by adding a boolean "full_list"
+      attribute to the request, eg. a roster request for a partial list looks
+      like:
+      <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Roster Request</p><div class="indent"><pre class="prettyprint">
+&lt;!-- Client --&gt;
+&lt;iq from='romeo@montague.lit/home'
+     id='56'
+     to='romeo@montague.lit'
+     type='get'&gt;
+  &lt;query xmlns='jabber:iq:roster' full_list='false'&gt;
+    &lt;item jid='bill@shakespeare.lit'&gt;
+      &lt;version xmlns='urn:xmpp:entityver:0'&gt;25P2A7H8&lt;/version&gt;
+    &lt;/item&gt;
+    &lt;item jid='anne@shakespeare.lit'&gt;
+      &lt;version xmlns='urn:xmpp:entityver:0'&gt;VIZSVF0D&lt;/version&gt;
+    &lt;/item&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+
+&lt;!-- Server --&gt;
+&lt;iq from='romeo@montague.lit' id='56' to='romeo@montague.lit/home' type='result'&gt;
+  &lt;query xmlns='jabber:iq:roster' full_list='false'&gt;
+    &lt;item subscription='both' jid='bill@shakespeare.lit'&gt;
+      &lt;version xmlns='urn:xmpp:entityver:0'&gt;9ZFZXVP9&lt;/version&gt;
+    &lt;/item&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    </p>
+    <p>
+      When making a request for a partial list, clients do not need to send up
+      every entity in their cache. Instead they MAY send up just those entities
+      for which they wish to check for updates. The server MUST then respond
+      with any updates for those entities, and MAY also add other entities to
+      the list if desired. If the client requests a partial list but does not
+      indicate that it has anything in its cache, what entities to return (if
+      any) is left up to the server implementation.
+    </p>
+  </div>
+  <div class="indent"><h3>7.4 <a name="sect-idp1540880" id="sect-idp1540880">List search</a></h3>
+    <p>
+      When a client has an incomplete versioned list, it may be beneficial to
+      download more of the list without requesting the full list. To do this,
+      servers which support entity versioning MUST supply a "search" IQ which
+      can be used to discover list items matching a certain criteria. What data
+      to match on (JID, metadata, associated vcards, etc.), and what type of
+      search are left up to the server implementation and MAY be different
+      between profiles.
+    </p>
+    <p>
+      Search queries are qualified by the 'urn:xmpp:entityver:0:search'
+      namespace and MUST have a 'profile' attribute set to the namespace for
+      which the search is being performed. For instance, searching the roster
+      looks like the following:
+      <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Roster search</p><div class="indent"><pre class="prettyprint">
+&lt;!-- Client --&gt;
+&lt;iq from='romeo@montague.lit/home'
+     id='564'
+     to='romeo@montague.lit'
+     type='get'&gt;
+  &lt;query xmlns="urn:xmpp:entityver:0:search" profile='urn:xmpp:entityver:profile:roster:0'&gt;
+    Search term
+  &lt;/query&gt;
+&lt;/iq&gt;
+
+&lt;!-- Server --&gt;
+&lt;iq from='romeo@montague.lit' id='564' to='romeo@montague.lit/home' type='result'&gt;
+  &lt;query xmlns="urn:xmpp:entityver:0:search" profile='urn:xmpp:entityver:profile:roster:0' type='result'&gt;
+    &lt;item subscription='both' jid='matching_search@term.lit'&gt;
+      &lt;version xmlns='urn:xmpp:entityver:0'&gt;4YAZ7Y38&lt;/version&gt;
+    &lt;/item&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    </p>
+    <p>
+      Search results SHOULD be added to the given list's cache. In this way,
+      the full list does not need to be known.
+    </p>
+  </div>
+  <div class="indent"><h3>7.5 <a name="agg_tokens" id="agg_tokens">Aggregate Tokens</a></h3>
+    <p>
+      While the version token approach to caching does not require a great deal
+      of state to be stored on the client or the server, it does require a lot
+      more information to be sent by the client when requesting a list of
+      entities. For a very large list which is not likely to have changed, it
+      may be useful know in advance if the roster has changed or not (so that
+      we can avoid sending the large request entirely). To do this, we can
+      request an aggregate version token from the server. This aggregate token
+      is calculated by constructing a string of comma separated "ID:version"
+      pairs sorted in byte-wise order (because the ID:version pair is
+      constructed before sorting, if two items in the list have the same ID
+      they can still be sorted by the version token), and taking the MD5 hash
+      of the constructed string. The ID in the pair is any ID or key that
+      identifies the entity as defined in its profile (eg. a JID for roster
+      items and most other entities). For example, if the server is calculating
+      the aggregate version token for a roster, it might end up with the
+      following string:
+    </p>
+    <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Aggregate token list</p><div class="indent"><pre class="prettyprint">
+anne@shakespeare.lit:VIZSVF0D,bill@shakespeare.lit:25P2A7H8
+    </pre></div>
+    <p>
+      Which results in the aggregate token:
+    </p>
+    <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Aggregate token</p><div class="indent"><pre class="prettyprint">
+0514fc90e6c7981b06bbb2173bb8ef03
+    </pre></div>
+    <p>
+      The actual request is an IQ sent to the server, or entity handling the
+      versioned list which contains a query that specifies the namespace of the
+      list we want to fetch. Eg. to fetch the aggregate token for the roster
+      one would query the server with the query's XMLNS set to
+      'urn:xmpp:entityver:profile:roster:0':
+    </p>
+    <p class="caption"><a name="example-10" id="example-10"></a>Example 10. Roster aggregate token request</p><div class="indent"><pre class="prettyprint">
+&lt;!-- Client --&gt;
+&lt;iq to='bill@shakespeare.lit' type='get' id='bill1'&gt;
+  &lt;query xmlns='urn:xmpp:entityver:profile:roster:0'/&gt;
+&lt;/iq&gt;
+
+&lt;!-- Server --&gt;
+&lt;iq to='bill@shakespeare.lit/home' type='result' id='bill1'&gt;
+  &lt;query xmlns='urn:xmpp:entityver:profile:roster:0'&gt;
+    0514fc90e6c7981b06bbb2173bb8ef03
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p>
+      Because aggregate tokens are OPTIONAL to implement, clients MUST fall
+      back to making a normal list request if any error is returned in response
+      to an aggregate token IQ.
+    </p>
+    <p>
+      If an aggregate token is requested for a list that may contain more than
+      one type of entity (eg. MUC rooms and pubsub nodes that live on the same
+      component), then the server MUST return the aggregate token constructed
+      with the entire list (rooms and pubsub nodes).
+    </p>
+    <p>
+      Because aggregate tokens are calculated for the entire list as seen by
+      the client or server, they will never match if partial lists have been
+      downloaded by the client.
+    </p>
+    <p>
+      Clients are also NOT REQUIRED to check aggregate tokens. However, clients
+      MAY wish to check aggregate tokens before making a roster or MUC request
+      when the cached roster or MUC list is very large. When to check aggregate
+      tokens (if at all) is left up to the implementation.
+    </p>
+  </div>
+<h2>8.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <p>
+    Version tokens may not provide enough collision resistance across versioned
+    entities (hereafter simply called "entities"), and may vary from server to
+    server, and therefore they MUST NOT be used as an entity identifier.
+  </p>
+  <p>
+    Version tokens SHOULD always be considered opaque to the client (eg. even
+    if the version token is a derivable and consistent hash on the server side,
+    clients should not need to know how the server is calculating the token).
+  </p>
+  <p>
+    The author RECOMMENDS using 8 character (32-bit) random alphanumeric ASCII
+    strings (eg. AABd7z9T) for version tokens.
+  </p>
+  <p>
+    If a server which supports this XEP provides an HTTP API which can be used
+    to fetch information about entities (eg. for listing information about MUC
+    rooms that a server provides on the providers web page), the entities
+    version token MAY be used as a weakly validated ETag for any API requests
+    for that entity.
+  </p>
+  <p>
+    Servers following this specification may choose to send down partial entity
+    lists in response to queries. For the case of rosters one or more of the
+    following may be returned to the requesting entity during the initial
+    roster sync:
+    <ul>
+      <li>
+        Users that are grouped with the requester in some way. Eg. for a
+        company with a large shared roster which places the requesting client
+        in the "Marketing Department" group, the server may wish to return
+        roster items that also share that group.
+      </li>
+      <li>Users whom the requester has contacted recently or frequently.</li>
+      <li>Users that should always be returned as part of server policy.</li>
+    </ul>
+  </p>
+<h2>9.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p>
+    Client-side caching of entity information across sessions (rather than
+    holding them in memory only for the life of a session) could pose a privacy
+    risk, especially on shared systems. Implementations SHOULD protect cached
+    entity data with strong encryption or other appropriate means.
+  </p>
+<h2>10.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p>This document requires no interaction with the <span class="ref"><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idp1564400">4</a>].</p> 
+<h2>11.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>11.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p>This specification defines the following XML namespace:</p>
+    <ul>
+      <li>urn:xmpp:entityver:0</li>
+      <li>urn:xmpp:entityver:0:search</li>
+    </ul>
+    <p>
+      Upon advancement of this specification from a status of Experimental to a
+      status of Draft, the <span class="ref"><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idp1575280">5</a>] shall add the foregoing namespace to the
+      registry located at &lt;<a href="http://xmpp.org/registrar/stream-features.html">http://xmpp.org/registrar/stream-features.html</a>&gt;, as described in Section 4 of
+      <span class="ref"><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idp1573136">6</a>].
+    </p>
+  </div>
+  <div class="indent"><h3>11.2 <a name="registrar-versioning" id="registrar-versioning">Namespace Versioning</a></h3>
+    <p>If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+  <div class="indent"><h3>11.3 <a name="registrar-ev" id="registrar-ev">Entity Versioning Profiles Registry</a></h3>
+    <p>
+      The XMPP Registrar shall maintain a registry of entity versioning
+      profiles. All EV profile registrations shall be defined in separate
+      specifications (not in this document). Application types defined within
+      the XEP series MUST be registered with the XMPP Registrar, resulting in
+      protocol URNs of the form "urn:xmpp:entityver:profile:name:X" (where
+      "name" is the registered name of the profile and "X" is a non-negative
+      integer).
+    </p>
+    <p>In order to submit new values to this registry, the registrant shall define an XML fragment of the following form and either include it in the relevant XMPP Extension Protocol or send it to the email address &lt;registrar@xmpp.org&gt;:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;profile&gt;
+  &lt;name&gt;The name of the entity versioning profile.&lt;/name&gt;
+  &lt;desc&gt;A natural-language summary of the profile.&lt;/desc&gt;
+  &lt;listdef&gt;
+    The document in which the original list definition is specified.
+  &lt;/listdef&gt;
+  &lt;doc&gt;
+    The document in which the EV profile for the list is specified (may be the
+    same as &lt;listdev/&gt;).
+  &lt;/doc&gt;
+&lt;/profile&gt;
+    </pre></div>
+  </div>
+  <div class="indent"><h3>11.4 <a name="registrar-evprofile" id="registrar-evprofile">Entity Versioning Profiles</a></h3>
+    <p>This specification defines the following entity versioning profile:</p>
+    <ul>
+      <li>urn:xmpp:entityver:profile:roster:0</li>
+    </ul>
+    <p>
+      Upon advancement of this specification from a status of Experimental to a
+      status of Draft, the <span class="ref"><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idp1583424">7</a>] shall add the following definition to
+      the entity versioning profiles registry, as described in this document:
+      <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;profile&gt;
+  &lt;name&gt;Roster entity versioning&lt;/name&gt;
+  &lt;desc&gt;Allows versioning of entities in an XMPP roster.&lt;/desc&gt;
+  &lt;listdef&gt;RFC 6121&lt;/listdef&gt;
+  &lt;doc&gt;TODO: Insert this document once it is assigned a number&lt;/doc&gt;
+&lt;/profile&gt;
+      </pre></div>
+    </p>
+  </div>
+<h2>12.
+       <a name="schema" id="schema">XML Schema</a></h2>
+TODO
+<h2>13.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+  <p>
+    The original entity versioning proposal was engineered and written by
+    HipChat's Doug Keen.
+  </p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0366<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2015-12-15<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: RFC 6120, RFC 6121<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: EV<br />
+              Source Control: 
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0366.xml">HTML</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0366.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0366.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Sam Whited</h3><p class="indent">
+        Email:
+        <a href="mailto:swhited@atlassian.com">swhited@atlassian.com</a><br />
+        JabberID: 
+        <a href="xmpp:sam@samwhited.com">sam@samwhited.com</a><br /></p><h3>Doug Keen</h3><p class="indent">
+        Email:
+        <a href="mailto:dkeen@atlassian.com">dkeen@atlassian.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2016 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/">http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/</a>&gt; or obtained by writing to XMPP Standards Foundation, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="http://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idp1137424" id="nt-idp1137424">1</a>. XEP-0237: Roster Versioning &lt;<a href="http://xmpp.org/extensions/xep-0237.html">http://xmpp.org/extensions/xep-0237.html</a>&gt;.</p><p><a name="nt-idp1132080" id="nt-idp1132080">2</a>. RFC 6121: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc6121">http://tools.ietf.org/html/rfc6121</a>&gt;.</p><p><a name="nt-idp632816" id="nt-idp632816">3</a>. XEP-0030: Service Discovery &lt;<a href="http://xmpp.org/extensions/xep-0030.html">http://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idp1564400" id="nt-idp1564400">4</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idp1575280" id="nt-idp1575280">5</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idp1573136" id="nt-idp1573136">6</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p><p><a name="nt-idp1583424" id="nt-idp1583424">7</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2015-12-15)</h4><div class="indent"><p>Initial published version approved by the XMPP Council.</p> (XEP Editor (mam))
+    </div><h4>Version 0.0.2 (2015-09-17)</h4><div class="indent"><p>Add profiles / partial sync.</p> (ssw)
+    </div><h4>Version 0.0.1 (2015-08-25)</h4><div class="indent"><p>First draft</p> (ssw)
+    </div></div><hr /><p>END</p></body></html>

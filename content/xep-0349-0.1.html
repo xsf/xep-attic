@@ -1,0 +1,373 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0349: Rayo Clustering</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Rayo Clustering" /><meta name="DC.Creator" content="Ben Langfeld" /><meta name="DC.Creator" content="Mart&#xED;n P&#xE9;rez" /><meta name="DC.Description" content="This specification describes an extension to the Rayo protocol to support clustering of Rayo servers and their presentation as a unified service." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2014-06-18" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0349" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright (c) 2014 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0349: Rayo Clustering</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification describes an extension to the Rayo protocol to support clustering of Rayo servers and their presentation as a unified service.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Ben Langfeld, Martín Pérez</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2014 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2014-06-18</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#terms">Terminology</a><br />   
+      3.1.  <a href="#terms-glossary">Glossary</a><br />   
+      3.2.  <a href="#terms-conventions">Conventions</a><br />4.  <a href="#session">Session Flow</a><br />   
+      4.1.  <a href="#session-message-routing">Message Routing</a><br />   
+      4.2.  <a href="#session-load-balancing">Load balancing</a><br />   
+      4.3.  <a href="#session-failover">Failover</a><br />   
+      4.4.  <a href="#session-security">Security</a><br />5.  <a href="#support">Determining Support</a><br />6.  <a href="#security">Security Considerations</a><br />   
+      6.1.  <a href="#security-dos">Denial of Service</a><br />   
+      6.2.  <a href="#security-gateways">Communication Through Gateways</a><br />   
+      6.3.  <a href="#security-info">Information Exposure</a><br />7.  <a href="#iana">IANA Considerations</a><br />8.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      8.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      8.2.  <a href="#registrar-versioning">Namespace Versioning</a><br />9.  <a href="#acknowledgements">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p><span class="ref"><a href="http://xmpp.org/extensions/xep-0327.html">Rayo (XEP-0327)</a></span>  [<a href="#nt-idp612304">1</a>] documents the behaviour of an individual Rayo server and its interaction with a client. Two of the goals of Rayo, however, are to support clustering of servers and multi-tenancy. This specification outlines how that is to be achieved.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p>This specification is required to provide a framework for implementation of the following goals:</p>
+
+  <ul>
+    <li>Routing of Rayo messages between clients and server nodes in a cluster.</li>
+    <li>Load balancing of calls between multiple clients and server nodes in a cluster.</li>
+    <li>Failover of calls between clients and server nodes, and management of the cluster.</li>
+    <li>Enforcement of security and multi-tenancy concerns.</li>
+  </ul>
+<h2>3.
+       <a name="terms" id="terms">Terminology</a></h2>
+  <div class="indent"><h3>3.1 <a name="terms-glossary" id="terms-glossary">Glossary</a></h3>
+    <div class="indent"><dl>
+      <di>
+        <dt><strong>Cluster</strong></dt>
+        <dd>A collection of one or more Nodes which are coordinated by one or more Gateways.</dd>
+      </di>
+      <di>
+        <dt><strong>Gateway</strong></dt>
+        <dd>
+          The Rayo Gateway is the main element that differentiates a Rayo Cluster from a stand-alone Rayo deployment. The Rayo Gateway is an intermediate component that is in charge of coordinating the communication from clients to Rayo Nodes and from Rayo Nodes to clients. When a cluster contains multiple gateways, the protocol for coordination of multiple gateways is considered implementation specific.
+        </dd>
+      </di>
+      <di>
+        <dt><strong>Node</strong></dt>
+        <dd>The Rayo Node is an individual instance of a Rayo server from <span class="ref"><a href="http://xmpp.org/extensions/xep-0327.html">Rayo (XEP-0327)</a></span>  [<a href="#nt-idp622208">2</a>], which presents call control capability via Rayo on top of a signaling protocol such as SIP or Jingle. It presents as a member of the cluster under the management of the Gateway(s).</dd>
+      </di>
+      <di>
+        <dt><strong>Third-party XMPP server</strong></dt>
+        <dd>An arbitrary third-party XMPP server used for registration of Rayo clients. MAY form part of the cluster.</dd>
+      </di>
+    </dl></div>
+  </div>
+
+  <div class="indent"><h3>3.2 <a name="terms-conventions" id="terms-conventions">Conventions</a></h3>
+    In examples, the following JIDs are used:
+    <ul>
+      <li><span class="strong">juliet@capulet.lit/balcony, romeo@montague.lit/orchard</span> - Potential controlling parties</li>
+      <li><span class="strong">shakespeare.lit</span> - The root domain of the Rayo service, presented as the external interface of the Gateway(s).</li>
+      <li><span class="strong">gateway.shakespeare.lit</span> - The internal domain of the Gateway(s).</li>
+      <li><span class="strong">node1.shakespeare.lit</span> - The domain of a Node in the Cluster.</li>
+    </ul>
+  </div>
+<h2>4.
+       <a name="session" id="session">Session Flow</a></h2>
+  <p>All communication between the Rayo Gateways and Clients, and the Gateways and Nodes MUST be conformant with <span class="ref"><a href="http://xmpp.org/extensions/xep-0327.html">Rayo (XEP-0327)</a></span>  [<a href="#nt-idp631744">3</a>] or any extensions defined in this specification. A conformant Rayo Gateway MUST NOT derive any critical functionality through proprietary knowledge of the Nodes it is managing.</p>
+
+  <div class="indent"><h3>4.1 <a name="session-message-routing" id="session-message-routing">Message Routing</a></h3>
+    <p>The Rayo Gateway communicates both with Rayo Nodes and third-party XMPP servers through S2S XMPP connections. To differentiate the messages that come from Rayo Nodes and from client applications, the Rayo Gateway MUST present two separate domains, an internal (for communication with cluster nodes) and an external (for communication with Rayo clients) interface. In cases of multiple gateways, the internal and external domains MUST be the same, and DNS SHOULD be used for load-balancing.</p>
+
+    <p>Inbound call flow is:</p>
+    <ol>
+      <li>The Rayo Node generates events for the call as usual, beginning with an offer event.</li>
+      <li>The Rayo Node sends the event to the Rayo Gateway using the internal interface.</li>
+      <li>The Rayo Gateway receives events on its internal interface, decides on the correct client to route the event to (the calls DCP or its set of PCPs).</li>
+      <li>The Rayo Gateway forwards the event to relevant clients via the external interface, replacing the presence "to" and "from" attributes. The "to" attribute is the client's jid and the "from" is based on the Rayo Gateway's external interface.</li>
+      <li>The client(s) receive the event, responding to the Gateway. The Gateway correspondingly rewrites commands received from the client to the relevant Node for each call, and responses to those commands in reverse.</li>
+    </ol>
+
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Simple inbound call scenario</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='9f00061@node1.shakespeare.lit'
+          to='gateway.shakespeare.lit'&gt;
+  &lt;c xmlns='http://jabber.org/protocol/caps'
+     hash='sha-1'
+     node='urn:xmpp:rayo:call:1'
+     ver='QgayPKawpkPSDYmwT/WM94uAlu0='/&gt;
+  &lt;offer xmlns='urn:xmpp:rayo:1'
+         to='tel:+18003211212'
+         from='tel:+13058881212'/&gt;
+&lt;/presence&gt;
+
+&lt;presence from='9f00061@shakespeare.lit'
+          to='juliet@capulet.lit/balcony'&gt;
+  &lt;c xmlns='http://jabber.org/protocol/caps'
+     hash='sha-1'
+     node='urn:xmpp:rayo:call:1'
+     ver='QgayPKawpkPSDYmwT/WM94uAlu0='/&gt;
+  &lt;offer xmlns='urn:xmpp:rayo:1'
+         to='tel:+18003211212'
+         from='tel:+13058881212'/&gt;
+&lt;/presence&gt;
+
+&lt;iq from='juliet@capulet.lit/balcony'
+    to='9f00061@shakespeare.lit'
+    type='set'
+    id='hd721'&gt;
+  &lt;accept xmlns='urn:xmpp:rayo:1'/&gt;
+&lt;/iq&gt;
+
+&lt;iq from='gateway.shakespeare.lit'
+    to='9f00061@node1.shakespeare.lit'
+    type='set'
+    id='hd721'&gt;
+  &lt;accept xmlns='urn:xmpp:rayo:1'/&gt;
+&lt;/iq&gt;
+
+&lt;iq from='9f00061@node1.shakespeare.lit'
+    to='gateway.shakespeare.lit'
+    type='result'
+    id='hd721'/&gt;
+
+&lt;iq from='9f00061@shakespeare.lit'
+    to='juliet@capulet.lit/balcony'
+    type='result'
+    id='hd721'/&gt;
+
+&lt;iq from='juliet@capulet.lit/balcony'
+    to='9f00061@shakespeare.lit'
+    type='set'
+    id='f3wh8'&gt;
+  &lt;hangup xmlns='urn:xmpp:rayo:1'/&gt;
+&lt;/iq&gt;
+
+&lt;iq from='gateway.shakespeare.lit'
+    to='9f00061@node1.shakespeare.lit'
+    type='set'
+    id='f3wh8'&gt;
+  &lt;hangup xmlns='urn:xmpp:rayo:1'/&gt;
+&lt;/iq&gt;
+
+&lt;iq from='9f00061@node1.shakespeare.lit'
+    to='gateway.shakespeare.lit'
+    type='result'
+    id='f3wh8'/&gt;
+
+&lt;iq from='9f00061@shakespeare.lit'
+    to='juliet@capulet.lit/balcony'
+    type='result'
+    id='f3wh8'/&gt;
+
+&lt;presence from='9f00061@node1.shakespeare.lit'
+          to='gateway.shakespeare.lit'
+          type='unavailable'&gt;
+  &lt;end xmlns='urn:xmpp:rayo:1'&gt;
+    &lt;hangup-command/&gt;
+  &lt;/end&gt;
+&lt;/presence&gt;
+
+&lt;presence from='9f00061@shakespeare.lit'
+          to='juliet@capulet.lit/balcony'
+          type='unavailable'&gt;
+  &lt;end xmlns='urn:xmpp:rayo:1'&gt;
+    &lt;hangup-command/&gt;
+  &lt;/end&gt;
+&lt;/presence&gt;
+    </pre></div>
+
+    <p>Outbound call flow is:</p>
+    <ol>
+      <li>A client sends a dial command to the Rayo Cluster, arriving on the external interface of a Gateway.</li>
+      <li>The Rayo Gateway finds an available Rayo Node and forwards the command to it, replacing the "from" attribute with its own internal interface and the "to" attribute based on the Node's domain.</li>
+      <li>The Rayo Node receives the dial command, processes the outbound call and returns responses/events to the Gateway for rewriting to the client.</li>
+    </ol>
+
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Simple outbound call scenario</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    to='shakespeare.lit'
+    type='set'
+    id='h7ed2'&gt;
+  &lt;dial xmlns='urn:xmpp:rayo:1'
+        to='tel:+13055195825'
+        from='tel:+14152226789'/&gt;
+&lt;/iq&gt;
+
+&lt;iq from='gateway.shakespeare.lit'
+    to='node1.shakespeare.lit'
+    type='set'
+    id='h7ed2'&gt;
+  &lt;dial xmlns='urn:xmpp:rayo:1'
+        to='tel:+13055195825'
+        from='tel:+14152226789'/&gt;
+&lt;/iq&gt;
+
+&lt;iq from='node1.shakespeare.lit'
+    to='gateway.shakespeare.lit'
+    type='result'
+    id='h7ed2'&gt;
+  &lt;ref xmlns='urn:xmpp:rayo:1' uri='xmpp:9f00061@shakespeare.lit'/&gt;
+&lt;/iq&gt;
+
+&lt;iq from='shakespeare.lit'
+    to='juliet@capulet.lit/balcony'
+    type='result'
+    id='h7ed2'&gt;
+  &lt;ref xmlns='urn:xmpp:rayo:1' uri='xmpp:9f00061@shakespeare.lit'/&gt;
+&lt;/iq&gt;
+
+&lt;presence from='9f00061@node1.shakespeare.lit'
+          to='gateway.shakespeare.lit'&gt;
+  &lt;ringing xmlns='urn:xmpp:rayo:1'/&gt;
+&lt;/presence&gt;
+
+&lt;presence from='9f00061@shakespeare.lit'
+          to='juliet@capulet.lit/balcony'&gt;
+  &lt;ringing xmlns='urn:xmpp:rayo:1'/&gt;
+&lt;/presence&gt;
+
+&lt;presence from='9f00061@node1.shakespeare.lit'
+          to='gateway.shakespeare.lit'&gt;
+  &lt;answered xmlns='urn:xmpp:rayo:1'/&gt;
+&lt;/presence&gt;
+
+&lt;presence from='9f00061@shakespeare.lit'
+          to='juliet@capulet.lit/balcony'&gt;
+  &lt;answered xmlns='urn:xmpp:rayo:1'/&gt;
+&lt;/presence&gt;
+
+&lt;iq from='juliet@capulet.lit/balcony'
+    to='9f00061@shakespeare.lit'
+    type='set'
+    id='f3wh8'&gt;
+  &lt;hangup xmlns='urn:xmpp:rayo:1'/&gt;
+&lt;/iq&gt;
+
+&lt;iq from='gateway.shakespeare.lit'
+    to='9f00061@node1.shakespeare.lit'
+    type='set'
+    id='f3wh8'&gt;
+  &lt;hangup xmlns='urn:xmpp:rayo:1'/&gt;
+&lt;/iq&gt;
+
+&lt;iq from='9f00061@node1.shakespeare.lit'
+    to='gateway.shakespeare.lit'
+    type='result'
+    id='f3wh8'/&gt;
+
+&lt;iq from='9f00061@shakespeare.lit'
+    to='juliet@capulet.lit/balcony'
+    type='result'
+    id='f3wh8'/&gt;
+
+&lt;presence from='9f00061@node1.shakespeare.lit'
+          to='gateway.shakespeare.lit'
+          type='unavailable'&gt;
+  &lt;end xmlns='urn:xmpp:rayo:1'&gt;
+    &lt;hangup-command/&gt;
+  &lt;/end&gt;
+&lt;/presence&gt;
+
+&lt;presence from='9f00061@shakespeare.lit'
+          to='juliet@capulet.lit/balcony'
+          type='unavailable'&gt;
+  &lt;end xmlns='urn:xmpp:rayo:1'&gt;
+    &lt;hangup-command/&gt;
+  &lt;/end&gt;
+&lt;/presence&gt;
+    </pre></div>
+  </div>
+  <div class="indent"><h3>4.2 <a name="session-load-balancing" id="session-load-balancing">Load balancing</a></h3>
+    <p>The Gateway(s) in a Cluster are responsible for managing the routing of calls between relevant nodes and clients, and SHOULD retain knowledge of the presence of each for this purpose. Nodes and Clients SHOULD NOT be aware of each others identity of presence, and SHOULD only communicate with the Gateway(s).</p>
+
+    <p>The Gateway(s) in a Cluster MUST attempt to evenly balance outbound calls among Nodes; at a minimum they MUST implement round-robin dispatch of dial commands. Gateways MAY attempt load-based distribution by monitoring the number of active sessions (inbound and outbound) per Node and distributing accordingly.</p>
+
+    <p>The rules by which the PCPs for an inbound call are determined is implementation specific. In cases where a server permits registration of multiple JIDs as PCPs, it MAY opt to load-balance offers between them by an unspecified algorithm, though it may not assume any knowledge of the clients outside of this specification or <span class="ref"><a href="http://xmpp.org/extensions/xep-0327.html">Rayo (XEP-0327)</a></span>  [<a href="#nt-idp1494304">4</a>].</p>
+
+    <p>In order for a Rayo Node to be considered available for processing dial requests, it MUST first notify the Gateway that it is available for such by sending directed presence to the Gateway internal interface with a &lt;show/&gt; element containing 'chat' as in the example:</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Node presents itself as available to the Rayo Gateway</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='node1.shakespeare.lit'
+          to='gateway.shakespeare.lit'&gt;
+  &lt;c xmlns='http://jabber.org/protocol/caps'
+     hash='sha-1'
+     node='urn:xmpp:rayo:node:1'
+     ver='QgayPKawpkPSDYmwT/WM94uAlu0='/&gt;
+ &lt;show&gt;chat&lt;/show&gt;
+&lt;/presence&gt;
+</pre></div>
+
+    <p>Conversely, when a Rayo Node wishes not to process dial requests, it SHOULD send directed presence to the Gateway with a &lt;show/&gt; element containing 'dnd' as in the example:</p>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Node presents itself as unavailable to the Rayo Gateway</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='node1.shakespeare.lit'
+          to='gateway.shakespeare.lit'&gt;
+  &lt;c xmlns='http://jabber.org/protocol/caps'
+     hash='sha-1'
+     node='urn:xmpp:rayo:node:1'
+     ver='QgayPKawpkPSDYmwT/WM94uAlu0='/&gt;
+ &lt;show&gt;dnd&lt;/show&gt;
+&lt;/presence&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>4.3 <a name="session-failover" id="session-failover">Failover</a></h3>
+    <p>A Rayo Gateway MAY transparently retry failed operations like dial requests, or MAY automatically remove from rotation the Rayo Nodes that fail to satisfy such requests repeatedly.</p>
+  </div>
+  <div class="indent"><h3>4.4 <a name="session-security" id="session-security">Security</a></h3>
+    <p>The Rayo Gateway MUST validate permissions on incoming Rayo commands from Clients (check that they are one of the call's DCP/PCP as appropriate to the rules defined in <span class="ref"><a href="http://xmpp.org/extensions/xep-0327.html">Rayo (XEP-0327)</a></span>  [<a href="#nt-idp1504992">5</a>]). The Rayo Gateway MUST enforce its own rules on Node membership of the Cluster, ensuring communication via its internal interface with only trusted Nodes. The rules by which inbound calls are permitted are implementation specific. When configured as members of a cluster, Rayo Nodes SHOULD accept communication *only* with the gateway.</p>
+  </div>
+<h2>5.
+       <a name="support" id="support">Determining Support</a></h2>
+  <p>Rayo gateways MUST advertise support for "urn:xmpp:rayo:1" on their external interface, and "urn:xmpp:rayo:gateway:1" on their internal interface. Rayo nodes MUST advertise support for "urn:xmpp:rayo:node:1", indicating that they may be used as part of a cluster, and additionally "urn:xmpp:rayo:1" if they may also be used separately from the cluster.</p>
+<h2>6.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <div class="indent"><h3>6.1 <a name="security-dos" id="security-dos">Denial of Service</a></h3>
+    <p>Rayo sessions can be resource-intensive. Therefore, it is possible to launch a denial-of-service attack against an entity by burdening it with too many Rayo sessions. Care must be taken to accept sessions only from known entities and only if the entity's device is able to process such sessions.</p>
+  </div>
+  <div class="indent"><h3>6.2 <a name="security-gateways" id="security-gateways">Communication Through Gateways</a></h3>
+    <p>Rayo communications can be enabled through gateways to non-XMPP networks, whose security characteristics can be quite different from those of XMPP networks. For example, on some SIP networks authentication is optional and "from" addresses can be easily forged. Care must be taken in communicating through such gateways.</p>
+  </div>
+  <div class="indent"><h3>6.3 <a name="security-info" id="security-info">Information Exposure</a></h3>
+    <p>Mere negotiation of a Rayo session can expose sensitive information about the parties (e.g. IP addresses). Care must be taken in communicating such information, and end-to-end encryption should be used if the parties do not trust the intermediate servers or gateways.</p>
+  </div>
+<h2>7.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p>This document requires no interaction with the <span class="ref"><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idp1517664">6</a>].</p>
+<h2>8.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+    <div class="indent"><h3>8.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p>This specification defines the following XML namespaces:</p>
+    <ul>
+      <li>urn:xmpp:rayo:gateway:1</li>
+      <li>urn:xmpp:rayo:node:1</li>
+    </ul>
+    <p>The <span class="ref"><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idp1528464">7</a>] includes the foregoing namespaces in its registry at &lt;<a href="http://xmpp.org/registrar/namespaces.html">http://xmpp.org/registrar/namespaces.html</a>&gt;, as governed by <span class="ref"><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idp1526512">8</a>].</p>
+  </div>
+  <div class="indent"><h3>8.2 <a name="registrar-versioning" id="registrar-versioning">Namespace Versioning</a></h3>
+    <p>If the protocol defined in this specification undergoes a major revision that is not fully backward-compatible with an older version, or that contains significant new features, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+<h2>9.
+       <a name="acknowledgements" id="acknowledgements">Acknowledgements</a></h2>
+  <p>The authors would like to acknowledge the input of teams at Tropo, Mojo Lingo and Grasshopper in the development of the specification.</p>
+
+  <p>Specific individuals who have contributed to the specification or to software significant to its completion include:</p>
+  <ul>
+    <li>Ben Langfeld</li>
+    <li>Chris Rienzo</li>
+    <li>Martín Pérez</li>
+  </ul>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0349<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2014-06-18<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0327 Rayo<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://gitorious.org/xmpp/xmpp/blobs/master/extensions/xep-0349.xml">HTML</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0349.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0349.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Ben Langfeld</h3><p class="indent">
+        Email:
+        <a href="mailto:ben@langfeld.me">ben@langfeld.me</a><br />
+        JabberID: 
+        <a href="xmpp:ben@langfeld.me">ben@langfeld.me</a><br />
+        URI: 
+        <a href="http://langfeld.me">http://langfeld.me</a><br /></p><h3>Martín Pérez</h3><p class="indent">
+        Email:
+        <a href="mailto:mperez@tropo.com">mperez@tropo.com</a><br />
+        URI: 
+        <a href="http://tropo.com">http://tropo.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright (c) 2014 by the XMPP Standards Foundation (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. In no event shall the XMPP Standards Foundation or the authors of this Specification be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising out of the use or inability to use the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which may be found at &lt;<a href="http://www.xmpp.org/extensions/ipr-policy.shtml">http://www.xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XSF, P.O. Box 1641, Denver, CO 80201 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idp612304" id="nt-idp612304">1</a>. XEP-0327: Rayo &lt;<a href="http://xmpp.org/extensions/xep-0327.html">http://xmpp.org/extensions/xep-0327.html</a>&gt;.</p><p><a name="nt-idp622208" id="nt-idp622208">2</a>. XEP-0327: Rayo &lt;<a href="http://xmpp.org/extensions/xep-0327.html">http://xmpp.org/extensions/xep-0327.html</a>&gt;.</p><p><a name="nt-idp631744" id="nt-idp631744">3</a>. XEP-0327: Rayo &lt;<a href="http://xmpp.org/extensions/xep-0327.html">http://xmpp.org/extensions/xep-0327.html</a>&gt;.</p><p><a name="nt-idp1494304" id="nt-idp1494304">4</a>. XEP-0327: Rayo &lt;<a href="http://xmpp.org/extensions/xep-0327.html">http://xmpp.org/extensions/xep-0327.html</a>&gt;.</p><p><a name="nt-idp1504992" id="nt-idp1504992">5</a>. XEP-0327: Rayo &lt;<a href="http://xmpp.org/extensions/xep-0327.html">http://xmpp.org/extensions/xep-0327.html</a>&gt;.</p><p><a name="nt-idp1517664" id="nt-idp1517664">6</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idp1528464" id="nt-idp1528464">7</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idp1526512" id="nt-idp1526512">8</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2014-06-18)</h4><div class="indent"><p>Initial published version approved by the XMPP Council.</p> (editorc(mam))
+    </div><h4>Version 0.0.1 (2014-04-18)</h4><div class="indent"><p>First draft.</p> (bl)
+    </div></div><hr /><p>END</p></body></html>

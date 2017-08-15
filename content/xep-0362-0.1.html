@@ -1,0 +1,180 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0362: Raft over XMPP</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Raft over XMPP" /><meta name="DC.Creator" content="Peter Membrey" /><meta name="DC.Description" content="This specification provides a means for transporting messages from the Raft consensus algorithm over XMPP." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2015-08-11" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0362" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2014 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0362: Raft over XMPP</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification provides a means for transporting messages from the Raft consensus algorithm over XMPP.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Peter Membrey</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2015 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2015-08-11</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />   
+      1.1.  <a href="#sect-idp624944">Why &lt;message/&gt; and not &lt;iq/&gt;</a><br />   
+      1.2.  <a href="#sect-idp627744">Example Usecase</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#glossary">Glossary</a><br />4.  <a href="#protocol">Protocol</a><br />   
+      4.1.  <a href="#sect-idp649312">RequestVote</a><br />   
+      4.2.  <a href="#sect-idp653936">AppendEntries</a><br />5.  <a href="#security">Security Considerations</a><br />   
+      5.1.  <a href="#sect-idp1521808">Checking cluster membership</a><br />6.  <a href="#iana">IANA Considerations</a><br />7.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      7.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />8.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p>This XEP does not attempt to implement Raft. Rather, based on the message exchanges defined in the <a href="https://ramcloud.stanford.edu/raft.pdf">Raft paper</a>, it defines a complementary set of &lt;message/&gt; stanza elements to allow Raft messages to be transported cleanly over XMPP. The messages for Node to Node communication are well documented in the <a href="https://ramcloud.stanford.edu/raft.pdf">Raft paper</a> and are reproduced here with minor additions to leverage the benefits of XMPP. However Client to Node communication is only hinted at and, as it does not use Raft natively it is outside the scope of this XEP.</p>
+
+  <p>Raft is a consensus algorithm that is easy to understand and implement. When you want to keep a distributed system consistent, you will need some form of consensus algorithm. Raft was developed at Stanford University as an alternative to the incumbent consensus algorithm PAXOS. PAXOS is claimed to be very complex, hard to teach and even harder to implement. All of these are discussed in a paper <a href="https://ramcloud.stanford.edu/raft.pdf">here</a> and additional information (including a graphical simulation of a cluster) can be found on the project's website: <a href="https://raftconsensus.github.io/">https://raftconsensus.github.io/</a>.</p>
+
+
+  <p>Raft defines a set of core messages needed to implement the protocol. However, it does not specify the transport layer for this protocol. Most implementations have chosen to use vanilla TCP due to its simplicity. However if you want to run a cluster over the Internet, you are likely going to want more than what vanilla TCP provides. This is where XMPP would really shine as a transport layer for Raft. XMPP offers:</p>
+
+  <ol>
+  	<li> Encrypted transport (TLS) </li>
+  	<li> Authenticated Endpoints </li>
+  	<li> Ability to use JIDs to identify cluster nodes </li>
+  	<li> Re-use XMPP if the application is already XMPP enabled </li>
+  </ol>
+
+  <p>These are all things that would traditionally have to be re-engineered each time somebody wanted to use Raft across the public Internet. By supporting Raft in XMPP, developers looking to use Raft would have a transport layer that's as easy to use and understand as the Raft protocol itself. As Raft does not offer its own transport protocol and has deliberately left that to the developer, there is no conflict in standardizing an XMPP based transport layer.</p>
+
+  <div class="indent"><h3>1.1 <a name="sect-idp624944" id="sect-idp624944">Why &lt;message/&gt; and not &lt;iq/&gt;</a></h3>
+  <p>The Raft algorithm can be categorized as a request-response protocol. Normally this would make it a prime candidate for using &lt;iq/&gt; stanzas to handle the communication. However because Raft is designed to cope with message loss, it intrinsically supports automatic recovery. There is no need for the transport layer to report errors as even if the transport layer provided them (such as an &lt;iq/&gt; 'error' response), the Raft implementation cannot use it.</p>
+
+  <p>This has a number of benefits. First, it makes Raft adaptable to lossy transport layers where packets can (and do) get lost. Raft is able to automatically recover in this scenario because the next message the Leader sends will allow a Follower to detect that it has missed a message and ask for it to be sent again. The Leader has no way to deal with an error condition caused by sending a message to a Follower.</p>
+
+  <p>Second, when it comes to implementing Raft over XMPP, using &lt;message/&gt; instead of &lt;iq/&gt; greatly simplifies the implementation. As &lt;iq/&gt; stanzas require a reply, the implementation would need to handle detecting and reporting errors conditions back to the sender. This could mean adding arbitrary timers to try to determine if a Follower has 'timed out'. This adds complexity and uncertainty to the system, and given that Raft itself cannot make use of this information, using &lt;iq/&gt; does not add any value to the Raft over XMPP protocol.</p>
+
+  </div>
+
+  <div class="indent"><h3>1.2 <a name="sect-idp627744" id="sect-idp627744">Example Usecase</a></h3>
+   <p>Making databases or datastores available over the Internet has been the norm for many years. Databases containing PGP keys, certificates or other information can be found hosted by many different organizations. The problem with these systems is that as they become more critical to users, the impact of a server failing increases dramatically. For example, a server that provides a spam database that clients can verify email against, must be operational for those clients to be able to filter spam. Having a single server in this scenario is not acceptable; to provide redundancy there must be multiple servers.</p>
+  
+  <p>The problem then becomes how to keep the servers in sync. Raft partly solves this problem by providing the means to ensure the cluster maintains consensus i.e. maintains a consistent view of the data. As mentioned previously, it does not however provide a means for the nodes in the cluster to actually communicate with each other or clients.</p>
+
+  <p>This is where being able to use Raft over XMPP would be highly beneficial. As it stands now, developers must implement their own transport and security, which although certainly possible, is not ideal. First, most developers are not security experts and a wealth of knowledge and experience is needed to properly design a secure system. Second, even with the required expertise, it takes a considerable amount of time and effort to actually implement and test any new implementation. Third, this extra work takes developers' focus away from the problem that they were trying to solve in the first place.</p>
+
+  <p>So how could Raft over XMPP be applied in this instance? First, XMPP has an excellent history when it comes to security. Considerable time and effort was spent ensuring that XMPP was secure when XMPP Core was being standardized. By using XMPP, this hard work and battle tested approach can be leveraged by Raft. This means developers do not need to concern themselves with securing Raft messages, rather they now only need to concern themselves with using XMPP appropriately.</p>
+
+  <p>Raft over XMPP further simplifies things by allowing developers to think at a higher level of abstraction. Nodes in the cluster can be communicated with simply by knowing their JID. It would not be necessary to know a node's IP address (which could change) or what TCP port the node is running on. In addition developers would not need to worry about which node connects to which,  managing multiple TCP sockets and how to multiplex data across them.</p>
+
+  <p>Lastly, integrating a Raft implementation with Raft over XMPP, would be relatively straight forward as Raft over XMPP defines and uses the same names as those provided by the <a href="https://ramcloud.stanford.edu/raft.pdf">Raft paper</a> with few additions. This means that it could be much easier to get a Raft implementation up and running using Raft over XMPP than it would be to do so even with pure vanilla sockets.</p>
+</div>
+
+ 
+
+  
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p>The author has designed Raft over XMPP with the following requirements in mind:</p>
+
+  <ol>
+  	<li> The protocol needs to support all messages as defined in the <a href="https://ramcloud.stanford.edu/raft.pdf">Raft paper</a> </li>
+  	<li> The protocol ought to leverage the benefits of using XMPP as the transport layer </li>
+  	<li> Client to Node interaction is out of scope for this XEP</li>
+  </ol>
+<h2>3.
+       <a name="glossary" id="glossary">Glossary</a></h2>
+
+<div class="indent"><dl>
+	<di><dt><strong>Raft</strong></dt><dd>A distributed consensus algorithm designed at Stanford University to be simple and easy to implement. It aims to replace PAXOS as the conensus algorithm of choice for real world use and teaching. The Raft website is <a href="https://raftconsensus.github.io/">https://raftconsensus.github.io/</a></dd></di>
+	<di><dt><strong>Log Replication</strong></dt><dd>Log replication is how Raft exchanges commands with the rest of the cluster.</dd></di>
+	<di><dt><strong>Follower</strong></dt><dd>The default state of a cluster member. It receives and applies updates from the Leader</dd></di>
+	<di><dt><strong>Candidate</strong></dt><dd>When a Follower has not seen a heartbeat from the Leader for a period of time, it will assume the leader has failed and will look to become the Leader itself.</dd></di>
+	<di><dt><strong>Leader</strong></dt><dd>The Leader of the cluster is responsible for making all changes to the log and sending them to the other members of the cluster</dd></di>
+
+	<di><dt><strong>VoteRequest</strong></dt><dd>A VoteRequest message is sent by a Candidate in order to solicit votes to become the Leader of a cluster</dd></di>
+	<di><dt><strong>AppendEntries</strong></dt><dd>An AppendEntries message is sent by a Leader to other nodes in the cluster when it has updates that it needs to replicate.</dd></di>
+
+</dl></div>
+
+
+<h2>4.
+       <a name="protocol" id="protocol">Protocol</a></h2>
+  <p>This XEP defines a transport layer for Raft and not an actual implementation. That is, it does not seek to implement the Raft consensus algorithm within XMPP, but instead to simply define the means for Raft messages to be transported over XMPP. To facilitate this, both the message name used in the Raft spec (shown in camel case) and the corresponding element name are mentioned together where appropriate.</p> 
+
+  <p>Node to Node communication is the back-bone of a Raft cluster. In operation, only the Leader or a Candidate will send messages. In all other cases, nodes will only reply to messages received. The two messages are AppendEntries and RequestVote.</p>
+
+  <div class="indent"><h3>4.1 <a name="sect-idp649312" id="sect-idp649312">RequestVote</a></h3>
+  <p>When a Follower has not received a heartbeat from the Leader for a given period of time, it will determine that the Leader has failed and will seek to replace it. To do this it needs the support of the majority of nodes in the cluster. It can solicit support from other nodes by declaring itself a Candidate and sending a 'request-vote' (RequestVote) message to all nodes in the cluster:</p>
+
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Duncan is soliciting votes to become leader of the cluster</p><div class="indent"><pre class="prettyprint">
+    &lt;message from="duncan@inverness.lit/castle" to="macbeth@cawdor.lit/castle"&gt;
+      &lt;request-vote xmlns="urn:xmpp:raft" term="1" last-log-term="1" last-log-index="1" cluster="scotland"/&gt;
+    &lt;/message&gt;
+  </pre></div>
+
+<p>A node will respond with a 'vote' (RequestVoteResponse) message:</p>
+
+  <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Macbeth votes for Duncan to become the next leader</p><div class="indent"><pre class="prettyprint">
+    &lt;message from="macbeth@cawdor.lit/castle" to="duncan@inverness.lit/castle"&gt;
+      &lt;vote xmlns="urn:xmpp:raft" term="1" vote-granted="true" cluster="scotland"/&gt;
+    &lt;/message&gt;
+  </pre></div>
+
+<p> A node can either vote for a given Candidate (vote-granted="true") or against a Candidate (vote-granted="false").</p>
+
+<p>If a node does not receive a reply, no special handling is required.</p>
+
+  </div>
+
+  <div class="indent"><h3>4.2 <a name="sect-idp653936" id="sect-idp653936">AppendEntries</a></h3>
+  <p>The 'append' (AppendEntries) message is used by the Leader to tell Followers that they should append a new entry (or entries) to their logs. It contains additional information to allow a Follower to determine which log entries have been executed and committed on the Leader and also if it has dropped any messages. These features are implemented in Raft directly.</p>
+
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Duncan sends an append message to his followers</p><div class="indent"><pre class="prettyprint">
+  &lt;message from="duncan@inverness.lit/castle" to="macbeth@cawdor.lit/castle"&gt;
+    &lt;append xmlns="urn:xmpp:raft" term="1" prev-log-index="1" leader-commit="1" cluster="scotland"&gt;
+      &lt;entry xmlns="urn:xmpp:raft" encoded="false"&gt;
+        SET X = 1
+      &lt;/entry&gt;
+      &lt;entry xmlns="urn:xmpp:raft" encoded="true"&gt;
+        U0VUIFggPSAx
+      &lt;/entry&gt;
+    &lt;/append&gt;
+  &lt;/message&gt;
+  </pre></div>
+
+  <p>The AppendEntries message is described as a simple array in the <a href="https://ramcloud.stanford.edu/raft.pdf">Raft paper</a> and this has been expanded on in XMPP to take advantage of structured XML. In addition, Raft is designed to be able to replicate any form of command and this could be binary data rather than textual data. To accommodate this, an attribute has been added to the 'append-entries' element to allow a sender to flag when the receiver needs to decode the Entry before passing it to the Raft implementation. The data is encoded using base64.</p>
+
+  <p>When followers receive this message, they send a single 'append-response' (AppendEntriesResponse) in reply as follows:</p>
+
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Macbeth sends an append-response message to Duncan</p><div class="indent"><pre class="prettyprint">
+  &lt;message from="macbeth@cawdor.lit/castle" to="duncan@inverness.lit/castle"&gt;
+    &lt;append-response xmlns="urn:xmpp:raft" term="1" success="true" cluster="scotland"/&gt;
+  &lt;/message&gt;
+  </pre></div>
+
+<p>As before, if a message is missed in either direction, the transport layer does not need to take action.</p>
+
+
+ </div>
+<h2>5.
+       <a name="security" id="security">Security Considerations</a></h2>
+	<div class="indent"><h3>5.1 <a name="sect-idp1521808" id="sect-idp1521808">Checking cluster membership</a></h3>
+  		<p>It is not the responsibility of the transport layer to determine whether a node is a member of a cluster or not before delivering messages to the Raft implementation. The Raft implementation should ignore messages that it receives from nodes that aren't part of the cluster.</p>
+  	</div>
+
+<h2>6.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p>This document requires no interaction with the Internet Assigned Numbers Authority (IANA).</p>
+<h2>7.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+   <div class="indent"><h3>7.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p>The <span class="ref"><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idp1528720">1</a>] includes 'urn:xmpp:raft' in its registry of protocol namespaces.</p>
+  </div>
+<h2>8.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p>REQUIRED for protocol specifications.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0362<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2015-08-11<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0001, Etc.<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0362.xml">HTML</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0362.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0362.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Peter Membrey</h3><p class="indent">
+        Email:
+        <a href="mailto:peter@membrey.hk">peter@membrey.hk</a><br />
+        JabberID: 
+        <a href="xmpp:peter@membrey.hk">peter@membrey.hk</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2014 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/">http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/</a>&gt; or obtained by writing to XMPP Standards Foundation, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idp1528720" id="nt-idp1528720">1</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2015-08-11)</h4><div class="indent"><p>Initial published version approved by the XMPP Council.</p> (XEP Editor (mam))
+    </div><h4>Version 0.0.3 (2015-07-28)</h4><div class="indent"><p>Removed references to SHOULD/MUST.</p> (pm)
+    </div><h4>Version 0.0.2 (2015-07-22)</h4><div class="indent"><p>Updates based on list and council feedback.</p> (pm)
+    </div><h4>Version 0.0.1 (2015-07-20)</h4><div class="indent"><p>First draft.</p> (pm)
+    </div></div><hr /><p>END</p></body></html>

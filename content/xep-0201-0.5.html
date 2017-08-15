@@ -1,0 +1,228 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0201: Best Practices for Message Threads</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Best Practices for Message Threads" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Creator" content="Ian Paterson" /><meta name="DC.Creator" content="Kevin Smith" /><meta name="DC.Description" content="This specification defines recommended handling of XMPP message threads." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2008-02-06" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0201" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2010 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0201: Best Practices for Message Threads</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines recommended handling of XMPP message threads.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Peter Saint-Andre, Ian Paterson, Kevin Smith</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2010 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Deferred</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Informational</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.5</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2008-02-06</td></tr></table><hr /><p style="color:red">WARNING: Consideration of this document has been <strong>Deferred</strong> by the XMPP Standards Foundation. Implementation of the protocol described herein is not recommended.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#motivation">Motivation</a><br />3.  <a href="#def">Definition</a><br />   
+      3.1.  <a href="#syntax">Syntax</a><br />   
+      3.2.  <a href="#semantics">Semantics</a><br />   
+      3.3.  <a href="#unique">Uniqueness</a><br />4.  <a href="#generation">Generation</a><br />   
+      4.1.  <a href="#inclusion">Inclusion</a><br />   
+      4.2.  <a href="#new">New Threads</a><br />   
+      4.3.  <a href="#child">Child Threads</a><br />5.  <a href="#handling">Handling</a><br />   
+      5.1.  <a href="#chat">Chat Messages</a><br />   
+      5.2.  <a href="#groupchat">Groupchat Messages</a><br />   
+      5.3.  <a href="#headline">Headline Messages</a><br />   
+      5.4.  <a href="#normal">Normal Messages</a><br />   
+      5.5.  <a href="#archived">Messages That Have Been Archived</a><br />6.  <a href="#shim">SHIM Header</a><br />7.  <a href="#impl">Implementation Notes</a><br />8.  <a href="#security">Security Considerations</a><br />9.  <a href="#iana">IANA Considerations</a><br />10.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      10.1.  <a href="#registrar-shim">SHIM Headers Registry</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p>Although message threads are re-used in XMPP extension protocols such as <span class="ref"><a href="http://xmpp.org/extensions/xep-0085.html">Chat State Notifications</a></span>  [<a href="#nt-id198550">1</a>] and <span class="ref"><a href="http://xmpp.org/extensions/xep-0155.html">Stanza Session Negotiation</a></span>  [<a href="#nt-id204569">2</a>], the semantics of message threads have never been well specified (e.g., in <span class="ref"><a href="http://tools.ietf.org/html/rfc3921">RFC 3921</a></span>  [<a href="#nt-id204591">3</a>]). This document attempts to clearly specify the meaning and handling of message threads for implementation by XMPP clients and for potential inclusion in <span class="ref"><a href="http://tools.ietf.org/html/draft-ietf-xmpp-3921bis">rfc3921bis</a></span>  [<a href="#nt-id204612">4</a>].</p>
+<h2>2.
+       <a name="motivation" id="motivation">Motivation</a></h2>
+  <p>Threads matter because they enable XMPP clients to:</p>
+  <ul>
+    <li>Track conversation topics within the context of a one-to-one chat session, a <span class="ref"><a href="http://xmpp.org/extensions/xep-0045.html">Multi-User Chat</a></span>  [<a href="#nt-id204644">5</a>] room, or exchange of normal messages.</li>
+    <li>Restart a conversation from message history.</li>
+    <li>Enable clients to distinguish between different conversation threads when presenting a user's message, chat, and groupchat histories, thus providing a more coherent user interface (e.g. by collapsing threads to a single history entry).</li>
+    <li>Separate logical sessions from physical interface objects such as windows.</li>
+    <li>Route XMPP stanzas within a client (e.g., dispatching different content types to different windows), thus facilitating the creation of more robust plugin architectures.</li>
+  </ul>
+<h2>3.
+       <a name="def" id="def">Definition</a></h2>
+  <div class="indent"><h3>3.1 <a name="syntax" id="syntax">Syntax</a></h3>
+    <p>Section 2.1.2.3 of <span class="ref">RFC 3920</span> currently states the following regarding the syntax of the ThreadID:</p>
+    <p class="indent">A message stanza MUST NOT contain more than one &lt;thread/&gt; element.  The &lt;thread/&gt; element MUST NOT possess any attributes....  The &lt;thread/&gt; element MUST NOT contain mixed content (as defined in Section 3.2.2 of XML).</p>
+    <p>For the purpose of improved thread handling, we propose defining a 'parent' attribute that enables an application to identify the current thread as an offshoot or child of a previous thread. Therefore we suggest the following syntax definition:</p>
+    <p class="indent">The inclusion of the &lt;thread/&gt; element is OPTIONAL.  Because the &lt;thread/&gt; element uniquely identifies the particular conversation thread to which a message belongs, a message stanza MUST NOT contain more than one &lt;thread/&gt; element.</p>
+    <p class="indent">The &lt;thread/&gt; element MAY possess a 'parent' attribute that identifies another thread of which the current thread is an offshoot or child; the value of the 'parent' MUST conform to the syntax of the &lt;thread/&gt; element itself.  The &lt;thread/&gt; element MUST NOT contain mixed content (as defined in Section 3.2.2 of ).</p>
+  </div>
+  <div class="indent"><h3>3.2 <a name="semantics" id="semantics">Semantics</a></h3>
+    <p>Section 2.1.2.3 of <span class="ref">RFC 3921</span> currently states the following regarding the semantics of the ThreadID:</p>
+    <p class="indent">The &lt;thread/&gt; element contains non-human-readable XML character data specifying an identifier that is used for tracking a conversation thread (sometimes referred to as an "instant messaging session") between two entities....  The value of the &lt;thread/&gt; element MUST be treated as opaque by entities; no semantic meaning may be derived from it, and only exact comparisons may be made against it.</p>
+    <p>The description in <span class="ref">RFC 3921</span> is deemed to be too limiting, since it ignores the potential use of the ThreadID when exchanging message stanzas of types other than "chat". Therefore we propose the following description:</p>
+    <p class="indent">The primary use of the XMPP &lt;thread/&gt; element is to uniquely identify a conversation thread or "chat session" between two entities instantiated by &lt;message/&gt; stanzas of type 'chat'.  However, the XMPP &lt;thread/&gt; element may also be used to uniquely identify an analogous thread between two entities instantiated by &lt;message/&gt; stanzas of type 'headline' or 'normal', or among multiple entities in the context of a multi-user chat room instantiated by &lt;message/&gt; stanzas of type 'groupchat'. It may also be used for &lt;message/&gt; stanzas not related to a conversation, such as a game session or between plugins.  The &lt;thread/&gt; element is not used to identify individual messages, only conversations.</p>
+  </div>
+  <div class="indent"><h3>3.3 <a name="unique" id="unique">Uniqueness</a></h3>
+    <p>Section 2.1.2.3 of <span class="ref">RFC 3921</span> currently states the following uniqueness requirement:</p>
+    <p class="indent">The value of the &lt;thread/&gt; element ... MUST be unique to that conversation thread within the stream and MUST be consistent throughout that conversation (a client that receives a message from the same full JID but with a different thread ID MUST assume that the message in question exists outside the context of the existing conversation thread).</p>
+    <p>The uniqueness requirement in <span class="ref">RFC 3921</span> is not deemed strong enough since it is desirable that a ThreadID could be used to (for instance) restart a conversation at a later date. Therefore we propose the following uniqueness requirement:</p>
+    <p class="indent">The value of the &lt;thread/&gt; element is not human-readable and MUST be treated as opaque by entities; no semantic meaning may be derived from it, and only exact comparisons may be made against it.  The value of the &lt;thread/&gt; element MUST be a universally unique identifier (UUID) as described in .</p>
+  </div>
+<h2>4.
+       <a name="generation" id="generation">Generation</a></h2>
+  <div class="indent"><h3>4.1 <a name="inclusion" id="inclusion">Inclusion</a></h3>
+    <p>Depending on the type of the message (i.e., the value of the 'type' attribute), the &lt;thread/&gt; should be included as follows:</p>
+    <div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: When to Include Threads</p><table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <th>Message Type</th>
+        <th>Inclusion</th>
+      </tr>
+      <tr class="body">
+        <td>chat</td>
+        <td>RECOMMENDED</td>
+      </tr>
+      <tr class="body">
+        <td>groupchat</td>
+        <td>RECOMMENDED</td>
+      </tr>
+      <tr class="body">
+        <td>headline</td>
+        <td>OPTIONAL</td>
+      </tr>
+      <tr class="body">
+        <td>normal</td>
+        <td>OPTIONAL</td>
+      </tr>
+    </table></div>
+  </div>
+  <div class="indent"><h3>4.2 <a name="new" id="new">New Threads</a></h3>
+    <p>Unless a &lt;message/&gt; stanza is written in direct reply to another &lt;message/&gt; stanza, if a ThreadID is included then its value SHOULD be newly generated if a a human user initiates a chat conversation with another user (i.e., a &lt;message/&gt; stanza of type 'chat'), starts a new conversation in the context of a multi-user chat environment (i.e., a &lt;message/&gt; stanza of type 'groupchat'), or sends a normal message.</p>
+    <p>If the &lt;message/&gt; stanza is written in directly reply to another &lt;message/&gt; stanza, then the ThreadID should be the value from the the original &lt;message/&gt; stanza.</p>
+    <p>Determining what constitutes a &lt;message/&gt; stanza written in reply to another is a matter left to individual implementation, but it is envisaged that in most cases it would be the result of, e.g., the user clicking a 'reply' button when reading the contents of the previous stanza; alternatively, the entity that replies can include an "In-Reply-To" header as described in the <a href="#impl">Implementation Notes</a> section of this document.</p>
+  </div>
+  <div class="indent"><h3>4.3 <a name="child" id="child">Child Threads</a></h3>
+    <p>In some situations, the conversation veers from the original topic. In this situation, it can be sensible to generate a new thread that is an offshoot or child of the original thread. The connection of the child thread to the parent thread SHOULD be indicated by including the original ThreadID as the value of the 'parent' attribute.</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Message with ID</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    to='romeo@example.net/orchard'
+    from='juliet@example.com/balcony'
+    id='asiwe8289ljfdalk'
+    type='chat'
+    xml:lang='en'&gt;
+  &lt;body&gt;Art thou not Romeo, and a Montague?&lt;/body&gt;
+  &lt;thread parent='7edac73ab41e45c4aafa7b2d7b749080'&gt;
+    e0ffe42b28561960c6b12b944a092794b9683a38
+  &lt;/thread&gt;
+&lt;/message&gt;
+    </pre></div>
+  </div>
+<h2>5.
+       <a name="handling" id="handling">Handling</a></h2>
+  <div class="indent"><h3>5.1 <a name="chat" id="chat">Chat Messages</a></h3>
+    <p>In the context of &lt;message/&gt; stanzas of type "chat" exchanged between two entities, the value of the &lt;thread/&gt; element shall be considered equivalent to a unique identifier for the chat session or conversation thread. If an entity receives such a message with a new or unknown ThreadID, it SHOULD treat the message as part of a session with unnegotiated parameters (i.e., as equivalent to the first message in a chat session that has been negotiated via <span class="ref">XEP-0155</span> with no parameters specified). An entity SHOULD destroy the thread when it sends or receives a <span class="ref">XEP-0155</span> "terminate" stanza (such a stanza SHOULD be sent even for sessions that were not negotitated with <span class="ref">XEP-0155</span>) and MAY destroy the thread when it goes offline, but SHOULD NOT destroy the thread if a human user merely disengages from the chat session (e.g., by closing a window in a client interface).</p>
+    <p>If an entity receives an XMPP presence stanza of type "unavailable" from the other entity during a chat session, it SHOULD NOT destroy the thread; instead, it SHOULD assume that the other entity will still be able to continue the session (perhaps the other entity simply became "invisible", was temporarily disconnected by a network error, or is persisting the state of the session until it reconnects and receives "offline" messages).</p>
+    <p>If an entity receives a message of type "chat" without a thread ID then:</p>
+    <ul>
+      <li>If the receiver has no sessions open with the sender (full JID), or if all the open sessions have already <span class="em">received</span> a message that included the session's thread ID, then the receiver should create a new session with a new thread ID (and include that thread ID in all the messages it sends within the session).</li>
+      <li>If the receiver has a session open with the sender within which it has never received any message that included the session's thread ID, then it should consider the message to be part of that session. If more than one of such sessions exist, then the message should be considered part of the session in which the receiver last sent a message.</li>
+    </ul>
+  </div>
+  <div class="indent"><h3>5.2 <a name="groupchat" id="groupchat">Groupchat Messages</a></h3>
+    <p>In the context of &lt;message/&gt; stanzas of type "groupchat" exchanged between multiple entities in a <span class="ref"><a href="http://xmpp.org/extensions/xep-0045.html">Multi-User Chat</a></span>  [<a href="#nt-id198212">6</a>] room or similar environment, the value of the &lt;thread/&gt; element shall be considered equivalent to a unique identifier for a conversation thread in the multi-user environment.</p>
+    <p>When displaying threaded groupchat conversation within a user interface, a client SHOULD provide a visual indication of the thread to which a message belongs. Methods for such indications include (non-exhaustively) the grouping together of all messages from the same thread, providing an index of threads, or formatting all messages within a thread in a cohesive manner, e.g. with uniform coloring.</p>
+  </div>
+  <div class="indent"><h3>5.3 <a name="headline" id="headline">Headline Messages</a></h3>
+    <p>There are no special handling requirements related to threads in the context of &lt;message/&gt; stanzas of type "headline".</p>
+  </div>
+  <div class="indent"><h3>5.4 <a name="normal" id="normal">Normal Messages</a></h3>
+    <p>There are no special handling requirements related to threads in the context of &lt;message/&gt; stanzas of type "headline".</p>
+  </div>
+  <div class="indent"><h3>5.5 <a name="archived" id="archived">Messages That Have Been Archived</a></h3>
+    <p>When displaying historical conversations within a user interface, a client SHOULD provide a visual indication of the thread to which a message belongs. Methods for such indications include (non-exhaustively) the grouping together of all messages from the same thread, providing an index of threads, or formatting all messages within a thread in a cohesive manner, e.g. with uniform coloring.</p>
+  </div>
+<h2>6.
+       <a name="shim" id="shim">SHIM Header</a></h2>
+  <p>In some contexts it may be desirable to enforce thread-like semantics when exchanging XMPP &lt;iq/&gt; stanzas. Because <span class="ref">RFC 3920</span> disallows more than one direct child element of the &lt;iq/&gt; stanza, it is not possible to include the &lt;thread/&gt; element for tracking purposes. Therefore we define a "ThreadID" <span class="ref"><a href="http://xmpp.org/extensions/xep-0131.html">Stanza Headers and Internet Metadata</a></span>  [<a href="#nt-id205199">7</a>] header with the same semantics as the &lt;thread/&gt; element, but with the syntax of a SHIM header:</p>
+  <p class="caption"><a name="example-2" id="example-2"></a>Example 2. ThreadID header</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.net/home'
+    to='joogle@botster.shakespeare.lit'
+    type='get'
+    id='create1'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='create'
+           action='execute'&gt;
+    &lt;headers xmlns='http://jabber.org/protocol/shim'&gt;
+      &lt;header name='ThreadID'&gt;e0ffe42b28561960c6b12b944a092794b9683a38&lt;/header&gt;
+    &lt;/headers&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+  </pre></div>
+<h2>7.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <p>An entity that needs to track replies to particular messages may do so by including an 'id' attribute with the &lt;message/&gt; stanza.</p>
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Message with ID</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    to='romeo@example.net/orchard'
+    from='juliet@example.com/balcony'
+    id='asiwe8289ljfdalk'
+    type='chat'
+    xml:lang='en'&gt;
+  &lt;body&gt;Art thou not Romeo, and a Montague?&lt;/body&gt;
+  &lt;thread&gt;e0ffe42b28561960c6b12b944a092794b9683a38&lt;/thread&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p>The entity that replies then MAY include an "In-Reply-To" SHIM header:</p>
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Reply</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    to='juliet@example.com/balcony'
+    from='romeo@example.net/orchard'
+    type='chat'
+    id='pertio4387435ilq'
+    xml:lang='en'&gt;
+  &lt;body&gt;Neither, fair saint, if either thee dislike.&lt;/body&gt;
+  &lt;thread&gt;e0ffe42b28561960c6b12b944a092794b9683a38&lt;/thread&gt;
+  &lt;headers xmlns='http://jabber.org/protocol/shim'&gt;
+    &lt;header name='In-Reply-To'&gt;asiwe8289ljfdalk&lt;/header&gt;
+  &lt;/headers&gt;
+&lt;/message&gt;
+  </pre></div>
+<h2>8.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p>An application that generates the UUID used as the ThreadID MUST ensure that the UUID does not reveal identifying information about the entity (e.g., the MAC address of the device on which the XMPP application is running).</p>
+<h2>9.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p>This document requires no interaction with the <span class="ref"><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id205290">8</a>].</p>
+<h2>10.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>10.1 <a name="registrar-shim" id="registrar-shim">SHIM Headers Registry</a></h3>
+    <p>The XMPP Registrar shall add "ThreadID" to its registry of SHIM headers (see &lt;<a href="http://xmpp.org/registrar/shim.html">http://xmpp.org/registrar/shim.html</a>&gt;). The submission is as follows:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;header&gt;
+  &lt;name&gt;ThreadID&lt;/name&gt;
+  &lt;desc&gt;
+    This header has the same semantics as the thread child element
+    of the XMPP message stanza but is for use in IQ stanzas.
+  &lt;/desc&gt;
+  &lt;doc&gt;XEP-0201&lt;/doc&gt;
+&lt;/header&gt;
+    </pre></div>
+  </div>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0201<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Informational">Informational</a><br />
+            Version: 0.5<br />
+            Last Updated: 2008-02-06<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: N/A<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0201.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0201.xml/rss.xml">RSS</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0201.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0201.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Peter Saint-Andre</h3><p class="indent">
+        Email:
+        <a href="mailto:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        JabberID: 
+        <a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        URI: 
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p><h3>Ian Paterson</h3><p class="indent">
+        Email:
+        <a href="mailto:ian.paterson@clientside.co.uk">ian.paterson@clientside.co.uk</a><br />
+        JabberID: 
+        <a href="xmpp:ian@zoofy.com">ian@zoofy.com</a><br /></p><h3>Kevin Smith</h3><p class="indent">
+        Email:
+        <a href="mailto:kevin@kismith.co.uk">kevin@kismith.co.uk</a><br />
+        JabberID: 
+        <a href="xmpp:kevdadrum@jabber.ex.ac.uk">kevdadrum@jabber.ex.ac.uk</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2010 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XMPP Standards Foundation, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id198550" id="nt-id198550">1</a>. XEP-0085: Chat State Notifications &lt;<a href="http://xmpp.org/extensions/xep-0085.html">http://xmpp.org/extensions/xep-0085.html</a>&gt;.</p><p><a name="nt-id204569" id="nt-id204569">2</a>. XEP-0155: Stanza Session Negotiation &lt;<a href="http://xmpp.org/extensions/xep-0155.html">http://xmpp.org/extensions/xep-0155.html</a>&gt;.</p><p><a name="nt-id204591" id="nt-id204591">3</a>. RFC 3921: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc3921">http://tools.ietf.org/html/rfc3921</a>&gt;.</p><p><a name="nt-id204612" id="nt-id204612">4</a>. rfc3921bis: proposed revisions to Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/draft-ietf-xmpp-3921bis">http://tools.ietf.org/html/draft-ietf-xmpp-3921bis</a>&gt;. (work in progress)</p><p><a name="nt-id204644" id="nt-id204644">5</a>. XEP-0045: Multi-User Chat &lt;<a href="http://xmpp.org/extensions/xep-0045.html">http://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-id198212" id="nt-id198212">6</a>. XEP-0045: Multi-User Chat &lt;<a href="http://xmpp.org/extensions/xep-0045.html">http://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-id205199" id="nt-id205199">7</a>. XEP-0131: Stanza Headers and Internet Metadata &lt;<a href="http://xmpp.org/extensions/xep-0131.html">http://xmpp.org/extensions/xep-0131.html</a>&gt;.</p><p><a name="nt-id205290" id="nt-id205290">8</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.5 (2008-02-06)</h4><div class="indent"><p>Defined parent attribute and provided recommendations regarding creation of new threads and child threads.</p> (psa)
+    </div><h4>Version 0.4 (2007-08-30)</h4><div class="indent"><p>Specified handling of thread IDs on groupchat messages.</p> (psa)
+    </div><h4>Version 0.3 (2007-01-29)</h4><div class="indent"><p>Described handling of unavailable presence and chat messages without thread IDs; minor changes.</p> (ip)
+    </div><h4>Version 0.2 (2007-01-23)</h4><div class="indent"><p>Equalized treatment of different message types (chat and groupchat not preferred over normal); required the use of UUIDs; specified use of In-Reply-To header; added Kevin Smith as co-author.</p> (psa/ks)
+    </div><h4>Version 0.1 (2006-12-20)</h4><div class="indent"><p>Initial version.</p> (psa)
+    </div><h4>Version 0.0.2 (2006-12-14)</h4><div class="indent">Corrected SHIM example; added XMPP Registrar considerations. (psa)
+    </div><h4>Version 0.0.1 (2006-12-13)</h4><div class="indent">First draft. (psa/ip)
+    </div></div><hr /><p>END</p></body></html>

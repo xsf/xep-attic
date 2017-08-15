@@ -1,0 +1,198 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0288: Bidirectional Server-to-Server Connections</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Bidirectional Server-to-Server Connections" /><meta name="DC.Creator" content="Philipp Hancke" /><meta name="DC.Creator" content="Dave Cridland" /><meta name="DC.Description" content="This specification defines a protocol for using server-to-server connections in a bidirectional way such that stanzas are sent and received on the same TCP connection." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2012-03-07" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0288" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2012 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0288: Bidirectional Server-to-Server Connections</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines a protocol for using server-to-server connections in a bidirectional way such that stanzas are sent and received on the same TCP connection.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Philipp Hancke, Dave Cridland</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2012 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.3</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2012-03-07</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#protocol">Protocol</a><br />   
+      2.1.  <a href="#feature">Stream Feature</a><br />   
+      2.2.  <a href="#nego">Negotiation</a><br />3.  <a href="#examples">Examples</a><br />4.  <a href="#security">Security Considerations</a><br />5.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      5.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      5.2.  <a href="#registrar-stream">Stream Features</a><br />6.  <a href="#iana">IANA Considerations</a><br />7.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p><span class="ref"><a href="http://tools.ietf.org/html/rfc3920">RFC 3920</a></span>  [<a href="#nt-id226061">1</a>] restricted server-to-server communication in such a way that a server had to use one TCP connection for XML stanzas sent from the server to the peer, and another TCP connection (initiated by the peer) for stanzas from the peer to the server, for a total of two TCP connections. <span class="ref"><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-id226080">2</a>] allows two servers to send stanzas in a bidirectional way, but does not define methods for explicitly signalling the usage thereof. This is accomplished herein.</p>
+  <p>While this may seem like a mere optimization that decreases the number of sockets used by an implementation or increases the performance of the server-to-server connection [<a href="#nt-id230132">3</a>], it actually removes some of the practical barriers for the implementation of Multiplexing in <span class="ref"><a href="http://xmpp.org/extensions/xep-0220.html">Server Dialback</a></span>  [<a href="#nt-id226114">4</a>].</p>
+<h2>2.
+       <a name="protocol" id="protocol">Protocol</a></h2>
+  <div class="indent"><h3>2.1 <a name="feature" id="feature">Stream Feature</a></h3>
+    <p>If a server supports bidirectional server-to-server streams, it should inform the connecting entity when returning stream features during the stream negotiation process (both before and after TLS negotiation). This is done by including a &lt;bidi/&gt; element qualified by the 'urn:xmpp:features:bidi' namespace.</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Stream features</p><div class="indent"><pre class="prettyprint">
+&lt;stream:features&gt;
+  &lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+  &lt;bidi xmlns='urn:xmpp:features:bidi'/&gt;
+&lt;/stream:features&gt;
+</pre></div>
+    <p>If the initiating entity chooses to use TLS, STARTTLS negotiation MUST be completed before enabling bidirectionality.</p>
+  </div>
+  <div class="indent"><h3>2.2 <a name="nego" id="nego">Negotiation</a></h3>
+    <p>To enable bidirectional communication, the connecting server sends a &lt;bidi/&gt; element qualified by the 'urn:xmpp:bidi' namespace. This SHOULD be done before either SASL negotiation or Server Dialback.</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Connecting Server Requests Bidirectionality</p><div class="indent"><pre class="prettyprint">
+C: &lt;bidi xmlns='urn:xmpp:bidi'/&gt;
+</pre></div>
+    <p>Note: Since there is no reply to the request, it is possible to pipeline it.</p>
+    <p>After enabling bidirectionality, the connecting server continues to authenticate via SASL or requests to send stanzas for a domain pair with Server Dialback. The receiving server MUST NOT send stanzas to the peer before it has authenticated via SASL, or the peer's identity has been verified via Server Dialback. Note that the receiving server MUST NOT attempt to verify a dialback key on the same connection where the corresponding request was issued.</p>
+    <p>Also note that the receiving server MUST only send stanzas for which it has been authenticated - in the case of TLS/SASL based authentication, this is the value of the stream's 'to' attribute, whereas in the case of Server Dialback this is the inverse of any domain pair that has been used in a dialback request.</p>
+    <p>Finally, once bidirectionality is enabled, the receiving server MAY initiate Server Dialback authentications for other domains it hosts to any domain authenticated to be hosted by the connecting server. In particular, it may initiate Target Piggybacking for any target domain that has successfully been used as a source domain by the connecting server. Note that this implies that a connecting server that uses bidi and dialback MUST support dialback error conditions as defined in XEP 0220 [<a href="#nt-id226160">5</a>].</p>
+  </div>
+<h2>3.
+       <a name="examples" id="examples">Examples</a></h2>
+  <p>This section shows two complete examples of bidirectional streams, the first example uses SASL EXTERNAL, the second uses Server Dialback.</p>
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Bidirectional Streams with SASL Authentication</p><div class="indent"><pre class="prettyprint">
+C: &lt;stream:stream xmlns:stream='http://etherx.jabber.org/streams' 
+	xmlns='jabber:server' xmlns:db='jabber:server:dialback' 
+	to='montague.lit' from='capulet.lit' 
+	xml:lang='en' version='1.0'&gt;
+S: &lt;stream:stream xmlns='jabber:server' xmlns:db='jabber:server:dialback' 
+	xmlns:stream='http://etherx.jabber.org/streams' xml:lang='en' 
+	id='65b30434afd7646699d077f7affcb2c120c48e18' 
+	from='montague.lit' to='capulet.lit' version='1.0'&gt;
+S: &lt;stream:features&gt;
+     &lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+     &lt;bidi xmlns='urn:xmpp:features:bidi'/&gt;
+   &lt;/stream:features&gt;
+C: &lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+S: &lt;proceed xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+C: &lt;stream:stream xmlns:stream='http://etherx.jabber.org/streams' 
+	xmlns='jabber:server' xmlns:db='jabber:server:dialback' 
+	to='montague.lit' from='capulet.lit' 
+	xml:lang='en' version='1.0'&gt;
+S: &lt;stream:stream xmlns='jabber:server' xmlns:db='jabber:server:dialback' 
+	xmlns:stream='http://etherx.jabber.org/streams' xml:lang='en' 
+	id='b5cd769b1dc292c6f6557fe76cabc4d112333f9a' 
+	from='montague.lit' to='capulet.lit' version='1.0'&gt;
+S: &lt;stream:features&gt;
+     &lt;mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'&gt;
+       &lt;mechanism&gt;EXTERNAL&lt;mechanism&gt;
+     &lt;/mechanisms&gt;
+     &lt;bidi xmlns='urn:xmpp:features:bidi'/&gt;
+   &lt;/stream:features&gt;
+C: &lt;bidi xmlns='urn:xmpp:bidi'/&gt;
+   &lt;auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='EXTERNAL'&gt;
+     Y2FwdWxldC5saXQ=&lt;/auth&gt;
+S: &lt;success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/&gt;
+C: &lt;stream:stream xmlns:stream='http://etherx.jabber.org/streams' 
+	xmlns='jabber:server' xmlns:db='jabber:server:dialback' 
+	to='montague.lit' from='capulet.lit' 
+	xml:lang='en' version='1.0'&gt;
+S: &lt;stream:stream xmlns='jabber:server' xmlns:db='jabber:server:dialback' 
+	xmlns:stream='http://etherx.jabber.org/streams' xml:lang='en' 
+	id='b5cd769b1dc292c6f6557fe76cabc4d112333f9a' 
+	from='montague.lit' to='capulet.lit' version='1.0'&gt;
+S: &lt;stream:features/&gt;
+   &lt;!-- At this point, S is allowed to send C stanzas from montague.lit to capulet.lit
+        since that is the value of 'from' in the stream open sent by C above.
+     --&gt;
+C: &lt;iq from='juliet@capulet.lit/balcony' to='montague.lit' type='get' 
+     id='8dfc70af'&gt;&lt;query xmlns='urn:xmpp:ping'/&gt;&lt;/iq&gt;
+S: &lt;iq from='montague.lit' to='juliet@capulet.lit/balcony' type='result' 
+     id='8dfc70af'&gt;&lt;query xmlns='urn:xmpp:ping'/&gt;&lt;/iq&gt;
+</pre></div>
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Bidirectional Streams with Server Dialback</p><div class="indent"><pre class="prettyprint">
+C: &lt;stream:stream xmlns:stream='http://etherx.jabber.org/streams' 
+	xmlns='jabber:server' xmlns:db='jabber:server:dialback' 
+	to='montague.lit' from='capulet.lit' 
+	xml:lang='en' version='1.0'&gt;
+S: &lt;stream:stream xmlns='jabber:server' xmlns:db='jabber:server:dialback' 
+	xmlns:stream='http://etherx.jabber.org/streams' xml:lang='en' 
+	id='65b30434afd7646699d077f7affcb2c120c48e18' 
+	from='montague.lit' to='capulet.lit' version='1.0'&gt;
+S: &lt;stream:features&gt;
+     &lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+     &lt;bidi xmlns='urn:xmpp:features:bidi'/&gt;
+   &lt;/stream:features&gt;
+C: &lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+S: &lt;proceed xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+C: &lt;stream:stream xmlns:stream='http://etherx.jabber.org/streams' 
+	xmlns='jabber:server' xmlns:db='jabber:server:dialback' 
+	to='montague.lit' from='capulet.lit' 
+	xml:lang='en' version='1.0'&gt;
+S: &lt;stream:stream xmlns='jabber:server' xmlns:db='jabber:server:dialback' 
+	xmlns:stream='http://etherx.jabber.org/streams' xml:lang='en' 
+	id='b5cd769b1dc292c6f6557fe76cabc4d112333f9a' 
+	from='montague.lit' to='capulet.lit' version='1.0'&gt;
+S: &lt;stream:features&gt;
+     &lt;mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/&gt;
+     &lt;bidi xmlns='urn:xmpp:features:bidi'/&gt;
+   &lt;/stream:features&gt;
+    &lt;example caption="Stream Setup before TLS"&gt;&lt;![CDATA[
+C: &lt;bidi xmlns='urn:xmpp:bidi'/&gt;
+   &lt;db:result from='capulet.lit' to='montague.lit'&gt;
+	e3f5cf21f12749ef2cf59269bc0118f35bc46b26&lt;/db:result&gt;
+S: &lt;db:result from='montague.lit' to='capulet.lit' type='valid'/&gt;
+   &lt;!-- At this point S may send from montague.lit to capulet.lit.
+     --&gt;
+C: &lt;iq from='juliet@capulet.lit/balcony' to='montague.lit' type='get' 
+     id='8dfc70af'&gt;&lt;query xmlns='urn:xmpp:ping'/&gt;&lt;/iq&gt;
+S: &lt;iq from='montague.lit' to='juliet@capulet.lit/balcony' type='result' 
+     id='8dfc70af'&gt;&lt;query xmlns='urn:xmpp:ping'/&gt;&lt;/iq&gt;
+S: &lt;db:result from='conference.montague.lit' to='capulet.lit'&gt;
+        1bac3ef56fed987cfe098c9785c654a5476ed765&lt;/db:result&gt;
+   &lt;!-- The above is also legal - S attempts to authenticate as 
+        a different domain as well, presumably a MUC domain.
+        note that S can do this form of multiplexing regardless 
+        of the support for dialback errors since that was required by RFC 3920
+     --&gt;
+C: &lt;db:result from='capulet.lit' to='conference.montague.lit' type='valid'/&gt;
+   &lt;!-- Now S can send as conference.m.l as well as C sending to that domain.
+     --&gt;
+</pre></div>
+<h2>4.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p>This specification introduces no security considerations above and beyond those discussed in <span class="ref">RFC 3920</span>.</p>
+  
+<h2>5.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>5.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p>This specification defines the following XML namespace:</p>
+    <ul>
+      <li>'urn:xmpp:bidi'</li>
+    </ul>
+    <p>Upon advancement of this specification from a status of Experimental to a status of Draft, the <span class="ref"><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id233016">6</a>] shall add the foregoing namespace to the registry located at &lt;<a href="http://xmpp.org/registrar/namespaces.html">http://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref"><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function</a></span>  [<a href="#nt-id233054">7</a>].</p>
+  </div>
+  <div class="indent"><h3>5.2 <a name="registrar-stream" id="registrar-stream">Stream Features</a></h3>
+    <p>This specification defines the following XML namespace:</p>
+    <ul>
+      <li>'urn:xmpp:features:bidi'</li>
+    </ul>
+    <p>Upon advancement of this specification from a status of Experimental to a status of Draft, the XMPP Registrar shall add 'urn:xmpp:features:bidi' in its registry of stream features at &lt;<a href="http://xmpp.org/registrar/stream-features.html">http://xmpp.org/registrar/stream-features.html</a>&gt;.</p>
+  </div>
+<h2>6.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p>This document requires no interaction with the <span class="ref"><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id233111">8</a>].</p>
+<h2>7.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+  <p>Thanks to Justin Karneges and Torje Henriksen.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0288<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.3<br />
+            Last Updated: 2012-03-07<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0178, XEP-0220<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: bidi<br />
+              Source Control: 
+                <a class="standardsButton" href="http://gitorious.org/xmpp/xmpp/blobs/master/extensions/xep-0288.xml">HTML</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0288.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0288.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Philipp Hancke</h3><p class="indent">
+        JabberID: 
+        <a href="xmpp:fippo@ve.symlynx.com">fippo@ve.symlynx.com</a><br /></p><h3>Dave Cridland</h3><p class="indent">
+        Email:
+        <a href="mailto:dave.cridland@isode.com">dave.cridland@isode.com</a><br />
+        JabberID: 
+        <a href="xmpp:dave.cridland@isode.com">dave.cridland@isode.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2012 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/">http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/</a>&gt; or obtained by writing to XMPP Standards Foundation, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id226061" id="nt-id226061">1</a>. RFC 3920: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc3920">http://tools.ietf.org/html/rfc3920</a>&gt;.</p><p><a name="nt-id226080" id="nt-id226080">2</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-id230132" id="nt-id230132">3</a>. In constrained environments, bidirectional server-to-server connections exhibit a reduced packet round trip time, see &lt;<a href="http://www.isode.com/whitepapers/xmpp-performance-constrained.html">http://www.isode.com/whitepapers/xmpp-performance-constrained.html</a>&gt;.</p><p><a name="nt-id226114" id="nt-id226114">4</a>. XEP-0220: Server Dialback &lt;<a href="http://xmpp.org/extensions/xep-0220.html">http://xmpp.org/extensions/xep-0220.html</a>&gt;.</p><p><a name="nt-id226160" id="nt-id226160">5</a>. Ideally, support for dialback errors would be signalled by a proper extension mechanism such as &lt;stream:features/&gt;. However, these are currently only sent from the receiving server to the connecting server and can therefore not be used for signalling support for dialback errors in the other direction.</p><p><a name="nt-id233016" id="nt-id233016">6</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id233054" id="nt-id233054">7</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p><p><a name="nt-id233111" id="nt-id233111">8</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.3 (2012-03-07)</h4><div class="indent">
+      <ul>
+        <li>Fixed wrong from/to in example comment.</li>
+        <li>Required support for dialback error handling if the connecting server uses bidi in combination with dialback</li>
+      </ul>
+     (ph)
+    </div><h4>Version 0.2 (2011-12-12)</h4><div class="indent"><p>Minor clarifications about the implications of bidi and dialback.</p> (ph)
+    </div><h4>Version 0.1 (2010-10-04)</h4><div class="indent"><p>Initial published version.</p> (psa)
+    </div><h4>Version 0.0.2 (2010-09-13)</h4><div class="indent">
+      <p>belated run-over pre-publication</p>
+      <p>Added notes on authentication</p>
+     (dwd)
+    </div><h4>Version 0.0.1 (2010-04-12)</h4><div class="indent"><p>initial version</p> (ph)
+    </div></div><hr /><p>END</p></body></html>

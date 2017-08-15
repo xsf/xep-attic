@@ -1,0 +1,305 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0285: Digital Signatures in XMPP</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Digital Signatures in XMPP" /><meta name="DC.Creator" content="Kurt Zeilenga" /><meta name="DC.Description" content="This document provides a technical specification for Digital Signatures in the&#10;      Extensible Messaging and Presence Protocol (XMPP)." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2010-09-15" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0285" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2010 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0285: Digital Signatures in XMPP</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This document provides a technical specification for Digital Signatures in the
+      Extensible Messaging and Presence Protocol (XMPP).</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Kurt Zeilenga</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2010 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2010-09-15</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#stanza">Signing XMPP Stanzas</a><br />   
+      2.1.  <a href="#ex-message">Example of Signing Messages</a><br />   
+      2.2.  <a href="#ex-iq">Example of Securing IQs</a><br />3.  <a href="#interact">Interaction with Stanza Semantics</a><br />4.  <a href="#inbound">Handling of Inbound Stanzas</a><br />5.  <a href="#timestamps">Inclusion and Checking of Timestamps</a><br />6.  <a href="#mti">Mandatory-to-Implement Cryptographic Algorithms</a><br />7.  <a href="#certs">Certificates</a><br />8.  <a href="#security">Security Considerations</a><br />9.  <a href="#reg">XMPP Registrar Considerations</a><br />   
+      9.1.  <a href="#ns">XML Namespace Name for Signed Data in XMPP</a><br />10.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+    <p>This document provides a technical specification for Digital Signatures in Extensible
+      Messaging and Presence Protocol (<span class="ref"><a href="http://xmpp.org/">XMPP</a></span>  [<a href="#nt-id232705">1</a>]) based upon End-to-End Object Encryption
+      (<span class="ref"><a href="http://datatracker.ietf.org/doc/draft-miller-3923bis">E2EEncrypt</a></span>  [<a href="#nt-id232733">2</a>]) "work in progress".</p>
+    <p>The S/MIME approach defined in <span class="ref"><a href="http://tools.ietf.org/html/rfc3923">RFC 3923</a></span>  [<a href="#nt-id232745">3</a>] has never been implemented in XMPP clients to the
+      best of our knowledge, but has some attractive features, especially the ability to
+      store-and-forward a signed message at a user's server if the user is not online when the
+      message is received (in the XMPP community this is called "offline storage" and the message is
+      referred to as an "offline message"). The authors surmise that RFC 3923 has not been
+      implemented mainly because it adds several new dependencies to XMPP clients, especially MIME
+      (along with the CPIM and MSGFMT media types). This document explores the possibility of an
+      approach that is similar to but simpler than RFC 3923.</p>
+  <h2>2.
+       <a name="stanza" id="stanza">Signing XMPP Stanzas</a></h2>
+    <p>The process that a sending agent follows for securing stanzas is very similar regardless of
+      the form of stanza (i.e., &lt;iq/&gt;, &lt;message/&gt;, or &lt;presence/&gt;).</p>
+    <ol>
+      <li>Constructs a cleartext version of the stanza, S.</li>
+      <li>Notes the current UTC date and time N when this stanza is constructed, formatted as
+        described in Section 5.</li>
+      <li>Converts the stanza to a UTF-8, as defined by <span class="ref"><a href="http://tools.ietf.org/html/rfc3269">RFC 3269</a></span>  [<a href="#nt-id232797">4</a>], encoded string, optionally
+        removing line breaks and other insignificant whitespace between elements and attributes,
+        i.e., UTF8-encode(S) = S'. We call S' a "stanza-string" because for purposes of signing and
+        verification it is treated not as XML but as an opaque string (this avoids the need for
+        complex canonicalization of the XML input).</li>
+      <li>Constructs a plaintext envelope (E) &lt;plain/&gt; qualified by the "urn:xmpp:signed:0"
+        namespace as follows: <ul>
+          <li>The attribute 'timestamp' set to the UTC date and time value N</li>
+          <li>The XML character data set to the base64-encoded form of S' (where the encoding
+            adheres to the definition in Section 4 of <span class="ref"><a href="http://tools.ietf.org/html/rfc4648">BASE64</a></span>  [<a href="#nt-id232838">5</a>] and where the padding bits are set to
+            zero). This encoding is necessary to preserve a canonicalized form of S'.</li>
+        </ul>
+      </li>
+      <li>Converts the envelope (E) to a UTF-8 encoded string, optionally removing line breaks and
+        other insignificant whitespace between elements and attributes, i.e., E' =
+        UTF8-encode(E).</li>
+      <li>Produce a signature of UTF8-encoded envelope (E') using the intended signature algorithm.
+        T = signature(E'). (This step is underspecified and will be expanded upon in later revision
+        of this document.)</li>
+      <li>Base64-encodes T to produce the signature data T'.</li>
+      <li>Constructs an &lt;signed/&gt; element qualified by the "urn:xmpp:signed:0" namespace as
+        follows: <ul>
+          <li>The child element &lt;signature&gt; (implicitly qualified by the "urn:xmpp:signed:0"
+            namespace) as follows: <ul>
+              <li>The attribute 'algorithm' set to a string identifying the signature algorithm
+                used.</li>
+              <li>The XML character data T'.</li>
+            </ul></li>
+          <li>The child element &lt;data&gt; (implicitly qualified by the "urn:xmpp:signed:0"
+            namespace) as follows: <ul>
+              <li>The XML character data E'.</li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+      <li>Sends the &lt;signed&gt; element as the payload of a stanza that SHOULD match the stanza
+        from step 1 in kind (e.g., &lt;message/&gt;), type (e.g., "chat"), and addressing (e.g.
+        to="romeo@montague.net" from="juliet@capulet.net/balcony"). If the original stanza (S) has a
+        value for the "id" attribute, this stanza MUST NOT use the same value for its "id"
+        attribute.</li>
+    </ol>
+
+    <div class="indent"><h3>2.1 <a name="ex-message" id="ex-message">Example of Signing Messages</a></h3>
+      <p>The sender begins with the cleartext version of the &lt;message/&gt; stanza "S":</p>
+      <p class="caption"><a name="example-1" id="example-1"></a>Example 1. </p><div class="indent"><pre class="prettyprint">
+&lt;message    xmlns='jabber:client'
+            from='juliet@capulet.net/balcony'
+            id='183ef129'
+            to='romeo@montague.net'
+            type='chat'&gt;
+    &lt;thread&gt;8996aef0-061d-012d-347a-549a200771aa&lt;/thread&gt;
+    &lt;body&gt;Wherefore art thou, Romeo?&lt;/body&gt;
+&lt;/message&gt;
+          </pre></div>
+
+      <p>The sender then performs the steps 1 through 4 from above to generate:</p>
+      <p class="caption"><a name="example-2" id="example-2"></a>Example 2. </p><div class="indent"><pre class="prettyprint">
+&lt;plain  xmlns="urn:xmpp:signed:0"
+           timestamp="2010-06-29T02:15:21.012Z"&gt;
+     PG1lc3NhZ2UgeG1sbnM9ImphYmJlcjpjbGllbnQiIGZyb209Imp1bGlldEBjYXB
+     1bGV0Lm5ldC9iYWxjb255IiB0bz0icm9tZW9AbW9udGVndWUubmV0IiB0eXBlPS
+     JjaGF0Ij48dGhyZWFkPmM2MzczODI0LWEzMDctNDBkZC04ZmUwLWJhZDZlNzI5O
+     WFkMDwvdGhyZWFkPjxib2R5PldoZXJlZm9yZSBhcnQgdGhvdSwgUm9tZW8/PC9i
+     b2R5PjwvbWVzc2FnZT4=
+   &lt;/plain&gt;
+   </pre></div>
+      <p>And then performs steps 5 through 9 steps, causing the following to be sent:</p>
+      <p class="caption"><a name="example-3" id="example-3"></a>Example 3. </p><div class="indent"><pre class="prettyprint">
+   &lt;message  xmlns='jabber:client'
+             from='juliet@capulet.net/balcony'
+             id='6410ed123'
+             to='romeo@montague.net'
+             type='chat'&gt;
+     &lt;signed   xmlns="urn:xmpp:signed:0"&gt;
+       &lt;signature    algorithm="RSA-SHA1"&gt;
+	       DxbxIziY1C1Ytcxkj0IFLsfmDLMv96JMlMAQZ7jh49IbsOIPsxI2LyLmqhKH/994UXDJKQLHvLJz
+         gAmw8V2b+zmyZeItJzSmB+HHiLFVXkD2Dd4JfetsafsfIcB7uNWg0gAeiKrTHfFgiyEC/2WxwOj3
+         JUMRyQ9ykEPIzS0GZ/k=
+       &lt;/signature&gt;
+       &lt;data&gt;
+         PHBsYWluIHhtbG5zPSJ1cm46eG1wcDpzaWduZWQ6MCIgdGltZXN0YW1wPSIyMDEwLTA2LTI5VDAy
+         OjE1OjIxLjAxMloiPgogIFBHMWxjM05oWjJVZ2VHMXNibk05SW1waFltSmxjanBqYkdsbGJuUWlJ
+         R1p5YjIwOUltcDFiR2xsZEVCallYQgogIDFiR1YwTG01bGRDOWlZV3hqYjI1NUlpQjBiejBpY205
+         dFpXOUFiVzl1ZEdWbmRXVXVibVYwSWlCMGVYQmxQUwogIEpqYUdGMElqNDhkR2h5WldGa1BtTTJN
+         emN6T0RJMExXRXpNRGN0TkRCa1pDMDRabVV3TFdKaFpEWmxOekk1TwogIFdGa01Ed3ZkR2h5WldG
+         a1BqeGliMlI1UGxkb1pYSmxabTl5WlNCaGNuUWdkR2h2ZFN3Z1VtOXRaVzgvUEM5aQogIGIyUjVQ
+         and2YldWemMyRm5aVDQ9CjwvcGxhaW4+Cg==
+       &lt;/data&gt;
+     &lt;/signed&gt;
+   &lt;/message&gt;
+   </pre></div>
+
+    </div>
+    <div class="indent"><h3>2.2 <a name="ex-iq" id="ex-iq">Example of Securing IQs</a></h3>
+      <p>To be added....</p>
+    </div>
+  <h2>3.
+       <a name="interact" id="interact">Interaction with Stanza Semantics</a></h2>
+    <p>The following limitations and caveats apply:</p>
+
+    <ul>
+      <li>Undirected &lt;presence/&gt; stanzas SHOULD NOT be signed.</li>
+      <li>Stanzas directed to multiplexing services (e.g. multi-user chat) SHOULD NOT be signed,
+        unless the sender has established the service supports the handling of signed stanzas.</li>
+    </ul>
+
+  <h2>4.
+       <a name="inbound" id="inbound">Handling of Inbound Stanzas</a></h2>
+    <p>Several scenarios are possible when an entity receives an encrypted stanza:</p>
+
+    <div class="indent"><dl>
+      <di>
+        <dt><strong>Case #1:</strong></dt>
+        <dd>The receiving application does not understand the protocol.</dd>
+      </di>
+      <di>
+        <dt><strong>Case #2:</strong></dt>
+        <dd>The receiving application understands the protocol and is able to verify the
+          signature.</dd>
+      </di>
+      <di>
+        <dt><strong>Case #3:</strong></dt>
+        <dd>The receiving application understands the protocol and is able to verify the signature,
+          but the timestamps fail the checks specified under Checking of Timestamps.</dd>
+      </di>
+      <di>
+        <dt><strong>Case #4:</strong></dt>
+        <dd>The receiving application understands the protocol and is unable to verify the
+          signature.</dd>
+      </di>
+    </dl></div>
+
+    <p>In Case #1, the receiving application MUST do one and only one of the following: (1) ignore
+      the &lt;signed/&gt; extension, (2) ignore the entire stanza, or (3), except where precluded by
+      the protocol (<span class="ref"><a href="http://tools.ietf.org/html/draft-ietf-xmpp-3920bis">rfc3920bis</a></span>  [<a href="#nt-id239086">6</a>]), return a &lt;service-unavailable/&gt; error to the sender.</p>
+    <p>In Case #2, the receiving application MUST NOT return a stanza error to the sender, since
+      this is the success case.</p>
+    <p>In Case #3, the receiving application MAY, except where precluded by the protocol, return a
+      &lt;not-acceptable/&gt; error to the sender, optionally supplemented by an
+      application-specific error condition element of &lt;bad-timestamp/&gt; as shown below:</p>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. </p><div class="indent"><pre class="prettyprint">
+&lt;message from='romeo@example.net/orchard'
+         id='6410ed123' 
+         to='juliet@capulet.net/balcony'
+         type='error'&gt;
+  &lt;signed xmlns='urn:xmpp:signed:0'&gt;
+    XML-character-data-here
+  &lt;/signed&gt;
+  &lt;error type='modify'&gt;
+    &lt;not-acceptable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+    &lt;bad-timestamp xmlns='urn:xmpp:signed:0'/&gt;
+  &lt;/error&gt;
+&lt;/message&gt;
+        </pre></div>
+    <p>In Case #4, the receiving application SHOULD, except as precluded by the protocol, return a
+      &lt;bad-request/&gt; error to the sender, optionally supplemented by an application-specific
+      error condition element of &lt;bad-signature/&gt; as shown below:</p>
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. </p><div class="indent"><pre class="prettyprint">
+&lt;message from='romeo@example.net/orchard'
+         id='6410ed123' 
+         to='juliet@capulet.net/balcony'
+         type='error'&gt;
+  &lt;e2e xmlns='urn:xmpp:signed:0'&gt;
+    XML-character-data-here
+  &lt;/e2e&gt;
+  &lt;error type='modify'&gt;
+    &lt;bad-request xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+    &lt;bad-signature xmlns='urn:ietf:params:xml:xmpp-signed:0'/&gt;
+  &lt;/error&gt;
+&lt;/message&gt;
+        </pre></div>
+    <p>Additionally in Case #4, the receiving application SHOULD NOT present the stanza to the
+      intended recipient (human or application) and SHOULD provide some explicit alternate
+      processing of the stanza (which may be to display a message informing the recipient that it
+      has received a stanza that cannot be verified).</p>
+  <h2>5.
+       <a name="timestamps" id="timestamps">Inclusion and Checking of Timestamps</a></h2>
+    <p>Timestamps are included to help prevent replay attacks. All timestamps MUST conform to
+      <span class="ref"><a href="http://tools.ietf.org/html/rfc3339">DATETIME</a></span>  [<a href="#nt-id239159">7</a>] and be presented as UTC with no offset, always including the seconds and fractions
+      of a second to three digits (resulting in a datetime 24 characters in length). Absent a local
+      adjustment to the sending agent's perceived time or the underlying clock time, the sending
+      agent MUST ensure that the timestamps it sends to the receiver increase monotonically (if
+      necessary by incrementing the seconds fraction in the timestamp if the clock returns the same
+      time for multiple requests). The following rules apply to the receiving application:</p>
+
+    <ul style="symbols">
+      <li>It MUST verify that the timestamp received is within five minutes of the current time,
+        except as described below for offline messages.</li>
+      <li>If the foregoing check fails, the timestamp SHOULD be presented to the receiving entity
+        (human or application) marked with descriptive text indicating "old timestamp" or "future
+        timestamp" and the receiving entity MAY return a stanza error to the sender (except as
+        precluded in the protocol).</li>
+    </ul>
+
+    <p>The foregoing timestamp checks assume that the recipient is online when the message is
+      received. However, if the recipient is offline then the server will probably store the message
+      for delivery when the recipient is next online (offline storage does not apply to &lt;iq/&gt;
+      or &lt;presence/&gt; stanzas, only &lt;message/&gt; stanzas). As described in <span class="ref"><a href="http://xmpp.org/extensions/xep-0160.html">Best Practices for Handling Offline Messages</a></span>  [<a href="#nt-id239208">8</a>], when
+      sending an offline message to the recipient, the server SHOULD include delayed delivery data
+      as specified in <span class="ref"><a href="http://xmpp.org/extensions/xep-0203.html">Delayed Delivery</a></span>  [<a href="#nt-id239231">9</a>] so that the recipient knows that this is an offline message and also
+      knows the original time of receipt at the server. In this case, the recipient SHOULD verify
+      that the timestamp received in the encrypted message is within five minutes of the time
+      stamped by the recipient's server in the &lt;delay/&gt; element.</p>
+  <h2>6.
+       <a name="mti" id="mti">Mandatory-to-Implement Cryptographic Algorithms</a></h2>
+    <p>All implementations MUST support the following algorithms. Implementations MAY support other
+      algorithms as well.</p>
+    <ul>
+      <li>TBD (RSA/SHA1? RSASSA-RKCS1-v1_5? RSASSA-PSS?)</li>
+    </ul>
+  <h2>7.
+       <a name="certs" id="certs">Certificates</a></h2>
+    <p>To participate in end-to-end signing using the methods defined in this document, a client
+      needs to possess an X.509 certificate. It is expected that many clients will generate their
+      own (self-signed) certificates rather than obtain a certificate issued by a certification
+      authority (CA). In any case the certificate MUST include an XMPP address that is represented
+      using the ASN.1 Object Identifier "id-on-xmppAddr" as specified in Section 5.1.1 of
+      RFC 3920bis.</p>
+  <h2>8.
+       <a name="security" id="security">Security Considerations</a></h2>
+    <p>TBD.</p>
+  <h2>9.
+       <a name="reg" id="reg">XMPP Registrar Considerations</a></h2>
+    <div class="indent"><h3>9.1 <a name="ns" id="ns">XML Namespace Name for Signed Data in XMPP</a></h3>
+      <p>A URN sub-namespace of signed content for the Extensible Messaging and Presence Protocol
+        (XMPP) is defined as follows.</p>
+      <div class="indent"><dl>
+        <di>
+          <dt><strong>URI:</strong></dt>
+          <dd>urn:xmpp:signed</dd>
+        </di>
+        <di>
+          <dt><strong>Specification:</strong></dt>
+          <dd>ProtoXEP</dd>
+        </di>
+        <di>
+          <dt><strong>Description:</strong></dt>
+          <dd>This is an XML namespace name of signed content for the Extensible Messaging and
+            Presence Protocol as defined by ProtoXEP.</dd>
+        </di>
+        <di>
+          <dt><strong>Registrant Contact:</strong></dt>
+          <dd>XSF</dd>
+        </di>
+      </dl></div>
+    </div>
+  <h2>10.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+    <p>This document borrows ideas and text from End-to-End Object Encryption "work in progress" by
+      Matthew Miller and Peter Saint-Andre.</p>
+  <hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0285<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2010-09-15<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0001<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: N/A<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0285.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0285.xml/rss.xml">RSS</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0285.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0285.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Kurt Zeilenga</h3><p class="indent">
+        Email:
+        <a href="mailto:Kurt.Zeilenga@Isode.COM">Kurt.Zeilenga@Isode.COM</a><br />
+        JabberID: 
+        <a href="xmpp:Kurt.Zeilenga@Isode.COM">Kurt.Zeilenga@Isode.COM</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2010 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XMPP Standards Foundation, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id232705" id="nt-id232705">1</a>. Extensible Messaging and Presence Protocol (XMPP) &lt;<a href="http://xmpp.org/">http://xmpp.org/</a>&gt;.</p><p><a name="nt-id232733" id="nt-id232733">2</a>. End-to-End Object Encryption for the Extensible Messaging and Presence Protocol (XMPP), Miller, M. and P. Saint-Andre, work in progress &lt;<a href="http://datatracker.ietf.org/doc/draft-miller-3923bis">http://datatracker.ietf.org/doc/draft-miller-3923bis</a>&gt;.</p><p><a name="nt-id232745" id="nt-id232745">3</a>. RFC 3923: End-to-End Signing and Object Encryption for the Extensible Messaging and Presence Protocol (XMPP) &lt;<a href="http://tools.ietf.org/html/rfc3923">http://tools.ietf.org/html/rfc3923</a>&gt;.</p><p><a name="nt-id232797" id="nt-id232797">4</a>. RFC 3269: UTF-8, a transformation format of ISO 10646 &lt;<a href="http://tools.ietf.org/html/rfc3269">http://tools.ietf.org/html/rfc3269</a>&gt;.</p><p><a name="nt-id232838" id="nt-id232838">5</a>. RFC 4648: The Base16, Base32, and Base64 Data &lt;<a href="http://tools.ietf.org/html/rfc4648">http://tools.ietf.org/html/rfc4648</a>&gt;.</p><p><a name="nt-id239086" id="nt-id239086">6</a>. rfc3920bis: proposed revisions to Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/draft-ietf-xmpp-3920bis">http://tools.ietf.org/html/draft-ietf-xmpp-3920bis</a>&gt;. (work in progress)</p><p><a name="nt-id239159" id="nt-id239159">7</a>. RFC 3339: Date and Time on the Internet Timestamps &lt;<a href="http://tools.ietf.org/html/rfc3339">http://tools.ietf.org/html/rfc3339</a>&gt;.</p><p><a name="nt-id239208" id="nt-id239208">8</a>. XEP-0160: Best Practices for Handling Offline Messages &lt;<a href="http://xmpp.org/extensions/xep-0160.html">http://xmpp.org/extensions/xep-0160.html</a>&gt;.</p><p><a name="nt-id239231" id="nt-id239231">9</a>. XEP-0203: Delayed Delivery &lt;<a href="http://xmpp.org/extensions/xep-0203.html">http://xmpp.org/extensions/xep-0203.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2010-09-15)</h4><div class="indent"><p>Initial published version.</p> (psa)
+    </div><h4>Version 0.0 (2010-03-10)</h4><div class="indent">
+        <p>Proto-XEP draft.</p>
+       (kdz)
+    </div></div><hr /><p>END</p></body></html>

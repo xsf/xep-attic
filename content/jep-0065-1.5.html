@@ -1,0 +1,916 @@
+<html>
+<head>
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+<title>JEP-0065: SOCKS5 Bytestreams</title>
+<link rel="stylesheet" type="text/css" href="jep.css">
+<link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+<meta name="DC.Title" content="SOCKS5 Bytestreams">
+<meta name="DC.Creator" content="Dave Smith">
+<meta name="DC.Creator" content="Matthew Miller">
+<meta name="DC.Creator" content="Peter Saint-Andre">
+<meta name="DC.Description" content="This JEP defines a protocol for establishing a bytestream between any two Jabber entities.">
+<meta name="DC.Publisher" content="Jabber Software Foundation">
+<meta name="DC.Contributor" content="JEP Editor">
+<meta name="DC.Date" content="2004-06-29">
+<meta name="DC.Type" content="Jabber Enhancement Proposal">
+<meta name="DC.Format" content="XHTML">
+<meta name="DC.Identifier" content="JEP-0065">
+<meta name="DC.Language" content="en">
+<meta name="DC.Rights" content="This Jabber Enhancement Proposal is copyright 1999 - 2004 by the Jabber Software Foundation (JSF) and is in full conformance with the JSF's Intellectual Property Rights Policy &lt;http://www.jabber.org/jsf/ipr-policy.php&gt;. This material may be distributed only subject to the terms and conditions set forth in the Open Publication License, v1.0 or later (the latest version is presently available at &lt;http://www.opencontent.org/openpub/&gt;).">
+</head>
+<body bgcolor="#FFFFFF">
+<h1>JEP-0065: SOCKS5 Bytestreams</h1>
+<p>This JEP defines a protocol for establishing a bytestream between any two Jabber entities.</p>
+<p><hr></p>
+<p style="color:green">NOTICE: The protocol defined herein is a Draft Standard of the Jabber Software Foundation. Implementations are encouraged and the protocol is appropriate for deployment in production systems, but some changes to the protocol are possible before it becomes a Final Standard.</p>
+<p><hr></p>
+<h2>JEP Information</h2>
+<p class="indent">
+            Status: Draft<br>
+            Type: Standards Track<br>
+            Number: 0065<br>
+            Version: 1.5<br>
+            Last Updated: 2004-06-29<br>
+            JIG: Standards JIG<br>
+                Approving Body: Jabber Council<br>
+                Dependencies: None<br>
+                Supersedes: None<br>
+                Superseded By: None<br>
+            Short Name: bytestreams<br>
+        Schema: &lt;<a href="http://jabber.org/protocol/bytestreams/bytestreams.xsd">http://jabber.org/protocol/bytestreams/bytestreams.xsd</a>&gt;<br>
+</p>
+<h2>Author Information</h2>
+<h3>Dave Smith</h3>
+<p class="indent">
+        Email: dizzyd@jabber.org<br>
+        JID: dizzyd@jabber.org</p>
+<h3>Matthew Miller</h3>
+<p class="indent">
+        Email: linuxwolf@outer-planes.net<br>
+        JID: linuxwolf@outer-planes.net</p>
+<h3>Peter Saint-Andre</h3>
+<p class="indent">
+        Email: stpeter@jabber.org<br>
+        JID: stpeter@jabber.org</p>
+<h2>Legal Notice</h2>
+<p class="indent">This Jabber Enhancement Proposal is copyright 1999 - 2004 by the Jabber Software Foundation (JSF) and is in full conformance with the JSF's Intellectual Property Rights Policy &lt;<a href="http://www.jabber.org/jsf/ipr-policy.php">http://www.jabber.org/jsf/ipr-policy.php</a>&gt;. This material may be distributed only subject to the terms and conditions set forth in the Open Publication License, v1.0 or later (the latest version is presently available at &lt;<a href="http://www.opencontent.org/openpub/">http://www.opencontent.org/openpub/</a>&gt;).</p>
+<h2>Discussion Venue</h2>
+<p class="indent">The preferred venue for discussion of this document is the Standards-JIG discussion list: &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards-jig">http://mail.jabber.org/mailman/listinfo/standards-jig</a>&gt;.</p>
+<p class="indent">Given that this JEP normatively references IETF technologies, discussion on the JSF-IETF list may also be appropriate (see &lt;<a href="http://mail.jabber.org/mailman/listinfo/jsf-ietf">http://mail.jabber.org/mailman/listinfo/jsf-ietf</a>&gt; for details).</p>
+<h2>Relation to XMPP</h2>
+<p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core and XMPP IM specifications contributed by the Jabber Software Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocols defined in this JEP have been developed outside the Internet Standards Process and are to be understood as extensions to XMPP rather than as an evolution, development, or modification of XMPP itself.</p>
+<h2>Conformance Terms</h2>
+<p class="indent">The keywords &quot;MUST&quot;, &quot;MUST NOT&quot;, &quot;REQUIRED&quot;, &quot;SHALL&quot;, &quot;SHALL NOT&quot;, &quot;SHOULD&quot;, &quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;NOT RECOMMENDED&quot;, &quot;MAY&quot;, and &quot;OPTIONAL&quot; in this document are to be interpreted as described in RFC 2119.</p>
+<p><hr></p>
+<h2>Table of Contents</h2>
+<dl>
+<dt>1.  <a href="#intro">Introduction</a>
+</dt>
+<dt>2.  <a href="#terms">Terminology</a>
+</dt>
+<dl>
+<dt>2.1.  <a href="#terms-conformance">Conformance Terms</a>
+</dt>
+<dt>2.2.  <a href="#terms-arch">Architectural Terms</a>
+</dt>
+</dl>
+<dt>3.  <a href="#narrative">Narrative</a>
+</dt>
+<dl>
+<dt>3.1.  <a href="#narr-direct">Direct Connection</a>
+</dt>
+<dt>3.2.  <a href="#narr-direct">Mediated Connection</a>
+</dt>
+</dl>
+<dt>4.  <a href="#proto">Protocol</a>
+</dt>
+<dl>
+<dt>4.1.  <a href="#proto-disco">Initiator Queries Target Regarding Bytestreams Support</a>
+</dt>
+<dt>4.2.  <a href="#proto-proxies">Initiator Queries Server For Proxies</a>
+</dt>
+<dt>4.3.  <a href="#proto-proxyinfo">Initiator Queries Proxy to Find Out if it is a Proxy</a>
+</dt>
+<dt>4.4.  <a href="#proto-address">Initiator Discovers Network Address of StreamHost</a>
+</dt>
+<dt>4.5.  <a href="#proto-inform">Initiator Informs Target of StreamHosts</a>
+</dt>
+<dt>4.6.  <a href="#proto-establish">Target Establishes SOCKS5 Connection with StreamHost</a>
+</dt>
+<dt>4.7.  <a href="#proto-ack">Target Acknowledges SOCKS5 Connection</a>
+</dt>
+<dt>4.8.  <a href="#proto-initiator">Initiator Establishes SOCKS5 Connection with StreamHost</a>
+</dt>
+<dt>4.9.  <a href="#proto-activation">Activation of Bytestream</a>
+</dt>
+</dl>
+<dt>5.  <a href="#usecase">Formal Use Case</a>
+</dt>
+<dl>
+<dt>5.1.  <a href="#usecase-primary">Primary Flow</a>
+</dt>
+<dt>5.2.  <a href="#usecase-alternate">Alternate Flows</a>
+</dt>
+</dl>
+<dt>6.  <a href="#desc">Formal Description</a>
+</dt>
+<dl>
+<dt>6.1.  <a href="#desc-query">&lt;query/&gt; Element</a>
+</dt>
+<dt>6.2.  <a href="#desc-streamhost">&lt;streamhost/&gt; Element</a>
+</dt>
+<dt>6.3.  <a href="#desc-streamhost-used">&lt;streamhost-used/&gt; Element</a>
+</dt>
+<dt>6.4.  <a href="#desc-activate">&lt;activate/&gt; Element</a>
+</dt>
+</dl>
+<dt>7.  <a href="#impl">Implementation Notes</a>
+</dt>
+<dl>
+<dt>7.1.  <a href="#impl-streamhost">StreamHost Requirements</a>
+</dt>
+<dt>7.2.  <a href="#impl-socks5">SOCKS5 Parameter Mapping</a>
+</dt>
+</dl>
+<dt>8.  <a href="#security">Security Considerations</a>
+</dt>
+<dt>9.  <a href="#iana">IANA Considerations</a>
+</dt>
+<dt>10.  <a href="#registrar">Jabber Registrar Considerations</a>
+</dt>
+<dl>
+<dt>10.1.  <a href="#registrar-ns">Protocol Namespaces</a>
+</dt>
+<dt>10.2.  <a href="#registrar-disco">Service Discovery Category/Type</a>
+</dt>
+</dl>
+<dt>11.  <a href="#schema">Schema</a>
+</dt>
+<dt><a href="#notes">Notes</a></dt>
+<dt><a href="#revs">Revision History</a></dt>
+</dl>
+<p><hr></p>
+<h2>1.
+       <a name="intro">Introduction</a>
+</h2>
+  <p class="" style="">It is widely recognized within the Jabber community that it would be valuable to have a generic protocol for streaming binary data between any two entities on the network. The main application for such a bytestreaming technology would be file transfer, for which there are currently a number of incompatible protocols (resulting in a lack of interoperability). However, other applications are possible, which is why it is important to develop a generic protocol rather than one that is specialized for a particular application such as file transfer. This JEP proposes a protocol that meets the following conditions:</p>
+  <ul>
+    <li>Bytestreams are established over standard TCP sockets</li>
+    <li>Sockets may be direct (peer-to-peer) or mediated (established through a bytestreaming service)</li>
+    <li>Where possible, standard wire protocols are used</li>
+  </ul>
+  <p class="" style="">Specifically, this JEP proposes that the Jabber community make use of the SOCKS 5 protocol, which is an IETF-approved, IPv6-ready technology for bytestreams. (Note: because this proposal uses a subset of the SOCKS5 protocol that is specially adapted for Jabber bytestreams, existing SOCKS5 proxies CANNOT be used to implement this proposal.)</p>
+<h2>2.
+       <a name="terms">Terminology</a>
+</h2>
+  <div class="indent">
+<h3>2.1 <a name="terms-conformance">Conformance Terms</a>
+</h3>
+    <p>The keywords &quot;MUST&quot;, &quot;MUST NOT&quot;, &quot;REQUIRED&quot;, &quot;SHALL&quot;, &quot;SHALL NOT&quot;, &quot;SHOULD&quot;, &quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;NOT RECOMMENDED&quot;, &quot;MAY&quot;, and &quot;OPTIONAL&quot; in this document are to be interpreted as described in <span class="ref">RFC 2119</span>  [<a href="#nt-id2594590">1</a>].</p>
+  </div>
+  <div class="indent">
+<h3>2.2 <a name="terms-arch">Architectural Terms</a>
+</h3>
+    <p class="caption">Table 1: Glossary of Entities</p>
+<table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <th colspan="" rowspan="">Term</th>
+<th colspan="" rowspan="">Description</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">Initiator</td>
+        <td align="" colspan="" rowspan="">A Jabber Entity that wishes to establish a bytestream with another Entity</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">Target</td>
+        <td align="" colspan="" rowspan="">The Entity with which the Initiator is attempting to establish a bytestream</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">Proxy</td>
+        <td align="" colspan="" rowspan="">A Jabber entity which is not NAT/Firewalled and is willing to be a middleman for the bytestream between the Initiator and the Target</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">StreamHost</td>
+        <td align="" colspan="" rowspan="">The system that the Target connects to and that is &quot;hosting&quot; the bytestream -- may be either the Initiator or a Proxy</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">StreamID</td>
+        <td align="" colspan="" rowspan="">A relatively unique Stream ID for this connection; this is generated by the Initiator for tracking purposes and MUST be less than 128 characters in length</td>
+      </tr>
+    </table>
+  </div>
+<h2>3.
+       <a name="narrative">Narrative</a>
+</h2>
+  <p class="" style="">There are two scenarios addressed by this protocol:</p>
+  <ol start="" type="">
+    <li>direct connection (i.e., the StreamHost is the Initiator)</li>
+    <li>mediated connection (i.e., the StreamHost is a Proxy)</li>
+  </ol>
+  <p class="" style="">The &quot;happy paths&quot; for these scenarios are described separately below for ease of understanding. A full description of these scenarios is captured in the Formal Use Case.</p>
+  <div class="indent">
+<h3>3.1 <a name="narr-direct">Direct Connection</a>
+</h3>
+    <p class="" style="">Direct connection is the simpler case. In this situation, the StreamHost is the Initiator (StreamHost/Initiator), which means that the Initiator knows the network address of the StreamHost and knows when to activate the bytestream. The process for establishing bytestreams in this case is as follows:</p>
+    <ol start="" type="">
+      <li><p class="" style="">Initiator sends IQ-set to Target specifying the full JID and network address of StreamHost/Initiator as well as the StreamID (SID) of the proposed bytestream.</p></li>
+      <li><p class="" style="">Target opens a TCP socket to the specified network address.</p></li>
+      <li><p class="" style="">Target requests connection via SOCKS5, with the DST.ADDR and DST.PORT parameters set to the values defined below.</p></li>
+      <li><p class="" style="">StreamHost/Initiator sends acknowledgement of successful connection to Target via SOCKS5.</p></li>
+      <li><p class="" style="">Target sends IQ-result to Initiator, preserving the 'id' of the initial IQ-set.</p></li>
+      <li><p class="" style="">StreamHost/Initiator activates the bytestream.</p></li>
+      <li><p class="" style="">Initiator and Target may begin using the bytestream.</p></li>
+    </ol>
+  </div>
+  <div class="indent">
+<h3>3.2 <a name="narr-direct">Mediated Connection</a>
+</h3>
+    <p class="" style="">Mediated connection is slightly more complicated. In this situation, the StreamHost is not the Initiator but a Proxy, which means that the Initiator must discover the network address of the StreamHost before sending the initial IQ-set, must negotiate a connection with the StreamHost in the same way that the Target does, and must request that the StreamHost activate the bytestream before it can be used. The process for establishing bytestreams in this case is as follows:</p>
+    <ol start="" type="">
+      <li><p class="" style="">Initiator discovers the network address of StreamHost in-band. [optional]</p></li>
+      <li><p class="" style="">Initiator sends IQ-set to Target specifying the full JID and network address of StreamHost as well as the StreamID (SID) of the proposed bytestream.</p></li>
+      <li><p class="" style="">Target opens a TCP socket to the selected StreamHost.</p></li>
+      <li><p class="" style="">Target establishes connection via SOCKS5, with the DST.ADDR and DST.PORT parameters set to the values defined below.</p></li>
+      <li><p class="" style="">StreamHost sends acknowledgement of successful connection to Target via SOCKS5.</p></li>
+      <li><p class="" style="">Target sends IQ-result to Initiator, preserving the 'id' of the initial IQ-set.</p></li>
+      <li><p class="" style="">Initiator opens a TCP socket at the StreamHost.</p></li>
+      <li><p class="" style="">Initiator establishes connection via SOCKS5, with the DST.ADDR and DST.PORT parameters set to the values defined below.</p></li>
+      <li><p class="" style="">StreamHost sends acknowledgement of successful connection to Initiator via SOCKS5.</p></li>
+      <li><p class="" style="">Initiator sends IQ-set to StreamHost requesting that StreamHost activate the bytestream associated with the StreamID.</p></li>
+      <li><p class="" style="">StreamHost activates the bytestream. (Data is now relayed between the two SOCKS5 connections by the proxy)</p></li>
+      <li><p class="" style="">StreamHost sends IQ-result to Initiator acknowledging that the bytestream has been activated (or specifying an error).</p></li>
+      <li><p class="" style="">Initiator and Target may begin using the bytestream.</p></li>
+    </ol>
+  </div>
+<h2>4.
+       <a name="proto">Protocol</a>
+</h2>
+  <div class="indent">
+<h3>4.1 <a name="proto-disco">Initiator Queries Target Regarding Bytestreams Support</a>
+</h3>
+    <p class="" style="">Before attempting to initiate a bytestream, the Initiator may want to know if the Target supports the bytestream protocol. It may do so using <span class="ref">Service Discovery</span>  [<a href="#nt-id2595081">2</a>] as follows:</p>
+    <p class="caption">Example 1. Initiator Sends Service Discovery Request to Target</p>
+<div class="indent"><pre>
+&lt;iq 
+    type='get' 
+    from='initiator@host1/foo' 
+    to='target@host2/bar' 
+    id='hello'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">If the Target's client supports bytestreams, it MUST answer to that effect in the service discovery result.</p>
+    <p class="caption">Example 2. Target Replies to Service Discovery Request</p>
+<div class="indent"><pre>
+&lt;iq 
+    type='result' 
+    from='target@host2/bar' 
+    to='initiator@host1/foo' 
+    id='hello'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity 
+        category='proxy'
+        type='bytestreams'
+        name='SOCKS5 Bytestreams Service'/&gt;
+    ...
+    &lt;feature var='http://jabber.org/protocol/bytestreams'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+  <div class="indent">
+<h3>4.2 <a name="proto-proxies">Initiator Queries Server For Proxies</a>
+</h3>
+    <p class="" style="">Before attempting to initiate a bytestream, the Initiator needs to find a proxy. It may do so using Service Discovery as follows:</p>
+    <p class="caption">Example 3. Initiator Sends Service Discovery Request to Server</p>
+<div class="indent"><pre>
+&lt;iq 
+    type='get' 
+    from='initiator@host1/foo'
+    to='host1' 
+    id='server_items'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#items'/&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">The server will return all of the known JIDs in its disco list.</p>
+    <p class="caption">Example 4. Server Replies to Service Discovery Request</p>
+<div class="indent"><pre>
+&lt;iq 
+    type='result' 
+    from='host1' 
+    to='initiator@host1/foo' 
+    id='server_items'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#items'&gt;
+    ...
+    &lt;item jid='proxy.host3' name='Bytestreams Proxy'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+  <div class="indent">
+<h3>4.3 <a name="proto-proxyinfo">Initiator Queries Proxy to Find Out if it is a Proxy</a>
+</h3>
+    <p class="" style="">For each item in the disco#items result, the client must ask them if they are a bytestreams proxy.  It may do so using Service Discovery as follows:</p>
+    <p class="caption">Example 5. Initiator Sends Service Discovery Request to Proxy</p>
+<div class="indent"><pre>
+&lt;iq 
+    type='get' 
+    from='initiator@host1/foo'
+    to='proxy.host3' 
+    id='proxy_info'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">The proxy will return its information.  The client should look in each identity to see if it contains an indentity in the category &quot;proxy&quot; and type &quot;bytestreams&quot;.</p>
+    <p class="caption">Example 6. Server Replies to Service Discovery Request</p>
+<div class="indent"><pre>
+&lt;iq 
+    type='result' 
+    from='proxy.host3' 
+    to='initiator@host1/foo' 
+    id='proxy_info'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;identity category='proxy'
+              type='bytestreams'
+              name='SOCKS5 Bytestreams Service'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+  <div class="indent">
+<h3>4.4 <a name="proto-address">Initiator Discovers Network Address of StreamHost</a>
+</h3>
+    <p class="" style="">If the StreamHost is a Proxy, the Initiator must first request the full network address used for bytestreaming (obviously this is not required if the StreamHost is the Initiator). This is done by sending an IQ-get to the proxy in the bytestreams namespace, as follows:</p>
+    <p class="caption">Example 7. Initiator Requests Network Address from Proxy</p>
+<div class="indent"><pre>
+&lt;iq 
+    type='get' 
+    from='initiator@host1/foo' 
+    to='proxy.host3' 
+    id='discover'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/bytestreams'/&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">The &lt;streamhost/&gt; element containing network address MUST include the following attributes:</p>
+    <ul>
+      <li>
+<span style="font-weight: bold">jid</span> = the JID of the StreamHost for communications over Jabber</li>
+    </ul>
+    <p class="" style="">In addition, the &lt;streamhost/&gt; element MUST include:</p>
+    <p class="" style="">EITHER</p>
+    <ul>
+      <li>
+<span style="font-weight: bold">host</span> = the hostname or IP address of the StreamHost for SOCKS5 communications over TCP</li>
+      <li>
+<span style="font-weight: bold">port</span> = a port associated with the hostname or IP address for
+        SOCKS5 communications over TCP</li>
+    </ul>
+    <p class="" style="">OR</p>
+    <ul>
+      <li>
+<span style="font-weight: bold">zeroconf</span> = a zeroconf identifier to which an entity may connect</li>
+    </ul>
+    <p class="" style="">If included, the zeroconf  [<a href="#nt-id2595284">3</a>] service identifier and protocol name SHOULD be &quot;_jabber.bytestreams&quot;.</p>
+    <p class="caption">Example 8. Proxy Informs Initiator of Network Address</p>
+<div class="indent"><pre>
+&lt;iq 
+    type='result' 
+    from='proxy.host3' 
+    to='initiator@host1/foo' 
+    id='discover'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/bytestreams'&gt;
+    &lt;streamhost 
+        jid='proxy.host3' 
+        host='24.24.24.1' 
+        zeroconf='_jabber.bytestreams'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">If the Initiator does not have permissions to initiate bytestreams on the Proxy for whatever reason (e.g., a proxy implementation may enable administrators to ban JIDs or domains from using the Proxy), the Proxy MUST return a &quot;Forbidden&quot; error to the Initiator (for information about error syntax, refer to <span class="ref">Error Condition Mappings</span>  [<a href="#nt-id2595431">4</a>]):</p>
+    <p class="caption">Example 9. Proxy Returns Error to Initiator</p>
+<div class="indent"><pre>
+&lt;iq type='error' 
+    from='initiator@host1/foo' 
+    to='proxy.host3' 
+    id='discover'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/bytestreams'/&gt;
+  &lt;error code='403' type='auth'&gt;
+    &lt;forbidden xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">If the Proxy is unable to act as a StreamHost, the Proxy SHOULD return a &quot;Not Allowed&quot; error to the Initiator:</p>
+    <p class="caption">Example 10. Proxy Returns Error to Initiator</p>
+<div class="indent"><pre>
+&lt;iq type='error' 
+    from='initiator@host1/foo' 
+    to='proxy.host3' 
+    id='discover'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/bytestreams'/&gt;
+  &lt;error code='405' type='cancel'&gt;
+    &lt;not-allowed xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+  <div class="indent">
+<h3>4.5 <a name="proto-inform">Initiator Informs Target of StreamHosts</a>
+</h3>
+    <p class="" style="">In order to establish a bytestream between the Initiator and the Target, the Initiator must provide network address information for the StreamHost(s) to the Target. This happens in-band via a single IQ-set, which must contain the following information:</p>
+    <ul>
+      <li>The network address of at least one StreamHost to which the Target may attempt to connect</li>
+      <li>The Stream ID for this connection</li>
+    </ul>
+    <p class="" style="">The protocol format is shown below.</p>  
+    <p class="caption">Example 11. Initiation of Interaction</p>
+<div class="indent"><pre>
+&lt;iq 
+    type='set' 
+    from='initiator@host1/foo' 
+    to='target@host2/bar' 
+    id='initiate'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/bytestreams' sid='mySID'&gt;
+    &lt;streamhost 
+        jid='initiator@host1/foo' 
+        host='192.168.4.1' 
+        port='5086'/&gt;
+    &lt;streamhost 
+        jid='proxy.host3' 
+        host='24.24.24.1' 
+        zeroconf='_jabber.bytestreams'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">If the Target is unwilling to accept the bytestream, it MUST return a &quot;Not Acceptable&quot; error to the Initiator.</p>
+    <p class="caption">Example 12. Target Refuses Bytestream</p>
+<div class="indent"><pre>
+&lt;iq type='error' 
+    from='target@host2/bar' 
+    to='initiator@host1/foo' 
+    id='initiate'&gt;
+  &lt;error code='406' type='auth'&gt;
+    &lt;not-acceptable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+  <div class="indent">
+<h3>4.6 <a name="proto-establish">Target Establishes SOCKS5 Connection with StreamHost</a>
+</h3>
+    <p class="" style="">If the Target is willing to accept the bytestream, it MUST attempt to open a standard TCP socket on the network address of the StreamHost communicated by the Initiator. If the Initiator provides more than one StreamHost, the Target SHOULD try to connect to them in the order they occur.</p>
+    <p class="" style="">If the Target tries but is unable to connect to any of the StreamHosts and it does not wish to attempt a connection from its side, it MUST return a &quot;Not Found&quot; error to the Initiator.</p>
+    <p class="caption">Example 13. Target Is Unable to Connect to Any StreamHost and Wishes to End Transaction</p>
+<div class="indent"><pre>
+&lt;iq type='error' 
+    from='target@host2/bar' 
+    to='initiator@host1/foo' 
+    id='initiate'&gt;
+  &lt;error code='404' type='cancel'&gt;
+    &lt;item-not-found xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">If the Target is able to open a TCP socket on a StreamHost, it MUST utilize the SOCKS5 protocol specified in <span class="ref">RFC 1928</span>  [<a href="#nt-id2595635">5</a>] to establish the connection with the StreamHost. In accordance with the SOCKS5 RFC, the Target MAY have to authenticate in order to use the proxy. However, any authentication required is beyond the scope of this JEP. Once the Target has successfully authenticated with the Proxy (even anonymously), it SHOULD make a CONNECT request to a host named: SHA1(SID + Initiator JID + Target JID), port 0, where the SHA1 hashing algorithm is specified by <span class="ref">RFC 3174</span>  [<a href="#nt-id2595566">6</a>]. The JIDs provided MUST be full JIDs (i.e., &lt;user@host/resource&gt;); furthermore, in order to ensure proper results, the appropriate stringprep profiles (as specified in <span class="ref">XMPP Core</span>  [<a href="#nt-id2595594">7</a>]) MUST be applied to the JIDs before application of the SHA1 hashing algorithm.</p>
+    <p class="caption">Example 14. Target Connects to StreamHost</p>
+<div class="indent"><pre>
+CMD = X'01'
+ATYP = X'03'
+DST.ADDR = SHA1 Hash of: (SID + Initiator JID + Target JID)
+DST.PORT = 0
+    </pre></div>
+    <p class="caption">Example 15. StreamHost Acknowledges Connection</p>
+<div class="indent"><pre>
+STATUS = X'00'
+    </pre></div>
+
+  </div>
+
+  <div class="indent">
+<h3>4.7 <a name="proto-ack">Target Acknowledges SOCKS5 Connection</a>
+</h3>
+    <p class="" style="">After the Target has authenticated with the StreamHost, it MUST send an IQ-result to the Inititator indicating which StreamHost was used.</p>
+    <p class="caption">Example 16. Target Notifies Initiator of Connection</p>
+<div class="indent"><pre>
+&lt;iq 
+    type='result' 
+    from='target@host2/bar' 
+    to='initiator@host1/foo' 
+    id='initiate'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/bytestreams'&gt;
+    &lt;streamhost-used jid='proxy.host3'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">At this point, the Initiator knows which StreamHost was used by
+      the Target.</p>
+  </div>
+
+  <div class="indent">
+<h3>4.8 <a name="proto-initiator">Initiator Establishes SOCKS5 Connection with StreamHost</a>
+</h3>
+    <p class="" style="">If the StreamHost used is a Proxy, the Initiator MUST
+    authenticate and establish a connection with the StreamHost before
+    requesting that the StreamHost activate bytestream. The Initiator
+    will establish a connection to the SOCKS5 proxy in the same way
+    the Target did, passing the same value for the CONNECT request.
+    </p>
+  </div>
+  <div class="indent">
+<h3>4.9 <a name="proto-activation">Activation of Bytestream</a>
+</h3>
+    <p class="" style="">In order for the bytestream to be used, it MUST first be
+    activated by the StreamHost. If the StreamHost is the Initiator,
+    this is straightforward and does not require any in-band
+    protocol. However, if the StreamHost is a Proxy, the Initiator
+    MUST send an in-band request to the StreamHost. This is done by
+    sending an IQ-set to the Proxy.</p>
+    <p class="caption">Example 17. Initiator Requests Activation of Bytestream</p>
+<div class="indent"><pre>
+&lt;iq 
+    type='set' 
+    from='initiator@host1/foo' 
+    to='proxy.host3' 
+    id='activate'&gt;
+  &lt;query xmlns='http://.jabber.org/protocol/bytestreams' sid='mySID'&gt;
+    &lt;activate&gt;target@host2/bar&lt;/activate&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">Note that the &lt;activate&gt; element encapsulates the Target's full JID. Using this information, with the SID and from address on the packet, the Proxy can activate the stream  by hashing the SID + Initiator JID + Target JID. This provides a reasonable level of trust that the activation request came from the Initiator.</p>
+    <p class="" style="">If the Proxy can fulfill the request, it MUST then respond to the Initiator with an IQ-result.</p>
+    <p class="caption">Example 18. Proxy Informs Initiator of Activation</p>
+<div class="indent"><pre>
+&lt;iq 
+    type='result' 
+    from='proxy.host3' 
+    to='initiator@host1/foo' 
+    id='activate'/&gt;
+    </pre></div>
+    <p class="" style="">The Proxy MUST then send acknowledgement of the connection to the Target.</p>
+    <p class="caption">Example 19. StreamHost Acknowledges Connection to Target</p>
+<div class="indent"><pre>
+STATUS = X'00'
+    </pre></div>
+    <p class="" style="">If the Proxy cannot fulfill the request, it MUST return an IQ-error to the Initiator; the following conditions are defined:</p>
+    <ul>
+      <li>&quot;Not Found&quot; error if the from address does not match that of the Initiator's full JID</li>
+      <li>&quot;Not Allowed&quot; error if only one party (either Initiator or Recipient, but not both) is connected to the Proxy</li>
+      <li>&quot;Internal Server Error&quot; error if the proxy cannot activate the bytestream because of some internal malfunction</li>
+    </ul>
+  </div>
+<h2>5.
+       <a name="usecase">Formal Use Case</a>
+</h2>
+  <p class="" style="">This is a formal representation of the narrative information provided above. The primary actor is the Initiator and the goal is to establish a bytestream between the Initiator and the Target. (Note: &quot;UCE&quot; stands for &quot;Use Case Ends&quot; (success is assumed unless otherwise specified) and &quot;P&quot; stands for &quot;Primary Flow&quot;, and &quot;A&quot; stands for &quot;Alternate Flow&quot;.)</p>
+  <div class="indent">
+<h3>5.1 <a name="usecase-primary">Primary Flow</a>
+</h3>
+    <ol start="" type="">
+      <li>Initiator wishes to establish a bytestream with Target</li>
+      <li>Initiator sends an IQ-set to Target specifying a StreamID and the network addresses of one or more StreamHosts [A1]</li>
+      <li>Target wishes to establish a bytestream with Initiator [A2]</li>
+      <li>Target requests TCP connection with a StreamHost [A3]</li>
+      <li>Target receives TCP acknowledgement from StreamHost [A4]</li>
+      <li>Target provides authentication credentials to StreamHost via SOCKS5</li>
+      <li>Target receives acknowledgement of authentication with StreamHost via SOCKS5 [A5]</li>
+      <li>Target requests connection with StreamHost via SOCKS5</li>
+      <li>Target sends IQ-result to Initiator announcing successful connection to StreamHost [A6]</li>
+      <li>Target receives acknowledgement of successful connection with StreamHost via SOCKS5 [A7]</li>
+      <li>Use Case Ends (bytestream is established and ready for use)</li>
+    </ol>
+  </div>
+  <div class="indent">
+<h3>5.2 <a name="usecase-alternate">Alternate Flows</a>
+</h3>
+
+    <p class="" style="">
+<span style="font-weight: bold">A1.</span> Initiator does not know the full network address of a StreamHost (i.e., Proxy)</p>
+    <ol start="" type="">
+      <li>Initiator sends IQ-get to Proxy</li>
+      <li>Initiator receives IQ-result from Proxy containing network address [A9][A10]</li>
+      <li>Return to P2</li>
+    </ol>
+
+    <p class="" style="">
+<span style="font-weight: bold">A2.</span> Target does not wish to establish a bytestream with Initiator</p>
+    <ol start="" type="">
+      <li>Initiator receives &quot;Not Acceptable&quot; error from Target</li>
+      <li>UCE unsuccessfully</li>
+    </ol>
+
+    <p class="" style="">
+<span style="font-weight: bold">A3.</span> No more StreamHosts in list (Target is unable to reach any of the provided StreamHosts)</p>
+    <ol start="" type="">
+      <li>Target returns &quot;Remote Server Error&quot; error to Initiator</li>
+      <li>UCE unsuccessfully</li>
+    </ol>
+
+    <p class="" style="">
+<span style="font-weight: bold">A4.</span> Target cannot reach StreamHost</p>
+    <ol start="" type="">
+      <li>Return to P4</li>
+    </ol>
+
+    <p class="" style="">
+<span style="font-weight: bold">A5.</span> Target authentication with StreamHost fails</p>
+    <ol start="" type="">
+      <li>Return to P4</li>
+    </ol>
+
+    <p class="" style="">
+<span style="font-weight: bold">A6.</span> Proxy is unwilling to act as a StreamHost for Initiator</p>
+    <ol start="" type="">
+      <li>Initiator receives &quot;Forbidden&quot; error from Proxy</li>
+      <li>Return to P2</li>
+    </ol>
+
+    <p class="" style="">
+<span style="font-weight: bold">A7.</span> Proxy is unable to act as a StreamHost for Initiator</p>
+    <ol start="" type="">
+      <li>Initiator receives &quot;Not Allowed&quot; error from Proxy</li>
+      <li>Return to P2</li>
+    </ol>
+
+    <p class="" style="">
+<span style="font-weight: bold">A8.</span> Target connects to a Proxy</p>
+    <ol start="" type="">
+      <li>Initiator reaches Proxy [A9]</li>
+      <li>Target receives TCP acknowledgement from StreamHost [A9]</li>
+      <li>Initiator authenticates with Proxy via SOCKS5</li>
+      <li>Initiator receives acknowledgement of authentication with Proxy via SOCKS5 [A10]</li>
+      <li>Initiator requests connection with Proxy via SOCKS5</li>
+      <li>Initiator receives acknowledgement of successful connection with Proxy via SOCKS5 [A11]</li>
+      <li>Initiator sends IQ-set to Proxy requesting activation of bytestream</li>
+      <li>Initiator receives IQ-result from Proxy acknowledging activation of bytestream [A12]</li>
+      <li>Return to P9</li>
+    </ol>
+
+    <p class="" style="">
+<span style="font-weight: bold">A9.</span> Initiator is unable to reach Proxy</p>
+    <ol start="" type="">
+      <li>UCE unsuccessfully</li>
+    </ol>
+
+    <p class="" style="">
+<span style="font-weight: bold">A10.</span> Initiator is unable to authenticate with Proxy</p>
+    <ol start="" type="">
+      <li>UCE unsuccessfully</li>
+    </ol>
+
+    <p class="" style="">
+<span style="font-weight: bold">A11.</span> Initiator is unable to connect to Proxy</p>
+    <ol start="" type="">
+      <li>UCE unsuccessfully</li>
+    </ol>
+
+    <p class="" style="">
+<span style="font-weight: bold">A12.</span> Proxy is unable to activate bytestream</p>
+    <ol start="" type="">
+      <li>Initiator receives &quot;Internal Server Error&quot; error from Proxy</li>
+      <li>UCE unsuccessfully</li>
+    </ol>
+
+  </div>
+<h2>6.
+       <a name="desc">Formal Description</a>
+</h2>
+  <div class="indent">
+<h3>6.1 <a name="desc-query">&lt;query/&gt; Element</a>
+</h3>
+    <p class="" style="">The &lt;query/&gt; element is the container for all in-band communications. This element MUST be in the namespace &quot;http://jabber.org/protocol/bytestreams&quot;. This element has a single attribute for the stream session identifier, and contains multiple &lt;streamhost/&gt; elements, a single &lt;streamhost-used/&gt; element, or a single &lt;activate/&gt; element.</p>
+    <p class="" style="">The &quot;sid&quot; specifies the bytestream session identifier. This attribute MUST be present. The value of this attribute is any character data.</p>
+    <p class="" style="">The &lt;streamhost/&gt; element conveys the network connection information. At least one instance MUST be present in the initial IQ-set from the Initiator to the Target. If multiple instances of this element are present, each one MUST be a separate host/port combination.</p>
+    <p class="" style="">The &lt;streamhost-used/&gt; element transports the out-of-band token. It MUST be present in the IQ-set from the Target to the Initiator, and there MUST be only one instance.</p>
+    <p class="" style="">The &lt;activate/&gt; element is used to request activation of a unidirectional or bidirectional bytestream. It MUST be present in the IQ-set sent from the Initiator to the StreamHost after the Initiator receives an IQ-result from the Target, and there MUST be only one instance.</p>
+  </div>
+  <div class="indent">
+<h3>6.2 <a name="desc-streamhost">&lt;streamhost/&gt; Element</a>
+</h3>
+    <p class="" style="">The &lt;streamhost/&gt; element contains the bytestream connection information. This element has attributes for the StreamHost's JID, network host/address, and network port. This element MUST NOT contain any content nodes.</p>
+    <p class="" style="">The &quot;jid&quot; attribute specifies the StreamHost's JID. This attribute MUST be present, and MUST be a valid JID for use with an &lt;iq/&gt;.</p>
+    <p class="" style="">The &quot;host&quot; attribute specifies the host to connect to. This attribute MUST be present. The value MUST be either a resolvable domain name or the &quot;dotted decimal&quot; IP address (e.g. &quot;1.2.3.4&quot;).</p>
+    <p class="" style="">The &quot;port&quot; attribute specifies the port to connect to. This attribute MAY be present. The value MUST be a valid port number in decimal form.</p>
+    <p class="" style="">The &quot;zeroconf&quot; attribute specifies the zero-configuration service available for bytestreaming. This attribute SHOULD be present. The value SHOULD be '_jabber.bytestreams'.</p>
+    <p class="" style="">When communicating the available hosts, the Initiator MUST include EITHER the host and port OR the zeroconf information.</p>
+  </div>
+  <div class="indent">
+<h3>6.3 <a name="desc-streamhost-used">&lt;streamhost-used/&gt; Element</a>
+</h3>
+    <p class="" style="">The &lt;streamhost-used/&gt; element indicates the StreamHost connected to. This element has a single attribute for the JID of the StreamHost to which the Target connected. This element MUST NOT contain any content node.</p>
+    <p class="" style="">The &quot;jid&quot; attribute specifies the full JID of the StreamHost. This attribute MUST be present, and MUST be a valid JID for use with an &lt;iq/&gt;.</p>
+  </div>
+  <div class="indent">
+<h3>6.4 <a name="desc-activate">&lt;activate/&gt; Element</a>
+</h3>
+    <p class="" style="">The &lt;activate/&gt; element is a flag to trigger a Proxy to complete a connection.</p> 
+  </div>
+<h2>7.
+       <a name="impl">Implementation Notes</a>
+</h2>
+  <div class="indent">
+<h3>7.1 <a name="impl-streamhost">StreamHost Requirements</a>
+</h3>
+    <p class="" style="">A StreamHost SHOULD (but is not required to) do the following:</p>
+    <ol start="" type="">
+      <li>Allow bi-directional bytestreaming between the Initiator and Target.</li>
+      <li>Allow only one Target to connect to a bytestream (i.e., disallow multicasting).</li>
+      <li>Track sessions based on a combination of the StreamID and the Initiator's full JID, thus allowing an Initiator to create more than one simultaneous session.</li>
+      <li>Ignore but not drop any bytes sent before the bytestream is activated.</li>
+      <li>Prefer to use zero-configuration IP networking if supported.</li>
+    </ol>
+    <p class="" style="">In addition, a StreamHost MAY ignore the DST.ADDR and DST.PORT parameters if desired.</p>
+  </div>
+  <div class="indent">
+<h3>7.2 <a name="impl-socks5">SOCKS5 Parameter Mapping</a>
+</h3>
+    <p class="" style="">To facilitate the usage of SOCKS5, command parameters MUST be mapped to the appropriate values. Parameters not specified in the table below SHOULD be used as defined in RFC 1928.</p>
+    <p class="caption">Table 2: Request/Parameter Mapping</p>
+<table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+<th colspan="" rowspan="">Parameter</th>
+<th colspan="" rowspan="">Value</th>
+</tr>
+      <tr class="body">
+<td align="" colspan="" rowspan="">CMD</td>
+<td align="" colspan="" rowspan="">1 (CONNECT)</td>
+</tr>
+      <tr class="body">
+<td align="" colspan="" rowspan="">ATYP</td>
+<td align="" colspan="" rowspan="">1 (IP V4), 3 (DOMAINNAME), or 4 (IP V6)</td>
+</tr>
+      <tr class="body">
+<td align="" colspan="" rowspan="">DST.ADDR</td>
+<td align="" colspan="" rowspan="">SHA1 Hash of: (SID + Initiator JID + Target JID)</td>
+</tr>
+      <tr class="body">
+<td align="" colspan="" rowspan="">DST.PORT</td>
+<td align="" colspan="" rowspan="">0</td>
+</tr>
+    </table>
+  </div>
+<h2>8.
+       <a name="security">Security Considerations</a>
+</h2>
+  <p class="" style="">This proposal does not include a method for securing or encrypting SOCKS5 bytetreams. If such security is desired, it MUST be negotiated over the bytestream (once established) using standard protocols such as SSL or TLS. Negotiation of such security methods is outside the scope of this JEP.</p>
+<h2>9.
+       <a name="iana">IANA Considerations</a>
+</h2>
+  <p class="" style="">This JEP requires no interaction with the <span class="ref">Internet Assigned Numbers Authority (IANA)</span>  [<a href="#nt-id2596959">8</a>].</p>
+<h2>10.
+       <a name="registrar">Jabber Registrar Considerations</a>
+</h2>
+  <div class="indent">
+<h3>10.1 <a name="registrar-ns">Protocol Namespaces</a>
+</h3>
+    <p class="" style="">The 'http://jabber.org/protocol/bytestreams' namespace is registered in the protocol namespaces registry maintained by the <span class="ref">Jabber Registrar</span>  [<a href="#nt-id2596909">9</a>].</p> 
+  </div>
+  <div class="indent">
+<h3>10.2 <a name="registrar-disco">Service Discovery Category/Type</a>
+</h3>
+    <p class="" style="">The Jabber Registrar shall add the &quot;proxy&quot; category and associated &quot;bytestreams&quot; type to the Service Discovery registry. The submission is as follows:</p>
+    <p class="caption"></p>
+<div class="indent"><pre>
+  &lt;category&gt;
+    &lt;name&gt;proxy&lt;/name&gt;
+    &lt;desc&gt;Proxy servers or services&lt;/desc&gt;
+    &lt;type&gt;
+      &lt;name&gt;bytestreams&lt;/name&gt;
+      &lt;desc&gt;A proxy for SOCKS5 bytestreams&lt;/desc&gt;
+      &lt;doc&gt;JEP-0065&lt;/doc&gt;
+    &lt;/type&gt;
+  &lt;/category&gt;
+    </pre></div>
+  </div>
+<h2>11.
+       <a name="schema">Schema</a>
+</h2>
+  <p class="caption"></p>
+<div class="indent"><pre>
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='http://jabber.org/protocol/bytestreams'
+    xmlns='http://jabber.org/protocol/bytestreams'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      JEP-0065: http://www.jabber.org/jeps/jep-0065.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name='query'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:choice&gt;
+        &lt;xs:element ref='streamhost' minOccurs='0' maxOccurs='unbounded'/&gt;
+        &lt;xs:element ref='streamhost-used' minOccurs='0'/&gt;
+        &lt;xs:element name='activate' type='empty' minOccurs='0'/&gt;
+      &lt;/xs:choice&gt;
+      &lt;xs:attribute name='sid' type='xs:string' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='streamhost'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='jid' type='xs:string' use='required'/&gt;
+          &lt;xs:attribute name='host' type='xs:string' use='required'/&gt;
+          &lt;xs:attribute name='srvid' type='xs:string' use='optional'/&gt;
+          &lt;xs:attribute name='port' type='xs:string' use='optional'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='streamhost-used' type='xs:string'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='jid' type='xs:string' use='required'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+  </pre></div>
+<p><hr></p>
+<a name="notes"></a><h2>Notes</h2>
+<p>
+<a name="nt-id2594590">1</a>. RFC 2119: Key words for use in RFCs to Indicate Requirement Levels &lt;<a href="http://www.ietf.org/rfc/rfc2119.txt">http://www.ietf.org/rfc/rfc2119.txt</a>&gt;.</p>
+<p>
+<a name="nt-id2595081">2</a>. JEP-0030: Service Discovery &lt;<a href="http://www.jabber.org/jeps/jep-0030.html">http://www.jabber.org/jeps/jep-0030.html</a>&gt;.</p>
+<p>
+<a name="nt-id2595284">3</a>. Zeroconf is a set of protocols that enable IP networking without the need for configuration. For further information, refer to &lt;<a href="http://www.zeroconf.org/">http://www.zeroconf.org/</a>&gt;.</p>
+<p>
+<a name="nt-id2595431">4</a>. JEP-0086: Error Condition Mappings &lt;<a href="http://www.jabber.org/jeps/jep-0086.html">http://www.jabber.org/jeps/jep-0086.html</a>&gt;.</p>
+<p>
+<a name="nt-id2595635">5</a>. RFC 1928: SOCKS Protocol Version 5 &lt;<a href="http://www.ietf.org/rfc/rfc1928.txt">http://www.ietf.org/rfc/rfc1928.txt</a>&gt;.</p>
+<p>
+<a name="nt-id2595566">6</a>. RFC 3174: US Secure Hash Algorithm 1 (SHA1) &lt;<a href="http://www.ietf.org/rfc/rfc3174.txt">http://www.ietf.org/rfc/rfc3174.txt</a>&gt;.</p>
+<p>
+<a name="nt-id2595594">7</a>. RFC 3920: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://www.ietf.org/rfc/rfc3920.txt">http://www.ietf.org/rfc/rfc3920.txt</a>&gt;.</p>
+<p>
+<a name="nt-id2596959">8</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p>
+<p>
+<a name="nt-id2596909">9</a>. The Jabber Registrar maintains a list of reserved Jabber protocol namespaces as well as registries of parameters used in the context of protocols approved by the Jabber Software Foundation. For further information, see &lt;<a href="http://www.jabber.org/registrar/">http://www.jabber.org/registrar/</a>&gt;.</p>
+<p><hr></p>
+<a name="revs"></a><h2>Revision History</h2>
+<div class="indent">
+<h4>Version 1.5 (2004-06-29)</h4>
+<div class="indent">Added requirement to apply stringprep profiles before SHA1 hashing; added reference to RFC 3174. (psa)
+    </div>
+<h4>Version 1.4 (2004-06-28)</h4>
+<div class="indent">Cleaned up narratives to reflect current practices and removed unnecessary authentication references; fixed mismatch SOCKS5 parameter table values. (ds)
+    </div>
+<h4>Version 1.3 (2003-09-24)</h4>
+<div class="indent">Added disco#info &lt;identity/&gt; and corresponding Jabber Registrar submission; added XMPP error handling. (psa)
+    </div>
+<h4>Version 1.2 (2003-07-15)</h4>
+<div class="indent">Removed SIDs from the result queries, you should key off the IQ 'id' attribute instead. Added the disco exchange for finding available proxies. (rwe)
+    </div>
+<h4>Version 1.1 (2003-07-09)</h4>
+<div class="indent">Changed srvid to zeroconf; cleaned up use cases; updated the schema. (ds)
+    </div>
+<h4>Version 1.0 (2003-04-21)</h4>
+<div class="indent">Per a vote of the Jabber Council, advanced status to Draft. (psa)
+    </div>
+<h4>Version 0.7 (2003-03-04)</h4>
+<div class="indent">Clarified that this proposal uses an adaptation of the SOCKS5 protocol, not the full protocol; replaced DTD with schema; added security considerations. (psa)
+    </div>
+<h4>Version 0.6 (2003-01-27)</h4>
+<div class="indent">Added service discovery example; added 'srvid' attribute to streamhost element and required inclusion of either 'srvid' or 'port' attribute; improved the algorithms for generating SOCKS5 UNAME and PASSWD parameters; specified that the DST.ADDR and DST.PORT parameters may be ignored; removed references to connected/disconnected notification, bidirectional bytestreams, and multiple targets; updated implementation notes. (psa/ds)
+    </div>
+<h4>Version 0.5 (2002-12-20)</h4>
+<div class="indent">Specified option of &quot;reversing the connection&quot; (Target becomes Initiator); added more error cases; resurrected and cleaned up formal use case. (psa)
+    </div>
+<h4>Version 0.4 (2002-12-19)</h4>
+<div class="indent">Added section on connected/disconnected notifications sent from Proxy to Initiator; cleaned up several examples; specified more error conditions; clarified the formal descriptions; added implementation notes and future considerations. (psa, mm)
+    </div>
+<h4>Version 0.3 (2002-12-17)</h4>
+<div class="indent">Added lots of detail to the narrative and protocol. (psa)
+    </div>
+<h4>Version 0.2 (2002-12-16)</h4>
+<div class="indent">Added SOCKS info. (ds)
+    </div>
+<h4>Version 0.1 (2002-12-13)</h4>
+<div class="indent">Initial version. (ds)
+    </div>
+</div>
+<p><hr></p>
+<p>END</p>
+</body>
+</html>

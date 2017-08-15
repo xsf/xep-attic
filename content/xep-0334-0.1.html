@@ -1,0 +1,145 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0334: Message Processing Hints</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Message Processing Hints" /><meta name="DC.Creator" content="Matthew Wild" /><meta name="DC.Description" content="This document defines a way to include hints to entities routing or receiving a message." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2015-09-01" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0334" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2017 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0334: Message Processing Hints</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This document defines a way to include hints to entities routing or receiving a message.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Matthew Wild</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2017 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Deferred</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.2</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2015-09-01</td></tr></table><hr /><p style="color:red">WARNING: This document has been automatically Deferred after 12 months of inactivity in its previous Experimental state. Implementation of the protocol described herein is not recommended for production systems. However, exploratory implementations are encouraged to resume the standards process.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#usecases">Use Cases</a><br />   
+      3.1.  <a href="#usecases-session">Session-based stanzas</a><br />   
+      3.2.  <a href="#usecases-notification">Notifications</a><br />   
+      3.3.  <a href="#usercases-sensitive">Sensitive messages</a><br />   
+      3.4.  <a href="#store-worthy">Storage-worthy messages</a><br />4.  <a href="#hints">Hints</a><br />   
+      4.1.  <a href="#no-permanent-store">No permanent store</a><br />   
+      4.2.  <a href="#no-store">No store</a><br />   
+      4.3.  <a href="#no-copy">No copies</a><br />   
+      4.4.  <a href="#sect-idp207312">Store</a><br />5.  <a href="#rules">Business Rules</a><br />6.  <a href="#security">Security Considerations</a><br />7.  <a href="#iana">IANA Considerations</a><br />8.  <a href="#registrar">XMPP Registrar Considerations</a><br />9.  <a href="#sect-idp1125456">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p>Message types ('normal', 'chat', 'headline', etc.) provide an existing framework for determining how an entity should deliver or handle a message. For example <span class="ref"><a href="http://tools.ietf.org/html/rfc6121">XMPP IM</a></span>  [<a href="#nt-idp692112">1</a>] defines that messages of type 'headline' should not be stored offline by the server, and that messages of type 'groupchat' must not be directed to other resources.</p>
+  <p>However this framework of rules is quite inflexible, and new extensions are being developed that push at the boundaries of what is capable of. This specification defines a more flexible approach that allows the sender to add finer-grained 'hints' to messages, which can be used as a generic mechanism for XMPP entities to handle messages.</p>
+  <p>A similar but much more extensive framework is defined in <span class="ref"><a href="http://xmpp.org/extensions/xep-0079.html">Advanced Message Processing (XEP-0079)</a></span>  [<a href="#nt-idp695664">2</a>] for applications that need it.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p>This specification aims to solve the following common problems, and allow a sender to hint to
+    the recipient:</p>
+  <ul>
+    <li>Whether to store a message (e.g. for archival or as an 'offline message').</li>
+    <li>Whether to copy a message to other resources.</li>
+    <li>Whether to store a message that would not have been stored under normal conditions</li>
+  </ul>
+<h2>3.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <div class="indent"><h3>3.1 <a name="usecases-session" id="usecases-session">Session-based stanzas</a></h3>
+  <p>Suppose that Romeo and Juliet are avoiding the surveillance of Prince Escalus and communicating using a session-based
+    encryption protocol between their laptops. In order to prevent Juliet's tablet computer that uses <span class="ref"><a href="http://xmpp.org/extensions/xep-0280.html">Message Carbons (XEP-0280)</a></span>  [<a href="#nt-idp703440">3</a>] from receiving
+    copies of the encrypted messages (and not being able to decrypt them), Romeo inserts the &lt;no-copy/&gt; hint into the
+    messages he sends. Since it is also useless for these messages to be archived, he additionally adds the &lt;no-store/&gt;
+    hint:</p>
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Sending a message with no-copy and no-store hints</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='romeo@montague.lit/laptop'
+    to='juliet@capulet.lit/laptop'&gt;
+  &lt;body&gt;V unir avtug'f pybnx gb uvqr zr sebz gurve fvtug&lt;/body&gt;
+  &lt;no-copy xmlns="urn:xmpp:hints"/&gt;
+  &lt;no-store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+  </pre></div>
+</div>
+<div class="indent"><h3>3.2 <a name="usecases-notification" id="usecases-notification">Notifications</a></h3>
+  <p>Some automated notifications may be transient, and there would be no purpose in delaying their delivery. Such
+    messages may be marked with the &lt;no-store/&gt; hint.</p>
+</div>
+<div class="indent"><h3>3.3 <a name="usercases-sensitive" id="usercases-sensitive">Sensitive messages</a></h3>
+  <p>A sender may want to indicate their preference to have no permanent record of a message (also known as "off the
+    record" messages), but may be happy for it to be stored temporarily as a normal part of delivery (e.g. if the
+    recipient is offline at the time of sending). Such a message can be marked with the &lt;no-permanent-store/&gt; hint.
+  </p>
+</div>
+<div class="indent"><h3>3.4 <a name="store-worthy" id="store-worthy">Storage-worthy messages</a></h3>
+  <p>Offline storage and <span class="ref"><a href="http://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-idp191120">4</a>] can define their own rules on what messages to store and usually only store messages that contain a body element. However a sender may want to indicate that a message is worth storeing even though it might not match those rules (e.g. an encrypted message that carries the payload outside the body element). Such a message can be marked with a &lt;store/&gt; hint.</p>
+</div>
+<h2>4.
+       <a name="hints" id="hints">Hints</a></h2>
+  <div class="indent"><h3>4.1 <a name="no-permanent-store" id="no-permanent-store">No permanent store</a></h3>
+    <p>The &lt;no-permanent-store/&gt; hint informs entities that they shouldn't store the message in
+      any permanent or semi-permanent public or private archive (such as described in <span class="ref"><a href="http://xmpp.org/extensions/xep-0136.html">Message Archiving (XEP-0136)</a></span>  [<a href="#nt-idp196224">5</a>] and <span class="ref"><a href="http://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-idp191120">4</a>])
+      or in logs (such as chatroom logs).
+    </p>
+  </div>
+  <div class="indent"><h3>4.2 <a name="no-store" id="no-store">No store</a></h3>
+    <p>A message containing a &lt;no-store/&gt; hint should not be stored by a server either permanently (as above)
+    or temporarily, e.g. for later delivery to an offline client, or to users not currently present in a chatroom.
+    </p>
+  </div>
+  <div class="indent"><h3>4.3 <a name="no-copy" id="no-copy">No copies</a></h3>
+    <p>Messages with the &lt;no-copy/&gt; hint should not be copied to addresses other than the one to which it is
+      addressed, for example through <span class="ref"><a href="http://xmpp.org/extensions/xep-0280.html">Message Carbons (XEP-0280)</a></span>  [<a href="#nt-idp703440">3</a>].</p>
+    <p>This hint MUST only be included on messages addressed to full JIDs and explicitly does not override the behaviour
+      defined in <span class="ref"><a href="http://tools.ietf.org/html/rfc6121">XMPP IM</a></span>  [<a href="#nt-idp692112">1</a>] for handling messages to bare JIDs, which may involve copying to multiple resources, or multiple
+      occupants in a <span class="ref"><a href="http://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idp1115680">6</a>] room.
+    </p>
+  </div>
+  <div class="indent"><h3>4.4 <a name="sect-idp207312" id="sect-idp207312">Store</a></h3>
+    <p>A message containing the &lt;store/&gt; hint that is not of type 'error' SHOULD be stored by the entity.</p>
+  </div>
+<h2>5.
+       <a name="rules" id="rules">Business Rules</a></h2>
+  <p>It is important to note that message hints are, as the name implies, just hints. Implementations
+    MUST NOT rely on other entities interpretation of the hints for any particular purpose.</p>
+<h2>6.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p>This specification introduces no known security considerations.</p>
+<h2>7.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p>This document requires no interaction with the <span class="ref"><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idp1122976">7</a>].</p>
+<h2>8.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p>This document requires no interaction with <span class="ref"><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idp1126640">8</a>].</p>
+<h2>9.
+       <a name="sect-idp1125456" id="sect-idp1125456">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:hints'
+    xmlns='urn:xmpp:hints'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='no-permanent-store' type='empty'/&gt;
+  &lt;xs:element name='no-store' type='empty'/&gt;
+  &lt;xs:element name='no-copy' type='empty'/&gt;
+  &lt;xs:element name='store' type='empty'/&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+    </pre></div>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0334<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.2<br />
+            Last Updated: 2015-09-01<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0334.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0334.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0334.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Matthew Wild</h3><p class="indent">
+        Email:
+        <a href="mailto:mwild1@gmail.com">mwild1@gmail.com</a><br />
+        JabberID:
+        <a href="xmpp:me@matthewwild.co.uk">me@matthewwild.co.uk</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2017 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/">http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idp692112" id="nt-idp692112">1</a>. RFC 6121: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc6121">http://tools.ietf.org/html/rfc6121</a>&gt;.</p><p><a name="nt-idp695664" id="nt-idp695664">2</a>. XEP-0079: Advanced Message Processing &lt;<a href="http://xmpp.org/extensions/xep-0079.html">http://xmpp.org/extensions/xep-0079.html</a>&gt;.</p><p><a name="nt-idp703440" id="nt-idp703440">3</a>. XEP-0280: Message Carbons &lt;<a href="http://xmpp.org/extensions/xep-0280.html">http://xmpp.org/extensions/xep-0280.html</a>&gt;.</p><p><a name="nt-idp191120" id="nt-idp191120">4</a>. XEP-0313: Message Archive Management &lt;<a href="http://xmpp.org/extensions/xep-0313.html">http://xmpp.org/extensions/xep-0313.html</a>&gt;.</p><p><a name="nt-idp196224" id="nt-idp196224">5</a>. XEP-0136: Message Archiving &lt;<a href="http://xmpp.org/extensions/xep-0136.html">http://xmpp.org/extensions/xep-0136.html</a>&gt;.</p><p><a name="nt-idp1115680" id="nt-idp1115680">6</a>. XEP-0045: Multi-User Chat &lt;<a href="http://xmpp.org/extensions/xep-0045.html">http://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-idp1122976" id="nt-idp1122976">7</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idp1126640" id="nt-idp1126640">8</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.2 (2015-09-01)</h4><div class="indent">
+      <p>Fixed the wrong use of no-storage instead of no-store</p>
+      <p>Added a message hint &lt;store/&gt;</p>
+     (dg)
+    </div><h4>Version 0.1 (2013-07-11)</h4><div class="indent"><p>Initial published version approved by the XMPP Council.</p> (psa)
+    </div><h4>Version 0.0.1 (2013-06-18)</h4><div class="indent"><p>First draft.</p> (mw)
+    </div></div><hr /><p>END</p></body></html>

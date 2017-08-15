@@ -1,0 +1,581 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0273: Stanza Interception and Filtering Technology</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Stanza Interception and Filtering Technology" /><meta name="DC.Creator" content="Joe Hildebrand" /><meta name="DC.Creator" content="Jack Moffitt" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Description" content="This specification defines an XMPP protocol extension that enables a client to exercise control over the XML stanzas it will receive from the server by instructing the server to intercept and filter inbound stanzas." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2009-09-15" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0273" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2010 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0273: Stanza Interception and Filtering Technology</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines an XMPP protocol extension that enables a client to exercise control over the XML stanzas it will receive from the server by instructing the server to intercept and filter inbound stanzas.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Joe Hildebrand, Jack Moffitt, Peter Saint-Andre</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2010 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2009-09-15</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#protocol">Protocol</a><br />   
+      3.1.  <a href="#features">Features</a><br />      
+      3.1.1.  <a href="#features-stanzas">Stanza Kinds</a><br />      
+      3.1.2.  <a href="#features-sender">Sender</a><br />      
+      3.1.3.  <a href="#features-recipient">Recipient</a><br />      
+      3.1.4.  <a href="#features-payload">Payload</a><br />      
+      3.1.5.  <a href="#features-advanced">Advanced Matching</a><br />   
+      3.2.  <a href="#discovering">Discovering Supported Features</a><br />   
+      3.3.  <a href="#enabling">Enabling SIFT</a><br />4.  <a href="#rules">Business Rules</a><br />   
+      4.1.  <a href="#rules-presence">Handling Presence Stanzas</a><br />   
+      4.2.  <a href="#rules-message">Handling Message Stanzas</a><br />   
+      4.3.  <a href="#rules-iq">Handling IQ Stanzas</a><br />   
+      4.4.  <a href="#rules-none">Lack of Sifting</a><br />5.  <a href="#usecases">Use Cases</a><br />   
+      5.1.  <a href="#invisibility">Invisibility</a><br />   
+      5.2.  <a href="#priority">Negative Presence Priority</a><br />   
+      5.3.  <a href="#nopresence">Presence Hush</a><br />6.  <a href="#security">Security Considerations</a><br />7.  <a href="#iana">IANA Considerations</a><br />8.  <a href="#reg">XMPP Registrar Considerations</a><br />   
+      8.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      8.2.  <a href="#registrar-versioning">Protocol Versioning</a><br />9.  <a href="#schema">XML Schema</a><br />10.  <a href="#acks">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">In some scenarios a client might want to control the XML stanzas it will receive over its stream with the server. Some potential use cases include:</p>
+  <ul class="" style="">
+    <li class="" style="">A mobile client might want to receive messages but not presence notifications, since the latter are quite "chatty" and can run down the battery.</li>
+    <li class="" style="">A softphone might want to receive IQ stanzas only if the payload is qualified by an XML namespace related to the use of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0166.html">Jingle</a></span>  [<a href="#nt-id314909">1</a>] for Internet telephony.</li>
+    <li class="" style="">A presence compositor might want to receive presence updates but not message stanzas or IQ stanzas, and only from the user's own resources (i.e., not from other entities).</li>
+  </ul>
+  <p class="" style="">The following taxonomy of client types is not exhaustive but might assist developers in understanding the scenarios in which SIFT might be useful.</p>
+  <div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: Client Types Categorized by Sending Presence, Receiving Presence, and Receiving Messages</p><table border="1" cellpadding="3" cellspacing="0">
+    <tr class="body">
+      <th colspan="" rowspan="">Type</th>
+      <th colspan="" rowspan="">Sends Presence</th>
+      <th colspan="" rowspan="">Receives Presence</th>
+      <th colspan="" rowspan="">Receives Messages</th>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">Normal User</td>
+      <td align="center" colspan="" rowspan="">Yes</td>
+      <td align="center" colspan="" rowspan="">Yes</td>
+      <td align="center" colspan="" rowspan="">Yes</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">Invisible User</td>
+      <td align="center" colspan="" rowspan="">No</td>
+      <td align="center" colspan="" rowspan="">Yes</td>
+      <td align="center" colspan="" rowspan="">Yes</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">Large-Scale Bot</td>
+      <td align="center" colspan="" rowspan="">Yes</td>
+      <td align="center" colspan="" rowspan="">No</td>
+      <td align="center" colspan="" rowspan="">Yes</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">Presentity</td>
+      <td align="center" colspan="" rowspan="">Yes</td>
+      <td align="center" colspan="" rowspan="">Yes</td>
+      <td align="center" colspan="" rowspan="">No</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">Presence Watcher</td>
+      <td align="center" colspan="" rowspan="">No</td>
+      <td align="center" colspan="" rowspan="">Yes</td>
+      <td align="center" colspan="" rowspan="">No</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">Presence Publisher</td>
+      <td align="center" colspan="" rowspan="">Yes</td>
+      <td align="center" colspan="" rowspan="">No</td>
+      <td align="center" colspan="" rowspan="">No</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">Message Subscriber</td>
+      <td align="center" colspan="" rowspan="">No</td>
+      <td align="center" colspan="" rowspan="">No</td>
+      <td align="center" colspan="" rowspan="">Yes</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">Message Publisher</td>
+      <td align="center" colspan="" rowspan="">No</td>
+      <td align="center" colspan="" rowspan="">No</td>
+      <td align="center" colspan="" rowspan="">No</td>
+    </tr>
+  </table></div>
+  <p class="" style="">Note: Although <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3921">RFC 3921</a></span>  [<a href="#nt-id315298">2</a>] specifies the use of a negative presence priority to block inbound message delivery, it does not enable the client to block inbound presence notifications, filter inbound IQ stanzas, or otherwise exercise fine-grained control over the delivery of inbound stanzas. While it would be possible to define particular values of negative presence priorities for some delivery control methods (e.g., &lt;priority&gt;-2&lt;priority&gt; could be hardcoded to mean "don't send me messages or presence"), that would be an ugly hack and thus inconsistent with <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0134.html">XMPP Design Guidelines</a></span>  [<a href="#nt-id315329">3</a>]. Therefore, this specification defines a stanza interception and filtering technology (a.k.a. "SIFT") that is more consistent with the underlying design of XMPP.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p class="" style="">The SIFT protocol is designed to meet the following requirements.</p>
+  <ol start="1" class="" style="">
+    <li class="" style="">Make it possible for a client to disable receipt of all inbound presence notifications while still receiving message and IQ stanzas if desired.</li>
+    <li class="" style="">Make it possible for a client to disable receipt of all inbound message stanzas while still receiving presence and IQ stanzas if desired.</li>
+    <li class="" style="">Make it possible for a client to disable receipt of all inbound IQ stanzas while still receiving presence and message stanzas if desired.</li>
+    <li class="" style="">Make it possible for a client to receive only inbound presence, message, or IQ stanzas that contain a payload matching a particular element name and XML namespace.</li>
+    <li class="" style="">Make it possible for a client to "sift" based on all senders, local vs. remote senders, or other senders vs. oneself.</li>
+    <li class="" style="">Make it possible for a client to "sift" based on whether the recipient is the user's bare JID or the particular client's full JID.</li>
+    <li class="" style="">Enable future extensibility based on regular expressions, XPath expressions, etc.</li> 
+  </ol>
+<h2>3.
+       <a name="protocol" id="protocol">Protocol</a></h2>
+  <p class="" style="">The SIFT protocol is used to <span class="em">intercept</span> or <span class="em">filter</span> inbound stanzas only, not outbound stanzas sent by the client to the server or other entities. By "intercept" is meant that the server will not deliver any such stanza kind (message, presence, or IQ) to the client, and by "filter" is meant that the server will apply a rule to determine if the specific stanza will be delivered to the client (e.g., matching against a payload namespace); in general we refer to these actions as "sifting". The SIFT protocol enables the server to support only basic interception (even here to support interception only for particular kinds of stanzas), basic filtering as defined by the rules described in this specification, or advanced filtering using extensions to SIFT defined in other specifications. Each of the features supported by the server can be discovered by the client for maximum interoperability. The features, the process for discovering them, and the process for enabling them are described in the following sections.</p>
+  <div class="indent"><h3>3.1 <a name="features" id="features">Features</a></h3>
+    <p class="" style="">SIFT supports the following features.</p>
+    <div class="indent"><h3>3.1.1 <a name="features-stanzas" id="features-stanzas">Stanza Kinds</a></h3>
+      <p class="" style="">A server MAY support any combination of sifting IQ, message, or presence stanzas. For each kind of stanza that can be sifted, the server shall include in the features discovery result an &lt;iq-sift/&gt;, &lt;message-sift/&gt;, or &lt;presence-sift/&gt; element, respectively.</p>
+      <div class="indent"><dl>
+        <di>
+          <dt><strong>iq-sift</strong></dt>
+          <dd>The server enables the client to sift all &lt;iq/&gt; stanzas or ones that match the specified criteria.</dd>
+          <dt><strong>message-sift</strong></dt>
+          <dd>The server enables the client to sift all &lt;message/&gt; stanzas or ones that match the specified criteria.</dd>
+          <dt><strong>presence-sift</strong></dt>
+          <dd>The server enables the client to sift all &lt;presence/&gt; stanzas or ones that match the specified criteria.</dd>
+        </di>
+      </dl></div>
+    </div>
+    <div class="indent"><h3>3.1.2 <a name="features-sender" id="features-sender">Sender</a></h3>
+      <p class="" style="">A server MAY enable the client to sift based on sender. The following values are supported.</p>
+      <div class="indent"><dl>
+        <di>
+          <dt><strong>all</strong></dt>
+          <dd>The server shall sift this kind of stanza no matter who the sender is. This is the <span class="strong">default</span>.</dd>
+          <dt><strong>local</strong></dt>
+          <dd>The server shall sift this kind of stanza only from entities associated with the same local domain as the user itself (not from remote domains).</dd>
+          <dt><strong>others</strong></dt>
+          <dd>The server shall sift this kind of stanza only from other entities (not from the user itself).</dd>
+          <dt><strong>remote</strong></dt>
+          <dd>The server shall sift this kind of stanza only from entities associated with remote domains (not from the same local domain as the user itself).</dd>
+          <dt><strong>self</strong></dt>
+          <dd>The server shall sift this kind of stanza only from the user itself (not from other entities).</dd>
+        </di>
+      </dl></div>
+      <p class="" style="">These values are child elements of the &lt;iq-sift/&gt;, &lt;message-sift/&gt;, and &lt;presence-sift/&gt; elements when the server returns a features discovery result, whereas they are values of the 'sender' attribute when the client enables sift support.</p>
+    </div>
+    <div class="indent"><h3>3.1.3 <a name="features-recipient" id="features-recipient">Recipient</a></h3>
+      <p class="" style="">A server MAY enable the client to filter based on recipient. The following values are supported.</p>
+      <div class="indent"><dl>
+        <di>
+          <dt><strong>all</strong></dt>
+          <dd>The server shall sift this kind of stanza if the recipient is the bare JID &lt;localpart@domain.tld&gt; of the user or the full JID &lt;localpart@domain.tld/resource&gt; of the particular resource. This is the <span class="strong">default</span>.</dd>
+          <dt><strong>bare</strong></dt>
+          <dd>The server shall sift this kind of stanza only if the recipient is the bare JID &lt;localpart@domain.tld&gt; of the user.</dd>
+          <dt><strong>full</strong></dt>
+          <dd>The server shall sift this kind of stanza only if the recipient is the full JID &lt;localpart@domain.tld/resource&gt; of the particular resource.</dd>
+        </di>
+      </dl></div>
+      <p class="" style="">These values are child elements of the &lt;iq-sift/&gt;, &lt;message-sift/&gt;, and &lt;presence-sift/&gt; elements when the server returns a features discovery result, whereas they are values of the 'recipient' attribute when the client enables sift support.</p>
+    </div>
+    <div class="indent"><h3>3.1.4 <a name="features-payload" id="features-payload">Payload</a></h3>
+      <p class="" style="">A server MAY enable the client to sift based on the XML namespace and element name of the payload(s) that the client allows for delivery. If so, the server shall include in the features discovery result an &lt;allow/&gt; element for the relevant kind of stanza.</p>
+    </div>
+    <div class="indent"><h3>3.1.5 <a name="features-advanced" id="features-advanced">Advanced Matching</a></h3>
+      <p class="" style="">A server could match based on more complex criteria, e.g. Regular Expressions or XPath Expressions; such functionality is implicitly allowed because the XML schema specifies the &lt;xs:any/&gt; notation, but any such advanced matching shall be defined in separate specifications.</p>
+    </div>
+  </div>
+  <div class="indent"><h3>3.2 <a name="discovering" id="discovering">Discovering Supported Features</a></h3>
+    <p class="" style="">If a server supports the SIFT protocol, it MUST advertise that fact in its responses to <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0030.html">Service Discovery</a></span>  [<a href="#nt-id315727">4</a>] information ("disco#info") requests by returning a feature of "urn:xmpp:sift:1":</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. A disco#info query</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='get' 
+    from='romeo@montague.lit/pda'
+    to='montague.lit'
+    id='bf4vb167'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. A disco#info response</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result' 
+    from='montague.lit'
+    to='romeo@montague.lit/pda'
+    id='bf4vb167'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;feature var='urn:xmpp:sift:1'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">This response enables the client to know that the server supports SIFT in general, but particular SIFT features. In order to discover which SIFT features are supported, a client sends an IQ-get containing a &lt;features/&gt; element qualified by the 'urn:xmpp:sift:1' namespace.</p>
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Client requests SIFT support details</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/pda'
+    id='bn4hf91g'
+    to='montague.lit'
+    type='get'&gt;
+  &lt;features xmlns='urn:xmpp:sift:1'/&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">The server then returns a list of the particular SIFT features it supports.</p>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Server provides details regarding SIFT support</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='montague.lit'
+    id='bn4hf91g'
+    to='romeo@montague.lit/pda'
+    type='result'&gt;
+  &lt;features xmlns='urn:xmpp:sift:1'&gt;
+    &lt;message-sift&gt;
+      &lt;recipient&gt;
+        &lt;all/&gt;
+      &lt;/recipient&gt;
+      &lt;senders&gt;
+        &lt;all/&gt;
+        &lt;others/&gt;
+      &lt;/senders&gt;
+    &lt;/message-sift&gt;
+    &lt;presence-sift&gt;
+      &lt;recipient&gt;
+        &lt;all/&gt;
+      &lt;/recipient&gt;
+      &lt;senders&gt;
+        &lt;all/&gt;
+        &lt;others/&gt;
+      &lt;/senders&gt;
+    &lt;/presence-sift&gt;
+  &lt;/features&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">The foregoing IQ-result indicates that montague.net supports only message and presence sifting, allows the client to filter those kinds of stanzas only from all entities or from other entities (but not from local entities, remote entities, or itself), allows the client to filter those kinds of stanzas only to <span class="em">both</span> the bare JID and full JID (but not to the bare JID or the full JID alone), and does not support filtering based on payload.</p>
+    <p class="" style="">Naturally, the server could return the typical XMPP error conditions, such as &lt;service-unavailable/&gt; if the server does not support the SIFT protocol or the version specified by the client.</p>
+  </div>
+  <div class="indent"><h3>3.3 <a name="enabling" id="enabling">Enabling SIFT</a></h3>
+    <p class="" style="">To enable sifting of stanzas, the client sends an IQ-set to the server containing a &lt;sift/&gt; child element that in turn contains an &lt;iq/&gt; element, a &lt;message/&gt; element, a &lt;presence/&gt; element, or some combination of those elements. Each of these elements MAY include a 'recipient' attribute whose value is "all", "bare", or "full" (defaulting to "all"). Each of these elements MAY also include a 'sender' attribute whose value is "all", "local", "others", "remote", or "self" (defaulting to "all").</p>
+    <p class="" style="">Note: The last SIFT request sent from the client to the server overrides all previous SIFT requests; SIFT requests are not cumulative. Therefore, each SIFT request needs to contain all the SIFT rules that the client wishes the server to enforce, not a delta from the previous request.</p>
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Sifting of message and presence stanzas</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/pda'
+    id='rv491g37'
+    to='romeo@montague.lit'
+    type='set'&gt;
+  &lt;sift xmlns='urn:xmpp:sift:1'&gt;
+    &lt;message sender='others'/&gt;
+    &lt;presence/&gt;
+  &lt;/sift&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">The foregoing IQ-set means "sift messages from others and presence from all senders, no matter if the recipient is my bare JID or my full JID".</p>
+    <p class="" style="">Each of the child elements &lt;iq/&gt;, &lt;message/&gt;, and &lt;presence/&gt; MAY also contain one or more &lt;allow/&gt; children whose 'name' attribute specifies the element name and whose 'ns' attribute specifies the XML namespace of stanza payloads the client would like to allow. If no &lt;allow/&gt; elements are included, then sifting of that kind of stanza is completed without reference to the payload.</p>
+    <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Sifting for particular IQ payloads</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/pda'
+    id='bs01jg75'
+    to='romeo@montague.lit'
+    type='set'&gt;
+  &lt;sift xmlns='urn:xmpp:sift:1'&gt;
+    &lt;iq&gt;
+      &lt;allow name='jingle' ns='urn:xmpp:jingle:1'/&gt;
+      &lt;allow name='query' ns='http://jabber.org/protocol/disco#info'/&gt;
+    &lt;/iq&gt;
+    &lt;message/&gt;
+  &lt;/sift&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">The foregoing IQ-set means "filter out inbound IQ stanzas except if the payload matches &lt;jingle xmlns='urn:xmpp:jingle:1'/&gt; or &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;".</p>
+    <p class="" style="">In XMPP, an IQ stanza can contain only one payload element, so the filtering logic is straightforward. However, a message or presence stanza can contain multiple payload elements (cf. <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0226.html">Message Stanza Profiles</a></span>  [<a href="#nt-id315916">5</a>]). Therefore, filtering for message and presence stanzas means that if the stanza contains the defined payload or payloads (perhaps in addition to other payloads), the server shall deliver it to the client.</p>
+    <p class="" style="">For instance, the following example shows how a client would filter inbound messages and IQs to only receive SOAP payloads as specified in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0072.html">SOAP over XMPP</a></span>  [<a href="#nt-id315947">6</a>].</p>
+    <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Sifting for SOAP</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/pda'
+    id='cid143n9'
+    to='romeo@montague.lit'
+    type='set'&gt;
+  &lt;sift xmlns='urn:xmpp:sift:1'&gt;
+    &lt;iq&gt;
+      &lt;allow name='Envelope' ns='http://www.w3.org/2003/05/soap-envelope'/&gt;
+    &lt;/iq&gt;
+    &lt;message&gt;
+      &lt;allow name='Envelope' ns='http://www.w3.org/2003/05/soap-envelope'/&gt;
+    &lt;/message&gt;
+  &lt;/sift&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">Similarly, the following example shows how a client would filter inbound presence notifications to only receive notifications that contain entity capabilities data as specified in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0115.html">Entity Capabilities</a></span>  [<a href="#nt-id315985">7</a>].</p>
+    <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Sifting for entity capabilities</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/pda'
+    id='zl2f36d8'
+    to='romeo@montague.lit'
+    type='set'&gt;
+  &lt;sift xmlns='urn:xmpp:sift:1'&gt;
+    &lt;presence&gt;
+      &lt;allow name='c' ns='http://jabber.org/protocol/caps'/&gt;
+    &lt;/presence&gt;
+  &lt;/sift&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">Naturally, the server could return the typical XMPP error conditions, such as &lt;service-unavailable/&gt; if the server does not support the SIFT protocol or the version specified by the client, &lt;feature-not-implemented/&gt; if the server does not support a particular feature (e.g., &lt;iq/&gt; sifting) requested by the client, &lt;bad-request/&gt; if the request is malformed, &lt;internal-server-error/&gt; if the server experiences a malfunction while attempting to process the request, and so on.</p>
+  </div>
+<h2>4.
+       <a name="rules" id="rules">Business Rules</a></h2>
+  <div class="indent"><h3>4.1 <a name="rules-presence" id="rules-presence">Handling Presence Stanzas</a></h3>
+    <p class="" style="">When the client indicates that it wishes to receive inbound presence notifications, the server SHOULD send outbound presence probes on the client's behalf. Responses to these presence probes are addressed to the bare JID of the account and then broadcasted to all of the resources that have expressed interest in receiving inbound presence notifications.</p>
+    <p class="" style="">If the client subsequently indicates that it wants the server to intercept inbound presence notifications, the server MUST NOT deliver to the client presence notifications that are addressed to the bare JID or full JID as defined by the 'recipient' attribute.</p>
+    <p class="" style="">If the client then indicates again that it wishes to receive inbound presence notifications, the server shall resynchronize the client regarding the presence states of its contacts (how it does so is implementation-specific, e.g. whether it queues received presence notifications or re-probes the user's contacts).</p>
+  </div>
+  <div class="indent"><h3>4.2 <a name="rules-message" id="rules-message">Handling Message Stanzas</a></h3>
+    <p class="" style="">When a client indicates that it wishes to receive messages, the server SHOULD deliver to the client all messages in the offline message queue and MUST deliver to the client any subsequent messages that would normally be delivered to the client in accordance with the rules defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3920">XMPP Core</a></span>  [<a href="#nt-id316088">8</a>] and <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3921">XMPP IM</a></span>  [<a href="#nt-id316113">9</a>].</p>
+    <p class="" style="">If the client subsequently indicates that it wants the server to intercept inbound messages (and there are no other connected or available resources that have expressed interest in receiving inbound messages), the server SHOULD treat messages as if there were no connected or available resources (e.g., storing them offline for later delivery); if the client then indicates again that it wishes to receive inbound messages, the server SHOULD send those queued messages to the client so that it can get back in sync regarding messages received from its contacts.</p> 
+  </div>
+  <div class="indent"><h3>4.3 <a name="rules-iq" id="rules-iq">Handling IQ Stanzas</a></h3>
+    <p class="" style="">If the client does not request filtering of inbound IQ stanzas, the server MUST pass through to the client all IQ stanzas that are addressed to the full JID of the client (subject to appropriate security controls as defined in the relevant RFCs and XEPs).</p>
+    <p class="" style="">If the client requests filtering of inbound IQ stanzas, for unfiltered payload name+namespace combinations the server MUST pass through to the client all IQ stanzas that are addressed to the full JID of the client (subject to appropriate security controls as defined in the relevant RFCs and XEPs), whereas for filtered payload name+namespace combinations the server MUST respond to all IQ stanzas in a way consistent with the specification for the given payload namespace (if defined) or as specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3920">XMPP Core</a></span>  [<a href="#nt-id316160">10</a>] and <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3921">XMPP IM</a></span>  [<a href="#nt-id316178">11</a>] for IQs where no full JID &lt;localpart@domain.tld/resource&gt; matches; typically that means returning a &lt;service-unavailable/&gt; error.</p>
+  </div>
+  <div class="indent"><h3>4.4 <a name="rules-none" id="rules-none">Lack of Sifting</a></h3>
+    <p class="" style="">Naturally, if the server advertises support for the SIFT protocol but the client does not send any IQ-set stanzas containing SIFT payloads, the server MUST proceed as it normally would in accordance with the core XMPP specifications.</p>
+  </div>
+<h2>5.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <div class="indent"><h3>5.1 <a name="invisibility" id="invisibility">Invisibility</a></h3>
+    <p class="" style="">In order to be invisible at the start of a session, a client can register for (i.e., not request interception of) inbound messages and presence notifications without sending initial presence.</p>
+    <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Staying invisible</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/pda'
+    id='mxi371g9'
+    to='romeo@montague.lit'
+    type='set'&gt;
+  &lt;sift xmlns='urn:xmpp:sift:1'/&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">The server would then probe the user's contacts and return the resulting presence notifications to the client, as well as allow inbound message and IQ stanzas.</p>
+    <p class="" style="">If the user wants to "go visible", the client will send initial presence.</p>
+    <p class="caption"><a name="example-10" id="example-10"></a>Example 10. Going visible</p><div class="indent"><pre class="prettyprint">
+&lt;presence/&gt;
+    </pre></div>
+    <p class="" style="">The user can later go invisible again by sending presence of type "unavailable" without modifying the SIFT rules or closing the stream.</p>
+    <p class="caption"><a name="example-11" id="example-11"></a>Example 11. Going invisible</p><div class="indent"><pre class="prettyprint">
+&lt;presence type='unavailable'/&gt;
+    </pre></div>
+  </div>
+  <div class="indent"><h3>5.2 <a name="priority" id="priority">Negative Presence Priority</a></h3>
+    <p class="" style="">RFC 3921 defines the concept of negative values for the presence &lt;priority/&gt; element, where a negative value instructs the server to not deliver to the client any messages that are directed to the bare JID of the user. This behavior can be emulated using SIFT by asking the server to intercept inbound message stanzas for the bare JID, but not presence notifications or IQ stanzas.</p>
+    <p class="caption"><a name="example-12" id="example-12"></a>Example 12. Emulating negative presence priority</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/pda'
+    id='zkd71d37'
+    to='romeo@montague.lit'
+    type='set'&gt;
+  &lt;sift xmlns='urn:xmpp:sift:1'&gt;
+    &lt;message recipient='bare'/&gt;
+  &lt;/sift&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">If a client requests message sifting, but sends presence, it SHOULD specify a negative priority as a hint to contacts.</p>
+  </div>
+  <div class="indent"><h3>5.3 <a name="nopresence" id="nopresence">Presence Hush</a></h3>
+    <p class="" style="">Because inbound presence notifications can be "chatty", mobile clients and other entities with limited battery life might want to "hush" the presence session by asking the server to intercept inbound presence notifications but not message stanzas.</p>
+    <p class="caption"><a name="example-13" id="example-13"></a>Example 13. Hushing the presence session</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/pda'
+    id='uh2s64g9'
+    to='romeo@montague.lit'
+    type='set'&gt;
+  &lt;sift xmlns='urn:xmpp:sift:1'&gt;
+    &lt;presence/&gt;
+  &lt;/sift&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+<h2>6.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">To follow.</p>
+<h2>7.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id316386">12</a>].</p> 
+<h2>8.
+       <a name="reg" id="reg">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>8.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:sift:1</li>
+    </ul>
+    <p class="" style="">Upon advancement of this specification from a status of Experimental to a status of Draft, the <span class="ref" style=""><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id316454">13</a>] shall add the foregoing namespace to the registry located at &lt;<a href="http://xmpp.org/registrar/namespaces.html">http://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function</a></span>  [<a href="#nt-id316499">14</a>].</p>
+  </div>
+  <div class="indent"><h3>8.2 <a name="registrar-versioning" id="registrar-versioning">Protocol Versioning</a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+<h2>9.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:sift:1'
+    xmlns='urn:xmpp:sift:1'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='features'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element name='iq-sift'
+                    type='featureElementType'
+                    minOccurs='0'
+                    maxOccurs='1'/&gt;
+        &lt;xs:element name='message-sift'
+                    type='featureElementType'
+                    minOccurs='0'
+                    maxOccurs='1'/&gt;
+        &lt;xs:element name='presence-sift'
+                    type='featureElementType'
+                    minOccurs='0'
+                    maxOccurs='1'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='sift'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element name='iq' 
+                    type='siftElementType'
+                    minOccurs='0' 
+                    maxOccurs='1'/&gt;
+        &lt;xs:element name='message' 
+                    type='siftElementType'
+                    minOccurs='0' 
+                    maxOccurs='1'/&gt;
+        &lt;xs:element name='presence' 
+                    type='siftElementType'
+                    minOccurs='0' 
+                    maxOccurs='1'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='featureElementType'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element name='recipient' 
+                    type='recipientElementType' 
+                    minOccurs='0'
+                    maxOccurs='1'/&gt;
+        &lt;xs:element name='sender' 
+                    type='senderElementType' 
+                    minOccurs='0'
+                    maxOccurs='1'/&gt;
+        &lt;xs:element name='allow' 
+                    type='allowElementType' 
+                    minOccurs='0'
+                    maxOccurs='unbounded'/&gt;
+        &lt;xs:any     namespace='##other' 
+                    minOccurs='0' 
+                    maxOccurs='unbounded'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='siftElementType'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element name='allow' 
+                    type='allowElementType' 
+                    minOccurs='0'
+                    maxOccurs='unbounded'/&gt;
+        &lt;xs:any     namespace='##other' 
+                    minOccurs='0' 
+                    maxOccurs='unbounded'/&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name='recipient'
+                    use='optional'
+                    default='all'&gt;
+        &lt;xs:simpleType&gt;
+          &lt;xs:restriction base='xs:NCName'&gt;
+            &lt;xs:enumeration value='all'/&gt;
+            &lt;xs:enumeration value='bare'/&gt;
+            &lt;xs:enumeration value='full'/&gt;
+          &lt;/xs:restriction&gt;
+        &lt;/xs:simpleType&gt;
+      &lt;/xs:attribute&gt;
+      &lt;xs:attribute name='sender'
+                    use='optional'
+                    default='all'&gt;
+        &lt;xs:simpleType&gt;
+          &lt;xs:restriction base='xs:NCName'&gt;
+            &lt;xs:enumeration value='all'/&gt;
+            &lt;xs:enumeration value='local'/&gt;
+            &lt;xs:enumeration value='others'/&gt;
+            &lt;xs:enumeration value='remote'/&gt;
+            &lt;xs:enumeration value='self'/&gt;
+          &lt;/xs:restriction&gt;
+        &lt;/xs:simpleType&gt;
+      &lt;/xs:attribute&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='recipientElementType'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element name='all' 
+                    type='empty' 
+                    minOccurs='0'
+                    maxOccurs='1'/&gt;
+        &lt;xs:element name='bare' 
+                    type='empty' 
+                    minOccurs='0'
+                    maxOccurs='1'/&gt;
+        &lt;xs:element name='full' 
+                    type='empty' 
+                    minOccurs='0'
+                    maxOccurs='1'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='senderElementType'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element name='all' 
+                    type='empty' 
+                    minOccurs='0'
+                    maxOccurs='1'/&gt;
+        &lt;xs:element name='local' 
+                    type='empty' 
+                    minOccurs='0'
+                    maxOccurs='1'/&gt;
+        &lt;xs:element name='others' 
+                    type='empty' 
+                    minOccurs='0'
+                    maxOccurs='1'/&gt;
+        &lt;xs:element name='remote' 
+                    type='empty' 
+                    minOccurs='0'
+                    maxOccurs='1'/&gt;
+        &lt;xs:element name='self' 
+                    type='empty' 
+                    minOccurs='0'
+                    maxOccurs='1'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:complexType name='allowElementType'&gt;
+    &lt;xs:simpleContent&gt;
+      &lt;xs:extension base='empty'&gt;
+        &lt;xs:attribute name='name'
+                      type='xs:NCName'
+                      use='required'/&gt;
+        &lt;xs:attribute name='ns'
+                      type='xs:anyURI'
+                      use='required'/&gt;
+      &lt;/xs:extension&gt;
+    &lt;/xs:simpleContent&gt;
+  &lt;/xs:complexType&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+    </pre></div>
+<h2>10.
+       <a name="acks" id="acks">Acknowledgements</a></h2>
+  <p class="" style="">The authors wish to acknowledge feedback received from Dave Cridland, Jack Erwin, Waqas Hussein, Craig Kaes, Dirk Meyer, Robert Quattlebaum, Mike Taylor, Matthew Wild, and Jiří Zárevúcký, as well as from the participants at XMPP Summit 7 on July 20-21, 2009.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0273<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2009-09-15<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: sift<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0273.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0273.xml/rss.xml">RSS</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Joe Hildebrand</h3><p class="indent">
+        Email:
+        <a href="mailto:jhildebr@cisco.com">jhildebr@cisco.com</a><br />
+        JabberID: 
+        <a href="xmpp:hildjj@jabber.org">hildjj@jabber.org</a><br /></p><h3>Jack Moffitt</h3><p class="indent">
+        Email:
+        <a href="mailto:jack@chesspark.com">jack@chesspark.com</a><br />
+        JabberID: 
+        <a href="xmpp:jack@chesspark.com">jack@chesspark.com</a><br /></p><h3>Peter Saint-Andre</h3><p class="indent">
+        Email:
+        <a href="mailto:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        JabberID: 
+        <a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        URI: 
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2010 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XMPP Standards Foundation, c/o Peter Saint-Andre, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id314909" id="nt-id314909">1</a>. XEP-0166: Jingle &lt;<a href="http://xmpp.org/extensions/xep-0166.html">http://xmpp.org/extensions/xep-0166.html</a>&gt;.</p><p><a name="nt-id315298" id="nt-id315298">2</a>. RFC 3921: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc3921">http://tools.ietf.org/html/rfc3921</a>&gt;.</p><p><a name="nt-id315329" id="nt-id315329">3</a>. XEP-0134: XMPP Design Guidelines &lt;<a href="http://xmpp.org/extensions/xep-0134.html">http://xmpp.org/extensions/xep-0134.html</a>&gt;.</p><p><a name="nt-id315727" id="nt-id315727">4</a>. XEP-0030: Service Discovery &lt;<a href="http://xmpp.org/extensions/xep-0030.html">http://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id315916" id="nt-id315916">5</a>. XEP-0226: Message Stanza Profiles &lt;<a href="http://xmpp.org/extensions/xep-0226.html">http://xmpp.org/extensions/xep-0226.html</a>&gt;.</p><p><a name="nt-id315947" id="nt-id315947">6</a>. XEP-0072: SOAP over XMPP &lt;<a href="http://xmpp.org/extensions/xep-0072.html">http://xmpp.org/extensions/xep-0072.html</a>&gt;.</p><p><a name="nt-id315985" id="nt-id315985">7</a>. XEP-0115: Entity Capabilities &lt;<a href="http://xmpp.org/extensions/xep-0115.html">http://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-id316088" id="nt-id316088">8</a>. RFC 3920: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc3920">http://tools.ietf.org/html/rfc3920</a>&gt;.</p><p><a name="nt-id316113" id="nt-id316113">9</a>. RFC 3921: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc3921">http://tools.ietf.org/html/rfc3921</a>&gt;.</p><p><a name="nt-id316160" id="nt-id316160">10</a>. RFC 3920: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc3920">http://tools.ietf.org/html/rfc3920</a>&gt;.</p><p><a name="nt-id316178" id="nt-id316178">11</a>. RFC 3921: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc3921">http://tools.ietf.org/html/rfc3921</a>&gt;.</p><p><a name="nt-id316386" id="nt-id316386">12</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id316454" id="nt-id316454">13</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id316499" id="nt-id316499">14</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2009-09-15)</h4><div class="indent"><p class="" style="">Initial published version as accepted for publication by the XMPP Council.</p> (psa)
+    </div><h4>Version 0.0.8 (2009-08-14)</h4><div class="indent"><p class="" style="">Clarified service and feature discovery processes, error flows, and other small matters in the text.</p> (psa)
+    </div><h4>Version 0.0.7 (2009-08-11)</h4><div class="indent"><p class="" style="">Defined IQ-get for retrieving supported SIFT features; added support for sifting based on sender type; removed restriction on matching against only the bare JID of the recipient and defined support for sifting on the bare JID, full JID, or both.</p> (psa)
+    </div><h4>Version 0.0.6 (2009-05-19)</h4><div class="indent"><p class="" style="">Added requirements section; clarified relation to negative presence priorities.</p> (jjh/psa)
+    </div><h4>Version 0.0.5 (2009-05-18)</h4><div class="indent"><p class="" style="">More clearly distinguished between interception and filtering usages; clarified business rules.</p> (jjh/psa)
+    </div><h4>Version 0.0.4 (2009-05-18)</h4><div class="indent"><p class="" style="">Added information about service discovery; clarified several small matters in the text.</p> (psa/jjh)
+    </div><h4>Version 0.0.3 (2009-05-15)</h4><div class="indent"><p class="" style="">Clarified that SIFT applies to interception of message and presence stanzas directed to the bare JID and to filtering of IQ stanzas directed to the full JID; corrected syntax to match those semantics; added use cases; defined XML schema.</p> (psa/jjh)
+    </div><h4>Version 0.0.2 (2009-05-14)</h4><div class="indent"><p class="" style="">Slight clarifications and corrections.</p> (psa)
+    </div><h4>Version 0.0.1 (2009-05-14)</h4><div class="indent"><p class="" style="">First draft.</p> (jjh/jm/psa)
+    </div></div><hr /><p>END</p></body></html>

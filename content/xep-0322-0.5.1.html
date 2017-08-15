@@ -1,0 +1,2454 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0322: Efficient XML Interchange (EXI) Format</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Efficient XML Interchange (EXI) Format" /><meta name="DC.Creator" content="Peter Waher" /><meta name="DC.Creator" content="Yusuke DOI" /><meta name="DC.Description" content="This specification describes how EXI compression can be used in XMPP networks." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2016-11-02" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0322" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2016 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0322: Efficient XML Interchange (EXI) Format</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification describes how EXI compression can be used in XMPP networks.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Peter Waher, Yusuke DOI</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2016 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.5.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2016-11-02</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#usecases">Use Cases</a><br />   
+      2.1.  <a href="#sect-idp1542112">Two approaches to use EXI</a><br />   
+      2.2.  <a href="#streamcompression">Stream Compression</a><br />      
+      2.2.1.  <a href="#sect-idp1552800">Invalid setup</a><br />      
+      2.2.2.  <a href="#setup">Proposing compression parameters</a><br />      
+      2.2.3.  <a href="#sect-idp1576640">Uploading new schema files</a><br />      
+      2.2.4.  <a href="#sect-idp1591456">Uploading compressed schema files</a><br />      
+      2.2.5.  <a href="#sect-idp1617600">Downloading new schema files on server</a><br />      
+      2.2.6.  <a href="#sect-idp1632112">Accessing quick configurations</a><br />      
+      2.2.7.  <a href="#sect-idp1638096">Quick configuration failure</a><br />      
+      2.2.8.  <a href="#sect-idp1641536">Start compression</a><br />   
+      2.3.  <a href="#sect-idp1648480">EXI-specific stream elements</a><br />      
+      2.3.1.  <a href="#startStream">streamStart</a><br />      
+      2.3.2.  <a href="#streamEnd">streamEnd</a><br />   
+      2.4.  <a href="#alttrans">Alternative Transport Binding for EXI/XMPP over TCP</a><br />      
+      2.4.1.  <a href="#srv">DNS SRV lookup</a><br />      
+      2.4.2.  <a href="#fallback">Fallback Process</a><br />      
+      2.4.3.  <a href="#defaultParam">Default Payload Encoding Options for EXI/XMPP</a><br />3.  <a href="#impl">Implementation Notes</a><br />   
+      3.1.  <a href="#sect-idp1740928">EXI Encoding Preprocessing and Postprocessing</a><br />   
+      3.2.  <a href="#sect-idp1753856">EXI options</a><br />      
+      3.2.1.  <a href="#sect-idp1767920">Evaluations of Options</a><br />   
+      3.3.  <a href="#sect-idp1774496">Transmission of EXI bodies and Session-wide Buffers</a><br />   
+      3.4.  <a href="#sect-idp1781184">Preserving prefixes</a><br />   
+      3.5.  <a href="#sect-idp1784272">Networks containing clients having limited memory</a><br />   
+      3.6.  <a href="#sect-idp1786400">Caching schema files</a><br />   
+      3.7.  <a href="#sect-idp1790176">Uploading vs. Downloading schemas</a><br />   
+      3.8.  <a href="#sect-idp1793072">Server decompression and recompression vs. binary forwarding</a><br />   
+      3.9.  <a href="#wellknown">Snapshot Repository for Well-known Schemas</a><br />   
+      3.10.  <a href="#sect-idp1799104">Generation of Canonic Schemas</a><br />   
+      3.11.  <a href="#shortcut">Using EXI Option Documents for Shortcut Setup</a><br />      
+      3.11.1.  <a href="#shortcutAltBind">Shortcut Setup for Alternative Transport Binding</a><br />   
+      3.12.  <a href="#knownhashes">XMPP Schema files and their hash values</a><br />   
+      3.13.  <a href="#knownproblems">Known problems with existing schemas</a><br />      
+      3.13.1.  <a href="#patch">Patch to avoid UPA for streams.xsd</a><br />      
+      3.13.2.  <a href="#sect-idp2168048">Patch for missing wildcards in extensible schemas</a><br />   
+      3.14.  <a href="#defaultSchema">Default schema for alternative bindings</a><br />   
+      3.15.  <a href="#reservedSchemaID">Reserved Schema IDs</a><br />4.  <a href="#security">Security Considerations</a><br />5.  <a href="#iana">IANA Considerations</a><br />6.  <a href="#registrar">XMPP Registrar Considerations</a><br />7.  <a href="#schema">XML Schema</a><br />8.  <a href="#moreinfo">For more information</a><br />9.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+    <p>
+      The Efficient XML Interchange (EXI) Format  [<a href="#nt-idp611584">1</a>] is an
+      efficient way to compress XML documents and XML fragments. This document provides information on how EXI can be used in XMPP streams to efficiently compress data transmitted between
+      the server and the client. For certain applications (like applications in sensor networks) EXI is a vital component, decreasing packet size enabling sensors with limited memory to
+      communicate efficiently. The strong support in EXI for generating efficient stubcodes is also vital to build efficient code in constrained devices.
+    </p>
+    <p>
+      Activating EXI compression requires a handshake to take place prior, where the server and client agree on a set of parameters. Some of these parameters may increase the compression ratio,
+      at the cost of processing power and readability. These parameters include:
+    </p>
+    <ul>
+      <li>Schemas to use.</li>
+      <li>EXI version number.</li>
+      <li>Data alignment (bit-packed, byte-alignment, pre-compression).</li>
+      <li>If EXI-compressed data should be further compressed using additional compression.</li>
+      <li>Strict or loose adherence to schemas.</li>
+      <li>If comments, processing instructions, dtd:s, prefixes, lexical values, etc. should be preserved.</li>
+      <li>If self-contained elements should be allowed.</li>
+      <li>Alternate data type representations for types values.</li>
+      <li>Block size for EXI compression.</li>
+      <li>Maximum string length of value content items in string tables.</li>
+      <li>Value partition capacity.</li>
+    </ul>
+    <p>
+      These parameters will be discussed in greater depth in the following sections. There are also default values that can be used to commence evaluating EXI compression.
+    </p>
+    <p>
+      The single most important property to agree on however, is the set of schemas to use during EXI compression. EXI compresses XML much more efficiently if schemas exist
+      describing the format of the expected XML. Since the server is not supposed to know all possible XML schemas, a mechanism is provided in this document whereby schemas can be
+      interchanged, so that the server can adapt its compression to the needs of the client.
+    </p>
+    <p>
+      EXI can be used through two bindings:
+    </p>
+    <ul>
+      <li>Normal XMPP Port</li>
+      <li>Dedicated Binary EXI Port</li>
+    </ul>
+    <p>
+      Both will be described in turn, in the following sections.
+    </p>
+  <h2>2.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+    
+    <div class="indent"><h3>2.1 <a name="sect-idp1542112" id="sect-idp1542112">Two approaches to use EXI</a></h3>
+      <p>
+        There are two ways to use EXI to make efficient XMPP communication. The first method describes how to activate EXI-compression using <span class="ref"><a href="http://xmpp.org/extensions/xep-0138.html">Stream Compression (XEP-0138)</a></span>  [<a href="#nt-idp1545312">2</a>] (XEP-0138).
+        The second method describes an alternative binding. This method does not use Stream compression as defined in
+        <a href="http://xmpp.org/extensions/xep-0138.html">XEP-0138</a>, rather it allows clients to connect
+        to the server and start using EXI directly from the beginning.
+      </p>
+    </div>
+    <div class="indent"><h3>2.2 <a name="streamcompression" id="streamcompression">Stream Compression</a></h3>
+      <p>
+        The following sections assume the client connects through the normal XMPP port, and starts communicating with the server using uncompressed XML fragments.
+        When the client connects to the XMPP Server, it will receive a list of features supported by the server:
+      </p>
+      <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Search Features</p><div class="indent"><pre class="prettyprint">
+&lt;stream:features&gt;
+    &lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+    &lt;compression xmlns='http://jabber.org/features/compress'&gt;
+        &lt;method&gt;zlib&lt;/method&gt;
+        &lt;method&gt;lzw&lt;/method&gt;
+        &lt;method&gt;exi&lt;/method&gt;
+        &lt;method&gt;exi:54321&lt;/method&gt;
+    &lt;/compression&gt;
+&lt;/stream:features&gt;</pre></div>
+      <p>
+        Support for EXI compression through the normal XMPP port is detected by the existence of the <span class="strong">exi</span> compression method in the <span class="strong">features</span> stanza.
+        If a port (static or dynamic) is available for a dedicated binary EXI/XMPP binding, this can be detected by the existence of the <span class="strong">exi:PORT</span> compression method,
+        where PORT is replaced by the port number used. More information about this alternative method is available in the <a href="#alttrans">Alternative Bindings</a> section.
+      </p>
+      <p>
+        <span class="strong">Note:</span> If the client already knows the port number of the dedicated binary EXI/XMPP binding, it can connect there directly, without the need to check the
+        server features using the normal XMPP port.
+      </p>
+      <p>
+        Following is a list of use cases displaying how the client can configure and activate EXI compression on the current binding.
+      </p>
+      <div class="indent"><h3>2.2.1 <a name="sect-idp1552800" id="sect-idp1552800">Invalid setup</a></h3>
+        <p>
+          If the client attempts to activate an EXI stream at this point, before the negotiation of EXI properties has been performed, the server must respond with a
+          <span class="strong">setup-failed</span> response.
+        </p>
+        <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Invalid setup</p><div class="indent"><pre class="prettyprint">
+&lt;compress xmlns='http://jabber.org/protocol/compress'&gt;
+    &lt;method&gt;exi&lt;/method&gt;
+&lt;/compress&gt;
+
+&lt;failure xmlns='http://jabber.org/protocol/compress'&gt;
+    &lt;setup-failed/&gt;
+&lt;/failure&gt;</pre></div>
+      </div>
+      <div class="indent"><h3>2.2.2 <a name="setup" id="setup">Proposing compression parameters</a></h3>
+        <p>
+          When the client decides to activate EXI compression, it sends a <span class="strong">setup</span> stanza containing parameter proposals to the server as follows:
+        </p>
+        <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Proposing compression parameters</p><div class="indent"><pre class="prettyprint">
+&lt;setup xmlns='http://jabber.org/protocol/compress/exi' version='1' strict='true' blockSize='1024'
+       valueMaxLength='32' valuePartitionCapacity='100'&gt;
+    &lt;schema ns='http://www.w3.org/XML/1998/namespace' bytes='4726' md5Hash='2e2cf9072dc058dcda41b7ee77a5cb54'/&gt;
+    &lt;schema ns='http://etherx.jabber.org/streams' bytes='3450' md5Hash='68719b98725477c46a70958d1ea7c781'/&gt;
+    &lt;schema ns='jabber:client' bytes='6968' md5Hash='5e2d5cbf0506e3f16336d295093d66c4'/&gt;
+    &lt;schema ns='jabber:server' bytes='6948' md5Hash='dd95bd3055dfdd69984ed427cd6356e0'/&gt;
+    &lt;schema ns='jabber:x:roster' bytes='1077' md5Hash='00cb233dee83919067559c5dcee04f3d'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-sasl' bytes='2769' md5Hash='fd9a83f5c75628486ce18c0eb3a35995'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-streams' bytes='3315' md5Hash='75cd95aecb9f1fd66110c3ddcf00c9b8'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-tls' bytes='688' md5Hash='dc18bc4da35bc1be7a6c52aa43330825'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-stanzas' bytes='3133' md5Hash='1a8d21588424f9134dc497de64b10c3f'/&gt;
+    &lt;schema ns='http://jabber.org/protocol/compress/exi' bytes='15094' md5Hash='8b8f91b95d9101f0781e0ba9b4e106be'/&gt;
+    &lt;schema ns='urn:xmpp:iot:control' bytes='6293' md5Hash='74dcea52300e8c8df8c4de2c9e90495b'/&gt;
+    &lt;schema ns='urn:xmpp:iot:sensordata' bytes='8092' md5Hash='49b101e7deea39ccc31340a3c7871c43'/&gt;
+    &lt;schema ns='urn:xmpp:iot:interoperability' bytes='1275' md5Hash='5d39845a0082715ff8807691698353bb'/&gt;
+    &lt;schema ns='urn:xmpp:iot:provisioning' bytes='6303' md5Hash='3ed5360bc17eadb2a8949498c9af3f0c'/&gt;
+&lt;/setup&gt;</pre></div>
+        <p>
+          <span class="strong">Note:</span> Schema files are identified using three properties: Its <span class="strong">target namespace</span>, its <span class="strong">byte size</span> and its
+          <span class="strong">MD5 hash</span>. The <span class="strong">MD5 hash</span> provides a way to detect small changes in the file, even if the byte size and namespace are the same.
+        </p>
+        <p>
+          It is important that the client specify not only application specific namespaces in this request, but also the versions of the schemas for the
+          core XMPP protocol namespaces and the schema for the XML namespace, containing XML attributes.
+        </p>
+        <p>
+          <span class="strong">Note:</span> Hash values and byte sizes of known schemas at the time of writing, can be found <a href="#knownhashes">here</a>.
+          However, these values are informational only. It is recommended that the developer makes sure exactly what version of the schema to use, and
+          calculate the hash for it correspondingly. Also, some changes to some schemas might be necessary, which will affect the hash values. For more
+          information about this, see the inforamtion about <a href="#knownproblems">known problems</a>.
+        </p>
+        <p>
+          After receiving the request, the server responds with a <span class="strong">setupResponse</span> stanza containing the parameters it can accept, based
+          on the initial values provided by the client. Any buffer sizes, etc., may have been changed, but only lowered, never raised.
+        </p>
+        <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Unable to accommodate parameters</p><div class="indent"><pre class="prettyprint">
+&lt;setupResponse xmlns='http://jabber.org/protocol/compress/exi' version='1' strict='true'
+               blockSize='1024' valueMaxLength='32' valuePartitionCapacity='100'&gt;
+    &lt;schema ns='http://www.w3.org/XML/1998/namespace' bytes='4726' md5Hash='2e2cf9072dc058dcda41b7ee77a5cb54'/&gt;
+    &lt;schema ns='http://etherx.jabber.org/streams' bytes='3450' md5Hash='68719b98725477c46a70958d1ea7c781'/&gt;
+    &lt;schema ns='jabber:client' bytes='6968' md5Hash='5e2d5cbf0506e3f16336d295093d66c4'/&gt;
+    &lt;schema ns='jabber:server' bytes='6948' md5Hash='dd95bd3055dfdd69984ed427cd6356e0'/&gt;
+    &lt;schema ns='jabber:x:roster' bytes='1077' md5Hash='00cb233dee83919067559c5dcee04f3d'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-sasl' bytes='2769' md5Hash='fd9a83f5c75628486ce18c0eb3a35995'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-streams' bytes='3315' md5Hash='75cd95aecb9f1fd66110c3ddcf00c9b8'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-tls' bytes='688' md5Hash='dc18bc4da35bc1be7a6c52aa43330825'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-stanzas' bytes='3133' md5Hash='1a8d21588424f9134dc497de64b10c3f'/&gt;
+    &lt;schema ns='http://jabber.org/protocol/compress/exi' bytes='15094' md5Hash='8b8f91b95d9101f0781e0ba9b4e106be'/&gt;
+    &lt;schema ns='urn:xmpp:iot:control' bytes='6293' md5Hash='74dcea52300e8c8df8c4de2c9e90495b'/&gt;
+    &lt;schema ns='urn:xmpp:iot:sensordata' bytes='8092' md5Hash='49b101e7deea39ccc31340a3c7871c43'/&gt;
+    &lt;schema ns='urn:xmpp:iot:interoperability' bytes='1275' md5Hash='5d39845a0082715ff8807691698353bb'/&gt;
+    &lt;missingSchema ns='urn:xmpp:iot:provisioning' bytes='6303' md5Hash='3ed5360bc17eadb2a8949498c9af3f0c'/&gt;
+&lt;/setupResponse&gt;</pre></div>
+        <p>
+          Schema files that the server does not have (based on namespace, byte size and MD5 hash) are marked with the <span class="strong">missingSchema</span> element instead of the
+          normal <span class="strong">schema</span> element.
+        </p>
+        <p>
+          At this point the client can choose to abort the EXI enablement sequence if it cannot accommodate itself with the proposed parameter settings provided by the server.
+          The XMPP session will continue to work in its current state. Aborting does not require taking further action from the client.
+        </p>
+      </div>
+      <div class="indent"><h3>2.2.3 <a name="sect-idp1576640" id="sect-idp1576640">Uploading new schema files</a></h3>
+        <p>
+          If the server lacks information about a schema file, it is specified in the response through the <span class="strong">missingSchema</span> elements. At this point, the client can
+          either choose to accept that these schema files are not available, making compression less efficient, or choose to upload the missing schema files to the server. Of course,
+          uploading schema files would require the device to have sufficient buffers and memory to store and upload the schema files in the first place. (If it is not possible to upload the
+          schema files, consideration should be given to installing the schema files manually at the server.)
+        </p>
+        <p>
+          To upload a schema file, the client simply sends the schema file using an <span class="strong">uploadSchema</span> element, as follows:
+        </p>
+        <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Uploading schema file</p><div class="indent"><pre class="prettyprint">
+&lt;uploadSchema xmlns='http://jabber.org/protocol/compress/exi' contentType='Text'&gt;
+    PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nVVRGLTgnPz4NCjx4czpzY2hlbWENCiAgICB4
+    bWxuczp4cz0naHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEnDQogICAgdGFyZ2V0TmFt
+    ZXNwYWNlPSd1cm46eG1wcDpzbjpwcm92aXNpb25pbmcnDQogICAgeG1sbnM9J3Vybjp4bXBwOnNu
+
+    …
+
+    dmlsZWdlJz4NCgkJPHhzOmF0dHJpYnV0ZSBuYW1lPSdpZCcgdHlwZT0nUHJpdmlsZWdlSWQnIHVz
+    ZT0ncmVxdWlyZWQnLz4NCgk8L3hzOmNvbXBsZXhUeXBlPg0KIA0KPC94czpzY2hlbWE+DQo=
+&lt;/uploadSchema&gt;</pre></div>
+        <p>
+          The schema itself is sent using base64 encoding to the server. This is to make sure a binary exact copy is transferred, maintaining encoding, processing instructions, etc. The
+          server then computes the <span class="strong">target namespace</span>, <span class="strong">byte size</span> and <span class="strong">MD5 Hash</span> from the sent schema file.
+        </p>
+        <p>
+          If the client desires, it can test the EXI setup again. This is optional, but can be used to test that uploading the schema files, and any new property values
+          are accepted by the server.
+        </p>
+        <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Testing newly uploaded schema files</p><div class="indent"><pre class="prettyprint">
+&lt;setup xmlns='http://jabber.org/protocol/compress/exi' version='1' strict='true' blockSize='1024'
+       valueMaxLength='32' valuePartitionCapacity='100'&gt;
+    &lt;schema ns='http://www.w3.org/XML/1998/namespace' bytes='4726' md5Hash='2e2cf9072dc058dcda41b7ee77a5cb54'/&gt;
+    &lt;schema ns='http://etherx.jabber.org/streams' bytes='3450' md5Hash='68719b98725477c46a70958d1ea7c781'/&gt;
+    &lt;schema ns='jabber:client' bytes='6968' md5Hash='5e2d5cbf0506e3f16336d295093d66c4'/&gt;
+    &lt;schema ns='jabber:server' bytes='6948' md5Hash='dd95bd3055dfdd69984ed427cd6356e0'/&gt;
+    &lt;schema ns='jabber:x:roster' bytes='1077' md5Hash='00cb233dee83919067559c5dcee04f3d'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-sasl' bytes='2769' md5Hash='fd9a83f5c75628486ce18c0eb3a35995'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-streams' bytes='3315' md5Hash='75cd95aecb9f1fd66110c3ddcf00c9b8'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-tls' bytes='688' md5Hash='dc18bc4da35bc1be7a6c52aa43330825'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-stanzas' bytes='3133' md5Hash='1a8d21588424f9134dc497de64b10c3f'/&gt;
+    &lt;schema ns='http://jabber.org/protocol/compress/exi' bytes='15094' md5Hash='8b8f91b95d9101f0781e0ba9b4e106be'/&gt;
+    &lt;schema ns='urn:xmpp:iot:control' bytes='6293' md5Hash='74dcea52300e8c8df8c4de2c9e90495b'/&gt;
+    &lt;schema ns='urn:xmpp:iot:sensordata' bytes='8092' md5Hash='49b101e7deea39ccc31340a3c7871c43'/&gt;
+    &lt;schema ns='urn:xmpp:iot:interoperability' bytes='1275' md5Hash='5d39845a0082715ff8807691698353bb'/&gt;
+    &lt;schema ns='urn:xmpp:iot:provisioning' bytes='6303' md5Hash='3ed5360bc17eadb2a8949498c9af3f0c'/&gt;
+&lt;/setup&gt;</pre></div>
+        <p>
+          And the server should then respond:
+        </p>
+        <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Agreement between client and server</p><div class="indent"><pre class="prettyprint">
+&lt;setupResponse xmlns='http://jabber.org/protocol/compress/exi' version='1' strict='true'
+               blockSize='1024' valueMaxLength='32' valuePartitionCapacity='100' agreement='true'
+               configurationId='c76ab4ec-4993-4285-8c7a-098060581bb8'&gt;
+    &lt;schema ns='http://www.w3.org/XML/1998/namespace' bytes='4726' md5Hash='2e2cf9072dc058dcda41b7ee77a5cb54'/&gt;
+    &lt;schema ns='http://etherx.jabber.org/streams' bytes='3450' md5Hash='68719b98725477c46a70958d1ea7c781'/&gt;
+    &lt;schema ns='jabber:client' bytes='6968' md5Hash='5e2d5cbf0506e3f16336d295093d66c4'/&gt;
+    &lt;schema ns='jabber:server' bytes='6948' md5Hash='dd95bd3055dfdd69984ed427cd6356e0'/&gt;
+    &lt;schema ns='jabber:x:roster' bytes='1077' md5Hash='00cb233dee83919067559c5dcee04f3d'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-sasl' bytes='2769' md5Hash='fd9a83f5c75628486ce18c0eb3a35995'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-streams' bytes='3315' md5Hash='75cd95aecb9f1fd66110c3ddcf00c9b8'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-tls' bytes='688' md5Hash='dc18bc4da35bc1be7a6c52aa43330825'/&gt;
+    &lt;schema ns='urn:ietf:params:xml:ns:xmpp-stanzas' bytes='3133' md5Hash='1a8d21588424f9134dc497de64b10c3f'/&gt;
+    &lt;schema ns='http://jabber.org/protocol/compress/exi' bytes='15094' md5Hash='8b8f91b95d9101f0781e0ba9b4e106be'/&gt;
+    &lt;schema ns='urn:xmpp:iot:control' bytes='6293' md5Hash='74dcea52300e8c8df8c4de2c9e90495b'/&gt;
+    &lt;schema ns='urn:xmpp:iot:sensordata' bytes='8092' md5Hash='49b101e7deea39ccc31340a3c7871c43'/&gt;
+    &lt;schema ns='urn:xmpp:iot:interoperability' bytes='1275' md5Hash='5d39845a0082715ff8807691698353bb'/&gt;
+    &lt;missingSchema ns='urn:xmpp:iot:provisioning' bytes='6303' md5Hash='3ed5360bc17eadb2a8949498c9af3f0c'/&gt;
+&lt;/setupResponse&gt;</pre></div>
+        <p>
+          Note the <span class="strong">agreement</span> attribute in the response this time. The server must set this attribute to true if it agrees with the proposal from the client.
+          The client in turn can check this attribute as a quick way to check if agreement exists. When the server is in agreement it must also return a Configuration ID
+          in the <span class="strong">configurationId</span> attribute. This Configuration ID can be used later to quicker enter into EXI compressed mode.
+        </p>
+      </div>
+      <div class="indent"><h3>2.2.4 <a name="sect-idp1591456" id="sect-idp1591456">Uploading compressed schema files</a></h3>
+        <p>
+          The <span class="strong">uploadSchema</span> command has an optional attribute called <span class="strong">contentType</span> that can be used to send different types of documents
+          to the server. This is not a MIME content type, but an enumeration with the following options:
+        </p>
+        <div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: contentType values</p><table border="1" cellpadding="3" cellspacing="0">
+          <tr class="body">
+            <th>Value</th>
+            <th>Description</th>
+          </tr>
+          <tr class="body">
+            <td>Text</td>
+            <td>
+              The schema is sent as plain text, albeit base-64 encoded. If no encoding is provided in the XML header of the schema file,
+              UTF-8 encoding is assumed. This is the default value.
+            </td>
+          </tr>
+          <tr class="body">
+            <td>ExiBody</td>
+            <td>The schema file is sent as an EXI compressed file, but only the body is sent. *</td>
+          </tr>
+          <tr class="body">
+            <td>ExiDocument</td>
+            <td>The schema file is sent as an EXI compressed file. The entire file, including Exi header is provided. *</td>
+          </tr>
+        </table></div>
+        <p>
+          (*) These options assume the following set of default EXI options are used. It is assumed the XMPP server has more capabilities than the client, so the following
+          set of options must be supported by the XMPP server. The schema files can be precompressed and stored as binary files on the client for easier transmission.
+        </p>
+        <div class="indent"><p class="caption"><a name="table-2" id="table-2"></a>Table 2: Default EXI options</p><table border="1" cellpadding="3" cellspacing="0">
+          <tr class="body">
+            <th>Option</th>
+            <th>Default value</th>
+          </tr>
+          <tr class="body">
+            <td>Version</td>
+            <td>1</td>
+          </tr>
+          <tr class="body">
+            <td>alignment</td>
+            <td>bit-packed</td>
+          </tr>
+          <tr class="body">
+            <td>compression</td>
+            <td>false</td>
+          </tr>
+          <tr class="body">
+            <td>strict</td>
+            <td>false</td>
+          </tr>
+          <tr class="body">
+            <td>fragment</td>
+            <td>false</td>
+          </tr>
+          <tr class="body">
+            <td>preserve</td>
+            <td>all false, except preserve prefixes that must be true or schema negotation may fail.</td>
+          </tr>
+          <tr class="body">
+            <td>selfContained</td>
+            <td>false</td>
+          </tr>
+          <tr class="body">
+            <td>schemaId</td>
+            <td>
+              The Schema of schemas: http://www.w3.org/2001/XMLSchema.xsd.
+            </td>
+          </tr>
+          <tr class="body">
+            <td>datatypeRepresentationMap</td>
+            <td>No map</td>
+          </tr>
+          <tr class="body">
+            <td>blockSize</td>
+            <td>N/A</td>
+          </tr>
+          <tr class="body">
+            <td>valueMaxLength</td>
+            <td>unbounded</td>
+          </tr>
+          <tr class="body">
+            <td>valuePartitionCapacity</td>
+            <td>unbounded</td>
+          </tr>
+        </table></div>
+        <p>
+          Since EXI compression does not perserve the extact binary representation of the schema file (for instance it doesn't preserve white space), the server
+          cannot correctly compute byte size and an MD5 hash for the file. Therefore, the client needs to provide this information in the <span class="strong">uploadSchema</span>
+          command using the <span class="strong">bytes</span> and <span class="strong">md5Hash</span> attributes. They are mandatory in case EXI compressed schema files are uploaded to the
+          server. Also note that the byte length and MD5 Hash should be computed on the original XML Schema file, not the compressed or decompressed version.
+        </p>
+      </div>
+      <div class="indent"><h3>2.2.5 <a name="sect-idp1617600" id="sect-idp1617600">Downloading new schema files on server</a></h3>
+        <p>
+          As an alternative to uploading a schema file to the server, the client can ask the server to download a schema file by itself. This is done using the <span class="strong">downloadSchema</span>
+          command, as follows:
+        </p>
+        <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Downloading a new XML schema file on server</p><div class="indent"><pre class="prettyprint">
+&lt;downloadSchema xmlns='http://jabber.org/protocol/compress/exi' url='http://schemavault.example.org/compress/sn/provisioning.xsd'/&gt;
+</pre></div>
+        <p>
+          The server tries to download the schema by itself, and then computes the <span class="strong">target namespace</span>, <span class="strong">byte size</span> and <span class="strong">MD5 Hash</span>
+          from the downloaded schema.
+        </p>
+        <p>
+          When the schema has been downloaded, the following successful download response is returned:
+        </p>
+        <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Schema successfully downloaded</p><div class="indent"><pre class="prettyprint">
+&lt;downloadSchemaResponse xmlns='http://jabber.org/protocol/compress/exi' url='http://schemavault.example.org/compress/sn/provisioning.xsd' result='true'/&gt;
+</pre></div>
+        <p>
+          If an HTTP error occurred while trying to download the schema, a response as follows is returned:
+        </p>
+        <p class="caption"><a name="example-10" id="example-10"></a>Example 10. HTTP Error</p><div class="indent"><pre class="prettyprint">
+&lt;downloadSchemaResponse xmlns='http://jabber.org/protocol/compress/exi' url='http://schemavault.example.org/compress/sn/provisioning.xsd' result='false'&gt;
+    &lt;httpError code='404' message='NotFound'/&gt;
+&lt;/downloadSchemaResponse&gt;</pre></div>
+        <p>
+          If the URL could not be resolved, the following response is returned:
+        </p>
+        <p class="caption"><a name="example-11" id="example-11"></a>Example 11. Invalid URL</p><div class="indent"><pre class="prettyprint">
+&lt;downloadSchemaResponse xmlns='http://jabber.org/protocol/compress/exi' url='urk://example.org/schema.xsd' result='false'&gt;
+    &lt;invalidUrl message='Unrecognized schema.'/&gt;
+&lt;/downloadSchemaResponse&gt;</pre></div>
+        <p>
+          If a timeout occurred during the download attempt, the following response is returned:
+        </p>
+        <p class="caption"><a name="example-12" id="example-12"></a>Example 12. Timeout</p><div class="indent"><pre class="prettyprint">
+&lt;downloadSchemaResponse xmlns='http://jabber.org/protocol/compress/exi' url='http://schemavault.example.org/compress/sn/provisioning.xsd' result='false'&gt;
+    &lt;timeout message='No response returned.'/&gt;
+&lt;/downloadSchemaResponse&gt;</pre></div>
+        <p>
+          If the url points to something that is not a schema, the following response is returned:
+        </p>
+        <p class="caption"><a name="example-13" id="example-13"></a>Example 13. Invalid Content Type</p><div class="indent"><pre class="prettyprint">
+&lt;downloadSchemaResponse xmlns='http://jabber.org/protocol/compress/exi' url='http://schemavault.example.org/compress/sn/provisioning.xsd' result='false'&gt;
+    &lt;invalidContentType contentTypeReturned='text/html'/&gt;
+&lt;/downloadSchemaResponse&gt;</pre></div>
+        <p>
+          If an error occurs that is unforeseen by this specification, the server can simply respond with a generic error message, as follows:
+        </p>
+        <p class="caption"><a name="example-14" id="example-14"></a>Example 14. Other types of errors</p><div class="indent"><pre class="prettyprint">
+&lt;downloadSchemaResponse xmlns='http://jabber.org/protocol/compress/exi' url='http://schemavault.example.org/compress/sn/provisioning.xsd' result='false'&gt;
+    &lt;error message='No free space left.'/&gt;
+&lt;/downloadSchemaResponse&gt;</pre></div>
+        <p>
+          <span class="strong">Note:</span> Downloading a schema, might download a version which does not correspond to the desired version
+          of the schema. It might for instance have been updated. This means the <span class="strong">bytes</span> and <span class="strong">md5Hash</span> values
+          corresponding to the downloaded file will not match the values expected by the client. Therefore, it's in this case important the client
+          checks that the server actually downloaded the version of the schema required by the client so it doesn't assume the server uses
+          the same version of the schema when in actuality it doesn't.
+        </p>
+      </div>
+      <div class="indent"><h3>2.2.6 <a name="sect-idp1632112" id="sect-idp1632112">Accessing quick configurations</a></h3>
+        <p>
+          Once an EXI setup has been accepted by the server, and agreement is reched, the server will provide the client with a quick Configuration ID
+          through the <span class="strong">configurationId</span> attribute. This Configuration ID can be used by the client during successive connections to the server,
+          to skip the larger part of the handshake, as is shown in the following example:
+        </p>
+        <p class="caption"><a name="example-15" id="example-15"></a>Example 15. Accessing quick configurations</p><div class="indent"><pre class="prettyprint">
+&lt;setup xmlns='http://jabber.org/protocol/compress/exi' configurationId='c76ab4ec-4993-4285-8c7a-098060581bb8'/&gt;
+</pre></div>
+        <p>
+          <span class="strong">Note:</span> the quick configuration includes all accepted schemas and all EXI options agreed upon during the
+          session when the configuration ID was returned. The <span class="strong">configurationId</span> attribute MUST NOT be used together
+          with other option attributes or schema definitions in the setup request.
+        </p>
+        <p>
+          If the configuration is still available on the server, the server responds:
+        </p>
+        <p class="caption"><a name="example-16" id="example-16"></a>Example 16. Quick configuration accepted</p><div class="indent"><pre class="prettyprint">
+&lt;setupResponse xmlns='http://jabber.org/protocol/compress/exi' agreement='true' configurationId='c76ab4ec-4993-4285-8c7a-098060581bb8'/&gt;
+</pre></div>
+        <p>
+          Note that schemas or options are not mentioned explicitly when using this quick setup approach.
+        </p>
+      </div>
+      <div class="indent"><h3>2.2.7 <a name="sect-idp1638096" id="sect-idp1638096">Quick configuration failure</a></h3>
+        <p>
+          If the server for some reason does not remember the specific configuration requested by the client (the client might have been disconnected for
+          a long time), it responds in the following manner:
+        </p>
+        <p class="caption"><a name="example-17" id="example-17"></a>Example 17. Quick configuration failure</p><div class="indent"><pre class="prettyprint">
+&lt;setupResponse xmlns='http://jabber.org/protocol/compress/exi' agreement='false' configurationId='c76ab4ec-4993-4285-8c7a-098060581bb8'/&gt;
+</pre></div>
+        <p>
+          The agreement attribute is optional, with a default value of false. So, if the attribute is omitted, the client must consider the
+          agreement to be nonexistent. When no agreement is reached using the quick configuration approach, the client must restart the handshake
+          and <a href="#setup">propose new compression parameters</a>.
+        </p>
+      </div>
+      <div class="indent"><h3>2.2.8 <a name="sect-idp1641536" id="sect-idp1641536">Start compression</a></h3>
+        <p>
+          When EXI option negotiation has been completed, the client can tell the server that it is ready to start compression. It does this using the normal <span class="strong">compress</span>
+          stanza, as follows:
+        </p>
+        <p class="caption"><a name="example-18" id="example-18"></a>Example 18. </p><div class="indent"><pre class="prettyprint">
+&lt;compress xmlns='http://jabber.org/protocol/compress'&gt;
+    &lt;method&gt;exi&lt;/method&gt;
+&lt;/compress&gt;</pre></div>
+        <p>
+          The server now has the necessary knowledge on how the EXI engine should be configured for the current session and it responds as follows:
+        </p>
+        <p class="caption"><a name="example-19" id="example-19"></a>Example 19. Compression accepted</p><div class="indent"><pre class="prettyprint">
+&lt;compressed xmlns='http://jabber.org/protocol/compress'/&gt;
+</pre></div>
+        <p>
+          When the client receives acknowledgement that the compression method has been accepted, it restarts the stream, as explained in
+          <a href="http://xmpp.org/extensions/xep-0138.html#usecase">XEP 0138</a>, except that it <span class="strong">must not</span> resend the <span class="strong">&lt;stream&gt;</span>
+          start element sequence. Similarly, the client must not send a <span class="strong">&lt;/stream&gt;</span> element when closing the session.
+          Instead, special <a href="#streamStart">streamStart</a> and <a href="#streamEnd">streamEnd</a> elements are sent. More information
+          about that later.
+        </p>
+      </div>
+    </div>
+    <div class="indent"><h3>2.3 <a name="sect-idp1648480" id="sect-idp1648480">EXI-specific stream elements</a></h3>
+      <p>
+        Becuase EXI engines need to close all open XML elements before decompressing, it cannot start the stream by sending only an open &lt;stream&gt; element,
+        and close the stream by sending a closing &lt;/stream&gt; element. Instead separate <span class="strong">streamStart</span> and <span class="strong">streamEnd</span> elements
+        have to be sent, allowing for similar semantics on the EXI-compressed channel, as described in the following subsections.
+      </p>
+      <p>
+        For clarity, examples in this section are displayed in XML for readability. But it is understood that the elements are sent using EXI compression and
+        using the options defined during setup.
+      </p>
+      <div class="indent"><h3>2.3.1 <a name="startStream" id="startStream">streamStart</a></h3>
+        <p>
+          The first thing the client needs to do, once it opens the new EXI-compressed connection, whether it be through the normal XMPP connection or through
+          the alternative EXI-only binding, is to send a <span class="strong">streamStart</span> element. This element replaces the start stream tag normally sent.
+        </p>
+        <p class="caption"><a name="example-20" id="example-20"></a>Example 20. Start of EXI-compressed stream</p><div class="indent"><pre class="prettyprint">
+          
+&lt;exi:streamStart from='client@im.example.org'
+                 to='im.example.org'
+                 version='1.0'
+                 xml:lang='en'
+                 xmlns:exi='http://jabber.org/protocol/compress/exi'&gt;
+    &lt;exi:xmlns prefix='' namespace='jabber:client'/&gt;
+    &lt;exi:xmlns prefix='streams' namespace='http://etherx.jabber.org/streams'/&gt;
+    &lt;exi:xmlns prefix='exi' namespace='http://jabber.org/protocol/compress/exi'/&gt;
+&lt;/exi:streamStart&gt;
+        </pre></div>
+        <p>
+          There's a semantic difference between only writing an open XML element, and sending a closed XML element separately, and that is in the definition
+          of XML namespaces. XML namespaces and their corresponding prefixes defined in the normal &lt;streams:stream&gt; element will be available to all
+          child elements following in a normal XMPP stream. However, to be able to do the same in an EXP-compressed XMPP stream, you need to define the
+          namespaces and prefixes separately. Furthermore, the EXI/XMPP layer needs to make these namespace and prefix-definitions available to all following
+          elements sent on the stream. The empty prefix is synonymous with the default namespace to use.
+        </p>
+      </div>
+      <div class="indent"><h3>2.3.2 <a name="streamEnd" id="streamEnd">streamEnd</a></h3>
+        <p>
+          Before closing the connection, the client needs to send a <span class="strong">streamEnd</span> element. This element replaces the closing stream tag send normally.
+        </p>
+        <p class="caption"><a name="example-21" id="example-21"></a>Example 21. End of EXI-compressed stream</p><div class="indent"><pre class="prettyprint">
+          
+&lt;exi:streamEnd xmlns:exi='http://jabber.org/protocol/compress/exi'/&gt;
+        </pre></div>
+      </div>
+    </div>
+    <div class="indent"><h3>2.4 <a name="alttrans" id="alttrans">Alternative Transport Binding for EXI/XMPP over TCP</a></h3>
+      
+      
+      <p>
+        Alternative binding for EXI/XMPP is suitable for use cases such as factory automation, smart grid appliances, and other
+        embedded use of communications. It works best if clients are constrained and does not update its specification frequently.
+        In addition, the network should allow clients and servers to use not well-known port because this commeunication involves
+        alternative TCP port.
+      </p>
+      <p>
+        Typical steps of communication is as follows (based on <span class="ref"><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idp1664416">3</a>]).
+      </p>
+      
+      
+      
+      <ol>
+        <li>
+          <p>
+            (Optional)
+            A client (foo@example.net) try to resolve a server with alternative binding for EXI/XMPP with DNS SRV lookup (ex. _xmpp-bclient._tcp.example.net. IN SRV)
+          </p>
+        </li>
+        <li>
+          <p>
+            (Optional)
+            A DNS server tells a set of DNS RR to notify a server accepts EXI/XMPP binding (ex. SRV 10 10 15222 srv.example.net.) (Optional: the DNS server may tell the version of the default schema supported by the server. Currently there is only one version and has no effect. For further discussion, see <a href="http://tools.ietf.org/html/draft-doi-exi-messaging-requirements-01">draft-doi-exi-messaging-requirement</a>.
+          </p>
+        </li>
+        <li>
+          <p>The client connects to srv.example.net. 15222 with TCP and the server accepts the connection.</p>
+        </li>
+        <li>
+          <p>
+            The client sends out 'EXI Cookie' (e.g. '$EXI') and starts EXI stream with an EXI Header without any option document (implies <a href="#defaultParam">default encoding parameters</a>). It sends out EXI events corresponds to start tag of &lt;stream:stream&gt;. Following shows XML Equivalent and EXI events 
+          </p>
+          <p class="caption"><a name="example-22" id="example-22"></a>Example 22. XML equivalent of stream start element (Client to Server)</p><div class="indent"><pre class="prettyprint">
+            
+            
+&lt;?xml version="1.0"?&gt;
+&lt;exi:streamStart xmlns:exi='http://jabber.org/protocol/compress/exi' version="1.0" to="jabber.example.org" xml:lang="en" xmlns:xml="http://www.w3.org/XML/1998/namespace" &gt;
+ &lt;exi:xmlns prefix="stream" namespace="http://etherx.jabber.org/streams" /&gt;
+ &lt;exi:xmlns prefix="" namespace="jabber:client" /&gt;
+ &lt;exi:xmlns prefix="xml" namespace="http://www.w3.org/XML/1998/namespace" /&gt;
+&lt;/exi:streamStart&gt;
+
+          </pre></div>
+          <p class="caption"><a name="example-23" id="example-23"></a>Example 23. Actual EXI Stream with EXI Header</p><div class="indent"><pre class="prettyprint">
+            
+            
+0000000 8a 40 8c ad c0 28 d4 c2 c4 c4 ca e4 5c ca f0 c2
+0000020 da e0 d8 ca 5c de e4 ce 00 20 04 89 a1 d1 d1 c0
+0000040 e8 bc bd 95 d1 a1 95 c9 e0 b9 a9 85 89 89 95 c8
+0000060 b9 bd c9 9c bd cd d1 c9 95 85 b5 cc 21 cd d1 c9
+0000100 95 85 b4 07 b5 30 b1 31 32 b9 1d 31 b6 34 b2 b7
+0000120 3a 01 02 66 87 47 47 03 a2 f2 f7 77 77 72 e7 73
+0000140 32 e6 f7 26 72 f5 84 d4 c2 f3 13 93 93 82 f6 e6
+0000160 16 d6 57 37 06 16 36 50 57 86 d6 ca
+0000174
+
+          </pre></div>
+        </li>
+        <li>
+          <p>The server responds with EXI stream, with EXI cookie, without EXI option, and with appropriate events for stream tag.</p>
+          <p class="caption"><a name="example-24" id="example-24"></a>Example 24. XML equivalent of stream start element (Server to Client)</p><div class="indent"><pre class="prettyprint">
+            
+            
+&lt;?xml version="1.0"?&gt;
+&lt;exi:streamStart xmlns:exi='http://jabber.org/protocol/compress/exi' version="1.0" from="jabber.example.org" xml:lang="en" xmlns:xml="http://www.w3.org/XML/1998/namespace" &gt;
+ &lt;exi:xmlns prefix="stream" namespace="http://etherx.jabber.org/streams" /&gt;
+ &lt;exi:xmlns prefix="" namespace="jabber:client" /&gt;
+ &lt;exi:xmlns prefix="xml" namespace="http://www.w3.org/XML/1998/namespace" /&gt;
+&lt;/exi:streamStart&gt;
+
+          </pre></div>
+          <p class="caption"><a name="example-25" id="example-25"></a>Example 25. Actual EXI Stream with EXI Header</p><div class="indent"><pre class="prettyprint">
+            
+            
+0000000 8a 02 8d 4c 2c 4c 4c ae 45 cc af 0c 2d ae 0d 8c
+0000020 a5 cd ee 4c e2 08 ca dc 20 10 02 44 d0 e8 e8 e0
+0000040 74 5e 5e ca e8 d0 ca e4 f0 5c d4 c2 c4 c4 ca e4
+0000060 5c de e4 ce 5e e6 e8 e4 ca c2 da e6 10 e6 e8 e4
+0000100 ca c2 da 03 da 98 58 98 99 5c 8e 98 db 1a 59 5b
+0000120 9d 00 81 33 43 a3 a3 81 d1 79 7b bb bb b9 73 b9
+0000140 99 73 7b 93 39 7a c2 6a 61 79 89 c9 c9 c1 7b 73
+0000160 0b 6b 2b 9b 83 0b 1b 28 2b c3 6b 65
+0000174
+
+
+          </pre></div>
+        </li>
+        <li>
+          <p>
+            If client needs TLS or SASL negotiation, it should be done at this step. As specified in <a href="http://xmpp.org/rfcs/rfc6120.html#streams-negotiation-restart">Section 4.3.3 of RFC6120</a>, both parties MUST not send events corresponds to &lt;/stream:stream&gt; tag. (e.g. exi:streamEnd element)
+          </p>
+        </li>
+        <li>
+          <p>
+            If client needs to use different encoding option or schema than the default encoding options or <a href="#defaultSchema">the default schema</a>, then the client shall start <a href="#schemaHandling">schema negotiation</a>. The streams with alternate options/schemas SHOULD NOT have an EXI Options document to indicate the parameter is negotiated via previous XMPP stream.
+          </p>
+          <p>
+            For example, the client want to use MUC option (<a href="http://xmpp.org/extensions/xep-0045.html">XEP-0045</a>), the following communication will occur. First, client try to renegotiate XML schema used in the communication.
+          </p>
+          <p class="caption"><a name="example-26" id="example-26"></a>Example 26. XML equivalent of setup element (Client to Server)</p><div class="indent"><pre class="prettyprint">
+            
+            
+&lt;?xml version="1.0"?&gt;
+&lt;exi:setup xmlns:exi='http://jabber.org/protocol/compress/exi'&gt;
+  &lt;exi:schema ns="http://jabber.org/protocol/muc" bytes="1322" md5Hash="853ad555f102bb2b71da9a2f2787f4f9" /&gt;
+  &lt;exi:schema ns="http://jabber.org/protocol/muc#owner" bytes="1284" md5Hash="6e4e2257c1a4ba937fbdf71664a7e793" /&gt;
+&lt;/exi:setup&gt;
+
+          </pre></div>
+          <p class="caption"><a name="example-27" id="example-27"></a>Example 27. Actual EXI Stream</p><div class="indent"><pre class="prettyprint">
+            
+            
+0000000 7b 0a a0 a2 24 14 6a 69 4a 57 84 02 5a c4 b3 85
+0000020 aa 4a 84 f1 1d 07 79 1e 92 06 87 47 47 03 a2 f2
+0000040 f6 a6 16 26 26 57 22 e6 f7 26 72 f7 07 26 f7 46
+0000060 f6 36 f6 c2 f6 d7 56 32 10 28 88 ce 23 84 22 9d
+0000100 81 51 16 a4 8c ef 5b 5e 70 98 c4 51 dc 74 8c 99
+0000120 a1 d1 d1 c0 e8 bc bd a9 85 89 89 95 c8 b9 bd c9
+0000140 9c bd c1 c9 bd d1 bd 8d bd b0 bd b5 d5 8c 8d bd
+0000160 dd b9 95 ca
+0000164
+
+          </pre></div>
+        </li>
+        <li>
+          <p>
+            In the response the server accepts schema change.
+          </p>
+          <p class="caption"><a name="example-28" id="example-28"></a>Example 28. XML equivalent of setup element (Server to Client)</p><div class="indent"><pre class="prettyprint">
+            
+            
+&lt;?xml version="1.0"?&gt;
+&lt;exi:setupResponse xmlns:exi='http://jabber.org/protocol/compress/exi' agreement="true" configurationId="a83b19b31e016409d3001331d9f084fc"&gt;
+  &lt;exi:schema ns="http://jabber.org/protocol/muc" bytes="1322" md5Hash="853ad555f102bb2b71da9a2f2787f4f9" /&gt;
+  &lt;exi:schema ns="http://jabber.org/protocol/muc#owner" bytes="1284" md5Hash="6e4e2257c1a4ba937fbdf71664a7e793" /&gt;
+&lt;/exi:setupResponse&gt;
+
+          </pre></div>
+          <p class="caption"><a name="example-29" id="example-29"></a>Example 29. Actual EXI Stream</p><div class="indent"><pre class="prettyprint">
+            
+            
+0000000 7c 08 c9 8d cd 8c 58 58 58 98 cc 0b 58 4c 8d 4d
+0000020 4b 4d 18 8e 58 8b 4e 0e 58 4c 4b 4d 18 d8 8e 0d
+0000040 4e 4d 4d 4e 4d 8e 4c 72 a8 28 89 05 1a 9a 52 95
+0000060 e1 00 96 b1 2c e1 6a 92 a1 3c 47 41 de 47 a4 81
+0000100 a1 d1 d1 c0 e8 bc bd a9 85 89 89 95 c8 b9 bd c9
+0000120 9c bd c1 c9 bd d1 bd 8d bd b0 bd b5 d5 8c 84 0a
+0000140 22 33 88 e1 08 a7 60 54 45 a9 23 3b d6 d7 9c 26
+0000160 31 14 77 1d 23 26 68 74 74 70 3a 2f 2f 6a 61 62
+0000200 62 65 72 2e 6f 72 67 2f 70 72 6f 74 6f 63 6f 6c
+0000220 2f 6d 75 63 23 6f 77 6e 65 72 c0
+0000233
+
+          </pre></div>
+          <p>
+            Note that the server may deny the negotiation with agreement="false" setupResponse (example omitted).
+          </p>
+        </li>
+        <li>
+
+          <p>Just after receiving the setupResponse, client re-opens the stream. The new stream should have EXI header and may have EXI option header with updated options.</p>
+          <p class="caption"><a name="example-30" id="example-30"></a>Example 30. XML equivalent of stream start element (Client to Server)</p><div class="indent"><pre class="prettyprint">
+            
+            
+&lt;?xml version="1.0"?&gt;
+&lt;exi:streamStart xmlns:exi='http://jabber.org/protocol/compress/exi' version="1.0" to="jabber.example.org" xml:lang="en" xmlns:xml="http://www.w3.org/XML/1998/namespace"&gt;
+ &lt;exi:xmlns prefix="stream" namespace="http://etherx.jabber.org/streams" /&gt;
+ &lt;exi:xmlns prefix="" namespace="jabber:client" /&gt;
+ &lt;exi:xmlns prefix="xml" namespace="http://www.w3.org/XML/1998/namespace" /&gt;
+&lt;/exi:streamStart&gt;
+
+
+          </pre></div>
+          <p class="caption"><a name="example-31" id="example-31"></a>Example 31. Actual EXI Stream</p><div class="indent"><pre class="prettyprint">
+            
+            
+0000000 98 40 8c ad c0 28 d4 c2 c4 c4 ca e4 5c ca f0 c2
+0000020 da e0 d8 ca 5c de e4 ce 00 20 04 89 a1 d1 d1 c0
+0000040 e8 bc bd 95 d1 a1 95 c9 e0 b9 a9 85 89 89 95 c8
+0000060 b9 bd c9 9c bd cd d1 c9 95 85 b5 cc 21 cd d1 c9
+0000100 95 85 b4 07 b5 30 b1 31 32 b9 1d 31 b6 34 b2 b7
+0000120 3a 01 02 66 87 47 47 03 a2 f2 f7 77 77 72 e7 73
+0000140 32 e6 f7 26 72 f5 84 d4 c2 f3 13 93 93 82 f6 e6
+0000160 16 d6 57 37 06 16 36 50 57 86 d6 ca
+0000174
+
+          </pre></div>
+        </li>
+        <li>
+          <p>In response, server re-opens the stream with exi:streamStart tag.</p>
+          <p class="caption"><a name="example-32" id="example-32"></a>Example 32. XML equivalent of stream start element (Server to Client)</p><div class="indent"><pre class="prettyprint">
+            
+            
+&lt;?xml version="1.0"?&gt;
+&lt;!-- configuration id 761aabc0-a255-4b9b-89a1-4cb859559691 --&gt;
+&lt;exi:streamStart xmlns:exi='http://jabber.org/protocol/compress/exi' version="1.0" to="jabber.example.org" xml:lang="en" xmlns:xml="http://www.w3.org/XML/1998/namespace" &gt;
+ &lt;exi:xmlns prefix="stream" namespace="http://etherx.jabber.org/streams" /&gt;
+ &lt;exi:xmlns prefix="" namespace="jabber:client" /&gt;
+ &lt;exi:xmlns prefix="xml" namespace="http://www.w3.org/XML/1998/namespace" /&gt;
+&lt;/exi:streamStart&gt;
+
+          </pre></div>
+          <p class="caption"><a name="example-33" id="example-33"></a>Example 33. Actual EXI Stream</p><div class="indent"><pre class="prettyprint">
+            
+            
+0000000 98 02 8d 4c 2c 4c 4c ae 45 cc af 0c 2d ae 0d 8c
+0000020 a5 cd ee 4c e2 08 ca dc 20 10 02 44 d0 e8 e8 e0
+0000040 74 5e 5e ca e8 d0 ca e4 f0 5c d4 c2 c4 c4 ca e4
+0000060 5c de e4 ce 5e e6 e8 e4 ca c2 da e6 10 e6 e8 e4
+0000100 ca c2 da 03 da 98 58 98 99 5c 8e 98 db 1a 59 5b
+0000120 9d 00 81 33 43 a3 a3 81 d1 79 7b bb bb b9 73 b9
+0000140 99 73 7b 93 39 7a c2 6a 61 79 89 c9 c9 c1 7b 73
+0000160 0b 6b 2b 9b 83 0b 1b 28 2b c3 6b 65
+0000174
+
+          </pre></div>
+        </li>
+        <li>
+          <p>After an exi:streamStart from the server to the client, they can communicate with EXI stream. The first level element in conventional XMPP is encoded as root element of EXI message. For example, a client may send MUC query with EXI.</p>
+          <p class="caption"><a name="example-34" id="example-34"></a>Example 34. XML equivalent of MUC chat message (Client to Server)</p><div class="indent"><pre class="prettyprint">
+            
+            
+&lt;?xml version="1.0"?&gt;
+&lt;iq xmlns="jabber:client" type="set" to="sensors@conference.example.org" id="ab26a" &gt;
+&lt;query xmlns="http://jabber.org/protocol/muc#owner"&gt;
+&lt;x xmlns="jabber:x:data" type="submit" /&gt;
+&lt;/query&gt;
+&lt;/iq&gt;
+
+          </pre></div>
+          <p class="caption"><a name="example-35" id="example-35"></a>Example 35. Actual EXI Stream with EXI Header</p><div class="indent"><pre class="prettyprint">
+            
+            
+0000000 42 20 73 65 6e 73 6f 72 73 40 63 6f 6e 66 65 72
+0000020 65 6e 63 65 2e 65 78 61 6d 70 6c 65 2e 6f 72 67
+0000040 07 61 62 32 36 61 47 d9 5e 1a 50 1a 98 58 98 99
+0000060 5c 8b 99 5e 18 5b 5c 1b 19 4b 9b dc 99 cb dc d9
+0000100 5b 9c db dc a8
+0000105
+
+          </pre></div>
+          <p>
+            This message has a query element under muc#owner namespace. This is performed efficiently because
+            this series of messages from the last streamStart element has been encoded with the set of schemas and the set inclues schemas for MUC.
+            Otherwise, the encoding will become 'built-in grammar' even if the encoder and the decoder uses non-strict schema-informed grammar.
+            This is not possible if either encoder or decoder does not support built-in grammar or the stream uses strict schema-informed grammar.
+            In such cases, the whole message that contains undefined element or attribute SHOULD be dropped. 
+          </p>
+        </li>
+        <li>
+          <p>The client and the server may end the stream with exi:streamEnd tag anytime.</p>
+          <p class="caption"><a name="example-36" id="example-36"></a>Example 36. XML equivalent of stream end element (Client to Server)</p><div class="indent"><pre class="prettyprint">
+            
+            
+&lt;?xml version="1.0"?&gt;
+&lt;streamEnd xmlns='http://jabber.org/protocol/compress/exi' /&gt;
+
+          </pre></div>
+          <p class="caption"><a name="example-37" id="example-37"></a>Example 37. Actual EXI Stream</p><div class="indent"><pre class="prettyprint">
+            
+            
+0000000 96
+0000001
+
+          </pre></div>
+          <p>
+            Exactly same message should be sent from the server to the client to close the opposite way of the stream (example omitted).
+          </p>
+        </li>
+        <li>
+          <p>
+            The client now can start a preconfigured EXI/XMPP stream with explicit EXI option with the encoding option and canoinc schema used in the previous negotiated session (<a href="#shortcutAltBind">shortcut setup</a>)
+          </p>
+          <p class="caption"><a name="example-38" id="example-38"></a>Example 38. EXI Option Document used for Shortcut Setup (Client to Server)</p><div class="indent"><pre class="prettyprint">
+            
+            
+&lt;?xml version="1.0"?&gt;
+&lt;header xmlns="http://www.w3.org/2009/exi" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"&gt;
+ &lt;common&gt;
+  &lt;schemaId&gt;c:761aabc0-a255-4b9b-89a1-4cb859559691&lt;/schemaId&gt;
+ &lt;/common&gt;
+&lt;/header&gt;
+
+          </pre></div>
+          <p class="caption"><a name="example-39" id="example-39"></a>Example 39. XML Equivalent of streamStart</p><div class="indent"><pre class="prettyprint">
+            
+            
+&lt;?xml version="1.0"?&gt;
+&lt;exi:streamStart xmlns:exi='http://jabber.org/protocol/compress/exi' version="1.0" to="jabber.example.org" xml:lang="en" xmlns:xml="http://www.w3.org/XML/1998/namespace"&gt;
+ &lt;exi:xmlns prefix="stream" namespace="http://etherx.jabber.org/streams" /&gt;
+ &lt;exi:xmlns prefix="" namespace="jabber:client" /&gt;
+ &lt;exi:xmlns prefix="xml" namespace="http://www.w3.org/XML/1998/namespace" /&gt;
+&lt;/exi:streamStart&gt;
+
+          </pre></div>
+          
+        </li>
+        <li>
+          <p>
+            The server may respond with the given configuration ID. This can skip the configuration setup and the communication can continue with preconfigured schemas.
+          </p>
+
+          <p class="caption"><a name="example-40" id="example-40"></a>Example 40. EXI Option Document used for Shortcut Setup (Server to Client)</p><div class="indent"><pre class="prettyprint">
+            
+            
+&lt;?xml version="1.0"?&gt;
+&lt;header xmlns="http://www.w3.org/2009/exi" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"&gt;
+ &lt;common&gt;
+  &lt;schemaId&gt;c:761aabc0-a255-4b9b-89a1-4cb859559691&lt;/schemaId&gt;
+ &lt;/common&gt;
+&lt;/header&gt;
+
+          </pre></div>
+          <p class="caption"><a name="example-41" id="example-41"></a>Example 41. XML Equivalent of streamStart in response</p><div class="indent"><pre class="prettyprint">
+            
+            
+&lt;?xml version="1.0"?&gt;
+&lt;exi:streamStart xmlns:exi='http://jabber.org/protocol/compress/exi' version="1.0" from="jabber.example.org" xml:lang="en" xmlns:xml="http://www.w3.org/XML/1998/namespace" &gt;
+ &lt;exi:xmlns prefix="stream" namespace="http://etherx.jabber.org/streams" /&gt;
+ &lt;exi:xmlns prefix="" namespace="jabber:client" /&gt;
+ &lt;exi:xmlns prefix="xml" namespace="http://www.w3.org/XML/1998/namespace" /&gt;
+&lt;/exi:streamStart&gt;
+
+          </pre></div>
+          
+          <p>
+            Or server may deny to start the new communication by just sending streamEnd tag with default encoding.
+          </p>
+          <p class="caption"><a name="example-42" id="example-42"></a>Example 42. XML Equivalent of streamEnd to deny the configuration</p><div class="indent"><pre class="prettyprint">
+            
+&lt;?xml version="1.0"?&gt;
+&lt;streamEnd xmlns='http://jabber.org/protocol/compress/exi' /&gt;
+
+          </pre></div>
+          
+        </li>
+      </ol>
+      <div class="indent"><h3>2.4.1 <a name="srv" id="srv">DNS SRV lookup</a></h3>
+        <p>
+          Just same with section 3.2.1 of RFC6120. The service name MUST be
+          'xmpp-bclient' (for binary client-to-server connections) or
+          'xmpp-bserver' (for binary server-to-server connections).
+        </p>
+      </div>
+      <div class="indent"><h3>2.4.2 <a name="fallback" id="fallback">Fallback Process</a></h3>
+        <p>
+          Fallback to well-known XMPP ports (5222, 5269) without doing SRV
+          lookup is allowed. In this case, an initiating entity SHOULD give up
+          connection if it receives non-EXI data (e.g. no EXI cookie and no
+          distinguishing bit is set) and SHOULD NOT do automatic retry.
+        </p>
+        <p>
+          When an initiating entity tries to communicate with an XMPP server
+          with EXI, it SHOULD start the stream with an EXI cookie
+          ('$EXI') to avoid ambiguity.
+        </p>
+        <p>
+          Note: this expects an XMPP server shall return some error in plain
+          XML if the server receives EXI.
+        </p>
+      </div>
+      <div class="indent"><h3>2.4.3 <a name="defaultParam" id="defaultParam">Default Payload Encoding Options for EXI/XMPP</a></h3>
+        
+        <p>
+          When no EXI encoding option is given, or not specified by given EXI encoding option while negotiation, followings are the default
+          encoding options for EXI/XMPP messages.
+        </p>
+        <ul>
+          <li>alignment: bit-packed</li>
+          <li>compression: false</li>
+          <li>strict: true</li>
+          <li>fragment: false</li>
+          <li>preserve: all false</li>
+          <li>selfContained: false</li>
+          <li>schemaId: "urn:xmpp:exi:default"</li>
+          
+          <li>datatypeReresentationMap: not exist</li>
+          <li>blockSize: N/A</li>
+          <li>valueMaxLength: 64</li>
+          <li>valuePartitionCapacity: 64</li>
+        </ul>
+        
+        <p>
+          In addition, local value learning mechanism is disabled by
+          default as described in section 4 of <a href="https://www.w3.org/TR/exi-profile/">EXI Profile</a>.
+          
+        </p>
+        <ul>
+          <li>localValuePartitions: 0</li>
+          <li>maximumNumberOfBuiltInElementGrammars: 0 (means no grammar learning)</li>
+          <li>maximumNumberOfBuiltInProductions: 0 (means no production learning)</li>
+        </ul>
+        <p>
+          Corresponding parameter for EXI Profile is as follows:
+        </p>
+        <p class="caption"></p><div class="indent"><pre class="prettyprint">
+          &lt;p xmlns="http://www.w3.org/2009/exi"
+          xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+          xsi:type="xsd:decimal"&gt;1.1&lt;/p&gt;
+        </pre></div>
+      </div>
+    </div>
+  <h2>3.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+    <div class="indent"><h3>3.1 <a name="sect-idp1740928" id="sect-idp1740928">EXI Encoding Preprocessing and Postprocessing</a></h3>
+      
+      <p>
+        This section describes a common view on programming model between EXI/XMPP servers and clients. This is just an example and an implementation may do it in different ways. However, messages exchanged as a result should be identical.
+      </p>
+      <p>
+        As shown in this document, XMPP documents represented by EXI is slightly different from documents represented in XML.
+        For example, each stanzas and first level elements under &lt;stream:stream&gt; tags must be encoded as a standalone EXI
+        body (document). If namespace prefixes are declared in the root element of XML process (&lt;stream:stream&gt; tag),
+        the prefix should be recovered on decoded XML on the receiver side (EXI may or may not preserve prefix).
+        Therefore, some preprocessing and postprocessing is required to make current XMPP implementations work properly over
+        EXI/XMPP channel. An example of the configuration is described in the following figure.
+      </p>
+      <p class="caption"><a name="example-43" id="example-43"></a>Example 43. Example configuration of communication channels.</p><div class="indent"><pre class="prettyprint">
+        
++-------------------------+               +-----------------------+
+| +----+          |               |                +----+ |
+| |    | &lt;------------------ Plain XMPP Channel ----------------&gt; |    | |
+| |XMPP|               |                             |                   |XMPP| |
+| |    | &lt;-[Proc]-[EXI]&lt;------- EXI Channel ------&gt;[EXI]-[Proc]-&gt; |    | |
+| +----+                       |                  |              +----+ |
++-------------------------+                  +-----------------------+
+
+      </pre></div>
+      <p>
+        In the example, the box XMPP is conventional XMPP process. [EXI] represents EXI processor (encoder and decoder). [Proc] means preprocessor and postprocessor.
+        Following pre-process must be applied to XML streams from XMPP process before giving the stream to EXI processors.
+      </p>
+      <ol>
+        <li>&lt;stream:stream&gt; start tag must be converted to standalone &lt;exi:streamStart&gt; element. All attributes defined in the input XML except namespace declarations should be copied as is. Namespace declarations and prefixes must be converted to exi:xmlns element under exi:streamStart element.</li>
+        <li>All first level elements under the root &lt;stream:stream&gt; element must be converted to standalone (root) element of corresponding stanza elements. If there are missing namespace declarations in the element, appropriate prefix declarations should be added to the element before giving the element to the EXI encoder as a document. Contents of the elements should not be modified.</li>
+        <li>&lt;/stream:stream&gt; end tag must be converted to standalone &lt;exi:streamEnd&gt; element.</li>
+      </ol>
+
+      <p>
+        Following post-process must be applied to XML streams from EXI processors before giving the stream to XMPP process.
+      </p>
+      <ol>
+        <li>Received &lt;exi:streamStart&gt; element must be converted to &lt;stream:stream&gt; start tag with appropriate attributes and namespace declarations. Prefixies defined in the &lt;exi:streamStart&gt; content must be saved under the current connection context of postprocessor.</li>
+        <li>Received EXI messages must be reproduced as elements under &lt;stream:stream&gt; root element. In addition, the namespace declarations in the element must be replaced to prefixes given in the streamStart tag content if there is a corresponding namespace declaration.</li>
+        <li>&lt;exi:streamEnd&gt; element must be converted to &lt;/stream:stream&gt; end tag. The context created under the connection may be released.</li>
+      </ol>
+    </div>
+    <div class="indent"><h3>3.2 <a name="sect-idp1753856" id="sect-idp1753856">EXI options</a></h3>
+      
+      
+      
+      <p>
+        There are many <a href="http://www.w3.org/TR/exi/#options">EXI options</a> in EXI Format. Followings are brief description for use in XMPP.
+      </p>
+      <p>
+        The <span class="strong">alignment option</span> is to control how the values are encoded. The default option 'bit-packed' fits most of communication use cases. If TLS compression is used at the same time, pre-compression will make the best result.
+      </p>
+      <p>
+        The <span class="strong">compression option</span> is a Boolean to specify additional entropy-based compression is performed over EXI encoding. This option works best for larger documents. Usual use cases expected in XMPP/EXI may not give much additional compactness to messages.
+      </p>
+      <p>
+        The <span class="strong">strict option</span> is a Boolean to let EXI grammars (schema-informed grammars) work more strictly. With a strict schema-informed grammar, only valid data with the schema is allowed in streams. This makes best compactness of a grammar and messages without additional entropy-based compression. With nonstrict schema-informed grammar, derived elements and attributes could be encoded in the built-in grammar. The built-in grammar is a dynamic, self-learning grammar model that gives full flexibility, with larger message size.
+      </p>
+      <p>
+        The <span class="strong">preserve option</span> is a set of Booleans to alter some production of events. Usually, all false (no preservation of comments, processing instructions, DTDs, namespace declarations and its prefixes, and lexical values) makes no problem on XMPP communication. However, uploading a binary schema may require the schema encoded with preserved namespace prefixes. The prefixes are used in type definitions, and without prefix preservation binding between type definition references and actual definitions will be lost.
+      </p>
+      <p>
+        The <span class="strong">selfContained option</span> is a Boolean to enable self contained encoding of elements. Self contained element has no dependency to context (string table state in EXI processors) and can be copied to other context with the same grammar. However, self contained elements cannot use external string tables in EXI processors and may result larger size.
+      </p>
+      <p>
+        The <span class="strong">datatypeRepresentationMap option</span> can be used to modify how types encoded in EXI. If encoders and decoders have special encoding, it can be specified here. In most use cases in XMPP/EXI, this option will not be used.
+      </p>
+      <p>
+        The <span class="strong">blockSize option</span> specifies the block size used for EXI compression. It has no effect if compression is not used.
+      </p>
+      <p>
+        The <span class="strong">valueMaxLength option</span> specifies the maximum length of re-used string in a stream. Larger value makes more strings captured in string tables in EXI processors. This means more memory needs to be allocated to process a stream. Because some use cases, such as Internet of Things, expects constrained nodes in the network, default value specified in ths XEP is very small (64 characters).
+      </p>
+      <p>
+        The <span class="strong">valuePartitionCapacity option</span> specifies how many strings should be kept in a string table in a time. Default value of this is also small in this XEP (64 strings).
+      </p>
+      
+      <p>
+        To control buffer and string table life time, this XEP adds a new option: <span class="strong">sessionWideBuffers</span>.
+        If set to true, all buffers, string tables, etc. will be maintained during the entire session.
+        This may improve performance during time since strings can be omitted in the compressed binary stream, but it might also in some cases degrade performance since more options are
+        available in the tables, requiring more bits to encode strings. The default value is false, meaning that buffers, string tables, etc., are cleared between each stanza. (This option
+        is EXI/XMPP specific.)
+      </p>
+      <div class="indent"><h3>3.2.1 <a name="sect-idp1767920" id="sect-idp1767920">Evaluations of Options</a></h3>
+        <p>
+          This section describes effects in message size for some options.
+        </p>
+        <p>
+          The option <span class="strong">sessionWideBuffers</span> must have large effect in XMPP communication, because many XIDs are re-used many time within a XMPP stream.
+          If sessionWideBuffers option is enabled, most of XIDs can be encoded in short identifiers as it appears in some previous messages. Followings are
+          preliminary evaluation of message size of XML (plain old XML), EXI with sessionWideBuffers=false, and EXI with sessionWideBuffers=true.
+        </p>
+        <ul>
+          <li>
+            
+            <span class="strong">Plain Old XML (without XML declaration, whitespaces)</span>: 5011 bytes in 22 messages
+          </li>
+          <li>
+            
+            <span class="strong">EXI without sessionWideBuffers</span>: 1614 bytes in 22 messages
+          </li>
+          <li>
+            
+            <span class="strong">EXI with sessionWideBuffers</span>: 1458 bytes in 22 messages 
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="indent"><h3>3.3 <a name="sect-idp1774496" id="sect-idp1774496">Transmission of EXI bodies and Session-wide Buffers</a></h3>
+      <p>
+        The transmission of EXI-compressed stanzas takes the form of a sequence of EXI bodies. In order for the recipient to be able to correctly interpret these incoming
+        EXI bodies, the sender is required to flush any pending bits at the end of the last End Document (ED) event for each stanza and then send any pending bytes available
+        in the output buffer. Since this makes sure each EXI body starts at an even byte boundary, it permits the recipient to decompress the body into an XML stanza.
+      </p>
+      <p>
+        Therefore, each stanza sent on the stream, must be compressed separately, reusing the same options as used by the stream.
+        (Options are not sent on the stream, only the generated EXI bodies).
+      </p>
+      <p>
+        Compression of the stanza must be done in document mode, not fragment mode, including the Start Document (SD) and End Document (ED) events.
+        If there are unwritten bits pending after the last End Document (ED) event (after the end of the stanza), Zero-bits are written until a byte boundary is created.
+        The receptor must ignore bits in the last byte after the last End Document event has been received.
+      </p>
+      <p>
+        During setup of the EXI compression engine, the client can choose if buffers are to be reused between stanzas, or cleared between each stanza. This is done
+        using the EXI over XMPP specific option <span class="strong">sessionWideBuffers</span>, which is false by default, meaning buffers and string tables are cleared between
+        each stanza.
+      </p>
+      <p>
+        There may be cases where maintaining buffers and string tables throughout the session is preferrable. Since strings are already available in the buffers,
+        they don't need to be output in the stream the first time they appear in a stanza. However, the number of strings in tables increase, and so does the number of bits required to
+        encode them. Depending on what type of communication is performed, this option might give better results one way or another. If the same type of message is always
+        sent, maintaining string buffers may be more efficient. But if the client sends many many different types of messages, clearing buffers may be more efficient.
+      </p>
+      <p>
+        Note that the stream of EXI bodies is indefinite. It only stops when the session is closed, i.e. when the socket connection is dropped. Therefore, the buffers can grow
+        indefinitely unless control is maintained on what types of messages are sent, their contents (specifically string values), and to whom they are sent (JIDs being strings).
+        All string tables and buffers must be cleared when a connection is lost.
+      </p>
+      <p>
+        Note also that if you want the option to enter a session in the middle of the flow to listen to the communication, you need to clear tables and buffers between each
+        stanza, or you will not be able to decode the binary stream appropriately.
+      </p>
+    </div>
+    <div class="indent"><h3>3.4 <a name="sect-idp1781184" id="sect-idp1781184">Preserving prefixes</a></h3>
+      <p>
+        Normally, prefixes are not preserved during EXI compression and decompression. If the communicating parties (sending client, XMPP server(s) and receiving clients)
+        interpret incoming stanzas and content according to namespace, this should be sufficient. However, some implementations do not check namespaces, but prefix names used.
+        In such cases, all communicating parties are required to enable the preserve prefixes option during negotionating.
+      </p>
+      <p>
+        <span class="strong">Note:</span> It is not sufficient that one party enable this option. Both sender and received are required to enable this option, or prefix names will be
+        lost in the transmission.
+      </p>
+      <p>
+        Note also, that preserving prefix names result in less efficient compression. Therefore, all clients implementing EXI compression should strive to parse incoming
+        XML based on namespace, not prefix name.
+      </p>
+    </div>
+    <div class="indent"><h3>3.5 <a name="sect-idp1784272" id="sect-idp1784272">Networks containing clients having limited memory</a></h3>
+      <p>
+        To successfully implement a network with clients having limited memory, such as sensor networks, care should be taken to make sure necessary schema files are
+        preinstalled on the server, to avoid the necessity to upload schema files from the clients. Clients with limited memory might be unable to perform this task.
+      </p>
+      <p>
+        An alternative may be to install a richer client, that can upload the schema files to the server dynamically, and installing it into the network. Any client uploading
+        a schema file, will make that schema file available for EXI compression to any other client in the network.
+      </p>
+    </div>
+    <div class="indent"><h3>3.6 <a name="sect-idp1786400" id="sect-idp1786400">Caching schema files</a></h3>
+      <p>
+        Schema files uploaded to the server should be cached on the server in some kind of schema repository. If memory is limited on the server, schema files should be
+        sorted by last access. Schema files with the oldest last access timestamp could be removed to maintain the cache within an approved cache size.
+      </p>
+      <p>
+        Note that schema files have three keys: <span class="strong">Target namespace</span>, <span class="strong">byte size</span> and <span class="strong">MD5 Hash</span>. Multiple versions of a schema file
+        may exist (that is, with the same target namespace but different byte sizes or MD5 hash codes). Note also, that for any practical purpose, schema files can be stored
+        using only the MD5 hash as a key, since it is highly improbable that two different schema files will have the same MD5 hash (unless consciously created that way). MD5 hash
+        values are always in <span class="strong">lower case</span>.
+      </p>
+    </div>
+    <div class="indent"><h3>3.7 <a name="sect-idp1790176" id="sect-idp1790176">Uploading vs. Downloading schemas</a></h3>
+      <p>
+        When the server lacks information about a given XML schema, the client has two options for updating the server. Either it uploads the schema, or it asks the server to
+        download one.
+      </p>
+      <p>
+        Uploading a schema has the advantage, that the client knows exactly the version that the server requires. It has the disadvantage, that the client needs to store the schema
+        and send a possible large schema to the server. If EXI is used because the device has limited memory, uploading a schema might not be an option.
+      </p>
+      <p>
+        Downloading a schema has the advantage, that size of schema does not matter. The disadvantage is that asynchronous errors might occur, so the client needs to pay attention
+        to the responses returned by the server when downloading schemas. Also, downloading a schema, might download a version which does not correspond to the desired version
+        of the schema. So, it's more important in this case that the client checks that the server actually has the version of the schema required by the client.
+      </p>
+    </div>
+    <div class="indent"><h3>3.8 <a name="sect-idp1793072" id="sect-idp1793072">Server decompression and recompression vs. binary forwarding</a></h3>
+      <p>
+        If two XMPP clients communicate with each other through an XMPP server, and both clients use EXI compression, the server must only forward
+        binary packets if both EXI compressed channels have exactly the same setup. If any parameter is different, the server MUST always recompress
+        packets sent through it.
+      </p>
+      <p>
+        Since the server always needs to decompress incoming EXI compressed packets to decode headers, omitting the compression part might save the server
+        some processing power, but not all. Note that, in some networks it might be common using similar compression settings, while in others different compression
+        settings are most common.
+      </p>
+      <p>
+        Also note that binary forwarding is only possible if session-wide buffers are not used.
+      </p>
+    </div>
+    <div class="indent"><h3>3.9 <a name="wellknown" id="wellknown">Snapshot Repository for Well-known Schemas</a></h3>
+      
+      
+      <p>
+        Errata and other updates may happen to well-known schemas.  Slightest
+        modification to XML schemas may break interoperability of EXI
+        nodes. However, negotiating everything is not efficient. Well-known
+        and aged schemas that referred from the schema for EXI/XMPP shall be
+        snapshoted for use in EXI processors.
+
+        
+      </p>
+      <p>
+        Actual snapshot is located in (TBD-URL).
+      </p>
+    </div>
+    <div class="indent"><h3>3.10 <a name="sect-idp1799104" id="sect-idp1799104">Generation of Canonic Schemas</a></h3>
+      <p>
+        The interface between the XMPP engine, whether in the client or the server, and the EXI compression engine is required to provide the engine
+        with ONE XML Schema to use during the compression. The <a href="http://www.w3.org/TR/exi/">Efficient XML Interchange (EXI) Format</a>
+        also specifies the use of Schema IDs identifying the schema to use.
+      </p>
+      <p>
+        However, in the XMPP case, the schema to provide to the EXI compression engine must be created dynamically based on the handshake provided during
+        setup of the connection. Since this generation must be done both on the server side as well as the client side, it is important that the schemas be
+        created semantically equivalent. This section describes how to create such schemas, henceforth called <span class="strong">Canonical Schemas</span> is described
+        in this section.
+      </p>
+      <p>
+        A canonical schema is simply a wrapper importing each of the schemas negotiated for the connection. The schemas MUST be imported in ascending namespace
+        order.
+      </p>
+      <p>
+        After generating the canonical schema, it's a good idea to create a corresponding Configuration ID. The Configuration ID however, includes not only
+        the schemas imported into the canonical schema, but also the EXI options to use during compression/decompression. The canonical schema should be
+        persisted for simple reuse when quick setup is used.
+      </p>
+      <p>
+        The target namespace of the canonical schema MUST be <span class="strong">urn:xmpp:exi:cs</span>.
+      </p>
+      <p>
+        The Schema ID to use is irrelevant in the XMPP layer of communiction. Therefore, the server and client can create their own Schema IDs, according to some
+        algorithm. It is not important if the Schema IDs match, since they are not used in data transmitted between the client and server.
+      </p>
+    </div>
+    <div class="indent"><h3>3.11 <a name="shortcut" id="shortcut">Using EXI Option Documents for Shortcut Setup</a></h3>
+      <p>
+        The <span class="strong">configurationId</span> attribute has a similar attribute called <span class="strong">configurationLocation</span>. This attribute provides
+        a mechanism to setup an EXI connection rapidly using option documents installed as files on the server or available on the network accessible
+        through an URL.
+      </p>
+      <p>
+        A client may specify a configurationId or configurationLocation on exi:setup element. If the server has corresponding setup configuration, the server may respond with an exi:setupResponse with <span class="strong">agreement="true"</span>. If the server does not know the configurationId or does not be able to use the given configurationLocation, the server shall respond with an exi:setupResponse with <span class="strong">agreement="false"</span>.
+      </p>
+      <p>
+        This specification does not define the format of this Configuration Location attribute, and so it is server specific, or if it is supported.
+        If used on a server not supporting this attribute, or if the contents of the attribute is invalid, the server returns an <span class="strong">agreement=false</span>
+        response. Otherwise the semantics of the <span class="strong">configurationLocation</span> attribute is the same as for the <span class="strong">configurationId</span>
+        attribute, except it provide a mechism for static configurations, while the <span class="strong">configurationId</span> provides a mechanism for
+        dynamic configurations.
+      </p>
+      <p>
+        The format for these opton documents or locations is beyond the scope of this specification.
+      </p>
+      <p>
+        The format for these opton documents or locations is beyond the scope of this specification.
+      </p>
+      <div class="indent"><h3>3.11.1 <a name="shortcutAltBind" id="shortcutAltBind">Shortcut Setup for Alternative Transport Binding</a></h3>
+        <p>With alternative transport bind, following rule for shortcut may be used, assuming a server and a client have common shared configuration with configurationId="01234" as an example.</p>
+        <ul>
+          <li>
+            Client can start configured stream with a <span class="strong">exi:streamStart</span> element encoded in the configuration given in configurationId="01234". To indicate configurationId, a schemaId corresponds to the configurationId prefixed by "c:" SHALL be used. In this example, schemaId is "c:01234". EXI option in EXI option header other than the schemaId SHOULD NOT be specified.
+          </li>
+          <li>
+            If the server accepts the configuration, the server SHOULD respond with a <span class="strong">exi:streamStart</span> element encoded in the configuration given in the configurationId. The server SHALL put the schemaId in the EXI header of the response. No EXI options other than the schemaId SHOULD NOT be specified in the response EXI header. The EXI header is the indication of configuration agreement and SHALL NOT be omitted.
+          </li>
+          <li>
+            If the server does not accept the configuration, the server SHALL respond with a <span class="strong">exi:streamEnd</span> element encoded in the <a href="#defaultSchema">default schema</a> and the EXI header option SHOULD be empty.
+          </li>
+          <li>
+            The client can continue pre-configured stream if and only if it receives <span class="strong">exi:streamStart</span> element encoded in the configurationId with EXI option header that contains the identical schemaId. Otherwise, the client SHOULD start a new <span class="strong">exi:streamStart</span> with a new TCP connection an empty EXI option header (e.g. default schema). Current TCP connection SHOULD NOT be used for re-negotiation (configuration setup).
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="indent"><h3>3.12 <a name="knownhashes" id="knownhashes">XMPP Schema files and their hash values</a></h3>
+      <p>
+        The following table lists XMPP schemas at the time of writing, and their corresponding bytes sizes and MD5 Hash values.
+      </p>
+      <div class="indent"><p class="caption"><a name="table-3" id="table-3"></a>Table 3: </p><table border="1" cellpadding="3" cellspacing="0">
+        <tr class="body">
+          <th>Namespace</th>
+          <th>Schema</th>
+          <th>Bytes</th>
+          <th>MD5 hash</th>
+        </tr>
+        <tr class="body">
+          <td>http://etherx.jabber.org/streams</td>
+          <td>
+            <a href="http://xmpp.org/schemas/streams.xsd">streams.xsd</a>
+          </td>
+          <td>3450</td>
+          <td>68719b98725477c46a70958d1ea7c781</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/features/amp</td>
+          <td>
+            <a href="http://xmpp.org/schemas/amp-feature.xsd">amp-feature.xsd</a>
+          </td>
+          <td>635</td>
+          <td>cb4f48c999c1cce15df4f3129e55f381</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/features/compress</td>
+          <td>
+            <a href="http://xmpp.org/schemas/compress-feature.xsd">compress-feature.xsd</a>
+          </td>
+          <td>670</td>
+          <td>8ff631b7aaf9a196470ec57897251f7c</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/activity</td>
+          <td>
+            <a href="http://xmpp.org/schemas/activity.xsd">activity.xsd</a>
+          </td>
+          <td>5043</td>
+          <td>b6168aac76260aed41071fbe5c930279</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/address</td>
+          <td>
+            <a href="http://xmpp.org/schemas/address.xsd">address.xsd</a>
+          </td>
+          <td>1915</td>
+          <td>8770419083d7f4044ee4b55e39e3c6e3</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/amp</td>
+          <td>
+            <a href="http://xmpp.org/schemas/amp.xsd">amp.xsd</a>
+          </td>
+          <td>1858</td>
+          <td>b929b5024af92ccb2f21af944e1caa6b</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/amp#errors</td>
+          <td>
+            <a href="http://xmpp.org/schemas/amp-errors.xsd">amp-errors.xsd</a>
+          </td>
+          <td>963</td>
+          <td>7a366c21bbf2060f2658e9118bfc32e9</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/bytestreams</td>
+          <td>
+            <a href="http://xmpp.org/schemas/bytestreams.xsd">bytestreams.xsd</a>
+          </td>
+          <td>2343</td>
+          <td>83211fe7c25510d9254a9aa6cf31b1e0</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/caps</td>
+          <td>
+            <a href="http://xmpp.org/schemas/caps.xsd">caps.xsd</a>
+          </td>
+          <td>1072</td>
+          <td>ed68bc908f301556d1cf9ad111c34184</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/chatstates</td>
+          <td>
+            <a href="http://xmpp.org/schemas/chatstates.xsd">chatstates.xsd</a>
+          </td>
+          <td>827</td>
+          <td>c00838d97b9c2a37ac098130a27b1b4c</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/commands</td>
+          <td>
+            <a href="http://xmpp.org/schemas/commands.xsd">commands.xsd</a>
+          </td>
+          <td>3551</td>
+          <td>98b0e90b35e00b04b2253af26faaab6f</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/compress</td>
+          <td>
+            <a href="http://xmpp.org/schemas/compress.xsd">compress.xsd</a>
+          </td>
+          <td>1505</td>
+          <td>7ac2a9dc7472af2796be239dbc7097ac</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/compress/exi</td>
+          <td>
+            <a href="http://xmpp.org/schemas/exi.xsd">exi.xsd</a>
+          </td>
+          <td>15339</td>
+          <td>4c33b8ac3b902582f50e25233dc0737c</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/disco#info</td>
+          <td>
+            <a href="http://xmpp.org/schemas/disco-info.xsd">disco-info.xsd</a>
+          </td>
+          <td>1783</td>
+          <td>d5e696ad7aa800cba7f54740b0e2a6c8</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/disco#items</td>
+          <td>
+            <a href="http://xmpp.org/schemas/disco-items.xsd">disco-items.xsd</a>
+          </td>
+          <td>1482</td>
+          <td>6010e2e5dafd587fc1609987805c7295</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/feature-neg</td>
+          <td>
+            <a href="http://xmpp.org/schemas/feature-neg.xsd">feature-neg.xsd</a>
+          </td>
+          <td>766</td>
+          <td>a154eeb514f8acbe0291c48d4e7335a5</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/geoloc</td>
+          <td>
+            <a href="http://xmpp.org/schemas/geoloc.xsd">geoloc.xsd</a>
+          </td>
+          <td>2322</td>
+          <td>90b0df99a0e6ee77929955b63b384656</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/http-auth</td>
+          <td>
+            <a href="http://xmpp.org/schemas/http-auth.xsd">http-auth.xsd</a>
+          </td>
+          <td>1020</td>
+          <td>fdd34da7014b044fd659091843d802cd</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/httpbind</td>
+          <td>
+            <a href="http://xmpp.org/schemas/httpbind.xsd">httpbind.xsd</a>
+          </td>
+          <td>4028</td>
+          <td>59559ed6a5025c2e4ecf1a9ad675c707</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/ibb</td>
+          <td>
+            <a href="http://xmpp.org/schemas/ibb.xsd">ibb.xsd</a>
+          </td>
+          <td>1557</td>
+          <td>45bac4486abb974f0d92ee98d8e356de</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/mood</td>
+          <td>
+            <a href="http://xmpp.org/schemas/mood.xsd">mood.xsd</a>
+          </td>
+          <td>3994</td>
+          <td>93bb8be5dab135b7189c475f3d80a03a</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/muc</td>
+          <td>
+            <a href="http://xmpp.org/schemas/muc.xsd">muc.xsd</a>
+          </td>
+          <td>1322</td>
+          <td>853ad555f102bb2b71da9a2f2787f4f9</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/muc#admin</td>
+          <td>
+            <a href="http://xmpp.org/schemas/muc-admin.xsd">muc-admin.xsd</a>
+          </td>
+          <td>2260</td>
+          <td>627d39d09e18208f0b068ff3ee1e4dc2</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/muc#owner</td>
+          <td>
+            <a href="http://xmpp.org/schemas/muc-owner.xsd">muc-owner.xsd</a>
+          </td>
+          <td>1284</td>
+          <td>6e4e2257c1a4ba937fbdf71664a7e793</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/muc#unique</td>
+          <td>
+            <a href="http://xmpp.org/schemas/muc-unique.xsd">muc-unique.xsd</a>
+          </td>
+          <td>512</td>
+          <td>43f77e28d5574453f1208c653a4eb710</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/muc#user</td>
+          <td>
+            <a href="http://xmpp.org/schemas/muc-user.xsd">muc-user.xsd</a>
+          </td>
+          <td>3881</td>
+          <td>4c2643e702a591ed09dd4e1af15f46f5</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/nick</td>
+          <td>
+            <a href="http://xmpp.org/schemas/nick.xsd">nick.xsd</a>
+          </td>
+          <td>498</td>
+          <td>280d55dac18c98559ea514e822d692d1</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/offline</td>
+          <td>
+            <a href="http://xmpp.org/schemas/offline.xsd">offline.xsd</a>
+          </td>
+          <td>1157</td>
+          <td>e0c329c185c3339480a78b8662be92a0</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/pubsub</td>
+          <td>
+            <a href="http://xmpp.org/schemas/pubsub.xsd">pubsub.xsd</a>
+          </td>
+          <td>7296</td>
+          <td>18b754fd463509c7c95bde5a6bf54a07</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/pubsub#errors</td>
+          <td>
+            <a href="http://xmpp.org/schemas/pubsub-errors.xsd">pubsub-errors.xsd</a>
+          </td>
+          <td>4637</td>
+          <td>20479f150ffe1fa932da529528d89aa0</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/pubsub#event</td>
+          <td>
+            <a href="http://xmpp.org/schemas/pubsub-event.xsd">pubsub-event.xsd</a>
+          </td>
+          <td>4866</td>
+          <td>003ba8f4780822511a84cc8f83ca6c95</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/pubsub#owner</td>
+          <td>
+            <a href="http://xmpp.org/schemas/pubsub-owner.xsd">pubsub-owner.xsd</a>
+          </td>
+          <td>4387</td>
+          <td>f0d2a4733fe7991135172ff6cfec66d9</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/rosterx</td>
+          <td>
+            <a href="http://xmpp.org/schemas/rosterx.xsd">rosterx.xsd</a>
+          </td>
+          <td>1338</td>
+          <td>97bfd4958edef7fb962eba8fe38ce810</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/rsm</td>
+          <td>
+            <a href="http://xmpp.org/schemas/rsm.xsd">rsm.xsd</a>
+          </td>
+          <td>1379</td>
+          <td>340cfcdf0827a12f8ba0fbca6b28aa37</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/shim</td>
+          <td>
+            <a href="http://xmpp.org/schemas/shim.xsd">shim.xsd</a>
+          </td>
+          <td>911</td>
+          <td>989fc4e6a95c1e763ec17245ac622c1a</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/si</td>
+          <td>
+            <a href="http://xmpp.org/schemas/si.xsd">si.xsd</a>
+          </td>
+          <td>1530</td>
+          <td>d00cd67eec0a6923ad01865c507d4808</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/si/profile/file-transfer</td>
+          <td>
+            <a href="http://xmpp.org/schemas/file-transfer.xsd">file-transfer.xsd</a>
+          </td>
+          <td>1479</td>
+          <td>8fbc4d2d7972696b30132a4092336122</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/sipub</td>
+          <td>
+            <a href="http://xmpp.org/schemas/sipub.xsd">sipub.xsd</a>
+          </td>
+          <td>1655</td>
+          <td>3eafe26f5ade2fbbf0cc9d354051ead7</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/soap#fault</td>
+          <td>
+            <a href="http://xmpp.org/schemas/soap-fault.xsd">soap-fault.xsd</a>
+          </td>
+          <td>856</td>
+          <td>df3517931ab9dcc747f89e7c84851d8e</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/tune</td>
+          <td>
+            <a href="http://xmpp.org/schemas/tune.xsd">tune.xsd</a>
+          </td>
+          <td>1237</td>
+          <td>d5ba7c1a0e061e7c2c1ec325f583edfb</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/waitinglist</td>
+          <td>
+            <a href="http://xmpp.org/schemas/waitinglist.xsd">waitinglist.xsd</a>
+          </td>
+          <td>2431</td>
+          <td>45637c6ae8a3db8048edeb241d54ff3e</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/xdata-layout</td>
+          <td>
+            <a href="http://xmpp.org/schemas/xdata-layout.xsd">xdata-layout.xsd</a>
+          </td>
+          <td>2021</td>
+          <td>c74f116543466f6a39352a2f95bc5e2d</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/xdata-validate</td>
+          <td>
+            <a href="http://xmpp.org/schemas/xdata-validate.xsd">xdata-validate.xsd</a>
+          </td>
+          <td>1874</td>
+          <td>0ace852dda1d5e9a72427515e934b342</td>
+        </tr>
+        <tr class="body">
+          <td>http://jabber.org/protocol/xhtml-im</td>
+          <td>
+            <a href="http://xmpp.org/schemas/xhtml-im-wrapper.xsd">xhtml-im-wrapper.xsd</a>
+          </td>
+          <td>1402</td>
+          <td>a3733bf495c05653e86ef20a825c62cb</td>
+        </tr>
+        <tr class="body">
+          <td>http://www.w3.org/XML/1998/namespace</td>
+          <td>
+            <a href="http://xmpp.org/schemas/xml.xsd">xml.xsd</a>
+          </td>
+          <td>4726</td>
+          <td>2e2cf9072dc058dcda41b7ee77a5cb54</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:client</td>
+          <td>
+            <a href="http://xmpp.org/schemas/jabber-client.xsd">jabber-client.xsd</a>
+          </td>
+          <td>6968</td>
+          <td>5e2d5cbf0506e3f16336d295093d66c4</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:component:accept</td>
+          <td>
+            <a href="http://xmpp.org/schemas/component-accept.xsd">component-accept.xsd</a>
+          </td>
+          <td>6635</td>
+          <td>eb052d6aadc60e4a704728e68e9b71b4</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:component:connect</td>
+          <td>
+            <a href="http://xmpp.org/schemas/component-connect.xsd">component-connect.xsd</a>
+          </td>
+          <td>6637</td>
+          <td>74497cf7c9a306fdbd3c336d471dba87</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:iq:auth</td>
+          <td>
+            <a href="http://xmpp.org/schemas/iq-auth.xsd">iq-auth.xsd</a>
+          </td>
+          <td>1075</td>
+          <td>524d617af8f30feae26b92cd83a21d7f</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:iq:gateway</td>
+          <td>
+            <a href="http://xmpp.org/schemas/iq-gateway.xsd">iq-gateway.xsd</a>
+          </td>
+          <td>766</td>
+          <td>736df8b8976add34b6065512dad8352f</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:iq:last</td>
+          <td>
+            <a href="http://xmpp.org/schemas/iq-last.xsd">iq-last.xsd</a>
+          </td>
+          <td>700</td>
+          <td>93a08299e6a987209704502256b21721</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:iq:oob</td>
+          <td>
+            <a href="http://xmpp.org/schemas/iq-oob.xsd">iq-oob.xsd</a>
+          </td>
+          <td>739</td>
+          <td>556fa1cd4d36ae1780ed2e0c1053c296</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:iq:pass</td>
+          <td>
+            <a href="http://xmpp.org/schemas/iq-pass.xsd">iq-pass.xsd</a>
+          </td>
+          <td>1274</td>
+          <td>4cf2bab840ce9d592f573db2d1dde1ef</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:iq:privacy</td>
+          <td>
+            <a href="http://xmpp.org/schemas/iq-privacy.xsd">iq-privacy.xsd</a>
+          </td>
+          <td>3116</td>
+          <td>1dfec6d0dbd1f625f46fb3f68c188338</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:iq:private</td>
+          <td>
+            <a href="http://xmpp.org/schemas/iq-private.xsd">iq-private.xsd</a>
+          </td>
+          <td>605</td>
+          <td>b8d0aebb2370a2f8658304ba57677623</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:iq:register</td>
+          <td>
+            <a href="http://xmpp.org/schemas/iq-register.xsd">iq-register.xsd</a>
+          </td>
+          <td>2598</td>
+          <td>b79db0064b527f0da817e90333896eac</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:iq:roster</td>
+          <td>
+            <a href="http://xmpp.org/schemas/roster.xsd">roster.xsd</a>
+          </td>
+          <td>1898</td>
+          <td>936bbba0ef836bc173735c3b416ff553</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:iq:rpc</td>
+          <td>
+            <a href="http://xmpp.org/schemas/jabber-rpc.xsd">jabber-rpc.xsd</a>
+          </td>
+          <td>4853</td>
+          <td>351909f64a5a6b66c35972a53d498e88</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:iq:search</td>
+          <td>
+            <a href="http://xmpp.org/schemas/iq-search.xsd">iq-search.xsd</a>
+          </td>
+          <td>1574</td>
+          <td>1f202602ae9b46d43a6e5791d8c54d93</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:iq:time</td>
+          <td>
+            <a href="http://xmpp.org/schemas/iq-time.xsd">iq-time.xsd</a>
+          </td>
+          <td>933</td>
+          <td>dde555d546b4f460ba3abb9848acc2aa</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:iq:version</td>
+          <td>
+            <a href="http://xmpp.org/schemas/iq-version.xsd">iq-version.xsd</a>
+          </td>
+          <td>763</td>
+          <td>22a89a8dcf2fb54710b534b85333f5a7</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:server</td>
+          <td>
+            <a href="http://xmpp.org/schemas/jabber-server.xsd">jabber-server.xsd</a>
+          </td>
+          <td>6948</td>
+          <td>dd95bd3055dfdd69984ed427cd6356e0</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:server:dialback</td>
+          <td>
+            <a href="http://xmpp.org/schemas/dialback.xsd">dialback.xsd</a>
+          </td>
+          <td>1606</td>
+          <td>ddb71d38501ceea6dbf04b96aeabd6fc</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:x:conference</td>
+          <td>
+            <a href="http://xmpp.org/schemas/x-conference.xsd">x-conference.xsd</a>
+          </td>
+          <td>1339</td>
+          <td>d06113e71790a8b4f92fe38d0e76dda6</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:x:data</td>
+          <td>
+            <a href="http://xmpp.org/schemas/x-data.xsd">x-data.xsd</a>
+          </td>
+          <td>3562</td>
+          <td>ed9ac8c241c7f6503887c86b3d9ef2f1</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:x:delay</td>
+          <td>
+            <a href="http://xmpp.org/schemas/x-delay.xsd">x-delay.xsd</a>
+          </td>
+          <td>940</td>
+          <td>60cbc644095747e5f5e987845ce3a233</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:x:encrypted</td>
+          <td>
+            <a href="http://xmpp.org/schemas/x-encrypted.xsd">x-encrypted.xsd</a>
+          </td>
+          <td>469</td>
+          <td>95816171d561dad6d412112bb698aed4</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:x:event</td>
+          <td>
+            <a href="http://xmpp.org/schemas/x-event.xsd">x-event.xsd</a>
+          </td>
+          <td>1013</td>
+          <td>305f4bef3c118b9d3d11d96aea753026</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:x:expire</td>
+          <td>
+            <a href="http://xmpp.org/schemas/x-expire.xsd">x-expire.xsd</a>
+          </td>
+          <td>916</td>
+          <td>2c4f88b96a5ba140532788ca47c6216e</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:x:oob</td>
+          <td>
+            <a href="http://xmpp.org/schemas/x-oob.xsd">x-oob.xsd</a>
+          </td>
+          <td>668</td>
+          <td>d85e431c630889f65e3139d947be1cca</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:x:roster</td>
+          <td>
+            <a href="http://xmpp.org/schemas/x-roster.xsd">x-roster.xsd</a>
+          </td>
+          <td>1077</td>
+          <td>00cb233dee83919067559c5dcee04f3d</td>
+        </tr>
+        <tr class="body">
+          <td>jabber:x:signed</td>
+          <td>
+            <a href="http://xmpp.org/schemas/x-signed.xsd">x-signed.xsd</a>
+          </td>
+          <td>463</td>
+          <td>979b382c4f4b0d9278f184f078e291c3</td>
+        </tr>
+        <tr class="body">
+          <td>roster:delimiter</td>
+          <td>
+            <a href="http://xmpp.org/schemas/delimiter.xsd">delimiter.xsd</a>
+          </td>
+          <td>435</td>
+          <td>aa7d17ef59561634d78a5c3acf0cc23c</td>
+        </tr>
+        <tr class="body">
+          <td>storage:bookmarks</td>
+          <td>
+            <a href="http://xmpp.org/schemas/bookmarks.xsd">bookmarks.xsd</a>
+          </td>
+          <td>1588</td>
+          <td>a500b821a46a4dece20671abe259c4fd</td>
+        </tr>
+        <tr class="body">
+          <td>storage:rosternotes</td>
+          <td>
+            <a href="http://xmpp.org/schemas/rosternotes.xsd">rosternotes.xsd</a>
+          </td>
+          <td>1045</td>
+          <td>2d5a4c3e97af7650a941b74473b18903</td>
+        </tr>
+        <tr class="body">
+          <td>urn:ietf:params:xml:ns:xmpp-bind</td>
+          <td>
+            <a href="http://xmpp.org/schemas/bind.xsd">bind.xsd</a>
+          </td>
+          <td>852</td>
+          <td>ef4bc7405e969b05e1df4c0f8fbb5e71</td>
+        </tr>
+        <tr class="body">
+          <td>urn:ietf:params:xml:ns:xmpp-e2e</td>
+          <td>
+            <a href="http://xmpp.org/schemas/e2e.xsd">e2e.xsd</a>
+          </td>
+          <td>598</td>
+          <td>da2132f0a69fc389685a7c8fe7f66e92</td>
+        </tr>
+        <tr class="body">
+          <td>urn:ietf:params:xml:ns:xmpp-sasl</td>
+          <td>
+            <a href="http://xmpp.org/schemas/sasl.xsd">sasl.xsd</a>
+          </td>
+          <td>2769</td>
+          <td>fd9a83f5c75628486ce18c0eb3a35995</td>
+        </tr>
+        <tr class="body">
+          <td>urn:ietf:params:xml:ns:xmpp-session</td>
+          <td>
+            <a href="http://xmpp.org/schemas/session.xsd">session.xsd</a>
+          </td>
+          <td>444</td>
+          <td>cc1dad32ba05d18407579b7a1c98c64b</td>
+        </tr>
+        <tr class="body">
+          <td>urn:ietf:params:xml:ns:xmpp-stanzas</td>
+          <td>
+            <a href="http://xmpp.org/schemas/stanzaerror.xsd">stanzaerror.xsd</a>
+          </td>
+          <td>3133</td>
+          <td>1a8d21588424f9134dc497de64b10c3f</td>
+        </tr>
+        <tr class="body">
+          <td>urn:ietf:params:xml:ns:xmpp-streams</td>
+          <td>
+            <a href="http://xmpp.org/schemas/streamerror.xsd">streamerror.xsd</a>
+          </td>
+          <td>3315</td>
+          <td>75cd95aecb9f1fd66110c3ddcf00c9b8</td>
+        </tr>
+        <tr class="body">
+          <td>urn:ietf:params:xml:ns:xmpp-tls</td>
+          <td>
+            <a href="http://xmpp.org/schemas/tls.xsd">tls.xsd</a>
+          </td>
+          <td>688</td>
+          <td>dc18bc4da35bc1be7a6c52aa43330825</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:archive</td>
+          <td>
+            <a href="http://xmpp.org/schemas/archive.xsd">archive.xsd</a>
+          </td>
+          <td>10355</td>
+          <td>379f31dbd639e577cc3671989f89eac7</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:attention:0</td>
+          <td>
+            <a href="http://xmpp.org/schemas/attention.xsd">attention.xsd</a>
+          </td>
+          <td>621</td>
+          <td>42f9232182d298aa92f29d300d4087c5</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:avatar:data</td>
+          <td>
+            <a href="http://xmpp.org/schemas/avatar-data.xsd">avatar-data.xsd</a>
+          </td>
+          <td>482</td>
+          <td>d705ada4740d78c5d404f470e61ea06c</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:avatar:metadata</td>
+          <td>
+            <a href="http://xmpp.org/schemas/avatar-metadata.xsd">avatar-metadata.xsd</a>
+          </td>
+          <td>1782</td>
+          <td>d8cb3ff5805145161c81f73dc4f1d5dc</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:blocking</td>
+          <td>
+            <a href="http://xmpp.org/schemas/blocking.xsd">blocking.xsd</a>
+          </td>
+          <td>1437</td>
+          <td>f9540f863f741e300e4706c8f773d02d</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:blocking:errors</td>
+          <td>
+            <a href="http://xmpp.org/schemas/blocking-errors.xsd">blocking-errors.xsd</a>
+          </td>
+          <td>627</td>
+          <td>28eb443b113cbe7147cfed90834a68fd</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:bob</td>
+          <td>
+            <a href="http://xmpp.org/schemas/bob.xsd">bob.xsd</a>
+          </td>
+          <td>846</td>
+          <td>990e71ba1e657f3a587cd6f0e758c69b</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:captcha</td>
+          <td>
+            <a href="http://xmpp.org/schemas/captcha.xsd">captcha.xsd</a>
+          </td>
+          <td>752</td>
+          <td>2128162d221b39d19530769ccdedd01b</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:delay</td>
+          <td>
+            <a href="http://xmpp.org/schemas/delay.xsd">delay.xsd</a>
+          </td>
+          <td>762</td>
+          <td>34283385814c8db0dc3ad874ae57e9ab</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:eventlog</td>
+          <td>
+            <a href="http://xmpp.org/schemas/eventlogging.xsd">eventlogging.xsd</a>
+          </td>
+          <td>2021</td>
+          <td>b12ff6b4b79b1dedd7c0f6721a046fb8</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:features:rosterver</td>
+          <td>
+            <a href="http://xmpp.org/schemas/versioning-feature.xsd">versioning-feature.xsd</a>
+          </td>
+          <td>619</td>
+          <td>089d67a345ba701d21c1d3316a03c7e6</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:http</td>
+          <td>
+            <a href="http://xmpp.org/schemas/http-over-xmpp.xsd">http-over-xmpp.xsd</a>
+          </td>
+          <td>5135</td>
+          <td>51c68b927a5cc0ab4a6e8d081e100cb0</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:iot:concentrators</td>
+          <td>
+            <a href="http://xmpp.org/schemas/sensor-network-concentrators.xsd">sensor-network-concentrators.xsd</a>
+          </td>
+          <td>37801</td>
+          <td>0ea1b43d143b7857870e1397c93e6872</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:iot:control</td>
+          <td>
+            <a href="http://xmpp.org/schemas/sensor-network-control.xsd">sensor-network-control.xsd</a>
+          </td>
+          <td>6293</td>
+          <td>74dcea52300e8c8df8c4de2c9e90495b</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:iot:interoperability</td>
+          <td>
+            <a href="http://xmpp.org/schemas/xep-0000-IoT-Interoperability.xsd">xep-0000-IoT-Interoperability.xsd</a>
+          </td>
+          <td>1275</td>
+          <td>5d39845a0082715ff8807691698353bb</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:iot:provisioning</td>
+          <td>
+            <a href="http://xmpp.org/schemas/sensor-network-provisioning.xsd">sensor-network-provisioning.xsd</a>
+          </td>
+          <td>8856</td>
+          <td>3ed5360bc17eadb2a8949498c9af3f0c</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:iot:sensordata</td>
+          <td>
+            <a href="http://xmpp.org/schemas/sensor-data.xsd">sensor-data.xsd</a>
+          </td>
+          <td>8752</td>
+          <td>49b101e7deea39ccc31340a3c7871c43</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:jingle:1</td>
+          <td>
+            <a href="http://xmpp.org/schemas/jingle.xsd">jingle.xsd</a>
+          </td>
+          <td>4926</td>
+          <td>29d29c6f994ce1b1cc3d5da8c1b54d80</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:jingle:apps:rtp:1</td>
+          <td>
+            <a href="http://xmpp.org/schemas/jingle-apps-rtp.xsd">jingle-apps-rtp.xsd</a>
+          </td>
+          <td>3481</td>
+          <td>3f1d6e7fc12ebddd3c196fb44dc0912b</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:jingle:apps:rtp:errors:1</td>
+          <td>
+            <a href="http://xmpp.org/schemas/jingle-apps-rtp-errors.xsd">jingle-apps-rtp-errors.xsd</a>
+          </td>
+          <td>705</td>
+          <td>bb476ac38da026742ddb94862f8d3e1f</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:jingle:apps:rtp:info:1</td>
+          <td>
+            <a href="http://xmpp.org/schemas/jingle-apps-rtp-info.xsd">jingle-apps-rtp-info.xsd</a>
+          </td>
+          <td>1467</td>
+          <td>c8fc00ddcff8c69cf4a923c3797a9d04</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:jingle:apps:rtp:zrtp:1</td>
+          <td>
+            <a href="http://xmpp.org/schemas/jingle-apps-rtp-zrtp.xsd">jingle-apps-rtp-zrtp.xsd</a>
+          </td>
+          <td>732</td>
+          <td>9144b780fc33098ad0c5725394d53e8e</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:jingle:errors:1</td>
+          <td>
+            <a href="http://xmpp.org/schemas/jingle-errors.xsd">jingle-errors.xsd</a>
+          </td>
+          <td>783</td>
+          <td>fa8cefea805ce412615a0e19fcc90f29</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:jingle:transports:ibb:1</td>
+          <td>
+            <a href="http://xmpp.org/schemas/jingle-transports-ibb.xsd">jingle-transports-ibb.xsd</a>
+          </td>
+          <td>1424</td>
+          <td>284b6271054657577a380c654f90453f</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:jingle:transports:ice-udp:1</td>
+          <td>
+            <a href="http://xmpp.org/schemas/jingle-transports-ice-udp.xsd">jingle-transports-ice-udp.xsd</a>
+          </td>
+          <td>3103</td>
+          <td>03a3be93d48a393e5756717d74b27efc</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:jingle:transports:raw-udp:1</td>
+          <td>
+            <a href="http://xmpp.org/schemas/jingle-transports-raw-udp.xsd">jingle-transports-raw-udp.xsd</a>
+          </td>
+          <td>1826</td>
+          <td>54ab91e95e7d070a26b1b6afbd5559ca</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:jingle:transports:s5b:1</td>
+          <td>
+            <a href="http://xmpp.org/schemas/jingle-transports-s5b.xsd">jingle-transports-s5b.xsd</a>
+          </td>
+          <td>3336</td>
+          <td>fe5cb4f3077307279a7c0e5da7c5c6e7</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:langtrans</td>
+          <td>
+            <a href="http://xmpp.org/schemas/langtrans.xsd">langtrans.xsd</a>
+          </td>
+          <td>1934</td>
+          <td>42fd5d84bfdab64d405146500833ff95</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:langtrans:items</td>
+          <td>
+            <a href="http://xmpp.org/schemas/langtrans-items.xsd">langtrans-items.xsd</a>
+          </td>
+          <td>1500</td>
+          <td>c28ef67fe38aeaed5ba44e239c1c1886</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:media-element</td>
+          <td>
+            <a href="http://xmpp.org/schemas/media-element.xsd">media-element.xsd</a>
+          </td>
+          <td>1051</td>
+          <td>0d4c292aa81f6eb1ad3f8b06421e1cee</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:pie:0</td>
+          <td>
+            <a href="http://xmpp.org/schemas/pie.xsd">pie.xsd</a>
+          </td>
+          <td>1590</td>
+          <td>a1a80b05609760cc0bf73c81c48a8ab6</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:ping</td>
+          <td>
+            <a href="http://xmpp.org/schemas/ping.xsd">ping.xsd</a>
+          </td>
+          <td>602</td>
+          <td>a2a720f5ee6da310e3a05ba89b89eb20</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:receipts</td>
+          <td>
+            <a href="http://xmpp.org/schemas/receipts.xsd">receipts.xsd</a>
+          </td>
+          <td>879</td>
+          <td>e11be9d296fa183a1c06ea021fd69559</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:sec-label:0</td>
+          <td>
+            <a href="http://xmpp.org/schemas/sec-label.xsd">sec-label.xsd</a>
+          </td>
+          <td>3865</td>
+          <td>9e98b80af0f6376c24a678d14a9a642f</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:sec-label:catalog:2</td>
+          <td>
+            <a href="http://xmpp.org/schemas/sec-label-catalog.xsd">sec-label-catalog.xsd</a>
+          </td>
+          <td>3378</td>
+          <td>f63f39aaacb09726ceabf6638008b13a</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:sec-label:ess:0</td>
+          <td>
+            <a href="http://xmpp.org/schemas/sec-label-ess.xsd">sec-label-ess.xsd</a>
+          </td>
+          <td>804</td>
+          <td>99311ef62e7f29be25eb78d68baaff2a</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:sm:3</td>
+          <td>
+            <a href="http://xmpp.org/schemas/sm.xsd">sm.xsd</a>
+          </td>
+          <td>3583</td>
+          <td>392326992f88327d9958fb6afbbb4382</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:time</td>
+          <td>
+            <a href="http://xmpp.org/schemas/time.xsd">time.xsd</a>
+          </td>
+          <td>658</td>
+          <td>001c5347c00da7aad231504ec706fbb3</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:xbosh</td>
+          <td>
+            <a href="http://xmpp.org/schemas/xbosh.xsd">xbosh.xsd</a>
+          </td>
+          <td>760</td>
+          <td>0920ea082f0ba162c8b96611368941a8</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:xdata:color</td>
+          <td>
+            <a href="http://xmpp.org/schemas/color-parameter.xsd">color-parameter.xsd</a>
+          </td>
+          <td>522</td>
+          <td>6b58fcba235d4f8888b5f6db0e5dfc91</td>
+        </tr>
+        <tr class="body">
+          <td>urn:xmpp:xdata:dynamic</td>
+          <td>
+            <a href="http://xmpp.org/schemas/dynamic-forms.xsd">dynamic-forms.xsd</a>
+          </td>
+          <td>2453</td>
+          <td>32d8760506fd010f8c9fa6e4953ed5bc</td>
+        </tr>
+        <tr class="body">
+          <td>vcard-temp:x:update</td>
+          <td>
+            <a href="http://xmpp.org/schemas/vcard-avatar.xsd">vcard-avatar.xsd</a>
+          </td>
+          <td>625</td>
+          <td>edaf52356eb306390849641bdc33fdc9</td>
+        </tr>
+      </table></div>
+    </div>
+    <div class="indent"><h3>3.13 <a name="knownproblems" id="knownproblems">Known problems with existing schemas</a></h3>
+      <p>
+        The following sections list some known problems that might affect already defined schemas. For these schemas to be used
+        together with EXI compression, the recommended procedures should be considered. If changes to the schema is required,
+        new byte sizes and hash values must be computed for the changed schema correspondingly.
+      </p>
+      <p>
+        Patched version of XML schemas may be placed in the <a href="#wellknown">snapshot repository for well-known schemas</a> to avoid wild patches (and too many derived schema for the same model).
+      </p>
+      <div class="indent"><h3>3.13.1 <a name="patch" id="patch">Patch to avoid UPA for streams.xsd</a></h3>
+        
+        <p>
+          TBD: group discussion needed
+        </p>
+        <p>
+          streams.xsd defined in RFC6120 has 'unique particle attribution (UPA)' problem.
+          UPA is undeterministic attribution of an element between a wildcard and an explicit definition.
+          Details could be found in <a href="http://www.w3.org/TR/xmlschema-1/#non-ambig">Appendix H</a> of XML schema specification.
+        </p>
+        <p>
+          A simple
+          way to solve UPA is to insert delimiters around wildcards to eliminate
+          ambiguity. A deterministic delimiter can resolve ambiguity.
+          The other way to solve UPA is to use 'weak wildcard model'
+          introduced in XML schema 1.1. The cause of ambiguity is lack of
+          precedence between explicit definitions and wildcard definitions. As
+          weak wildcards have weaker precedence against explicit definitions,
+          there are no ambiguity with UPA.
+        </p>
+        <p>
+          To keep the same semantics with current XML implementations, by
+          default this proposal recommends weak wildcard model on
+          implementations. However, if an implementation does not support weak
+          wildcards, it may use streams.xsd with following patch applied.
+        </p>
+        
+        <p class="caption"></p><div class="indent"><pre class="prettyprint">
+          --- streams.xsd    2013-03-25 17:37:52.733451313 +0900
+          +++ streams-UPA-patched.xsd    2013-03-25 17:57:44.889469868 +0900
+          @@ -32,10 +32,12 @@
+          &lt;xs:any namespace='urn:ietf:params:xml:ns:xmpp-sasl'
+          minOccurs='0'
+          maxOccurs='1'/&gt;
+          +        &lt;xs:element name="delim" type="xs:boolean" minOccurs="1" maxOccurs="1" /&gt;
+          &lt;xs:any namespace='##other'
+          minOccurs='0'
+          maxOccurs='unbounded'
+          processContents='lax'/&gt;
+          +        &lt;xs:element name="delim" type="xs:boolean" minOccurs="1" maxOccurs="1" /&gt;
+          &lt;xs:choice minOccurs='0' maxOccurs='1'&gt;
+          &lt;xs:choice minOccurs='0' maxOccurs='unbounded'&gt;
+          &lt;xs:element ref='client:message'/&gt;
+          @@ -77,6 +79,7 @@
+          &lt;xs:element ref='err:text'
+          minOccurs='0'
+          maxOccurs='1'/&gt;
+          +        &lt;xs:element name="delim" type="xs:boolean" minOccurs="1" maxOccurs="1" /&gt;
+          &lt;xs:any     namespace='##other'
+          minOccurs='0'
+          maxOccurs='1'
+        </pre></div>
+      </div>
+      <div class="indent"><h3>3.13.2 <a name="sect-idp2168048" id="sect-idp2168048">Patch for missing wildcards in extensible schemas</a></h3>
+        
+      </div>
+    </div>
+    <div class="indent"><h3>3.14 <a name="defaultSchema" id="defaultSchema">Default schema for alternative bindings</a></h3>
+      <p>
+        Default EXI grammar used in EXI/XMPP SHALL be equivalent to the EXI grammar defined by the following schema. The default EXI grammar
+        is used in initiating connection of EXI/XMPP alternate binding. The default schema is defined by following definition, and all
+        the imported schemas SHOULD be same schemas described in <a href="#wellknown">the snapshot</a> and SHOULD have the identical
+        MD5 hash value described in <a href="#knownhashes">this section</a>.
+      </p>
+      <p class="caption"></p><div class="indent"><pre class="prettyprint">
+        
+&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;xs:schema
+ xmlns:xs="http://www.w3.org/2001/XMLSchema"
+ xmlns:stream="http://etherx.jabber.org/streams"
+ targetNamespace="urn:xmpp:exi:cs"
+ elementFormDefault="qualified"&gt;
+ &lt;xs:import namespace="http://etherx.jabber.org/streams"
+            schemaLocation="${snapshot_url}/streams.xsd" /&gt;
+ &lt;xs:import namespace="http://jabber.org/protocol/compress/exi"
+            schemaLocation="${snapshot_url}/xep-0322-01.xsd" /&gt;
+&lt;/xs:schema&gt;
+
+      </pre></div>
+      <p>
+        The ${snapshot-url} corresponds to yet-to-be-specified schema snapshot repository described in <a href="#wellknown">snapshot repository for well-known schemas</a> section.
+        The schemaId of this schema will is 'urn:xmpp:exi:default'. SchemaId is ID for this instance and not a namespace identifier and intentionally different from the target namespace of the schema.
+      </p>
+    </div>
+    <div class="indent"><h3>3.15 <a name="reservedSchemaID" id="reservedSchemaID">Reserved Schema IDs</a></h3>
+      
+      <p>Following schema Ids are reserved.</p>
+      <ul>
+        <li>
+          Schema IDs starts with "c:". This is used as <a href="#shortcutaltBind">shortcut setup for alternative transport binding</a>.
+        </li>
+        <li>Schema IDs starts with "urn:xmpp". This may be used to describe XEP-based schemas.</li>
+      </ul>
+    </div>
+  <h2>4.
+       <a name="security" id="security">Security Considerations</a></h2>
+    <p>
+      Note that EXI compressed information, even though it is hard to decode by humans, is by no means encrypted. If sensitive data is to be sent over an EXI compressed
+      channel, encryption should be considered as well.
+    </p>
+    <p>
+      The reason for using MD5 as a hashing mechanism to identify schema versions, is because MD5 has a small memory footprint and is easy to implement.
+      However, it has a weakness: Given a hash value, it's relatively easy to create another file returning the same hash value. However, it's very
+      difficult to create another file of the same size as the original, resulting in the same hash value. For this reason, file sizes are also included
+      when identifying a schema. Since the security threat, and any possible consequences of somebody trying to inject invalid schemas to a server is
+      relatively small, this is considered a sufficient protection against such threats.
+    </p>
+    <p>
+      The feature of uploading and downloading new schemas to the server is a feature that the server can disable for exceptional high security reasons, for instance,
+      in high-security installations where total control of the domain is necessary. Clients should be aware
+      if this fact and check setup after uploading or asking the server to download new schemas. If the setup fails a second time, i.e. schemas are still missing,
+      the client MUST NOT try to upload or download the missing schemas again, since this would provoke an indefinite loop.
+    </p>
+  <h2>5.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+    <p>
+      
+      This XEP requires new service names (proposed 'xmpp-bclient' and 'xmpp-bserver') for SRV records registered in IANA.
+      A static port number for a dedicated binary EXI/XMPP binding may also be requested.
+    </p>
+  <h2>6.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+    <p>
+      Some of schemas should be kept 'as-is' format in XSF registry. EXI interoperability
+      requires schema stability, so a snapshot repository of version-controlled well-known schemas is requested to XMPP Registrar.
+      Related discussion is in <a href="#wellknown">here</a>. Also, patched versions such as described in <a href="#knownproblems">Known problems</a>
+      should be placed in the same snapshot repository.
+    </p>
+    <p>
+      Furthermore, it is suggested that the table at <a href="http://xmpp.org/resources/schemas/">http://xmpp.org/resources/schemas/</a> is updated
+      with two columns containing updated byte size and MD5 hash information for the current files. Tools can be provided by the authors to automate
+      the extraction of byte size and MD5 Hash information from the collection of schema files and transform them to appropriate formats.
+    </p>
+    <p>
+      The <a href="#schema">protocol schema</a> needs to be added to the list of <a href="http://xmpp.org/resources/schemas/">XMPP protocol schemas</a>.
+    </p>
+    <p>
+      The target namespace for canonical schemas <span class="strong">urn:xmpp:exi:cs</span>, for default schemas <span class="strong">urn:xmpp:exi:default</span>, as well as the EXI compress schema namespace
+      <span class="strong">http://jabber.org/protocol/compress/exi</span> need to be registered on the list of known XSF schemas.
+    </p>
+  <h2>7.
+       <a name="schema" id="schema">XML Schema</a></h2>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+      
+      
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='http://jabber.org/protocol/compress/exi'
+    xmlns='http://jabber.org/protocol/compress/exi'
+    xmlns:xml="http://www.w3.org/XML/1998/namespace"
+    xmlns:client='jabber:client'
+    xmlns:streams='http://etherx.jabber.org/streams'
+    elementFormDefault='qualified'&gt;
+
+    &lt;xs:import namespace="http://www.w3.org/XML/1998/namespace"/&gt;
+    &lt;xs:import namespace="http://etherx.jabber.org/streams"/&gt;
+
+    &lt;xs:element name='setup' type='Setup'/&gt;
+    &lt;xs:element name='setupResponse' type='SetupResponse'/&gt;
+
+    &lt;xs:complexType name='Setup'&gt;
+        &lt;xs:choice minOccurs='0' maxOccurs='unbounded'&gt;
+            &lt;xs:element name='schema' type='Schema'/&gt;
+            &lt;xs:element name='datatypeRepresentationMap' type='DatatypeRepresentationMap'/&gt;
+        &lt;/xs:choice&gt;
+        &lt;xs:attributeGroup ref='Options'/&gt;
+    &lt;xs:attribute name='configurationId' type='xs:string' use='optional'/&gt;
+    &lt;xs:attribute name='configurationLocation' type='xs:string' use='optional'/&gt;
+    &lt;/xs:complexType&gt;
+
+    &lt;xs:complexType name='SetupResponse'&gt;
+        &lt;xs:choice minOccurs='0' maxOccurs='unbounded'&gt;
+            &lt;xs:element name='schema' type='Schema'/&gt;
+            &lt;xs:element name='datatypeRepresentationMap' type='DatatypeRepresentationMap'/&gt;
+        &lt;xs:element name='missingSchema' type='Schema'/&gt;
+        &lt;/xs:choice&gt;
+        &lt;xs:attributeGroup ref='Options'/&gt;
+    &lt;xs:attribute name='configurationId' type='xs:string' use='optional'/&gt;
+    &lt;xs:attribute name='configurationLocation' type='xs:string' use='optional'/&gt;
+    &lt;xs:attribute name='agreement' type='xs:boolean' use='optional' default='false'/&gt;
+    &lt;/xs:complexType&gt;
+
+    &lt;xs:complexType name='Schema'&gt;
+        &lt;xs:attribute name='ns' type='xs:string' use='required'/&gt;
+        &lt;xs:attribute name='bytes' type='xs:positiveInteger' use='required'/&gt;
+        &lt;xs:attribute name='md5Hash' type='MD5Hash' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+
+    &lt;xs:complexType name='DatatypeRepresentationMap'&gt;
+        &lt;xs:attribute name='type' type='xs:string' use='required'/&gt;
+        &lt;xs:attribute name='representAs' type='xs:string' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+
+    &lt;xs:attributeGroup name='Options'&gt;
+        &lt;xs:attribute name='version' type='xs:positiveInteger' use='optional' default='1'/&gt;
+        &lt;xs:attribute name='alignment' type='Alignment' use='optional' default='bit-packed'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;The alignment option is used to control the alignment of event codes and content items. The value is one of bit-packed, byte-alignment or pre-compression, of which bit-packed is the default value assumed when the "alignment" element is absent in the EXI Options document. The option value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     

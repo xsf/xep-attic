@@ -1,0 +1,214 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0276: Presence Decloaking</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Presence Decloaking" /><meta name="DC.Creator" content="Simon McVittie" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Creator" content="Robert McQueen" /><meta name="DC.Description" content="This specification defines an XMPP protocol extension that enables a user to send directed presence with a request for the target to also share presence information for the duration of a communications session." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2012-07-11" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0276" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2012 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0276: Presence Decloaking</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines an XMPP protocol extension that enables a user to send directed presence with a request for the target to also share presence information for the duration of a communications session.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Simon McVittie, Peter Saint-Andre, Robert McQueen</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2012 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.2</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2012-07-11</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#approach">Approach</a><br />4.  <a href="#scenario">Scenario</a><br />5.  <a href="#gateway">Sharing Presence with a Gateway</a><br />6.  <a href="#reason">The reason Attibute</a><br />7.  <a href="#bizrules">Business Rules</a><br />8.  <a href="#security">Security Considerations</a><br />9.  <a href="#iana">IANA Considerations</a><br />10.  <a href="#registrar">XMPP Registrar Considerations</a><br />11.  <a href="#schema">XML Schema</a><br />12.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+
+  <p>Various XMPP extensions, such as <span class="ref"><a href="http://xmpp.org/extensions/xep-0166.html">Jingle</a></span>  [<a href="#nt-id65070">1</a>], require additional support from clients, advertised in presence via <span class="ref"><a href="http://xmpp.org/extensions/xep-0115.html">Entity Capabilities</a></span>  [<a href="#nt-id65128">2</a>], or require that IQ stanzas are sent to a particular resource. For instance, Jingle calls can be made only by sending an IQ to a particular resource. However, two parties who wish to communicate do not always share presence information through subscriptions and therefore cannot use entity capabilities to determine the proper full JID for communication. Indeed, one of the parties might not even use XMPP: e.g., a remote user on the other side of a gateway to a network based on the Session Initiation Protocol (SIP; <span class="ref"><a href="http://tools.ietf.org/html/rfc3261">RFC 3261</a></span>  [<a href="#nt-id65099">3</a>]) or to the Public Switched Telephone Network (PSTN). It would be helpful if a user could make a call through such a gateway by typing the SIP URI or telephone number of an arbitrary contact, without first exchanging presence.</p>
+
+  <p><span class="ref"><a href="http://tools.ietf.org/html/rfc6121">RFC 6121</a></span>  [<a href="#nt-id71933">4</a>] already defines a way to send directed presence to another entity. This document supplements RFC 6121 by defining an XML protocol extension enabling two parties to explicitly share presence with each other on a temporary basis through an "intentional presence leak"; we call this "decloaking".</p>
+
+  <p>Note: This protocol has already been implemented using an XML namespace of "http://telepathy.freedesktop.org/xmpp/protocol/decloak" but the <span class="ref"><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id71962">5</a>] was requested to issue the XMPP URN "urn:xmpp:decloak:0" upon publication of this proposal in the <span class="ref"><a href="http://xmpp.org/extensions/xep-0001.html">XMPP Extension Protocols</a></span>  [<a href="#nt-id71984">6</a>] series.</p>
+
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+
+  <p>An entity should be able to attempt to initiate a communication session that requires IQs and/or capability negotiation (Jingle, a file transfer, end-to-end encryption, or other similar communication modes) with an arbitrary entity.</p>
+
+  <p>If the receiving entity agrees to divulge their presence in this way, minimal presence (with no 'type' attribute, &lt;show/&gt; element, avatar hash, etc.) and capabilities should be communicated to the initiating entity, so that the initiating entity can continue to initiate the communication session.</p>
+
+<h2>3.
+       <a name="approach" id="approach">Approach</a></h2>
+
+  <p>The approach taken here is that the user who wishes to initiate presence sharing for the length of a communications session sends directed presence (including entity capabilities) to the bare JID &lt;localpart@domain.tld&gt; of the initiator's intended communication partner, including a special XMPP extension &lt;decloak xmlns='urn:xmpp:decloak:0'/&gt;. Upon receipt of this directed presence stanza, if configured to do so the recipient's sends directed presence (including entity capabilities) to the initiator's full JID &lt;localpart@domain.tld/resource&gt;. Once the parties complete their communications session, they can terminate presence sharing by sending directed &lt;presence type='uavailable'/&gt; to each other; alternatively, at any time they could "upgrade" their session-based presence sharing to a full XMPP presence subscription as described in <span class="ref"><a href="http://tools.ietf.org/html/rfc6121">XMPP IM</a></span>  [<a href="#nt-id72050">7</a>].</p>
+
+  <p>Although the &lt;decloak/&gt; element could be sent in presence stanzas of type "subscribe" instead of in directed presence notifications, that behavior is discouraged because the "fall-through" case for subscription requests is a long-lived subscription, not temporary sharing of presence information for the life of a communication session.</p>
+
+<h2>4.
+       <a name="scenario" id="scenario">Scenario</a></h2>
+
+  <p>Suppose that Juliet wishes to make a media call to Tybalt, but the two parties do not share presence information in accordance with the core definition of XMPP.  Suppose also that Juliet and Tybalt have the following presence, although neither can initially see the other's presence:</p>
+
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Initial state</p><div class="indent"><pre class="prettyprint">
+    
+&lt;presence from='juliet@shakespeare.lit/balcony'&gt;
+  &lt;show&gt;dnd&lt;/show&gt;
+  &lt;status&gt;on the phone&lt;/status&gt;
+  &lt;c ver='juliet-caps-hash' .../&gt;
+&lt;/presence&gt;
+
+&lt;presence from='tybalt@shakespeare.lit/library'&gt;
+  &lt;show&gt;dnd&lt;/show&gt;
+  &lt;status&gt;researching&lt;/status&gt;
+  &lt;c ver='tybalt-caps-hash' .../&gt;
+&lt;/presence&gt;
+
+&lt;presence from='tybalt@shakespeare.lit/garden'&gt;
+  &lt;show&gt;xa&lt;/show&gt;
+  &lt;status&gt;gone to the library&lt;/status&gt;
+  &lt;c ver='tybalt-caps-hash' .../&gt;
+&lt;/presence&gt;
+  </pre></div>
+
+  <p>Juliet requests that Tybalt divulge his availability and capabilities, by sending directed presence to his bare JID &lt;tybalt@shakespeare.lit&gt;, where the presence stanza contains a &lt;decloak/&gt; element.</p>
+
+  <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Requesting that a peer share session presence</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='juliet@shakespeare.lit/balcony'
+          to='tybalt@shakespeare.lit'&gt;
+  &lt;c ver='juliet-caps-hash' .../&gt;
+  &lt;decloak xmlns='urn:xmpp:decloak:0' reason='media'/&gt;
+&lt;/presence&gt;
+  </pre></div>
+
+  <p>Tybalt MAY in response send session presence from one or more resources, by sending directed presence from those resource(s) to Juliet's bare JID.</p>
+
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Sharing presence in response to a request</p><div class="indent"><pre class="prettyprint">
+    
+&lt;presence from='tybalt@shakespeare.lit/library'
+          to='juliet@shakespeare.lit'&gt;
+  &lt;c ver='tybalt-caps-hash' .../&gt;
+&lt;/presence&gt;
+
+&lt;presence from='tybalt@shakespeare.lit/garden'
+          to='juliet@shakespeare.lit'&gt;
+  &lt;c ver='tybalt-caps-hash' .../&gt;
+&lt;/presence&gt;
+  </pre></div>
+
+  <p>Once Juliet has received the session presence from Tybalt, if necessary she can perform service discovery to find out the meaning of the entity capabilities hashes (if unknown), then proceed to make a Jingle call, initiate a file transfer, or complete some other use case.</p>
+
+  <p>Naturally, it's also possible that Tybalt's client will ignore the request (in particular, this will happen for any resource that does not implement this specification). However, in this case the parties are no worse off than they were before Juliet requested decloaking.</p>
+
+<h2>5.
+       <a name="gateway" id="gateway">Sharing Presence with a Gateway</a></h2>
+
+  <p>Let us now suppose that Juliet wishes to make a media call to Romeo, who does not use XMPP but who has a SIP URI of sip:romeo@shakespeare.lit, which can be called via an XMPP-to-SIP gateway.</p>
+
+  <p>Juliet requests that the SIP contact representing Romeo on the gateway shall divulge its availability and capabilities, by sending directed presence to its bare JID at the gateway containing a &lt;decloak/&gt; element.</p>
+
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Requesting that a gateway contact shall share session presence</p><div class="indent"><pre class="prettyprint">
+    
+&lt;presence from='juliet@shakespeare.lit/balcony'
+          to='romeo%shakespeare.lit@sip.shakespeare.lit'&gt;
+  &lt;c ver='juliet-caps-hash' .../&gt;
+  &lt;decloak xmlns='urn:xmpp:decloak:0' reason='media'/&gt;
+&lt;/presence&gt;
+  </pre></div>
+
+  <p>In response, the SIP gateway automatically shares session presence on behalf of that JID, in order to tell Juliet what the gateway's capabilities are.</p>
+
+  <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Sharing presence in response to a request</p><div class="indent"><pre class="prettyprint">
+    
+&lt;presence from='romeo%shakespeare.lit@sip.shakespeare.lit'
+          to='juliet@shakespeare.lit'&gt;
+  &lt;c ver='gateway-caps-hash' .../&gt;
+&lt;/presence&gt;
+  </pre></div>
+
+  <p>As above, Juliet can now complete service discovery and any protocol-specific use cases.</p>
+
+<h2>6.
+       <a name="reason" id="reason">The reason Attibute</a></h2>
+  <p>To signal the type of communication that is desired, the entity that first shares session presence MAY include a 'reason' attribute on the &lt;decloak/&gt; element. The following values for the 'reason' attribute are defined:</p>
+
+  <div class="indent"><dl>
+    <dt><strong>media</strong></dt>
+    <dd>Presence is requested for a voice and/or video call, e.g. via <span class="ref"><a href="http://xmpp.org/extensions/xep-0167.html">Jingle RTP Sessions</a></span>  [<a href="#nt-id72275">8</a>].</dd>
+
+    <dt><strong>text</strong></dt>
+
+    <dd>Presence is requested for a textual conversation using an extension that requires capabilities to be disclosed, such as <span class="ref"><a href="http://xmpp.org/extensions/xep-0071.html">XHTML-IM</a></span>  [<a href="#nt-id72303">9</a>], <span class="ref"><a href="http://xmpp.org/extensions/xep-0085.html">Chat State Notifications</a></span>  [<a href="#nt-id72325">10</a>], <span class="ref"><a href="http://xmpp.org/extensions/xep-0301.html">In-Band Real Time Text</a></span>  [<a href="#nt-id72345">11</a>], or end-to-end encryption.</dd>
+
+    <dt><strong>file</strong></dt>
+    <dd>Presence is requested for one or more file transfers, e.g. via <span class="ref"><a href="http://xmpp.org/extensions/xep-0234.html">Jingle File Transfer</a></span>  [<a href="#nt-id72369">12</a>] or <span class="ref"><a href="http://xmpp.org/extensions/xep-0095.html">Stream Initiation</a></span>  [<a href="#nt-id72391">13</a>].</dd>
+  </dl></div>
+
+  <p>Inclusion of the 'reason' attribute can be interpreted by the receiving client as a signal that communication is about to start; for instance, a call accept/reject dialog could double as a UI for accepting or rejecting a session presence request.</p>
+
+<h2>7.
+       <a name="bizrules" id="bizrules">Business Rules</a></h2>
+
+  <p>To limit the extent of the presence leak, the receiving entity SHOULD send only bare presence without the XMPP &lt;priority/&gt;, &lt;show/&gt;, or &lt;status/&gt; element. Unfortunately, this has two implications:</p>
+  
+  <ol>
+    <li><p>The initiating entity cannot know which of the receiving entity's resources is more likely to engage in communication. This might imply that the initiating entity will need to send a session initiation request or other communication to more than one of the receiving entity's resources (and then retract the session initiation requests that are not answered by the receiving entity). Solutions to that problem are out of scope for this specification.</p></li>
+    <li><p>Establishment of a session might be delayed (e.g., because in Jingle it is desirable to start negotiating candidates as soon as possible but a user interface that prompts the receiving entity to explicitly approve of divulging presence will tend to a delay in call setup). As a result, it may be advantageous to have a way to configure unconditional sharing of session presence in certain deployments, at least within the same trust domain.</p></li>
+  </ol>
+
+<h2>8.
+       <a name="security" id="security">Security Considerations</a></h2>
+
+  <p>Because decloaking is a presence leak (albeit intentional), an XMPP client that implements the receiving side of this specification MUST disable sharing of session presence by default and MUST enable the feature only as a result of explicit user configuration. (Gateways and other non-user entities MAY divulge their own presence and capabilities unconditionally, if that is appropriate for the service policy at the gateway.)</p>
+
+<h2>9.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p>This document requires no interaction with the <span class="ref"><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id72470">14</a>].</p>
+<h2>10.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p>The XMPP Registrar is requested to issue an initial namespace of "urn:xmpp:decloak:0".</p>
+<h2>11.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;xs:schema
+  xmlns:xs='http://www.w3.org/2001/XMLSchema'
+  targetNamespace='urn:xmpp:decloak:0'
+  xmlns='urn:xmpp:decloak:0'
+  elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='decloak'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='reason' use='optional' type='xs:string'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+&lt;/xs:schema&gt;
+  </pre></div>
+<h2>12.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+  <p>The need for this protocol extension, and a rough proposal for solving the problem, were originally determined at XMPP Summit 5 in the summer of 2007. Thanks to Diana Cionoiu, Justin Karneges, and Justin Uberti for their input to those discussions.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0276<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.2<br />
+            Last Updated: 2012-07-11<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />
+                Dependencies: None<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT YET ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://gitorious.org/xmpp/xmpp/blobs/master/extensions/xep-0276.xml">HTML</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0276.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0276.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Simon McVittie</h3><p class="indent">
+        Email:
+        <a href="mailto:simon.mcvittie@collabora.co.uk">simon.mcvittie@collabora.co.uk</a><br />
+        JabberID: 
+        <a href="xmpp:simon.mcvittie@collabora.co.uk">simon.mcvittie@collabora.co.uk</a><br /></p><h3>Peter Saint-Andre</h3><p class="indent">
+        Email:
+        <a href="mailto:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        JabberID: 
+        <a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        URI: 
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p><h3>Robert McQueen</h3><p class="indent">
+        Email:
+        <a href="mailto:robert.mcqueen@collabora.co.uk">robert.mcqueen@collabora.co.uk</a><br />
+        JabberID: 
+        <a href="xmpp:robert.mcqueen@collabora.co.uk">robert.mcqueen@collabora.co.uk</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2012 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/">http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/</a>&gt; or obtained by writing to XMPP Standards Foundation, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id65070" id="nt-id65070">1</a>. XEP-0166: Jingle &lt;<a href="http://xmpp.org/extensions/xep-0166.html">http://xmpp.org/extensions/xep-0166.html</a>&gt;.</p><p><a name="nt-id65128" id="nt-id65128">2</a>. XEP-0115: Entity Capabilities &lt;<a href="http://xmpp.org/extensions/xep-0115.html">http://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-id65099" id="nt-id65099">3</a>. RFC 3261: Session Initiation Protocol (SIP) &lt;<a href="http://tools.ietf.org/html/rfc3261">http://tools.ietf.org/html/rfc3261</a>&gt;.</p><p><a name="nt-id71933" id="nt-id71933">4</a>. RFC 6121: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc6121">http://tools.ietf.org/html/rfc6121</a>&gt;.</p><p><a name="nt-id71962" id="nt-id71962">5</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id71984" id="nt-id71984">6</a>. XEP-0001: XMPP Extension Protocols &lt;<a href="http://xmpp.org/extensions/xep-0001.html">http://xmpp.org/extensions/xep-0001.html</a>&gt;.</p><p><a name="nt-id72050" id="nt-id72050">7</a>. RFC 6121: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc6121">http://tools.ietf.org/html/rfc6121</a>&gt;.</p><p><a name="nt-id72275" id="nt-id72275">8</a>. XEP-0167: Jingle RTP Sessions &lt;<a href="http://xmpp.org/extensions/xep-0167.html">http://xmpp.org/extensions/xep-0167.html</a>&gt;.</p><p><a name="nt-id72303" id="nt-id72303">9</a>. XEP-0071: XHTML-IM &lt;<a href="http://xmpp.org/extensions/xep-0071.html">http://xmpp.org/extensions/xep-0071.html</a>&gt;.</p><p><a name="nt-id72325" id="nt-id72325">10</a>. XEP-0085: Chat State Notifications &lt;<a href="http://xmpp.org/extensions/xep-0085.html">http://xmpp.org/extensions/xep-0085.html</a>&gt;.</p><p><a name="nt-id72345" id="nt-id72345">11</a>. XEP-0301: In-Band Real Time Text &lt;<a href="http://xmpp.org/extensions/xep-0301.html">http://xmpp.org/extensions/xep-0301.html</a>&gt;.</p><p><a name="nt-id72369" id="nt-id72369">12</a>. XEP-0234: Jingle File Transfer &lt;<a href="http://xmpp.org/extensions/xep-0234.html">http://xmpp.org/extensions/xep-0234.html</a>&gt;.</p><p><a name="nt-id72391" id="nt-id72391">13</a>. XEP-0095: Stream Initiation &lt;<a href="http://xmpp.org/extensions/xep-0095.html">http://xmpp.org/extensions/xep-0095.html</a>&gt;.</p><p><a name="nt-id72470" id="nt-id72470">14</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.2 (2012-07-11)</h4><div class="indent"><p>Back by popular demand; also changed namespace to decloak (again).</p> (psa)
+    </div><h4>Version 0.1 (2010-01-26)</h4><div class="indent"><p>Initial published version as accepted for publication by the XMPP Council; more fully described the reasons for using directed presence instead of presence subscriptions; changed requested namespace from decloak to temppres.</p> (psa)
+    </div><h4>Version 0.0.2 (2010-01-17)</h4><div class="indent"><p>Rewrote the introduction, clarified the security considerations, requested issuance of an appropriate URN from the XMPP Registrar.</p> (psa)
+    </div><h4>Version 0.0.1 (2010-01-05)</h4><div class="indent"><p>First draft.</p> (smcv/psa/rm)
+    </div></div><hr /><p>END</p></body></html>

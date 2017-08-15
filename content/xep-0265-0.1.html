@@ -1,0 +1,142 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0265: Out-of-Band Stream Data</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Out-of-Band Stream Data" /><meta name="DC.Creator" content="Dirk Meyer" /><meta name="DC.Description" content="This specification defines how to send parts of an XML stream over a direct connection between peers. This allows to send large stanzas or binary data without blocking the XML stream for other stanzas." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2009-04-02" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0265" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2010 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0265: Out-of-Band Stream Data</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines how to send parts of an XML stream over a direct connection between peers. This allows to send large stanzas or binary data without blocking the XML stream for other stanzas.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Dirk Meyer</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2010 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Deferred</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2009-04-02</td></tr></table><hr /><p style="color:red">WARNING: Consideration of this document has been <strong>Deferred</strong> by the XMPP Standards Foundation. Implementation of the protocol described herein is not recommended.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#proto">Protocol Flow</a><br />3.  <a href="#proto">Out-of-Band Data Stream</a><br />4.  <a href="#abort">Abort Content Sending</a><br />5.  <a href="#security">Security Considerations</a><br />6.  <a href="#iana">IANA Considerations</a><br />7.  <a href="#registrar">XMPP Registrar Considerations</a><br />8.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+    <p>XMPP uses one XML stream between two peers, either between client and server, between servers, or between clients directly. If a client sends a stanza to a client, either routed over the server or directly, it can not send another stanza at the same time. If an XMPP extension defines very large stanzas, the communication is blocked until this stanza is fully sent to the server. A client or server may also define a maximum stanza size for communication. A future extension to query a remote file server could create such huge stanzas: a directory listing with thousands of photos, each with additional metadata, could produce stanzas of one megabyte or longer. The same is true for TV listings of a remote TV tuner device. Besides text data, a stanza may also contain binary data Base64 encoded. This also increases the stanza size.</p>
+    <p>This document defines a mechanism to transmit parts of a stanza over a separate end-to-end connection using Jingle. XML data and binary data (without being Base64 encoded) can be transmitted over the external link to keep the actual XML stanza small.</p>
+  <h2>2.
+       <a name="proto" id="proto">Protocol Flow</a></h2>
+    <p>If a client wants to send a large stanza to a peer, it can remove large elements from the stanza and replace it with a &lt;oob/&gt; element of the 'urn:xmpp:jingle:apps:out-of-band:0' namespace.  The definition of "large" depends on the use case and available bandwidth of the stream to the server. It is RECOMMENDED to send stanzas smaller than 4096 Bytes directly because the overhead of the additional stream is too high. If a client knows in advance that it will send or receive several large stanzas or binary data it SHOULD open the out-of-band data stream. One larger chunk may not be worth opening a Jingle session. A client MUST NOT send In-Band Bytestream stanzas out of band because there may be a reason why it is an In-Band Bytestream and not something else such as SOCKS5.</p>
+    <p>Before a client sends such a stanza to its peer, it MUST open the out of band stream first. It has to initiate a Jingle session and MUST NOT send the stanza it wants to send until the out-of-band stream is open.  The following example is based on 'Discovering the Items Associated with a Jabber Entity' <span class="ref"><a href="http://xmpp.org/extensions/xep-0030.html">Service Discovery</a></span>  [<a href="#nt-id118994">1</a>].</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Requesting All Items</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='hamlet@example.com/denmark'
+    to='hamlet@example.com/bot'
+    id='hfgte45w'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#items'/&gt;
+&lt;/iq&gt;
+  </pre></div>
+    <p>Normally we would expect the peer to answer with an IQ return stanza with the list of items. But if the listing is very large, the client may decide to send it over an extra stream. Instead of sending the IQ result, it opens a Jingle session.</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Home Server Initiates Jingle Session</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='hamlet@example.com/bot'
+    to='hamlet@example.com/denmark'
+    id='xn28s7gk'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:0'&gt;
+          action='session-initiate'
+          initiator='hamlet@example.com/bot'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='oob'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:out-of-band:0'/&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:s5b:0'
+                 sid='vj3hs98y'
+        	 mode='tcp'&gt;
+        &lt;streamhost
+            jid='hamlet@example.com/bot'
+            host='192.168.4.1'
+            port='5086'/&gt;
+      &lt;/transport&gt;
+      &lt;security xmlns='urn:xmpp:jingle:security:xtls:0'&gt;
+        &lt;fingerprint&gt;RomeoX509CertificateHash&lt;/fingerprint&gt;
+        &lt;method name='x509'/&gt;
+      &lt;/security&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+  </pre></div>
+    <p>The clients open a Jingle session according to <span class="ref"><a href="http://xmpp.org/extensions/xep-0166.html">Jingle</a></span>  [<a href="#nt-id119045">2</a>] with a <span class="ref"><a href="http://xmpp.org/extensions/xep-0260.html">Jingle SOCKS5 Bytestreams Transport Method</a></span>  [<a href="#nt-id119035">3</a>]. For the sake of simplicity this protocol flow is not described here. If the clients opened the Out-of-Band Data Stream, the listing is sent over that stream and a reference is returned in the IQ result of the original request.</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. IQ Result with Out-of-Band Stream Data Reference</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='hamlet@example.com/bot'
+    to='hamlet@example.com/denmark'
+    id='hfgte45w'
+    type='result'&gt;
+  &lt;oob xmlns='urn:xmpp:jingle:apps:out-of-band:0'
+       id='hfgte45w-1'
+       size='6022'
+       hash='sha1+552da749930852c69ae5d2141d3766b1'
+       type='text/xml'/&gt;
+&lt;/iq&gt;
+  </pre></div>
+    <p>The receiver MUST replace the &lt;oob/&gt; element with the content with the given id from the Out-of-Band Data Stream. The size and hash arguments are optional, the type MUST be 'text/xml' since an IQ stanza MUST have one child element. The content send out of band MUST have a valid XML header &lt;?xml version='1.0' ?&gt; with one root element. The XML header is ignored and the root element MUST replace the &lt;oob&gt; element.</p>
+    <p>It is possible to use out of band data everywhere in the XML stream and not only as first element child of the IQ stanza. The XML schema MUST explicit allow the usage of the &lt;oob/&gt; element; it is not possible to replace any arbitrarily part of a stanza with the &lt;oob/&gt; element. The reason for this restriction is to keep implementations simpler if they do not have to expect out of band data everywhere and to keep the stream compliant to the XML schemas.</p>
+    <p>If the &lt;oob/&gt; element is not the top level child of an IQ or message stanza, the type attribute does not has to be 'text/xml' and may even be omitted. In that case the content with the given id send out of band MUST be treated as if it was embedded in the XML stream using Base64 encoding. This is useful for sending larger chunks of binary data.</p>
+  <h2>3.
+       <a name="proto" id="proto">Out-of-Band Data Stream</a></h2>
+    <p>The Out-of-Band Data Stream multiplexes several items into one stream to re-use the stream for several XML elements or binary data without blocking the out-of-band stream with one large item. This avoids negotiating a new Jingle session for each piece of data. The syntax is similar to HTTP 1.1 chunked transfer. Each chunk of data has a one line header with the number of bytes in hex of the data and the content identifier. The last chunk of each piece of content is always a chunk with a length of 0.</p>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Stream Data Definition</p><div class="indent"><pre class="prettyprint">
+stream         = *(chunk | last-chunk)
+chunk          = chunk-size id CRLF chunk-data CRLF
+hexdig-nonzero = %x31-39 ; "1"-"9"
+chunk-size     = hexdig-nonzero *HEXDIG
+id             = *(ALPHA | DIGIT)
+last-chunk     = 1*("0") id CRLF CRLF
+  </pre></div>
+    <p>In the given example the &lt;oob/&gt; element specifies that the query result is sent out of band and has a size of 6022 bytes. The out of band content requires a valid XML header which adds another 23 bytes. If each chunk has 4096 bytes (0x1000 in hex) the data is split into two chunks (4096 and 1949 bytes). The following data is sent over the out of band stream:</p>
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Stream Data with XEP-0030 Items</p><div class="indent"><pre class="prettyprint">
+1000 hfgte45w CRLF
+&lt;?xml version='1.0' ?&gt;
+&lt;query xmlns='http://jabber.org/protocol/disco#items'&gt;
+  ... 4096 Bytes including the XML header ... CRLF
+79d hfgte45w CRLF
+  ... Last 1949 Bytes ... CRLF
+0 hfgte45w CRLF CRLF
+  </pre></div>
+  <h2>4.
+       <a name="abort" id="abort">Abort Content Sending</a></h2>
+    <p>If a client is not not interested in the out of band data (anymore) it MAY abort the sending of a content with a given identifier to save bandwidth. This may happen for large binary data and the client was only interested in the first bytes, e.g. to detect the file type and that it can not decode it.</p>
+    <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Abort Content</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='hamlet@example.com/denmark'
+    to='hamlet@example.com/bot'
+    id='hfytewp9'
+    type='set'&gt;
+  &lt;abort xmlns='urn:xmpp:jingle:apps:out-of-band:0'
+         id='hfgte45w'/&gt;
+&lt;/iq&gt;
+  </pre></div>
+    <p>The peer SHOULD send a last chunk with the length of zero out of band and acknowledge the abortion.</p>
+    <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Acknowledge Abort</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='hamlet@example.com/bot'
+    to='hamlet@example.com/denmark'
+    id='hfytewp9'
+    type='result'/&gt;
+  </pre></div>
+  <h2>5.
+       <a name="security" id="security">Security Considerations</a></h2>
+    <p>The Jingle session SHOULD include TLS as specified in <span class="ref"><a href="http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption">Jingle XTLS</a></span>  [<a href="#nt-id125200">4</a>]. Even if the peers can not verify each others certificates, the leap of faith approach provides at least the same amount of security as if the data where send inside the XML stream.</p>
+  <h2>6.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+    <p>This document requires no interaction with the <span class="ref"><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id125234">5</a>].</p>
+  <h2>7.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+    <p>XMPP Registrar considerations will be provided in a later version of
+      this document.</p>
+  <h2>8.
+       <a name="schema" id="schema">XML Schema</a></h2>
+    <p>The XML schema will be provided in a later version of this document.</p>
+  <hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0265<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2009-04-02<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0166, XEP-0260<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0265.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0265.xml/rss.xml">RSS</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0265.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0265.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Dirk Meyer</h3><p class="indent">
+        Email:
+        <a href="mailto:dmeyer@tzi.de">dmeyer@tzi.de</a><br />
+        JabberID: 
+        <a href="xmpp:dmeyer@jabber.org">dmeyer@jabber.org</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2010 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XMPP Standards Foundation, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id118994" id="nt-id118994">1</a>. XEP-0030: Service Discovery &lt;<a href="http://xmpp.org/extensions/xep-0030.html">http://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id119045" id="nt-id119045">2</a>. XEP-0166: Jingle &lt;<a href="http://xmpp.org/extensions/xep-0166.html">http://xmpp.org/extensions/xep-0166.html</a>&gt;.</p><p><a name="nt-id119035" id="nt-id119035">3</a>. XEP-0260: Jingle SOCKS5 Bytestreams Transport Method &lt;<a href="http://xmpp.org/extensions/xep-0260.html">http://xmpp.org/extensions/xep-0260.html</a>&gt;.</p><p><a name="nt-id125200" id="nt-id125200">4</a>. Extensible Messaging and Presence Protocol (XMPP) End-to-End Encryption Using Transport Layer Security ("XTLS") &lt;<a href="http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption">http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption</a>&gt;.</p><p><a name="nt-id125234" id="nt-id125234">5</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2009-04-02)</h4><div class="indent"><p>Initial published version.</p> (psa)
+    </div><h4>Version 0.0.2 (2009-03-30)</h4><div class="indent"><p>Simplify Example; Restrict Usage; Add abort</p> (dm)
+    </div><h4>Version 0.0.1 (2009-03-08)</h4><div class="indent"><p>First draft</p> (dm)
+    </div></div><hr /><p>END</p></body></html>

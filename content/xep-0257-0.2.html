@@ -1,0 +1,232 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0257: Client Certificate Management for SASL EXTERNAL</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Client Certificate Management for SASL EXTERNAL" /><meta name="DC.Creator" content="Dirk Meyer" /><meta name="DC.Description" content="This specification defines a method to manage client certificates that can be used with SASL External to allow clients to log in without a password." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2009-02-12" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0257" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2012 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0257: Client Certificate Management for SASL EXTERNAL</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines a method to manage client certificates that can be used with SASL External to allow clients to log in without a password.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Dirk Meyer</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2012 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Deferred</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.2</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2009-02-12</td></tr></table><hr /><p style="color:red">WARNING: Consideration of this document has been <strong>Deferred</strong> by the XMPP Standards Foundation. Implementation of the protocol described herein is not recommended.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#manage">Certificate Management</a><br />   
+      2.1.  <a href="#add">Add X.509 Certificate</a><br />   
+      2.2.  <a href="#sect-id79848">Request a list of all Certificates</a><br />   
+      2.3.  <a href="#sect-id79878">Disable a Certificate</a><br />   
+      2.4.  <a href="#sect-id79902">Revoke a Certificate</a><br />3.  <a href="#sasl">SASL EXTERNAL</a><br />4.  <a href="#security">Security Considerations</a><br />   
+      4.1.  <a href="#sect-id79962">Stream Characteristics</a><br />   
+      4.2.  <a href="#sect-id79974">Changing the Password</a><br />5.  <a href="#iana">IANA Considerations</a><br />6.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      6.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      6.2.  <a href="#registrar-versioning">Protocol Versioning</a><br />7.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p>An XMPP client typically needs a user name and a password to log into an account. Many clients provide a mechanism to store these credentials to automatically log in into an account. While this practice is very user friendly, it is a security risk for some devices. Mobile devices like a phone or a laptop may get stolen, providing the thief with the required password. Mobile phones are particularly insecure: providing the password on the keypad for each log in is too complicated and the risk of losing the phone is high.</p>
+  <p>A solution to this problem is to allow a client to log in without knowing the password. XMPP as specified in <span class="ref"><a href="http://tools.ietf.org/html/rfc3920">RFC 3920</a></span>  [<a href="#nt-id72804">1</a>] and updated in <span class="ref"><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-id72824">2</a>] allows the use of any SASL mechanism (see <span class="ref"><a href="http://tools.ietf.org/html/rfc4422">RFC 4422</a></span>  [<a href="#nt-id72844">3</a>]) in the authentication of XMPP entities, including the SASL EXTERNAL mechanism. <span class="ref"><a href="http://xmpp.org/extensions/xep-0178.html">Best Practices for Use of SASL EXTERNAL</a></span>  [<a href="#nt-id72964">4</a>] defines the usage of X.509 certificates used in the TLS handshake.</p>
+  <p>XEP-0178 assumes that the certificates used for SASL EXTERNAL are signed by a trusted CA. This could be a problem for the average user: signing a certificate is both an expensive and a complicated procedure. If the device gets stolen, the user also needs to provide the required information to the CA to revoke the certificate, and the server needs to keep its list of revoked certificates up-to-date. The end-to-end security mechanism described in <span class="ref"><a href="http://xmpp.org/extensions/xep-0250.html">C2C Authentication Using TLS</a></span>  [<a href="#nt-id72873">5</a>] relies on self-signed certificates (although CA-issued certificates are allowed). A client capable of secure end-to-end communicate already has a self-signed X.509 certificate for that purpose. The same client certificate should be used for a client to log in. Since the certificates are not signed by a trusted CA, the server must be aware of the list of certificates that are used by the users' clients. This document describes how to manage the list of client certificates.</p>
+<h2>2.
+       <a name="manage" id="manage">Certificate Management</a></h2>
+  <p>From the user's point of view the initial client configuration is the same. The user needs to provide the user name and the password for the client to connect to the XMPP server. The main difference is that the client MUST NOT store the password for later use and MUST create an X.509 certificate for future logins. It does not matter if the certificate is self-signed or issued by a trusted third party.</p>
+  <div class="indent"><h3>2.1 <a name="add" id="add">Add X.509 Certificate</a></h3>
+    <p>After the client has logged in and created the certificate, it uploads the certificate to the server. The XML representation of the certificate from <span class="ref"><a href="http://xmpp.org/extensions/xep-0189.html">Public Key Publishing</a></span>  [<a href="#nt-id72905">6</a>] is used to describe a certificate. The client also SHOULD provide a name for the certificate to make it possible for the user to manage the different client certificates.</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Client Uploads an X.509 Certificate</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='hamlet@shakespeare.lit/denmark'
+    id='append'&gt;
+  &lt;append xmlns='urn:xmpp:saslcert:0'&gt;
+    &lt;name&gt;Mobile Client&lt;/name&gt;
+    &lt;keyinfo xmlns='urn:xmpp:tmp:pubkey'&gt;
+      &lt;name&gt;428b1358a286430f628da23fb33ddaf6e474f5c5&lt;/name&gt;
+      &lt;x509cert&gt;
+        MIICCTCCAXKgAwIBAgIJALhU0Id6xxwQMA0GCSqGSIb3DQEBBQUAMA4xDDAKBgNV
+        BAMTA2ZvbzAeFw0wNzEyMjgyMDA1MTRaFw0wODEyMjcyMDA1MTRaMA4xDDAKBgNV
+        BAMTA2ZvbzCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEA0DPcfeJzKWLGE22p
+        RMINLKr+CxqozF14DqkXkLUwGzTqYRi49yK6aebZ9ssFspTTjqa2uNpw1U32748t
+        qU6bpACWHbcC+eZ/hm5KymXBhL3Vjfb/dW0xrtxjI9JRFgrgWAyxndlNZUpN2s3D
+        hKDfVgpPSx/Zp8d/ubbARxqZZZkCAwEAAaNvMG0wHQYDVR0OBBYEFJWwFqmSRGcx
+        YXmQfdF+XBWkeML4MD4GA1UdIwQ3MDWAFJWwFqmSRGcxYXmQfdF+XBWkeML4oRKk
+        EDAOMQwwCgYDVQQDEwNmb2+CCQC4VNCHesccEDAMBgNVHRMEBTADAQH/MA0GCSqG
+        SIb3DQEBBQUAA4GBAIhlUeGZ0d0msNVxYWAXg2lRsJt9INHJQTCJMmoUeTtaRjyp
+        ffJtuopguNNBDn+MjrEp2/+zLNMahDYLXaTVmBf6zvY0hzB9Ih0kNTh23Fb5j+yK
+        QChPXQUo0EGCaODWhfhKRNdseUozfNWOz9iTgMGw8eYNLllQRL//iAOfOr/8
+      &lt;/x509cert&gt;
+    &lt;/keyinfo&gt;
+  &lt;/append&gt;
+&lt;/iq&gt;
+  </pre></div>
+    <p>The server either returns an empty result or an error. From now on the client can use that certificate to authenticate the user using SASL EXTERNAL.</p>
+    <p>The client adding the certificate does not need to be the client using it. A user may use a client to upload a certificate for a bot. The bot creates its certificate and private key, and the user uploads the certificate to the server (and may also sign the certificate outside the X.509 infrastructure to be used in XEP-0189). After that procedure the bot can log in to the XMPP network and even participate in secure end-to-end communication without ever knowing the user's password.</p>
+    <p>An optional element &lt;no-cert-management/&gt; inside the keyinfo element indicates that a client logged in with that certificate is not allowed to add or remove certificates from the list. A server MAY allow such a client to query the list of certificates.</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. X.509 Certificate Upload (no-cert-management)</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='hamlet@shakespeare.lit/denmark'
+    id='nocert'&gt;
+  &lt;append xmlns='urn:xmpp:saslcert:0'&gt;
+    &lt;name&gt;Simple Bot&lt;/name&gt;
+    &lt;keyinfo xmlns='urn:xmpp:tmp:pubkey'&gt;
+      &lt;name&gt;89d099a3428481cc63fe3fa44e7df2d002b4ce44&lt;/name&gt;
+      &lt;no-cert-management xmlns='urn:xmpp:saslcert:0'/&gt;
+      &lt;x509cert&gt;
+          ...
+      &lt;/x509cert&gt;
+    &lt;/keyinfo&gt;
+  &lt;/append&gt;
+&lt;/iq&gt;
+  </pre></div>
+  </div>
+  <div class="indent"><h3>2.2 <a name="sect-id79848" id="sect-id79848">Request a list of all Certificates</a></h3>
+    <p>A user may want to get a list of all certificates that can be used for SASL EXTERNAL. The client can query the list of the items by sending an items iq stanza.</p>
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Client requests List of X.509 Certificates</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='get'
+    from='hamlet@shakespeare.lit/denmark'
+    id='query'&gt;
+  &lt;items xmlns='urn:xmpp:saslcert:0'/&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p>The server then returns the list of all known certificates including the user provided name.</p>
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Server sends List of known X.509 Certificates</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result'
+    to='hamlet@shakespeare.lit/denmark'
+    id='query'&gt;
+  &lt;items xmlns='urn:xmpp:saslcert:0'&gt;
+    &lt;item id='428b1358a286430f628da23fb33ddaf6e474f5c5'&gt;
+      &lt;name&gt;Mobile Client&lt;/name&gt;
+      &lt;keyinfo xmlns='urn:xmpp:tmp:pubkey'&gt;
+        &lt;name&gt;428b1358a286430f628da23fb33ddaf6e474f5c5&lt;/name&gt;
+        &lt;x509cert&gt;
+	...
+        &lt;/x509cert&gt;
+      &lt;/keyinfo&gt;
+    &lt;/item&gt;
+    &lt;item id='571b23d99892f4566017426e92c377288ed6c983'&gt;
+      &lt;name&gt;Laptop&lt;/name&gt;
+      &lt;keyinfo xmlns='urn:xmpp:tmp:pubkey'&gt;
+        &lt;name&gt;571b23d99892f4566017426e92c377288ed6c983&lt;/name&gt;
+        &lt;x509cert&gt;
+	...
+        &lt;/x509cert&gt;
+      &lt;/keyinfo&gt;
+    &lt;/item&gt;
+  &lt;/items&gt;
+&lt;/iq&gt;
+  </pre></div>
+  </div>
+  <div class="indent"><h3>2.3 <a name="sect-id79878" id="sect-id79878">Disable a Certificate</a></h3>
+    <p>A client has to create a new certification before its current one expires. After the new certificate is added to the server, it MAY want to disable the old certificate to keep the list of certificates short. Without that, the list will grow indefinitely, making the certificate handling for the user more difficult. Once a certificate is removed it can no longer be used for SASL EXTERNAL. A server MAY automatically remove expired certificates for this list.</p>
+  <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Client disables an X.509 Certificate</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='hamlet@shakespeare.lit/denmark'
+    id='disable'&gt;
+  &lt;disable xmlns='urn:xmpp:saslcert:0'/&gt;
+    &lt;item id='428b1358a286430f628da23fb33ddaf6e474f5c5'/&gt;
+  &lt;/disable&gt;
+&lt;/iq&gt;
+  </pre></div>
+  </div>
+  <div class="indent"><h3>2.4 <a name="sect-id79902" id="sect-id79902">Revoke a Certificate</a></h3>
+    <p>The user may want to revoke a certificate from a stolen or compromised device. The mechanism is similar to disabling a certificate. The difference is that if a client is logged in with that compromised certificate using SASL EXTERNAL, the server SHOULD close the stream to that client forcing a log out of the client.</p>
+  <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Client revokes an X.509 Certificate</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='hamlet@shakespeare.lit/denmark'
+    id='revoke'&gt;
+  &lt;revoke xmlns='urn:xmpp:saslcert:0'/&gt;
+    &lt;item id='428b1358a286430f628da23fb33ddaf6e474f5c5'/&gt;
+  &lt;/revoke&gt;
+&lt;/iq&gt;
+  </pre></div>
+  </div>
+<h2>3.
+       <a name="sasl" id="sasl">SASL EXTERNAL</a></h2>
+  <p>The protocol flow is similar to the one described in XEP-0178. Only step 9 is different: the certificate does not need to be signed by a trusted entity if the certificate was uploaded by the user. The server still MUST reject the certificate if it is expired. In a company environment the server MAY only accept signed certificates; the behavior depends on the company's security policy. A free public XMPP server MUST allow self-signed certificates and certificates signed by a CA unknown to the server.</p>
+  <p>The client certificate SHOULD include a JID as defined in sections 17.2.1.2. and 17.2.1.3. in RFC 6120: a JID MUST be represented as an XmppAddr, i.e., as a UTF8String within an otherName entity inside the subjectAltName.</p>
+  <p class="caption"><a name="example-7" id="example-7"></a>Example 7. subjectAltName using the "id-on-xmppAddr" format</p><div class="indent"><pre class="prettyprint">
+    subjectAltName=otherName:id-on-xmppAddr;UTF8:hamlet@shakespeare.lit
+    </pre></div>
+  <p>If the subjectAltName contains a full JID the server MUST force the client to use the given resource during resource binding. The client is only allowed to use the provided resource name. If a client with the same resource name is currently logged in and that client is not forced to use that resource name, it SHOULD be logged out by the server.</p>
+<h2>4.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <div class="indent"><h3>4.1 <a name="sect-id79962" id="sect-id79962">Stream Characteristics</a></h3>
+    <p>This specification allows the user to manipulate an alternative way to log into the server. The certificates are not required to be signed and any certificate can be used. Therefore the server MUST reject any communication described in this document if the link between client and server is not secured with both STARTTLS and SASL to prevent a man-in-the-middle to modify the certificate.</p>
+  </div>
+  <div class="indent"><h3>4.2 <a name="sect-id79974" id="sect-id79974">Changing the Password</a></h3>
+    <p><span class="ref"><a href="http://xmpp.org/extensions/xep-0077.html">In-Band Registration</a></span>  [<a href="#nt-id80000">7</a>] defines a mechanism to change the password without knowing the current one. If the server supports password change it MUST return not-authorized for clients logged in using SASL EXTERNAL and MAY include a password change form requiring the old password.</p>
+    <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Password Change</p><div class="indent"><pre class="prettyprint">
+  &lt;iq type='set' to='shakespeare.lit' id='change1'&gt;
+    &lt;query xmlns='jabber:iq:register'&gt;
+      &lt;username&gt;hamlet&lt;/username&gt;
+      &lt;password&gt;newpass&lt;/password&gt;
+    &lt;/query&gt;
+  &lt;/iq&gt;
+      </pre></div>
+    <p>If the sending client has logged in using SASL EXTERNAL and the server supports XEP-0077 password changes it returns a form to change the password. If the client has logged in with the current password, the server MAY change the password without a form as specified in XEP-0077.</p>
+      <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Server Returns Password Change Form With Error</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='error' from='shakespeare.lit' to='hamlet@shakespeare.lit/denmark' id='change1'&gt;
+  &lt;query xmlns='jabber:iq:register'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Password Change&lt;/title&gt;
+      &lt;instructions&gt;Use this form to change your password.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;jabber:iq:register:changepassword&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field type='text-single' label='Username' var='username'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+      &lt;field type='text-private' label='Old Password' var='old_password'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+      &lt;field type='text-private' label='New Password' var='password'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/query&gt;
+  &lt;error code='405' type='cancel'&gt;
+    &lt;not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+     </pre></div>
+     <p>If a client is allowed to change the password without knowing the current password, the additional security provided by this document is compromised</p>
+  </div>
+<h2>5.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p>This document requires no interaction with the <span class="ref"><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id80064">8</a>].</p>
+<h2>6.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>6.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p>This specification defines the following XML namespace:</p>
+    <ul>
+      <li>urn:xmpp:saslcert:0</li>
+    </ul>
+    <p>Upon advancement of this specification from a status of Experimental to a status of Draft, the <span class="ref"><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id80117">9</a>] shall add the foregoing namespace to the registry located at &lt;<a href="http://xmpp.org/registrar/namespaces.html">http://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref"><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function</a></span>  [<a href="#nt-id80153">10</a>].</p>
+  </div>
+  <div class="indent"><h3>6.2 <a name="registrar-versioning" id="registrar-versioning">Protocol Versioning</a></h3>
+    <p>If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+<h2>7.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p>The XML schema will be provided in a later version of this document.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0257<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.2<br />
+            Last Updated: 2009-02-12<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0178, XEP-0189<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT YET ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://gitorious.org/xmpp/xmpp/blobs/master/extensions/xep-0257.xml">HTML</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0257.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0257.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Dirk Meyer</h3><p class="indent">
+        Email:
+        <a href="mailto:dmeyer@tzi.de">dmeyer@tzi.de</a><br />
+        JabberID: 
+        <a href="xmpp:dmeyer@jabber.org">dmeyer@jabber.org</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2012 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/">http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/</a>&gt; or obtained by writing to XMPP Standards Foundation, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id72804" id="nt-id72804">1</a>. RFC 3920: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc3920">http://tools.ietf.org/html/rfc3920</a>&gt;.</p><p><a name="nt-id72824" id="nt-id72824">2</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-id72844" id="nt-id72844">3</a>. RFC 4422: Simple Authentication and Security Layer (SASL) &lt;<a href="http://tools.ietf.org/html/rfc4422">http://tools.ietf.org/html/rfc4422</a>&gt;.</p><p><a name="nt-id72964" id="nt-id72964">4</a>. XEP-0178: Best Practices for Use of SASL EXTERNAL &lt;<a href="http://xmpp.org/extensions/xep-0178.html">http://xmpp.org/extensions/xep-0178.html</a>&gt;.</p><p><a name="nt-id72873" id="nt-id72873">5</a>. XEP-0250: C2C Authentication Using TLS &lt;<a href="http://xmpp.org/extensions/xep-0250.html">http://xmpp.org/extensions/xep-0250.html</a>&gt;.</p><p><a name="nt-id72905" id="nt-id72905">6</a>. XEP-0189: Public Key Publishing &lt;<a href="http://xmpp.org/extensions/xep-0189.html">http://xmpp.org/extensions/xep-0189.html</a>&gt;.</p><p><a name="nt-id80000" id="nt-id80000">7</a>. XEP-0077: In-Band Registration &lt;<a href="http://xmpp.org/extensions/xep-0077.html">http://xmpp.org/extensions/xep-0077.html</a>&gt;.</p><p><a name="nt-id80064" id="nt-id80064">8</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id80117" id="nt-id80117">9</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id80153" id="nt-id80153">10</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.2 (2009-02-12)</h4><div class="indent">
+      <ul>
+        <li>Added note about full JID in subjectAltName.</li>
+        <li>Added information about certificates signed by a CA.</li>
+        <li>Made it possible to restrict access with no-cert-management.</li>
+        <li>Updated the examples.</li>
+        <li>Split revoke command into disable and revoke.</li>
+        <li>Added more documentation including more detailed use cases.</li>
+        <li>Additional security considerations.</li>
+      </ul>
+     (dm)
+    </div><h4>Version 0.1 (2009-01-05)</h4><div class="indent"><p>Initial published version.</p> (psa)
+    </div><h4>Version 0.0.2 (2008-11-28)</h4><div class="indent"><p>Add Security Considerations, improve reference to XEP-0178.</p> (dm)
+    </div><h4>Version 0.0.1 (2008-11-18)</h4><div class="indent"><p>First draft.</p> (dm)
+    </div></div><hr /><p>END</p></body></html>

@@ -1,0 +1,663 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0189: Public Key Publishing</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="DC.Title" content="Public Key Publishing" /><meta name="DC.Creator" content="Ian Paterson" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Creator" content="Dirk Meyer" /><meta name="DC.Description" content="This specification defines a method by which an entity can publish its public keys over XMPP." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2009-03-08" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0189" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2009 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0189: Public Key Publishing</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines a method by which an entity can publish its public keys over XMPP.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Ian Paterson, Peter Saint-Andre, Dirk Meyer</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2009 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.9</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2009-03-08</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#keyinfo">The KeyInfo Format</a><br />   
+      2.1.  <a href="#x509">X.509 Certificate</a><br />   
+      2.2.  <a href="#openpgp">OpenPGP</a><br />   
+      2.3.  <a href="#signature">Signatures</a><br />3.  <a href="#pub">Public Key Publication via PEP</a><br />   
+      3.1.  <a href="#pub-create">Creating the Node</a><br />   
+      3.2.  <a href="#pub-publish">Publishing a Key</a><br />4.  <a href="#retrieve">Public Key Retrieval via PEP</a><br />5.  <a href="#request">Requesting Public Keys Directly From Another Entity</a><br />6.  <a href="#third">Requesting Public Keys Directly From a Third Party</a><br />7.  <a href="#send">Sending Public Keys Directly To Another Entity</a><br />8.  <a href="#sign">Signing Public Keys</a><br />9.  <a href="#management">Key Management Guidelines for Secure End-to-End Communication</a><br />10.  <a href="#support">Determining Support</a><br />11.  <a href="#security">Security Considerations</a><br />12.  <a href="#iana">IANA Considerations</a><br />13.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      13.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      13.2.  <a href="#registrar-versioning">Protocol Versioning</a><br />   
+      13.3.  <a href="#registrar-features">Service Discovery Features</a><br />14.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">This document defines different methods an entity MAY use for publishing its long-term public keys:</p>
+  <ul class="" style="">
+    <li class="" style="">Publishing public keys to a set of subscribers.</li>
+    <li class="" style="">Querying another entity for its public keys.</li>
+    <li class="" style="">Sign one key with another</li>
+  </ul>
+  <p class="" style="">An entity MAY have multiple public keys with different formats, signatures, algorithms, strengths and expiry dates. Each client used by a user MAY use different keys. Guidelines how to manage different public keys in included in this document.</p>
+<h2>2.
+       <a name="keyinfo" id="keyinfo">The KeyInfo Format</a></h2>
+  <p class="" style="">This document does not use the 'http://www.w3.org/2000/09/xmldsig#' namespace as specified in <span class="ref" style=""><a href="http://www.w3.org/TR/2002/REC-xmldsig-core-20020212/">XML Signature</a></span>  [<a href="#nt-id87681">1</a>] because it is too complicated and the complexity is not needed for this use case. The &lt;keyinfo/&gt; element defined in the 'urn:xmpp:pubkey:0' namespace (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number) is based on the ASCII output most cryptographic libraries support. It has two parts: the public key data and signatures from other keys (optional). The optional argument 'jid' SHOULD be set if the X.509 certificate or OpenPGP key does not belong to the user providing it to another.</p>
+  <div class="indent"><h3>2.1 <a name="x509" id="x509">X.509 Certificate</a></h3>
+    <p class="" style="">The public key data is the X.509 certificate in DER encoding. To be included in an XML stream the data is Base64 encoded.</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. X.509 Certificate</p><div class="indent"><pre class="prettyprint">
+&lt;keyinfo xmlns='urn:xmpp:pubkey:0'&gt;
+  &lt;x509cert&gt;
+    MIICCTCCAXKgAwIBAgIJALhU0Id6xxwQMA0GCSqGSIb3DQEBBQUAMA4xDDAKBgNV
+    BAMTA2ZvbzAeFw0wNzEyMjgyMDA1MTRaFw0wODEyMjcyMDA1MTRaMA4xDDAKBgNV
+    BAMTA2ZvbzCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEA0DPcfeJzKWLGE22p
+    RMINLKr+CxqozF14DqkXkLUwGzTqYRi49yK6aebZ9ssFspTTjqa2uNpw1U32748t
+    qU6bpACWHbcC+eZ/hm5KymXBhL3Vjfb/dW0xrtxjI9JRFgrgWAyxndlNZUpN2s3D
+    hKDfVgpPSx/Zp8d/ubbARxqZZZkCAwEAAaNvMG0wHQYDVR0OBBYEFJWwFqmSRGcx
+    YXmQfdF+XBWkeML4MD4GA1UdIwQ3MDWAFJWwFqmSRGcxYXmQfdF+XBWkeML4oRKk
+    EDAOMQwwCgYDVQQDEwNmb2+CCQC4VNCHesccEDAMBgNVHRMEBTADAQH/MA0GCSqG
+    SIb3DQEBBQUAA4GBAIhlUeGZ0d0msNVxYWAXg2lRsJt9INHJQTCJMmoUeTtaRjyp
+    ffJtuopguNNBDn+MjrEp2/+zLNMahDYLXaTVmBf6zvY0hzB9Ih0kNTh23Fb5j+yK
+    QChPXQUo0EGCaODWhfhKRNdseUozfNWOz9iTgMGw8eYNLllQRL//iAOfOr/8
+  &lt;/x509cert&gt;
+&lt;/keyinfo&gt;
+    </pre></div>
+  </div>
+  <div class="indent"><h3>2.2 <a name="openpgp" id="openpgp">OpenPGP</a></h3>
+    <p class="" style="">The public key data is the OpenPGP public key (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4880">RFC 4880</a></span>  [<a href="#nt-id87758">2</a>]) using binary output. Like X.509 certificates the data MUST be Base64 encoded to fit in an XML stream.</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. OpenPGP Public Key</p><div class="indent"><pre class="prettyprint">
+&lt;keyinfo xmlns='urn:xmpp:pubkey:0'
+         jid='romeo@montague.net'&gt;
+  &lt;pgpdata&gt;
+    mQGiBDsKPy8RBACG1vVC8+5jMbtr8YUSfL2ciIu/Zb7/dDhwFd4iFlH7BIEt3RjR
+    wmiCUw/pcL8LHav7L2L4/Yxm8peJxyK0c11tP5Mq8kG3v55BSkZzn3fwKilEYG1c
+    rkOPWMEHds3c8kLDn+WNyxrSpw10EyJSsXc0edBdl7eLHiNQsCNmPpZhvwCg8uCQ
+    ...
+    HDU4Qg9lslDyfa2pHqkweHvC/LmIxrZeCSxOgSMLV8bqbbra1n3F4vdqgc8VP8I2
+    o9wBSf3HMohGBBgRAgAGBQI7Cj82AAoJEE598tACtM5EuWIAn0tHJF+Bk7pPAngp
+    hFOdFgS8UBSAAJ9ZPviS2XDzrWRpiyKV+hDqO/WTHA==
+  &lt;/pgpdata&gt;
+&lt;/keyinfo&gt;
+    </pre></div>
+  </div>
+  <div class="indent"><h3>2.3 <a name="signature" id="signature">Signatures</a></h3>
+    <p class="" style="">Besides the data, a key can have one or more signatures. A signature can be used to sign an X.509 certificate with an OpenPGP key or the other way around. This makes it possible to verify a self-signed X.509 certificate with the OpenPGP web-of-trust. A second use case is the concept of user and client keys. A user MAY choose to use a different X.509 certificates for each client for <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption">Jingle XTLS</a></span>  [<a href="#nt-id87808">3</a>] or <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-meyer-xmpp-sasl-cert-management">Client Certificate Management for SASL EXTERNAL</a></span>  [<a href="#nt-id87833">4</a>]. All these client key can be signed by a user key. Once the user key is known, all clients can be verified. This XMPP based approach makes it possible to use self-signed certificates without setting up a CA (see <a href="#management">Key Management Guidelines for Secure End-to-End Communication</a>).</p>
+    <p class="" style="">The signature has an issuer and the signature data. The issuer contains the fingerprint of the key that was used to create the signature. An optional argument 'jid' SHOULD be set if the issuer has a different base JID than the key to sign. This makes it possible to find the issuer key using PEP (see <a href="#pub">Public Key Publication via PEP</a>).</p>
+    <p class="" style="">While OpenPGP defines how to sign a string, X.509 does not specify the hash algorithm. For X.509 the signature data MUST contain an attribute what hash and sign algorithms were used. This document only defines 'RSA-SHA1' at this time. To make it easier to use standard cryptographic libraries the hash MUST contain the ASN.1 BER SHA1 algorithm designator prefix required in PKCS1. See XML-SIG section 6.4.2 how to hash and sign a string using RSA-SHA1. In most cases the cryptographic library will automatically take care of this. The data to sign is the X.509 certificate in DER encoding or the OpenPGP binary string of the fingerprint (the provided key data without Base64 encoding).</p>
+    <p class="" style="">The next example contains an X.509 certificate signed by the key defined in the first example.</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. X.509 Certificate with external Signature</p><div class="indent"><pre class="prettyprint">
+&lt;keyinfo xmlns='urn:xmpp:pubkey:0'&gt;
+  &lt;x509cert&gt;
+    MIICXDCCAcWgAwIBAgIJAKBfLqul2lj3MA0GCSqGSIb3DQEBBQUAMCkxJzAlBgNV
+    BAMUHmRtZXllckBqYWJiZXIuY29tXDJmdGVzdGNsaWVudDAeFw0wODA5MDYxOTI0
+    MjVaFw0wOTA5MDYxOTI0MjVaMCkxJzAlBgNVBAMUHmRtZXllckBqYWJiZXIuY29t
+    XDJmdGVzdGNsaWVudDCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAwaRLyj7J
+    /mmliYhjEwGnRGRs6gmcPaIywEK2QLFz6c3/RmRabYbIOE0iZ22D33TguSNQBWfd
+    lweT3bBETUhd3yuCcqWO5Ptiq/6wulMlxVeV5mxwNP/IF94VPWj0jHbRJcU8ZhS4
+    UnX6R5q6OSfBGdUU4mYKdiaHpgqTAO9eeqUCAwEAAaOBizCBiDAdBgNVHQ4EFgQU
+    b8touIdFuXF5clv2I/S1aOOFdN4wWQYDVR0jBFIwUIAUb8touIdFuXF5clv2I/S1
+    aOOFdN6hLaQrMCkxJzAlBgNVBAMUHmRtZXllckBqYWJiZXIuY29tXDJmdGVzdGNs
+    aWVudIIJAKBfLqul2lj3MAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEFBQADgYEA
+    pA5tI1J9Qpn3jSoQctFksRLb2H3A48R3rU8/qnarwE/AyOvth3k3ulLEmhJBT+0S
+    mVb6WzrZEA/2plu7DhR8ylhuvJv6cAEIN+TPha3yzO2P8uoVZf7hdunOhMLl2Z6w
+    xEfiGI5X9OsaMeFOQa+B2C3uUVAMLbVV7Rp/qQkai1Y=
+  &lt;/x509cert&gt;
+  &lt;signature&gt;
+    &lt;issuer algo='sha1'&gt;428b1358a286430f628da23fb33ddaf6e474f5c5&lt;/issuer&gt;
+    &lt;value method='RSA-SHA1'&gt;
+      E3q/UkjRR3zcZMcIIoE2sSVKUATl26zyzO1Pmoe96p8apW91c3a0KqkQp1ZMBqXX
+      +e2ImqQ79CKv+9qzXitxx+V4EcniKN0ZsSR+9ZbfflxkOvmBa2rpq9hFE1NYyfuT
+      fsAZkRhAGlP7P5ELcvhqJ4WL6qBPYQU2NEnbVlcZSbA=
+    &lt;/value&gt;
+  &lt;/signature&gt;
+&lt;/keyinfo&gt;
+    </pre></div>
+  </div>
+<h2>3.
+       <a name="pub" id="pub">Public Key Publication via PEP</a></h2>
+  <p class="" style="">An entity SHOULD follow the best practices defined in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0222.html">Best Practices for Persistent Storage of Public Data via Publish-Subscribe</a></span>  [<a href="#nt-id80725">5</a>] to publish its long-term public keys via its own server. Processes for doing so are described in the following sections.</p>
+  <div class="indent"><h3>3.1 <a name="pub-create" id="pub-create">Creating the Node</a></h3>
+    <p class="" style="">If the pubkeys PEP node does not exist already then the entity needs to create it. The node MUST have a NodeID of "urn:xmpp:pubkey:0" (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number).</p>
+    <p class="" style="">The node MUST be configured as follows:</p>
+    <ul class="" style="">
+      <li class="" style="">Items published to the node are persistent (this is done by setting the "persist_items" option to true).</li>
+      <li class="" style="">Keys will be pushed to subscribers only when new keys are published, not when subscribers become newly available or when a new subscription is created (this is done by setting the "send_last_published_item" option to "never").</li>
+    </ul>
+    <p class="" style="">If the user wants to control access to his/her identity (see <a href="#security">Security Considerations</a>) then the node access model SHOULD be something other than "open" (this can be done by setting the "access_model" option to a value of "authorize", "presence", "roster", or "whitelist").</p>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Entity Creates Node</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    id='hfgt54ew'
+    type='set'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;create node='urn:xmpp:pubkey:0'/&gt;
+    &lt;configure&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#persist_items'&gt;
+          &lt;value&gt;1&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#send_last_published_item'&gt;
+          &lt;value&gt;never&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#access_model'&gt;
+          &lt;value&gt;roster&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#roster_groups_allowed'&gt;
+          &lt;value&gt;friends&lt;/value&gt;
+        &lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">Alternatively, if the entity's pubsub service supports both the "auto-create" and "publish-options" features, then the entity MAY create the node by publishing a key and in the first publish including a &lt;publish-options/&gt; element. However, note that not all pubsub services support this feature, since it is optional in <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0060.html">Publish-Subscribe</a></span>  [<a href="#nt-id88118">6</a>].</p>
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Entity Auto-Creates Node and Publishes an RSA Key</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    id='hfgt54ed'
+    type='set'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='urn:xmpp:pubkey:0'&gt;
+      &lt;item id='Juliet-PGP-Key-Hash'&gt;
+        &lt;keyinfo xmlns='urn:xmpp:pubkey:0'&gt;
+          &lt;openpgp&gt;PKP-Key-Base64-encoded&lt;/openpgp&gt;
+        &lt;/keyinfo&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+    &lt;configure&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#persist_items'&gt;
+          &lt;value&gt;1&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#send_last_published_item'&gt;
+          &lt;value&gt;never&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#access_model'&gt;
+          &lt;value&gt;roster&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#roster_groups_allowed'&gt;
+          &lt;value&gt;friends&lt;/value&gt;
+        &lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+  <div class="indent"><h3>3.2 <a name="pub-publish" id="pub-publish">Publishing a Key</a></h3>
+    <p class="" style="">The entity publishes a key by sending a pubsub publish request to the pubsub service.  A previously published key can be updated by re-publishing the key using the same ItemID. The value of the ItemID SHOULD be the fingerprint of the X.509 certificate or the OpenPGP key and SHOULD be written in lower case. Since X.509 has no standard fingerprint mechanisms, the SHA1 value in hex is SHOULD be used as ItemID. Therefore subscribers or other interested entities are able to request a single key by specifying its fingerprint (for example, when a subscriber is using <span class="ref">XTLS</span>).</p>
+    <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Entity Publishes an X.509 Certificate to its Server</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    id='gfy54e66'
+    type='set'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='urn:xmpp:pubkey:0'&gt;
+      &lt;item id='Juliet-X509-Cert-Hash'&gt;
+        &lt;keyinfo xmlns='urn:xmpp:pubkey:0'&gt;
+          &lt;x509cert&gt;
+            Certificate-in-DER-format-Base64-encoded
+          &lt;/x509cert&gt;
+          &lt;signature&gt;
+            &lt;issuer&gt;Juliet-PGP-Key-Hash&lt;/issuer&gt;
+            &lt;value&gt;
+              Signature-Base64-encoded
+            &lt;/value&gt;
+          &lt;/signature&gt;
+        &lt;/keyinfo&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">After the account owner publishes the key, the pubsub service shall send a notification to each subscriber or otherwise authorized and interested entity.</p>
+    <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Pubsub Service Sends Notification with Key</p><div class="indent"><pre class="prettyprint">
+&lt;message to='romeo@montague.net/garden' from='juliet@capulet.com' type='headline'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='urn:xmpp:pubkey:0'&gt;
+      &lt;item id='Juliet-X509-Cert-Hash'&gt;
+        &lt;keyinfo xmlns='urn:xmpp:pubkey:0'&gt;
+          &lt;x509cert&gt;
+            Certificate-in-DER-format-Base64-encoded
+          &lt;/x509cert&gt;
+          &lt;signature&gt;
+            &lt;issuer&gt;Juliet-PGP-Key-Hash&lt;/issuer&gt;
+            &lt;value&gt;
+              Signature-Base64-encoded
+            &lt;/value&gt;
+          &lt;/signature&gt;
+        &lt;/keyinfo&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+  &lt;addresses xmlns='http://jabber.org/protocol/address'&gt;
+    &lt;address type='replyto' jid='juliet@capulet.com/balcony'/&gt;
+  &lt;/addresses&gt;
+&lt;/message&gt;
+    </pre></div>
+    <p class="" style="">Note: The stanza containing the event notification (see example above) MAY also include 'replyto' data (as specified by the <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0033.html">Extended Stanza Addressing</a></span>  [<a href="#nt-id88216">7</a>] protocol) to provide an explicit association between the published data and the <span class="em">resource</span> that published it.</p>
+  </div>
+<h2>4.
+       <a name="retrieve" id="retrieve">Public Key Retrieval via PEP</a></h2>
+  <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Subscriber Requests Keys from Account</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.net/garden'
+    to='juliet@capulet.com'
+    id='hfgtredy'
+    type='get'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='urn:xmpp:pubkey:0'/&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Entity's Server Returns Keys to Subscriber</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com'
+    to='romeo@montague.net/garden'
+    id='hfgtredy'
+    type='result'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='urn:xmpp:pubkey:0'&gt;
+      &lt;item id='Juliet-PGP-Key-Hash'&gt;
+        &lt;keyinfo xmlns='urn:xmpp:pubkey:0'&gt;
+          &lt;pgpdata&gt;
+            PKP-Key-Base64-encoded
+          &lt;/pgpdata&gt;
+        &lt;/keyinfo&gt;
+      &lt;/item&gt;
+      &lt;item id='Juliet-X509-Cert-Hash'&gt;
+        &lt;keyinfo xmlns='urn:xmpp:pubkey:0'&gt;
+          &lt;x509cert&gt;
+            Certificate-in-DER-format-Base64-encoded
+          &lt;/x509cert&gt;
+        &lt;/keyinfo&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="caption"><a name="example-10" id="example-10"></a>Example 10. Subscriber Requests Specific Key</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.net/garden'
+    to='juliet@capulet.com'
+    id='gf654ewq'
+    type='get'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='urn:xmpp:pubkey:0'&gt;
+      &lt;item id='Juliet-X509-Cert-Hash'/&gt;
+    &lt;/items&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="caption"><a name="example-11" id="example-11"></a>Example 11. Entity's Server Returns Key to Subscriber</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com'
+    to='romeo@montague.net/garden'
+    id='gf654ewq'
+    type='result'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='urn:xmpp:pubkey:0'&gt;
+      &lt;item id='Juliet-X509-Cert-Hash'&gt;
+        &lt;keyinfo xmlns='urn:xmpp:pubkey:0'&gt;
+          &lt;x509cert&gt;
+            Certificate-in-DER-format-Base64-encoded
+          &lt;/x509cert&gt;
+        &lt;/keyinfo&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+  </pre></div>
+<h2>5.
+       <a name="request" id="request">Requesting Public Keys Directly From Another Entity</a></h2>
+  <p class="" style="">If an entity wishes to request the public keys of another entity and it cannot access the keys via <span class="ref">Personal Eventing via Pubsub</span>, then the entity MAY send an &lt;iq/&gt; of type 'get' to the other entity, containing an empty &lt;pubkeys/&gt; element qualified by the 'urn:xmpp:pubkey:0' namespace (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number).</p>
+  <p class="caption"><a name="example-12" id="example-12"></a>Example 12. Public keys request</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.net/garden'
+    to='juliet@capulet.com/balcony'
+    id='hfgt654s'
+    type='get'&gt;
+  &lt;pubkeys xmlns='urn:xmpp:pubkey:0'/&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">The other entity MUST make a careful access control decision before returning only those public keys for which it holds the corresponding private key (not necessarily the full list of keys being published via <span class="ref">Personal Eventing via Pubsub</span>). The client MAY also include the public key which was used to sign its keys even if it does not hold the private key. In that case the &lt;keyinfo/&gt; element MUST contain the 'jid' attribute of the public key even it is belongs to the same user.</p>
+  <p class="caption"><a name="example-13" id="example-13"></a>Example 13. Successful public keys response</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    to='romeo@montague.net/garden'
+    id='hfgt654s'
+    type='result'&gt;
+  &lt;pubkeys xmlns='urn:xmpp:pubkey:0'&gt;
+    &lt;keyinfo&gt;
+      &lt;x509cert&gt;Juliet-X509-Client-Cert&lt;/x509cert&gt;
+      &lt;signature&gt;
+        &lt;issuer algo='sha1'&gt;Juliet-X509-User-Cert-Hash&lt;/issuer&gt;
+        &lt;value method='RSA-SHA1'&gt;
+          Signature-Base64-encoded
+        &lt;/value&gt;
+      &lt;/signature&gt;
+    &lt;/keyinfo&gt;
+    &lt;keyinfo jid='juliet@capulet.com'&gt;
+      &lt;x509cert&gt;Juliet-X509-User-Cert&lt;/x509cert&gt;
+    &lt;/keyinfo&gt;
+    &lt;keyinfo&gt;
+      &lt;pgpdata&gt;Juliet-PGP-Key&lt;/pgpdata&gt;
+    &lt;/keyinfo&gt;
+  &lt;/pubkeys&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">If the receiving entity decides not to return the public keys, it MUST return an IQ error, which SHOULD be &lt;service-unavailable/&gt; (to avoid divulging presence to unauthorized entities), but MAY be some other appropriate error, such as &lt;forbidden/&gt; or &lt;not-allowed/&gt;:</p>
+  <p class="caption"><a name="example-14" id="example-14"></a>Example 14. Access to public keys denied</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    to='romeo@montague.net/garden'
+    id='hfgt654s'
+    type='error'&gt;
+  &lt;pubkeys xmlns='urn:xmpp:pubkey:0'/&gt;
+  &lt;error code='503' type='cancel'&gt;
+    &lt;service-unavailable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">An entity MAY request one or more specific public keys by specifying their fingerprints (see <a href="#pub">Public Key Publication via PEP</a>) as the content of &lt;fingerprint/&gt; child elements:</p>
+  <p class="caption"><a name="example-15" id="example-15"></a>Example 15. Specific public keys request</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    to='romeo@montague.net/garden'
+    id='54fgtyre'
+    type='get'&gt;
+  &lt;pubkeys xmlns='urn:xmpp:pubkey:0'&gt;
+    &lt;fingerprint algo='sha1'&gt;Juliet-X509-Cert-Hash&lt;/fingerprint&gt;
+    &lt;fingerprint&gt;Juliet-PKP-Hash&lt;/fingerprint&gt;
+  &lt;/pubkeys&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="caption"><a name="example-16" id="example-16"></a>Example 16. Successful specific public keys response</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    to='romeo@montague.net/garden'
+    id='54fgtyre'
+    type='result'&gt;
+  &lt;pubkeys xmlns='urn:xmpp:pubkey:0'&gt;
+    &lt;keyinfo&gt;
+      &lt;x509cert&gt;
+        Certificate-in-DER-format-Base64-encoded
+      &lt;/x509cert&gt;
+    &lt;/keyinfo&gt;
+    &lt;keyinfo&gt;
+      &lt;pgpdata&gt;
+        PKP-Key-Base64-encoded
+      &lt;/pgpdata&gt;
+    &lt;/keyinfo&gt;
+  &lt;/pubkeys&gt;
+&lt;/iq&gt;
+  </pre></div>
+<h2>6.
+       <a name="third" id="third">Requesting Public Keys Directly From a Third Party</a></h2>
+  <p class="" style="">An entity can request the public keys of another entity from a third party using the 'jid' attribute of the &lt;pubkeys/&gt; element to specify the JID that the keys belong to:</p>
+  <p class="caption"><a name="example-17" id="example-17"></a>Example 17. Requesting public keys from a third-party</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    to='romeo@montague.net/garden'
+    id='gftrse3w'
+    type='get'&gt;
+  &lt;pubkeys xmlns='urn:xmpp:pubkey:0' jid='benvolio@montague.net'/&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="caption"><a name="example-18" id="example-18"></a>Example 18. Third-party responds with public keys</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.net/garden'
+    to='juliet@capulet.com/balcony'
+    id='gftrse3w'
+    type='result'&gt;
+  &lt;pubkeys xmlns='urn:xmpp:pubkey:0' jid='benvolio@montague.net'&gt;
+    &lt;keyinfo jid='benvolio@montague.net'&gt;
+      ...
+    &lt;/keyinfo&gt;
+    &lt;keyinfo jid='benvolio@montague.net'&gt;
+      ...
+    &lt;/keyinfo&gt;
+  &lt;/pubkeys&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="caption"><a name="example-19" id="example-19"></a>Example 19. Third party has no copies of the keys</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.net/garden'
+    to='juliet@capulet.com/balcony'
+    id='gftrse3w'
+    type='error'&gt;
+  &lt;pubkeys xmlns='urn:xmpp:pubkey:0' jid='benvolio@montague.net'/&gt;
+  &lt;error code='404' type='cancel'&gt;
+    &lt;item-not-found xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+  </pre></div>
+<h2>7.
+       <a name="send" id="send">Sending Public Keys Directly To Another Entity</a></h2>
+  <p class="" style="">If an entity wishes to send public keys to another entity then it MAY include them in a &lt;message/&gt; stanza. The entity MAY use the 'jid' attribute of the &lt;keyinfo/&gt; element to specify the JID that the keys belong to. If no 'jid' attribute is specified then the other entity SHOULD assume the keys belong to the sender of the stanza.</p>
+  <p class="caption"><a name="example-20" id="example-20"></a>Example 20. Sending public keys</p><div class="indent"><pre class="prettyprint">
+&lt;message from='romeo@montague.net/garden'
+         to='juliet@capulet.com/balcony'&gt;
+  &lt;pubkeys xmlns='urn:xmpp:pubkey:0'&gt;
+    &lt;keyinfo&gt;
+      ...
+    &lt;/keyinfo&gt;
+    &lt;keyinfo jid='benvolio@montague.net'&gt;
+      ...
+    &lt;/keyinfo&gt;
+  &lt;/pubkeys&gt;
+&lt;/message&gt;
+  </pre></div>
+<h2>8.
+       <a name="sign" id="sign">Signing Public Keys</a></h2>
+  <p class="" style="">A client can add another client's X.509 certificate to the pubsub node or send it directly to another client, and the client wants that certificate signed with the user's private key. If the client is not in possession of the private key, it can send a 'sign' request to another client of the user having access to the certificate.</p>
+  <p class="caption"><a name="example-21" id="example-21"></a>Example 21. Client sends Signing Request</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/chamber'
+    to='juliet@capulet.com/balcony'
+    type='set'
+    id='hft65du8'&gt;
+  &lt;sign node='urn:xmpp:pubkey:0'&gt;
+    &lt;issuer algo='sha1'&gt;UserCertificateHash&lt;/issuer&gt;
+    &lt;pubkeys&gt;
+      &lt;keyinfo&gt;
+        &lt;x509cert&gt;
+          Certificate-in-DER-format-Base64-encoded
+        &lt;x509cert/&gt;
+      &lt;/keyinfo&gt;
+    &lt;pubkeys&gt;
+  &lt;/sign&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">The signing client SHOULD only accept signing requests from clients of the same user (sharing a bare JID) and it is RECOMMENDED to use a secure end-to-end communicate according to <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption">Jingle XTLS</a></span>  [<a href="#nt-id88500">8</a>] or <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0250.html">C2C Authentication Using TLS</a></span>  [<a href="#nt-id88533">9</a>] for serverless-messing.</p>
+  <p class="caption"><a name="example-22" id="example-22"></a>Example 22. Signing Client Returns Keys</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    to='juliet@capulet.com/chamber'
+    type='result'
+    id='hft65du8'&gt;
+  &lt;pubkeys&gt;
+    &lt;keyinfo&gt;
+      &lt;x509cert&gt;
+        Certificate-in-DER-format-Base64-encoded
+      &lt;x509cert/&gt;
+      &lt;signature&gt;
+        &lt;issuer algo='sha1'&gt;UserCertificateHash&lt;/issuer&gt;
+        &lt;value method='RSA-SHA1'&gt;
+          Signature-Base64-encoded
+        &lt;/value&gt;
+      &lt;/signature&gt;
+    &lt;/keyinfo&gt;
+  &lt;pubkeys&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="" style="">Possible error conditions are that the signing client does not have the requested private key, the client is not authorized to request a signature, or that the signing client requires a secure connection and the request was issued over an insecure link.</p>
+  <p class="caption"><a name="example-23" id="example-23"></a>Example 23. Error Conditions</p><div class="indent"><pre class="prettyprint">
+&lt;error code='404' type='cancel'&gt;
+  &lt;item-not-found xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+&lt;/error&gt;
+
+&lt;error type='auth'&gt;
+  &lt;forbidden xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+&lt;/error&gt;
+
+&lt;error type='cancel'&gt;
+  &lt;not-acceptable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;security-required xmlns='urn:xmpp:jingle:errors:0'/&gt;
+&lt;/error&gt;
+  </pre></div>
+<h2>9.
+       <a name="management" id="management">Key Management Guidelines for Secure End-to-End Communication</a></h2>
+  <p class="" style="">Different X.509 certificates for each client, a user X.509 certificate to sign client certificates, and secure communication with friends make the scenario quite confusing. This section provides guidelines how to manage the different public keys and what kind of key to sign. The desired use case is to manage for secure end-to-end communication as defined by <span class="ref">XTLS</span>.</p>
+  <ul class="" style="">
+    <li class="" style=""><p class="" style="">Each client has its own certificate. This certificate is most likely self-signed.</p></li>
+    <li class="" style=""><p class="" style="">The user has a user certificate and one or more clients can have access to the user's private key to sign certificates. To bootstrap the system, one client generates the certificate on behalf of the user.</p></li>
+    <li class="" style=""><p class="" style="">Users SHOULD sign all their client certificates with their user certificate. To accomplish this in a userfriendly way, the user MAY log into the account with more than one client simultaneously. One client MUST have the user's private key or is trusted to issue a 'sign' request. The two clients open a secure connection between themselves based on TLS-SRP (see <span class="ref">XTLS, Section 6</span>). After a secure communicate between the two clients is established, the client without the user certificate requests its certificate to be signed. After that it can be uploaded to the pubsub node. The new client SHOULD also request the user certificate to be able to validate signatures for other clients.</p></li>
+    <li class="" style=""><p class="" style="">If a client opens a secure connection to another user based on TLS-SRP, it SHOULD request the user certificate of its peer. It will either sign the certificate itself or ask another client with the user's private key to do so. The friend's user certificate can then be uploaded to the pubsub node of the user (not the friend). The &lt;keyinfo/&gt; element SHOULD contain the bare JID of the friend in the 'jid' attribute.</p></li>
+    <li class="" style=""><p class="" style="">If a client wants to open a secure end-to-end connection to another client of the same user, it SHOULD check the pubsub node for the certificate. The certificate MUST be signed by the user's certificate.</p></li>
+    <li class="" style=""><p class="" style="">If a client wants to open a secure end-to-end connection to a client of another user, it SHOULD check the its pubsub node for the friend's user certificate and the friend's pubsub node for the client certificate. The friend's user certificate MUST be signed by its own user certificate and the clients certificate MUST be signed by the friend's user certificate.</p></li>
+  </ul>
+  <p class="" style="">If a user possess an OpenPGP key, the user certificate SHOULD be signed with that key. This allows another users to verify the certificate based on the OpenPGP web-of-trust, and two users might be able to bootstrap a secure communicate without the usage of TLS-SRP.</p>
+<h2>10.
+       <a name="support" id="support">Determining Support</a></h2>
+  <p class="" style="">If an entity can sign certificates or OpenPGP keys with the user's private key, it MUST report that by including a service discovery feature of "urn:xmpp:pubkey:0:sign" in response to disco#info requests (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number).</p>
+  <p class="caption"><a name="example-24" id="example-24"></a>Example 24. Initial Service Discovery Information Request</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/chamber'
+    to='juliet@capulet.com/balcony'
+    id='gfd68yt4'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="caption"><a name="example-25" id="example-25"></a>Example 25. Service Discovery Information Response</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    to='juliet@capulet.com/chamber'
+    id='gfd68yt4'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;feature var='urn:xmpp:pubkey:0'/&gt;
+    &lt;feature var='urn:xmpp:pubkey:0:sign'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+  </pre></div>
+<h2>11.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">The reliable association between a user or entity and its public keys is beyond the scope of this document. However, each client SHOULD maintain its own secure library of the public keys (or the "fingerprints" of the keys) it associates with other users (not necessarily JIDs).</p>
+  <p class="" style="">Whenever public keys are published an identity is typically associated with a JID. Although the public keys are public information, it can be critically important for the user of the JID to keep his identity secret from all but a few specified people. Implementors MUST take great care to ensure that the identity of the user of a JID is never divulged to anyone except the entities who have been permitted by the user to access the public key.</p>
+  <p class="" style="">The usage of secure end-to-end communication is RECOMMENDED for exchanging public keys without a pubsub service.</p>
+<h2>12.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id88809">10</a>].</p>
+<h2>13.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>13.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:pubkey:0</li>
+    </ul>
+    <p class="" style="">Upon advancement of this specification to a status of Draft, the <span class="ref" style=""><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id88875">11</a>] shall add this namespace in the registry located at &lt;<a href="http://xmpp.org/registrar/namespaces.html">http://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function</a></span>  [<a href="#nt-id88916">12</a>].</p>
+  </div>
+  <div class="indent"><h3>13.2 <a name="registrar-versioning" id="registrar-versioning">Protocol Versioning</a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+  <div class="indent"><h3>13.3 <a name="registrar-features" id="registrar-features">Service Discovery Features</a></h3>
+    <p class="" style="">The XMPP Registrar shall include the following features in its registry of service discovery features (see &lt;<a href="http://xmpp.org/registrar/disco-features.html">http://xmpp.org/registrar/disco-features.html</a>&gt;), where the string "urn:xmpp:pubkey:0" shall be replaced with the URN issued by the XMPP Registrar:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;var&gt;
+  &lt;name&gt;urn:xmpp:pubkey:0:sign&lt;/name&gt;
+  &lt;desc&gt;The client is in possession of the user's private client to sign certificates.&lt;/desc&gt;
+  &lt;doc&gt;XEP-0189&lt;/doc&gt;
+&lt;/var&gt;
+    </pre></div>
+  </div>
+<h2>14.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:pubkey:0'
+    xmlns='urn:xmpp:pubkey:0'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='pubkeys'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:choice&gt;
+        &lt;xs:element ref='fingerprint'/&gt;
+        &lt;xs:element ref='keyinfo'/&gt;
+      &lt;/xs:choice&gt;
+      &lt;xs:attribute name='jid' type='xs:string' use='optional'/&gt;
+      &lt;xs:anyAttribute namespace='##any' processContents='lax'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='keyinfo'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:element name='name' minOccurs='1' maxOccurs='1' type='xs:string'/&gt;
+      &lt;xs:choice minOccurs='0' maxOccurs='1'&gt;
+        &lt;xs:element name='x509cert' type='xs:string'/&gt;
+        &lt;xs:element name='pgpdata' type='xs:string'/&gt;
+      &lt;/xs:choice&gt;
+      &lt;xs:element ref='signature' minOccurs='0' maxOccurs='unbounded'/&gt;
+      &lt;xs:attribute name='jid' type='xs:string' use='optional'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='fingerprint'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='xs:string'&gt;
+          &lt;xs:attribute name='algo' type='xs:string' use='optional'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='signature'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element ref='issuer'/&gt;
+        &lt;xs:element ref='value'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='issuer'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='xs:string'&gt;
+          &lt;xs:attribute name='algo' type='xs:string' use='optional'/&gt;
+          &lt;xs:attribute name='jid' type='xs:string' use='optional'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='value'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='xs:string'&gt;
+          &lt;xs:attribute name='method' type='xs:string' use='optional'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='sign'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element ref='issuer'/&gt;
+        &lt;xs:element ref='pubkeys'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+&lt;/xs:schema&gt;
+  </pre></div>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0189<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.9<br />
+            Last Updated: 2009-03-08<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0060, XEP-0163<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0189.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0189.xml/rss.xml">RSS</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Ian Paterson</h3><p class="indent">
+        Email:
+        <a href="mailto:ian.paterson@clientside.co.uk">ian.paterson@clientside.co.uk</a><br />
+        JabberID: 
+        <a href="xmpp:ian@zoofy.com">ian@zoofy.com</a><br /></p><h3>Peter Saint-Andre</h3><p class="indent">
+        Email:
+        <a href="mailto:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        JabberID: 
+        <a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        URI: 
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p><h3>Dirk Meyer</h3><p class="indent">
+        Email:
+        <a href="mailto:dmeyer@tzi.de">dmeyer@tzi.de</a><br />
+        JabberID: 
+        <a href="xmpp:dmeyer@jabber.org">dmeyer@jabber.org</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2009 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XMPP Standards Foundation, c/o Peter Saint-Andre, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id87681" id="nt-id87681">1</a>. XML Signature Syntax and Processing &lt;<a href="http://www.w3.org/TR/2002/REC-xmldsig-core-20020212/">http://www.w3.org/TR/2002/REC-xmldsig-core-20020212/</a>&gt;.</p><p><a name="nt-id87758" id="nt-id87758">2</a>. RFC 4880: OpenPGP Message Format &lt;<a href="http://tools.ietf.org/html/rfc4880">http://tools.ietf.org/html/rfc4880</a>&gt;.</p><p><a name="nt-id87808" id="nt-id87808">3</a>. Extensible Messaging and Presence Protocol (XMPP) End-to-End Encryption Using Transport Layer Security ("XTLS") &lt;<a href="http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption">http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption</a>&gt;.</p><p><a name="nt-id87833" id="nt-id87833">4</a>. Management and Use of Client Certificates for the Extensible Messaging and Presence Protocol (XMPP) &lt;<a href="http://tools.ietf.org/html/draft-meyer-xmpp-sasl-cert-management">http://tools.ietf.org/html/draft-meyer-xmpp-sasl-cert-management</a>&gt;.</p><p><a name="nt-id80725" id="nt-id80725">5</a>. XEP-0222: Best Practices for Persistent Storage of Public Data via Publish-Subscribe &lt;<a href="http://xmpp.org/extensions/xep-0222.html">http://xmpp.org/extensions/xep-0222.html</a>&gt;.</p><p><a name="nt-id88118" id="nt-id88118">6</a>. XEP-0060: Publish-Subscribe &lt;<a href="http://xmpp.org/extensions/xep-0060.html">http://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-id88216" id="nt-id88216">7</a>. XEP-0033: Extended Stanza Addressing &lt;<a href="http://xmpp.org/extensions/xep-0033.html">http://xmpp.org/extensions/xep-0033.html</a>&gt;.</p><p><a name="nt-id88500" id="nt-id88500">8</a>. Extensible Messaging and Presence Protocol (XMPP) End-to-End Encryption Using Transport Layer Security ("XTLS") &lt;<a href="http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption">http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption</a>&gt;.</p><p><a name="nt-id88533" id="nt-id88533">9</a>. XEP-0250: C2C Authentication Using TLS &lt;<a href="http://xmpp.org/extensions/xep-0250.html">http://xmpp.org/extensions/xep-0250.html</a>&gt;.</p><p><a name="nt-id88809" id="nt-id88809">10</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id88875" id="nt-id88875">11</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id88916" id="nt-id88916">12</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><div class="indent"><h4>Version 0.9 (2009-03-08)</h4><div class="indent"><p class="" style="">Required specification of an algorithm for elements with hashes; removed fingerprint in &lt;keyinfo/&gt;; added sign request; added guidelines for key management; improved examples; changed namespace from urn:xmpp:tmp:pubkey to urn:xmpp:pubkey:0.</p> (dm/psa)
+    </div><h4>Version 0.8 (2008-09-08)</h4><div class="indent"><p class="" style="">Change KeyInfo element from W3C XML Signature to ASCII and add signature support</p> (dm)
+    </div><h4>Version 0.7 (2008-03-03)</h4><div class="indent"><p class="" style="">Changed temporary namespace per XEP-0053 procedures; corrected several small errors in the text and examples.</p> (psa)
+    </div><h4>Version 0.6 (2007-08-15)</h4><div class="indent"><p class="" style="">More clearly explained node creation and key publication workflows.</p> (psa)
+    </div><h4>Version 0.5 (2007-03-05)</h4><div class="indent"><p class="" style="">Merged node creation and first publish examples; recommended the value of each &lt;KeyName/&gt; element and id attribute is set to the key fingerprint; added fprint element and more examples</p> (ip)
+    </div><h4>Version 0.4 (2006-11-27)</h4><div class="indent"><p class="" style="">Added jid attribute and send use case; changed namespace</p> (ip)
+    </div><h4>Version 0.3 (2006-11-20)</h4><div class="indent"><p class="" style="">Specified that PEP nodes SHOULD be persistent</p> (ip)
+    </div><h4>Version 0.2 (2006-09-29)</h4><div class="indent"><p class="" style="">Replaced pubkey and key elements with the KeyInfo element defined in W3C XML Signature</p> (ip)
+    </div><h4>Version 0.1 (2006-07-18)</h4><div class="indent"><p class="" style="">Initial version.</p> (ip)
+    </div></div><hr /><p>END</p></body></html>

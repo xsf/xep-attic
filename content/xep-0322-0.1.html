@@ -1,0 +1,818 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0322: Efficient XML Interchange (EXI) Format</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link href="../prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="../prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Efficient XML Interchange (EXI) Format" /><meta name="DC.Creator" content="Peter Waher" /><meta name="DC.Description" content="This specification describes how EXI compression can be used in XMPP networks." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2013-04-16" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0322" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 - 2013 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0322: Efficient XML Interchange (EXI) Format</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification describes how EXI compression can be used in XMPP networks.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Peter Waher</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 - 2013 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2013-04-16</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#usecases">Use Cases</a><br />   
+      2.1.  <a href="#sect-id126875">Detecting support</a><br />   
+      2.2.  <a href="#sect-id134133">Invalid setup</a><br />   
+      2.3.  <a href="#sect-id134150">Proposing compression parameters</a><br />   
+      2.4.  <a href="#sect-id134232">Uploading new schema files</a><br />   
+      2.5.  <a href="#sect-id134324">Uploading compressed schema files</a><br />   
+      2.6.  <a href="#sect-id134536">Downloading new schema files on server</a><br />   
+      2.7.  <a href="#sect-id134658">Start compression</a><br />3.  <a href="#impl">Implementation Notes</a><br />   
+      3.1.  <a href="#sect-id134715">EXI options</a><br />   
+      3.2.  <a href="#sect-id134908">Transmission of EXI bodies and Session-wide Buffers</a><br />   
+      3.3.  <a href="#sect-id126539">Preserving prefixes</a><br />   
+      3.4.  <a href="#sect-id126564">Networks containing clients having limited memory</a><br />   
+      3.5.  <a href="#sect-id126582">Caching schema files</a><br />   
+      3.6.  <a href="#sect-id135107">Uploading vs. Downloading schemas</a><br />   
+      3.7.  <a href="#sect-id135132">Server decompression and recompression vs. binary forwarding</a><br />4.  <a href="#security">Security Considerations</a><br />5.  <a href="#iana">IANA Considerations</a><br />6.  <a href="#registrar">XMPP Registrar Considerations</a><br />7.  <a href="#schema">XML Schema</a><br />8.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+        <p>
+            The Efficient XML Interchange (EXI) Format  [<a href="#nt-id126800">1</a>] is an
+            efficient way to compress XML documents and XML fragments. This document provides information on how EXI can be used in XMPP streams to efficiently compress data transmitted between
+            the server and the client. For certain applications (like applications in sensor networks) EXI is a vital component, decreasing packet size enabling sensors with limited memory to
+            communicate efficiently. The strong support in EXI for generating efficient stubcodes is also vital to build efficient code in constrained devices.
+        </p>
+        <p>
+            Activating EXI compression requires a handshake to take place prior, where the server and client agree on a set of parameters. Some of these parameters may increase the compression ratio,
+            at the cost of processing power and readability. These parameters include:
+        </p>
+        <ul>
+            <li>Schemas to use.</li>
+            <li>EXI version number.</li>
+            <li>Data alignment (bit-packed, byte-alignment, pre-compression).</li>
+            <li>If EXI-compressed data should be further compressed using additional compression.</li>
+            <li>Strict or loose adherence to schemas.</li>
+            <li>If comments, processing instructions, dtd:s, prefixes, lexical values, etc. should be preserved.</li>
+            <li>If self-contained elements should be allowed.</li>
+            <li>Alternate data type representations for types values.</li>
+            <li>Block size for EXI compression.</li>
+            <li>Maximum string length of value content items in string tables.</li>
+            <li>Value partition capacity.</li>
+        </ul>
+        <p>
+            These parameters will be discussed in greater depth in the following sections. There are also default values that can be used to commence evaluating EXI compression.
+        </p>
+        <p>
+            The single most important property to agree on however, is the set of schemas to use during EXI compression. EXI compresses XML much more efficiently if schemas exist
+            describing the format of the expected XML. Since the server is not supposed to know all possible XML schemas, a mechanism is provided in this document whereby schemas can be
+            interchanged, so that the server can adapt its compression to the needs of the client.
+        </p>
+    <h2>2.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+        <div class="indent"><h3>2.1 <a name="sect-id126875" id="sect-id126875">Detecting support</a></h3>
+            <p>
+                This XEP is based on <span class="ref"><a href="http://xmpp.org/extensions/xep-0138.html">Stream Compression</a></span>  [<a href="#nt-id134116">2</a>]. When the client connects to the XMPP Server, it will receive a list of features supported by the server:
+            </p>
+            <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Search Features</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;stream:features&gt;
+        &lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+        &lt;compression xmlns='http://jabber.org/features/compress'&gt;
+            &lt;method&gt;zlib&lt;/method&gt;
+            &lt;method&gt;lzw&lt;/method&gt;
+            &lt;method&gt;exi&lt;/method&gt;
+        &lt;/compression&gt;
+    &lt;/stream:features&gt;
+            </pre></div>
+            <p>
+                Support for EXI compression is detected by the existence of the <span class="strong">exi</span> compression method in the <span class="strong">features</span> stanza.
+            </p>
+        </div>
+        <div class="indent"><h3>2.2 <a name="sect-id134133" id="sect-id134133">Invalid setup</a></h3>
+            <p>
+                If the client attempts to activate an EXI stream at this point, before the negotiation of EXI properties has been performed, the server must respond with a
+                <span class="strong">setup-failed</span> response.
+            </p>
+            <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Invalid setup</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;compress xmlns='http://jabber.org/protocol/compress'&gt;
+        &lt;method&gt;exi&lt;/method&gt;
+    &lt;/compress&gt;
+ 
+    &lt;failure xmlns='http://jabber.org/protocol/compress'&gt;
+        &lt;setup-failed/&gt;
+    &lt;/failure&gt;
+            </pre></div>
+        </div>
+        <div class="indent"><h3>2.3 <a name="sect-id134150" id="sect-id134150">Proposing compression parameters</a></h3>
+            <p>
+                When the client decides to activate EXI compression, it sends a <span class="strong">setup</span> stanza containing parameter proposals to the server as follows:
+            </p>
+            <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Proposing compression parameters</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;setup xmlns='http://jabber.org/protocol/compress/exi' version='1' strict='true' blockSize='1024' valueMaxLength='32' valuePartitionCapacity='100'&gt;
+        &lt;schema ns='urn:xmpp:sn' bytes='8092' md5Hash='18829242ca7a72a552a7e15af5b9e44d'/&gt;
+        &lt;schema ns='urn:xmpp:sn:provisioning' bytes='6303' md5Hash='e5301add51f3b24c15a71256b53daa47'/&gt;
+    &lt;/setup&gt;
+            </pre></div>
+            <p>
+                The server in turn responds with a <span class="strong">setupResponse</span> stanza containing the parameters it can accept, based on the initial values provided by the client.
+                Any buffer sizes, etc., may have been changed, but only lowered, never raised.
+            </p>
+            <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Unable to accommodate parameters</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;setupResponse xmlns='http://jabber.org/protocol/compress/exi' version='1' strict='true'
+                   blockSize='1024' valueMaxLength='32' valuePartitionCapacity='100'&gt;
+        &lt;schema ns='urn:xmpp:sn' bytes='8092' md5Hash='18829242ca7a72a552a7e15af5b9e44d'/&gt;
+        &lt;missingSchema ns='urn:xmpp:sn:provisioning' bytes='6303' md5Hash='e5301add51f3b24c15a71256b53daa47'/&gt;
+    &lt;/setupResponse&gt;
+            </pre></div>
+            <p>
+                <span class="strong">Note:</span> Schema files are identified using three properties: Its <span class="strong">target namespace</span>, its <span class="strong">byte size</span> and its
+                <span class="strong">MD5 hash</span>. The <span class="strong">MD5 hash</span> provides a way to detect small changes in the file, even if the byte size and namespace are the same.
+            </p>
+            <p>
+                Schema files that the server does not have (based on namespace, byte size and MD5 hash) are marked with the <span class="strong">missingSchema</span> element instead of the 
+                normal <span class="strong">schema</span> element.
+            </p>
+            <p>
+				At this point the client can choose to abort the EXI enablement sequence, if it cannot accommodate itself with the proposed parameter settings provided by the server.
+				The XMPP session will continue to work in its current state. Aborting does not require taking further action from the client.
+			</p>
+        </div>
+        <div class="indent"><h3>2.4 <a name="sect-id134232" id="sect-id134232">Uploading new schema files</a></h3>
+            <p>
+                If the server lacks information about a schema file, it is specified in the response through the <span class="strong">missingSchema</span> elements. At this point, the client can
+				either choose to accept that these schema files are not available, making compression less efficient, or choose to upload the missing schema files to the server. Of course,
+				uploading schema files would require the device to have sufficient buffers and memory to store and upload the schema files in the first place. (If it is not possible to upload the
+				schema files, consideration should be given to installing the schema files manually at the server.)
+			</p>
+            <p>
+                To upload a schema file, the client simply sends the schema file using an <span class="strong">uploadSchema</span> element, as follows:
+            </p>
+            <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Uploading schema file</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;uploadSchema xmlns='http://jabber.org/protocol/compress/exi' contentType='Text'&gt;
+        PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nVVRGLTgnPz4NCjx4czpzY2hlbWENCiAgICB4
+        bWxuczp4cz0naHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEnDQogICAgdGFyZ2V0TmFt
+        ZXNwYWNlPSd1cm46eG1wcDpzbjpwcm92aXNpb25pbmcnDQogICAgeG1sbnM9J3Vybjp4bXBwOnNu
+        
+        ...
+        
+        dmlsZWdlJz4NCgkJPHhzOmF0dHJpYnV0ZSBuYW1lPSdpZCcgdHlwZT0nUHJpdmlsZWdlSWQnIHVz
+        ZT0ncmVxdWlyZWQnLz4NCgk8L3hzOmNvbXBsZXhUeXBlPg0KIA0KPC94czpzY2hlbWE+DQo=
+    &lt;/uploadSchema&gt;
+            </pre></div>
+            <p>
+                The schema itself is sent using base64 encoding to the server. This is to make sure a binary exact copy is transferred, maintaining encoding, processing instructions, etc. The
+                server then computes the <span class="strong">target namespace</span>, <span class="strong">byte size</span> and <span class="strong">MD5 Hash</span> from the sent schema file.
+            </p>
+            <p>
+                If the client desires, it can test the EXI setup again. This is optional, but can be used to test that uploading the schema files, and any new property values
+                are accepted by the server.
+            </p>
+            <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Testing newly uploaded schema files</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;setup xmlns='http://jabber.org/protocol/compress/exi' version='1' strict='true' blockSize='1024' valueMaxLength='32' valuePartitionCapacity='100'&gt;
+        &lt;schema ns='urn:xmpp:sn' bytes='8092' md5Hash='18829242ca7a72a552a7e15af5b9e44d'/&gt;
+        &lt;schema ns='urn:xmpp:sn:provisioning' bytes='6303' md5Hash='e5301add51f3b24c15a71256b53daa47'/&gt;
+    &lt;/setup&gt;
+            </pre></div>
+            <p>
+                And the server should then respond:
+            </p>
+            <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Agreement between client and server</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;setupResponse xmlns='http://jabber.org/protocol/compress/exi' version='1' strict='true' 
+                   blockSize='1024' valueMaxLength='32' valuePartitionCapacity='100' agreement='true'&gt;
+        &lt;schema ns='urn:xmpp:sn' bytes='8092' md5Hash='18829242ca7a72a552a7e15af5b9e44d'/&gt;
+        &lt;schema ns='urn:xmpp:sn:provisioning' bytes='6303' md5Hash='e5301add51f3b24c15a71256b53daa47'/&gt;
+    &lt;/setupResponse&gt;
+            </pre></div>
+            <p>
+                Note the <span class="strong">agreement</span> attribute in the response this time. The server must set this attribute to true if it agrees with the proposal from the client.
+                The client in turn can check this attribute as a quick way to check if agreement exists.
+            </p>
+        </div>
+		<div class="indent"><h3>2.5 <a name="sect-id134324" id="sect-id134324">Uploading compressed schema files</a></h3>
+			<p>
+				The <span class="strong">uploadSchema</span> command has an optional attribute called <span class="strong">contentType</span> that can be used to send different types of documents 
+				to the server. This is not a MIME content type, but an enumeration with the following options:
+			</p>
+			<div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: contentType values</p><table border="1" cellpadding="3" cellspacing="0">
+				<tr class="body">
+					<th>Value</th>
+					<th>Description</th>
+				</tr>
+				<tr class="body">
+					<td>Text</td>
+					<td>The schema is sent as plain text. If no encoding is provided in the XML header of the schema file, UTF-8 encoding is assumed. This is the default value.</td>
+				</tr>
+				<tr class="body">
+					<td>ExiBody</td>
+					<td>The schema file is sent as an EXI compressed file, but only the body is sent. *</td>
+				</tr>
+				<tr class="body">
+					<td>ExiDocument</td>
+					<td>The schema file is sent as an EXI compressed file. The entire file, including Exi header is provided. *</td>
+				</tr>
+			</table></div>
+			<p>
+				(*) These options assume the following set of default EXI options are used. It is assumed the XMPP server has more capabilities than the client, so the following
+				set of options must be supported by the XMPP server. The schema files can be precompressed and stored as binary files on the client for easier transmission.
+			</p>
+			<div class="indent"><p class="caption"><a name="table-2" id="table-2"></a>Table 2: Default EXI options</p><table border="1" cellpadding="3" cellspacing="0">
+				<tr class="body">
+					<th>Option</th>
+					<th>Default value</th>
+				</tr>
+				<tr class="body">
+					<td>Version</td>
+					<td>1</td>
+				</tr>
+				<tr class="body">
+					<td>alignment</td>
+					<td>bit-packed</td>
+				</tr>
+				<tr class="body">
+					<td>compression</td>
+					<td>false</td>
+				</tr>
+				<tr class="body">
+					<td>strict</td>
+					<td>false</td>
+				</tr>
+				<tr class="body">
+					<td>fragment</td>
+					<td>false</td>
+				</tr>
+				<tr class="body">
+					<td>preserve</td>
+					<td>all false</td>
+				</tr>
+				<tr class="body">
+					<td>selfContained</td>
+					<td>false</td>
+				</tr>
+				<tr class="body">
+					<td>schemaId</td>
+					<td>No schema</td>
+				</tr>
+				<tr class="body">
+					<td>datatypeRepresentationMap</td>
+					<td>No map</td>
+				</tr>
+				<tr class="body">
+					<td>blockSize</td>
+					<td>1000000 (one million)</td>
+				</tr>
+				<tr class="body">
+					<td>valueMaxLength</td>
+					<td>unbounded</td>
+				</tr>
+				<tr class="body">
+					<td>valuePartitionCapacity</td>
+					<td>unbounded</td>
+				</tr>
+			</table></div>
+			<p>
+				Since EXI compression does not perserve the extact binary representation of the schema file (for instance it doesn't preserve white space), the server
+				cannot correctly compute byte size and an MD5 hash for the file. Therefore, the client needs to provide this information in the <span class="strong">uploadSchema</span>
+				command using the <span class="strong">bytes</span> and <span class="strong">md5Hash</span> attributes. They are mandatory in case EXI compressed schema files are uploaded to the
+				server. Also note that the byte length and MD5 Hash should be computed on the original XML Schema file, not the compressed or decompressed version.
+			</p>
+		</div>
+        <div class="indent"><h3>2.6 <a name="sect-id134536" id="sect-id134536">Downloading new schema files on server</a></h3>
+            <p>
+                As an alternative to uploading a schema file to the server, the client can ask the server to download a schema file by itself. This is done using the <span class="strong">downloadSchema</span>
+                command, as follows:
+            </p>
+            <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Downloading new schema files on server</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;downloadSchema xmlns='http://jabber.org/protocol/compress/exi' url='http://schemavault.se/compress/sn/provisioning.xsd'/&gt;
+            </pre></div>
+            <p>
+                The server tries to download the schema by itself, and then computes the <span class="strong">target namespace</span>, <span class="strong">byte size</span> and <span class="strong">MD5 Hash</span> 
+                from the downloaded schema.
+            </p>
+            <p>
+                When the schema has been downloaded, the following successful download response is returned:
+            </p>
+            <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Schema successfully downloaded</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;downloadSchemaResponse xmlns='http://jabber.org/protocol/compress/exi' url='http://schemavault.se/compress/sn/provisioning.xsd' result='true'/&gt;
+            </pre></div>
+            <p>
+                If an HTTP error occurred while trying to download the schema, a response as follows is returned:
+            </p>
+            <p class="caption"><a name="example-10" id="example-10"></a>Example 10. HTTP Error</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;downloadSchemaResponse xmlns='http://jabber.org/protocol/compress/exi' url='http://schemavault.se/compress/sn/provisioning.xsd' result='false'&gt;
+        &lt;httpError code='404' message='NotFound'/&gt;
+    &lt;/downloadSchemaResponse&gt;
+            </pre></div>
+            <p>
+                If the URL could not be resolved, the following response is returned:
+            </p>
+            <p class="caption"><a name="example-11" id="example-11"></a>Example 11. Invalid URL</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;downloadSchemaResponse xmlns='http://jabber.org/protocol/compress/exi' url='urk://example.com/schema.xsd' result='false'&gt;
+        &lt;invalidUrl message='Unrecognized schema.'/&gt;
+    &lt;/downloadSchemaResponse&gt;
+            </pre></div>
+            <p>
+                If a timeout occurred during the download attempt, the following response is returned:
+            </p>
+            <p class="caption"><a name="example-12" id="example-12"></a>Example 12. Timeout</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;downloadSchemaResponse xmlns='http://jabber.org/protocol/compress/exi' url='http://schemavault.se/compress/sn/provisioning.xsd' result='false'&gt;
+        &lt;timeout message='No response returned.'/&gt;
+    &lt;/downloadSchemaResponse&gt;
+            </pre></div>
+            <p>
+                If the url points to something that is not a schema, the following response is returned:
+            </p>
+            <p class="caption"><a name="example-13" id="example-13"></a>Example 13. Invalid Content Type</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;downloadSchemaResponse xmlns='http://jabber.org/protocol/compress/exi' url='http://schemavault.se/compress/sn/provisioning.xsd' result='false'&gt;
+        &lt;invalidContentType contentTypeReturned='text/html'/&gt;
+    &lt;/downloadSchemaResponse&gt;
+            </pre></div>
+            <p>
+                If an error occurs that is unforeseen by this specification, the server can simply respond with a generic error message, as follows:
+            </p>
+            <p class="caption"><a name="example-14" id="example-14"></a>Example 14. Other types of errors</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;downloadSchemaResponse xmlns='http://jabber.org/protocol/compress/exi' url='http://schemavault.se/compress/sn/provisioning.xsd' result='false'&gt;
+        &lt;error message='No free space left.'/&gt;
+    &lt;/downloadSchemaResponse&gt;
+            </pre></div>
+            <p>
+                <span class="strong">Note:</span> Downloading a schema, might download a version which does not correspond to the desired version
+                of the schema. It's more important in this case so the client checks that the server actually has the version of the schema required by the client.
+            </p>
+        </div>
+        <div class="indent"><h3>2.7 <a name="sect-id134658" id="sect-id134658">Start compression</a></h3>
+            <p>
+                When EXI option negotiation has been completed, the client can tell the server that it is ready to start compression. It does this using the normal <span class="strong">compress</span>
+                stanza, as follows:
+            </p>
+            <p class="caption"><a name="example-15" id="example-15"></a>Example 15. </p><div class="indent"><pre class="prettyprint">
+                
+    &lt;compress xmlns='http://jabber.org/protocol/compress'&gt;
+        &lt;method&gt;exi&lt;/method&gt;
+    &lt;/compress&gt;
+            </pre></div>
+            <p>
+                The server now has the necessary knowledge on how the EXI engine should be configured for the current session and it responds as follows:
+            </p>
+            <p class="caption"><a name="example-16" id="example-16"></a>Example 16. Compression accepted</p><div class="indent"><pre class="prettyprint">
+                
+    &lt;compressed xmlns='http://jabber.org/protocol/compress'/&gt;
+            </pre></div>
+            <p>
+                When the client receives acknowledgement that the compression method has been accepted, it restarts the stream, as explained in 
+                <a href="http://xmpp.org/extensions/xep-0138.html#usecase">XEP 0138</a>, except that it <span class="strong">must not</span> resend the <span class="strong">&lt;stream&gt;</span>
+				start element sequence. Similarly, the client must not send a <span class="strong">&lt;/stream&gt;</span> element when closing the session. Closing the connection is sufficient.
+            </p>
+        </div>
+    <h2>3.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+        <div class="indent"><h3>3.1 <a name="sect-id134715" id="sect-id134715">EXI options</a></h3>
+            <p>
+                The following segment is taken from the <a href="http://www.w3.org/TR/exi/#options">EXI specification</a>. It describes the different EXI options that need to be negotiated before enabling EXI.
+            </p>
+            <p>
+                The <span class="strong">alignment option</span> is used to control the alignment of event codes and content items. The value is one of bit-packed, byte-alignment or pre-compression, of which bit-packed is the default value assumed when the "alignment" element is absent in the EXI Options document. The option values byte-alignment and pre-compression are effected when "byte" and "pre-compress" elements are present in the EXI Options document, respectively. When the value of compression option is set to true, alignment of the EXI Body is governed by the rules specified in <a href="http://www.w3.org/TR/exi/#compression">9. EXI Compression</a> instead of the alignment option value. The "alignment" element MUST NOT appear in an EXI options document when the "compression" element is present.
+            </p>
+            <p>
+                The alignment option value <span class="strong">bit-packed</span> indicates that the event codes and associated content are packed in bits without any padding in-between.
+            </p>
+            <p>
+                The alignment option value <span class="strong">byte-alignment</span> indicates that the event codes and associated content are aligned on byte boundaries. While byte-alignment generally results in EXI streams of larger sizes compared with their bit-packed equivalents, byte-alignment may provide a help in some use cases that involve frequent copying of large arrays of scalar data directly out of the stream. It can also make it possible to work with data in-place and can make it easier to debug encoded data by allowing items on aligned boundaries to be easily located in the stream.
+            </p>
+            <p>
+                The alignment option value <span class="strong">pre-compression</span> indicates that all steps involved in compression (see section <a href="http://www.w3.org/TR/exi/#compression">9. EXI Compression</a>) are to be done with the exception of the final step of applying the DEFLATE algorithm. The primary use case of pre-compression is to avoid a duplicate compression step when compression capability is built into the transport protocol. In this case, pre-compression just prepares the stream for later compression.
+            </p>
+            <p>
+                The <span class="strong">compression option</span> is a Boolean used to increase compactness using additional computational resources. The default value "false" is assumed when the "compression" element is absent in the EXI Options document whereas its presence denotes the value "true". When set to true, the event codes and associated content are compressed according to <a href="http://www.w3.org/TR/exi/#compression">9. EXI Compression</a> regardless of the alignment option value. As mentioned above, the "compression" element MUST NOT appear in an EXI options document when the "alignment" element is present.
+            </p>
+            <p>
+                The <span class="strong">strict option</span> is a Boolean used to increase compactness by using a strict interpretation of the schemas and omitting preservation of certain items, such as comments, processing instructions and namespace prefixes. The default value "false" is assumed when the "strict" element is absent in the EXI Options document whereas its presence denotes the value "true". When set to true, those productions that have NS, CM, PI, ER, and SC terminal symbols are omitted from the EXI grammars, and schema-informed element and type grammars are restricted to only permit items declared in the schemas. A note in section <a href="http://www.w3.org/TR/exi/#addingProductionsStrict">8.5.4.4.2 Adding Productions when Strict is True</a> describes some additional restrictions consequential of the use of this option. The "strict" element MUST NOT appear in an EXI options document when one of "dtd", "prefixes", "comments", "pis" or "selfContained" element is present in the same options document.
+            </p>
+            <p>
+                The <span class="strong">preserve option</span> is a set of Booleans that can be set independently to each enable or disable a share of the format's capacity determining whether or how certain information items can be preserved in the EXI stream. Section <a href="http://www.w3.org/TR/exi/#fidelityOptions">6.3 Fidelity Options</a> describes the set of information items affected by the preserve option. The presence of "dtd", "prefixes", "lexicalValues", "comments" and "pis" in the EXI Options document each turns on fidelity options Preserve.comments, Preserve.pis, Preserve.dtd, Preserve.prefixes and Preserve.lexicalValues whereas the absence denotes turning each off. The elements "dtd", "prefixes", "comments" and "pis" MUST NOT appear in an EXI options document when the "strict" element is present in the same options document. The element "lexicalValues", on the other hand, is permitted to occur in the presence of "strict" element.
+            </p>
+            <p>
+                The <span class="strong">selfContained option</span> is a Boolean used to enable the use of self-contained elements in the EXI stream. Self-contained elements may be read independently from the rest of the EXI body, allowing them to be indexed for random access. The "selfContained" element MUST NOT appear in an EXI options document when one of "compression", "pre-compression" or "strict" elements are present in the same options document. The default value "false" is assumed when the "selfContained" element is absent from the EXI Options document whereas its presence denotes the value "true".
+            </p>
+            <p>
+                The <span class="strong">datatypeRepresentationMap option</span> specifies an alternate set of datatype representations for typed values in the EXI body as described in <a href="http://www.w3.org/TR/exi/#datatypeRepresentationMap">7.4 Datatype Representation Map</a>. When there are no "datatypeRepresentationMap" elements in the EXI Options document, no Datatype Representation Map is used for processing the EXI body. This option does not take effect when the value of the Preserve.lexicalValues fidelity option is true (see <a href="http://www.w3.org/TR/exi/#fidelityOptions">6.3 Fidelity Options</a>), or when the EXI stream is a schema-less EXI stream.
+            </p>
+            <p>
+                The <span class="strong">blockSize option</span> specifies the block size used for EXI compression. When the "blockSize" element is absent in the EXI Options document, the default blocksize of 1,000,000 is used. The default blockSize is intentionally large but can be reduced for processing large documents on devices with limited memory.
+            </p>
+            <p>
+                 The <span class="strong">valueMaxLength option</span> specifies the maximum length of value content items to be considered for addition to the string table. The default value "unbounded" is assumed when the "valueMaxLength" element is absent in the EXI Options document.
+            </p>
+            <p>
+                 The <span class="strong">valuePartitionCapacity option</span> specifies the maximum number of value content items in the string table at any given time. The default value "unbounded" is assumed when the "valuePartitionCapacity" element is absent in the EXI Options document. Section <a href="http://www.w3.org/TR/exi/#encodingOptimizedForMisses">7.3.3 Partitions Optimized for Frequent use of String Literals</a> specifies the behavior of the string table when this capacity is reached.
+            </p>
+            <p>
+                The <span class="strong">sessionWideBuffers</span> controls buffer and string table life time. If set to true, all buffers, string tables, etc. will be maintained during the entire session. 
+                This may improve performance during time since strings can be omitted in the compressed binary stream, but it might also in some cases degrade performance since more options are 
+                available in the tables, requiring more bits to encode strings. The default value is false, meaning that buffers, string tables, etc., are cleared between each stanza. (This option
+                is EXI/XMPP specific.)
+            </p>
+        </div>
+        <div class="indent"><h3>3.2 <a name="sect-id134908" id="sect-id134908">Transmission of EXI bodies and Session-wide Buffers</a></h3>
+			<p>
+				The transmission of EXI-compressed stanzas takes the form of a sequence of EXI bodies. In order for the recipient to be able to correctly interpret these incoming
+				EXI bodies, the sender is required to flush any pending bits at the end of the last End Document (ED) event for each stanza and then send any pending bytes available
+				in the output buffer. Since this makes sure each EXI body starts at an even byte boundary, it permits the recipient to decompress the body into an XML stanza.
+			</p>
+			<p>
+				Therefore, each stanza sent on the stream, must be compressed separately, reusing the same options as used by the stream.
+				(Options are not sent on the stream, only the generated EXI bodies).
+			</p>
+			<p>
+				Compression of the stanza must be done in document mode, not fragment mode, including the Start Document (SD) and End Document (ED) events.
+				If there are unwritten bits pending after the last End Document (ED) event (after the end of the stanza), Zero-bits are written until a byte boundary is created. 
+				The receptor must ignore bits in the last byte after the last End Document event has been received.
+			</p>
+            <p>
+                During setup of the EXI compression engine, the client can choose if buffers are to be reused between stanzas, or cleared between each stanza. This is done
+                using the EXI over XMPP specific option <span class="strong">sessionWideBuffers</span>, which is false by default, meaning buffers and string tables are cleared between
+                each stanza.
+            </p>
+            <p>
+                There may be cases where maintaining buffers and string tables throughout the session is preferrable. Since strings are already available in the buffers, 
+				they don't need to be output in the stream the first time they appear in a stanza. However, the number of strings in tables increase, and so does the number of bits required to
+                encode them. Depending on what type of communication is performed, this option might give better results one way or another. If the same type of message is always
+				sent, maintaining string buffers may be more efficient. But if the client sends many many different types of messages, clearing buffers may be more efficient.
+            </p>
+			<p>
+				Note that the stream of EXI bodies is indefinite. It only stops when the session is closed, i.e. when the socket connection is dropped. Therefore, the buffers can grow
+				indefinitely unless control is maintained on what types of messages are sent, their contents (specifically string values), and to whom they are sent (JIDs being strings).
+				All string tables and buffers must be cleared when a connection is lost.
+			</p>
+            <p>
+                Note also that if you want the option to enter a session in the middle of the flow to listen to the communication, you need to clear tables and buffers between each
+                stanza, or you will not be able to decode the binary stream appropriately.
+            </p>
+        </div>
+		<div class="indent"><h3>3.3 <a name="sect-id126539" id="sect-id126539">Preserving prefixes</a></h3>
+			<p>
+				Normally, prefixes are not preserved during EXI compression and decompression. If the communicating parties (sending client, XMPP server(s) and receiving clients)
+				interpret incoming stanzas and content according to namespace, this should be sufficient. However, some implementations do not check namespaces, but prefix names used.
+				In such cases, all communicating parties are required to enable the preserve prefixes option during negotionating.
+			</p>
+			<p>
+				<span class="strong">Note:</span> It is not sufficient that one party enable this option. Both sender and received are required to enable this option, or prefix names will be
+				lost in the transmission.
+			</p>
+			<p>
+				Note also, that preserving prefix names result in less efficient compression. Therefore, all clients implementing EXI compression should strive to parse incoming
+				XML based on namespace, not prefix name.
+			</p>
+		</div>
+        <div class="indent"><h3>3.4 <a name="sect-id126564" id="sect-id126564">Networks containing clients having limited memory</a></h3>
+            <p>
+                To successfully implement a network with clients having limited memory, such as sensor networks, care should be taken to make sure necessary schema files are
+                preinstalled on the server, to avoid the necessity to upload schema files from the clients. Clients with limited memory might be unable to perform this task.
+            </p>
+            <p>
+                An alternative may be to install a richer client, that can upload the schema files to the server dynamically, and installing it into the network. Any client uploading
+                a schema file, will make that schema file available for EXI compression to any other client in the network.
+            </p>
+        </div>
+        <div class="indent"><h3>3.5 <a name="sect-id126582" id="sect-id126582">Caching schema files</a></h3>
+            <p>
+                Schema files uploaded to the server should be cached on the server in some kind of schema repository. If memory is limited on the server, schema files should be
+                sorted by last access. Schema files with the oldest last access timestamp could be removed to maintain the cache within an approved cache size.
+            </p>
+            <p>
+                Note that schema files have three keys: <span class="strong">Target namespace</span>, <span class="strong">byte size</span> and <span class="strong">MD5 Hash</span>. Multiple versions of a schema file
+                may exist (that is, with the same target namespace but different byte sizes or MD5 hash codes). Note also, that for any practical purpose, schema files can be stored
+                using only the MD5 hash as a key, since it is highly improbable that two different schema files will have the same MD5 hash (unless consciously created that way). MD5 hash
+                values are always in <span class="strong">lower case</span>.
+            </p>
+        </div>
+        <div class="indent"><h3>3.6 <a name="sect-id135107" id="sect-id135107">Uploading vs. Downloading schemas</a></h3>
+            <p>
+                When the server lacks information about a given XML schema, the client has two options for updating the server. Either it uploads the schema, or it asks the server to
+                download one.
+            </p>
+            <p>
+                Uploading a schema has the advantage, that the client knows exactly the version that the server requires. It has the disadvantage, that the client needs to store the schema
+                and send a possible large schema to the server. If EXI is used because the device has limited memory, uploading a schema might not be an option.
+            </p>
+            <p>
+                Downloading a schema has the advantage, that size of schema does not matter. The disadvantage is that asynchronous errors might occur, so the client needs to pay attention
+                to the responses returned by the server when downloading schemas. Also, downloading a schema, might download a version which does not correspond to the desired version
+                of the schema. So, it's more important in this case that the client checks that the server actually has the version of the schema required by the client.
+            </p>
+        </div>
+        <div class="indent"><h3>3.7 <a name="sect-id135132" id="sect-id135132">Server decompression and recompression vs. binary forwarding</a></h3>
+            <p>
+                If two XMPP clients communicate with each other through an XMPP server, and both clients use EXI compression, the server must only forward
+                binary packets if both EXI compressed channels have exactly the same setup. If any parameter is different, the server MUST always recompress
+                packets sent through it.
+            </p>
+            <p>
+                Since the server always needs to decompress incoming EXI compressed packets to decode headers, omitting the compression part might save the server
+                some processing power, but not all. Note that, in some networks it might be common using similar compression settings, while in others different compression 
+                settings are most common.
+            </p>
+        </div>
+    <h2>4.
+       <a name="security" id="security">Security Considerations</a></h2>
+        <p>
+            Note that EXI compressed information, even though it is hard to decode by humans, is by no means encrypted. If sensitive data is to be sent over an EXI compressed
+            channel, encryption should be considered as well.
+        </p>
+    <h2>5.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+        <p>This document requires no interaction with the <span class="ref"><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id135193">3</a>].</p>
+    <h2>6.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+        <p>REQUIRED.</p>
+        
+    <h2>7.
+       <a name="schema" id="schema">XML Schema</a></h2>
+        <p class="caption"></p><div class="indent"><pre class="prettyprint">
+            
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='http://jabber.org/protocol/compress/exi'
+    xmlns='http://jabber.org/protocol/compress/exi'
+    elementFormDefault='qualified'&gt;
+    
+    &lt;xs:element name='setup' type='Setup'/&gt;
+    &lt;xs:element name='setupResponse' type='SetupResponse'/&gt;
+ 
+    &lt;xs:complexType name='Setup'&gt;
+        &lt;xs:choice minOccurs='0' maxOccurs='unbounded'&gt;
+            &lt;xs:element name='schema' type='Schema'/&gt;
+            &lt;xs:element name='datatypeRepresentationMap' type='DatatypeRepresentationMap'/&gt;
+        &lt;/xs:choice&gt;
+        &lt;xs:attributeGroup ref='Options'/&gt;
+    &lt;/xs:complexType&gt;
+ 
+    &lt;xs:complexType name='SetupResponse'&gt;
+        &lt;xs:complexContent&gt;
+            &lt;xs:extension base='Setup'&gt;
+                &lt;xs:choice minOccurs='0' maxOccurs='unbounded'&gt;
+                    &lt;xs:element name='missingSchema' type='Schema'/&gt;
+                &lt;/xs:choice&gt;
+                &lt;xs:attribute name='agreement' type='xs:boolean' use='optional' default='false'/&gt;
+            &lt;/xs:extension&gt;
+        &lt;/xs:complexContent&gt;
+    &lt;/xs:complexType&gt;
+ 
+    &lt;xs:complexType name='Schema'&gt;
+        &lt;xs:attribute name='ns' type='xs:string' use='required'/&gt;
+        &lt;xs:attribute name='bytes' type='xs:positiveInteger' use='required'/&gt;
+        &lt;xs:attribute name='md5Hash' type='MD5Hash' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+ 
+    &lt;xs:complexType name='DatatypeRepresentationMap'&gt;
+        &lt;xs:attribute name='type' type='xs:string' use='required'/&gt;
+        &lt;xs:attribute name='representAs' type='xs:string' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+ 
+    &lt;xs:attributeGroup name='Options'&gt;
+        &lt;xs:attribute name='version' type='xs:positiveInteger' use='optional' default='1'/&gt;
+        &lt;xs:attribute name='alignment' type='Alignment' use='optional' default='bit-packed'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;The alignment option is used to control the alignment of event codes and content items. 
+                The value is one of bit-packed, byte-alignment or pre-compression, of which bit-packed is the default value 
+                assumed when the "alignment" element is absent in the EXI Options document. The option values byte-alignment 
+                and pre-compression are effected when "byte" and "pre-compress" elements are present in the EXI Options 
+                document, respectively. When the value of compression option is set to true, alignment of the EXI Body is 
+                governed by the rules specified in 9. EXI Compression instead of the alignment option value. The "alignment" 
+                element MUST NOT appear in an EXI options document when the "compression" element is present.&lt;/xs:documentation&gt;
+            &lt;/xs:annotation&gt;
+        &lt;/xs:attribute&gt;
+        &lt;xs:attribute name='compression' type='xs:boolean' use='optional' default='false'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;The compression option is a Boolean used to increase compactness using additional 
+                computational resources. The default value "false" is assumed when the "compression" element is absent in 
+                the EXI Options document whereas its presence denotes the value "true". When set to true, the event codes 
+                and associated content are compressed according to 9. EXI Compression regardless of the alignment option 
+                value. As mentioned above, the "compression" element MUST NOT appear in an EXI options document when the 
+                "alignment" element is present.&lt;/xs:documentation&gt;
+            &lt;/xs:annotation&gt;
+        &lt;/xs:attribute&gt;
+        &lt;xs:attribute name='strict' type='xs:boolean' use='optional' default='false'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;The strict option is a Boolean used to increase compactness by using a strict 
+                interpretation of the schemas and omitting preservation of certain items, such as comments, processing 
+                instructions and namespace prefixes. The default value "false" is assumed when the "strict" element is 
+                absent in the EXI Options document whereas its presence denotes the value "true". When set to true, those 
+                productions that have NS, CM, PI, ER, and SC terminal symbols are omitted from the EXI grammars, and 
+                schema-informed element and type grammars are restricted to only permit items declared in the schemas. 
+                A note in section 8.5.4.4.2 Adding Productions when Strict is True describes some additional restrictions 
+                consequential of the use of this option. The "strict" element MUST NOT appear in an EXI options document 
+                when one of "dtd", "prefixes", "comments", "pis" or "selfContained" element is present in the same 
+                options document.&lt;/xs:documentation&gt;
+            &lt;/xs:annotation&gt;
+        &lt;/xs:attribute&gt;
+        &lt;xs:attribute name='preserveComments' type='xs:boolean' use='optional' default='false'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;Comments are preserved. Must not be used together with the strict option.&lt;/xs:documentation&gt;
+            &lt;/xs:annotation&gt;
+        &lt;/xs:attribute&gt;
+        &lt;xs:attribute name='preservePIs' type='xs:boolean' use='optional' default='false'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;Processing instructions are preserved. Must not be used together with the strict 
+                option.&lt;/xs:documentation&gt;
+            &lt;/xs:annotation&gt;
+        &lt;/xs:attribute&gt;
+        &lt;xs:attribute name='preserveDTD' type='xs:boolean' use='optional' default='false'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;DTD is preserved. Must not be used together with the strict option.&lt;/xs:documentation&gt;
+            &lt;/xs:annotation&gt;
+        &lt;/xs:attribute&gt;
+        &lt;xs:attribute name='preservePrefixes' type='xs:boolean' use='optional' default='false'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;Prefixes are preserved. Must not be used together with the strict option.&lt;/xs:documentation&gt;
+            &lt;/xs:annotation&gt;
+        &lt;/xs:attribute&gt;
+        &lt;xs:attribute name='preserveLexical' type='xs:boolean' use='optional' default='false'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;Lexical form of element and attribute values can be preserved in value content items. 
+                Can be used together with the strict option.&lt;/xs:documentation&gt;
+            &lt;/xs:annotation&gt;
+        &lt;/xs:attribute&gt;
+        &lt;xs:attribute name='selfContained' type='xs:boolean' use='optional' default='false'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;The selfContained option is a Boolean used to enable the use of self-contained elements 
+                in the EXI stream. Self-contained elements may be read independently from the rest of the EXI body, 
+                allowing them to be indexed for random access. The "selfContained" element MUST NOT appear in an EXI 
+                options document when one of "compression", "pre-compression" or "strict" elements are present in the 
+                same options document. The default value "false" is assumed when the "selfContained" element is absent 
+                from the EXI Options document whereas its presence denotes the value "true".&lt;/xs:documentation&gt;
+            &lt;/xs:annotation&gt;
+        &lt;/xs:attribute&gt;
+        &lt;xs:attribute name='blockSize' type='xs:positiveInteger' use='optional' default='1000000'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;The blockSize option specifies the block size used for EXI compression. When the 
+                "blockSize" element is absent in the EXI Options document, the default blocksize of 1,000,000 is used. 
+                The default blockSize is intentionally large but can be reduced for processing large documents on 
+                devices with limited memory.&lt;/xs:documentation&gt;
+            &lt;/xs:annotation&gt;
+        &lt;/xs:attribute&gt;
+        &lt;xs:attribute name='valueMaxLength' type='xs:positiveInteger' use='optional'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;The valueMaxLength option specifies the maximum length of value content items to be 
+                considered for addition to the string table. The default value "unbounded" is assumed when the 
+                "valueMaxLength" element is absent in the EXI Options document.&lt;/xs:documentation&gt;
+            &lt;/xs:annotation&gt;
+        &lt;/xs:attribute&gt;
+        &lt;xs:attribute name='valuePartitionCapacity' type='xs:positiveInteger' use='optional'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;The valuePartitionCapacity option specifies the maximum number of value content 
+                items in the string table at any given time. The default value "unbounded" is assumed when the 
+                "valuePartitionCapacity" element is absent in the EXI Options document. Section 7.3.3 Partitions 
+                Optimized for Frequent use of String Literals specifies the behavior of the string table when this 
+                capacity is reached.&lt;/xs:documentation&gt;
+            &lt;/xs:annotation&gt;
+        &lt;/xs:attribute&gt;
+        &lt;xs:attribute name='sessionWideBuffers' type='xs:boolean' use='optional' default='false'&gt;
+            &lt;xs:annotation&gt;
+                &lt;xs:documentation&gt;If set to true, all buffers, string tables, etc. will be maintained during the 
+                entire session. This may improve performance during time since strings can be omitted in the 
+                compressed binary stream, but it might also in some cases degrade performance since more options 
+                are available in the tables, requiring more bits to encode strings. The default value is false, 
+                meaning that buffers, string tables, etc., are cleared between each stanza.&lt;/xs:documentation&gt;
+            &lt;/xs:annotation&gt;
+        &lt;/xs:attribute&gt;
+    &lt;/xs:attributeGroup&gt;
+ 
+    &lt;xs:simpleType name='MD5Hash'&gt;
+        &lt;xs:restriction base='xs:string'&gt;
+            &lt;xs:pattern value='^[0-9a-f]{32}$'/&gt;
+        &lt;/xs:restriction&gt;
+    &lt;/xs:simpleType&gt;
+ 
+    &lt;xs:simpleType name='Alignment'&gt;
+        &lt;xs:restriction base='xs:string'&gt;
+            &lt;xs:enumeration value='bit-packed'&gt;
+                &lt;xs:annotation&gt;
+                    &lt;xs:documentation&gt;The alignment option value bit-packed indicates that the event codes and associated 
+                    content are packed in bits without any padding in-between.&lt;/xs:documentation&gt;
+                &lt;/xs:annotation&gt;
+            &lt;/xs:enumeration&gt;
+            &lt;xs:enumeration value='byte-alignment'&gt;
+                &lt;xs:annotation&gt;
+                    &lt;xs:documentation&gt;The alignment option value byte-alignment indicates that the event codes and 
+                    associated content are aligned on byte boundaries. While byte-alignment generally results in EXI 
+                    streams of larger sizes compared with their bit-packed equivalents, byte-alignment may provide a 
+                    help in some use cases that involve frequent copying of large arrays of scalar data directly out 
+                    of the stream. It can also make it possible to work with data in-place and can make it easier to 
+                    debug encoded data by allowing items on aligned boundaries to be easily located in the stream.&lt;/xs:documentation&gt;
+                &lt;/xs:annotation&gt;
+            &lt;/xs:enumeration&gt;
+            &lt;xs:enumeration value='pre-compression'&gt;
+                &lt;xs:annotation&gt;
+                    &lt;xs:documentation&gt;The alignment option value pre-compression indicates that all steps involved 
+                    in compression (see section 9. EXI Compression) are to be done with the exception of the final 
+                    step of applying the DEFLATE algorithm. The primary use case of pre-compression is to avoid a 
+                    duplicate compression step when compression capability is built into the transport protocol. In 
+                    this case, pre-compression just prepares the stream for later compression.&lt;/xs:documentation&gt;
+                &lt;/xs:annotation&gt;
+            &lt;/xs:enumeration&gt;
+        &lt;/xs:restriction&gt;
+    &lt;/xs:simpleType&gt;
+ 
+	&lt;xs:element name='uploadSchema'&gt;
+		&lt;xs:complexType&gt;
+			&lt;xs:simpleContent&gt;
+				&lt;xs:extension base='xs:base64Binary'&gt;
+					&lt;xs:attribute name='contentType' type='ContentType' use='optional' default='Text'/&gt;
+					&lt;xs:attribute name='bytes' type='xs:positiveInteger' use='optional'/&gt;
+					&lt;xs:attribute name='md5Hash' type='MD5Hash' use='optional'/&gt;
+				&lt;/xs:extension&gt;
+			&lt;/xs:simpleContent&gt;
+		&lt;/xs:complexType&gt;
+	&lt;/xs:element&gt;
+ 
+	&lt;xs:simpleType name='ContentType'&gt;
+		&lt;xs:restriction base='xs:string'&gt;
+			&lt;xs:enumeration value='Text'/&gt;
+			&lt;xs:enumeration value='ExiBody'/&gt;
+			&lt;xs:enumeration value='ExiDocument'/&gt;
+		&lt;/xs:restriction&gt;
+	&lt;/xs:simpleType&gt;
+ 
+    &lt;xs:element name='downloadSchema' type='DownloadSchema'/&gt;
+    &lt;xs:element name='downloadSchemaResponse' type='DownloadSchemaResponse'/&gt;
+
+    &lt;xs:complexType name='DownloadSchema'&gt;
+        &lt;xs:attribute name='url' type='xs:string' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+  
+    &lt;xs:complexType name='DownloadSchemaResponse'&gt;
+        &lt;xs:complexContent&gt;
+            &lt;xs:extension base='DownloadSchema'&gt;
+                &lt;xs:choice minOccurs='0' maxOccurs='1'&gt;
+                    &lt;xs:element name='httpError'&gt;
+                        &lt;xs:complexType&gt;
+                            &lt;xs:attribute name='code' type='xs:positiveInteger' use='required'/&gt;
+                            &lt;xs:attribute name='message' type='xs:string' use='required'/&gt;
+                        &lt;/xs:complexType&gt;
+                    &lt;/xs:element&gt;
+                    &lt;xs:element name='invalidUrl'&gt;
+                        &lt;xs:complexType&gt;
+                            &lt;xs:attribute name='message' type='xs:string' use='required'/&gt;
+                        &lt;/xs:complexType&gt;
+                    &lt;/xs:element&gt;
+                    &lt;xs:element name='timeout'&gt;
+                        &lt;xs:complexType&gt;
+                            &lt;xs:attribute name='message' type='xs:string' use='required'/&gt;
+                        &lt;/xs:complexType&gt;
+                    &lt;/xs:element&gt;
+                    &lt;xs:element name='invalidContentType'&gt;
+                        &lt;xs:complexType&gt;
+                            &lt;xs:attribute name='contentTypeReturned' type='xs:string' use='required'/&gt;
+                        &lt;/xs:complexType&gt;
+                    &lt;/xs:element&gt;
+                    &lt;xs:element name='error'&gt;
+                        &lt;xs:complexType&gt;
+                            &lt;xs:attribute name='message' type='xs:string' use='required'/&gt;
+                        &lt;/xs:complexType&gt;
+                    &lt;/xs:element&gt;
+                &lt;/xs:choice&gt;
+                &lt;xs:attribute name='result' type='xs:boolean' use='required'/&gt;
+            &lt;/xs:extension&gt;
+        &lt;/xs:complexContent&gt;
+    &lt;/xs:complexType&gt;
+ 
+&lt;/xs:schema&gt;
+
+        </pre></div>
+    <h2>8.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+        <p>Thanks to Joachim Lindborg, Yusuke Doi, Takuki Kamiya, Tina Beckman, Karin Forsell, Jeff Freund and Rumen Kyusakov for all valuable feedback.</p>
+    <hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0322<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1<br />
+            Last Updated: 2013-04-16<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0001, XEP-0138<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://gitorious.org/xmpp/xmpp/blobs/master/extensions/xep-0322.xml">HTML</a><br />
+            This document in other formats: 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0322.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0322.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Peter Waher</h3><p class="indent">
+        Email:
+        <a href="mailto:peter.waher@clayster.com">peter.waher@clayster.com</a><br />
+        JabberID: 
+        <a href="xmpp:peter.waher@jabber.org">peter.waher@jabber.org</a><br />
+        URI: 
+        <a href="http://se.linkedin.com/pub/peter-waher/1a/71b/a29/">http://se.linkedin.com/pub/peter-waher/1a/71b/a29/</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 - 2013 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/">http://xmpp.org/about-xmpp/xsf/xsf-ipr-policy/</a>&gt; or obtained by writing to XMPP Standards Foundation, 1899 Wynkoop Street, Suite 600, Denver, CO 80202 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id126800" id="nt-id126800">1</a>. Efficient XML Interchange (EXI) Format &lt;<a href="http://www.w3.org/TR/exi/">http://www.w3.org/TR/exi/</a>&gt;.</p><p><a name="nt-id134116" id="nt-id134116">2</a>. XEP-0138: Stream Compression &lt;<a href="http://xmpp.org/extensions/xep-0138.html">http://xmpp.org/extensions/xep-0138.html</a>&gt;.</p><p><a name="nt-id135193" id="nt-id135193">3</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1 (2013-04-16)</h4><div class="indent"><p>Initial published version approved by the XMPP Council.</p> (psa)
+    </div><h4>Version 0.0.4 (2013-03-19)</h4><div class="indent">
+				<p>Added support for uploading EXI-compressed schema files.</p>
+			 (pwa)
+    </div><h4>Version 0.0.3 (2013-03-15)</h4><div class="indent">
+				<p>Added definition: EXI body.</p>
+				<p>Added note regarding preserverance of namespace prefixes.</p>
+				<p>Corrected the language.</p>
+			 (pwa)
+    </div><h4>Version 0.0.2 (2013-03-13)</h4><div class="indent">
+				<p>Added support for session-wide buffers and string tables.</p>
+			 (pwa)
+    </div><h4>Version 0.0.1 (2013-03-12)</h4><div class="indent">
+                <p>First draft.</p>
+             (pwa)
+    </div></div><hr /><p>END</p></body></html>

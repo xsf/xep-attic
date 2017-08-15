@@ -1,0 +1,613 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>JEP-0085: Chat State Notifications</title>
+<link rel="stylesheet" type="text/css" href="jep.css">
+<link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+<meta name="DC.Title" content="Chat State Notifications">
+<meta name="DC.Creator" content="Peter Saint-Andre">
+<meta name="DC.Creator" content="Dave Smith">
+<meta name="DC.Description" content="This JEP defines a standards-track protocol for communicating notifications related to chat states, including message composing events.">
+<meta name="DC.Publisher" content="Jabber Software Foundation">
+<meta name="DC.Contributor" content="JEP Editor">
+<meta name="DC.Date" content="2005-06-28">
+<meta name="DC.Type" content="Jabber Enhancement Proposal">
+<meta name="DC.Format" content="XHTML">
+<meta name="DC.Identifier" content="JEP-0085">
+<meta name="DC.Language" content="en">
+<meta name="DC.Rights" content="This Jabber Enhancement Proposal is copyright 1999 - 2005 by the Jabber Software Foundation (JSF) and is in full conformance with the JSF's Intellectual Property Rights Policy &lt;http://www.jabber.org/jsf/ipr-policy.shtml&gt;. This material may be distributed only subject to the terms and conditions set forth in the Open Publication License, v1.0 or later (the latest version is presently available at &lt;http://www.opencontent.org/openpub/&gt;).">
+</head>
+<body>
+<h1>JEP-0085: Chat State Notifications</h1>
+<p>This JEP defines a standards-track protocol for communicating notifications related to chat states, including message composing events.</p>
+<p><hr></p>
+<p style="color:red">WARNING: This Standards-Track JEP is Experimental. Publication as a Jabber Enhancement Proposal does not imply approval of this proposal by the Jabber Software Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems should not deploy implementations of this protocol until it advances to a status of Draft.</p>
+<p><hr></p>
+<h2>JEP Information</h2>
+<p class="indent">
+            Status: Experimental<br>
+            Type: Standards Track<br>
+            Number: 0085<br>
+            Version: 0.10<br>
+            Last Updated: 2005-06-28<br>
+            JIG: Standards JIG<br>
+                Approving Body: Jabber Council<br>Dependencies: XMPP Core, XMPP IM<br>Supersedes: JEP-0022<br>
+                Superseded By: None<br>
+            Short Name: chatstates<br></p>
+<h2>Author Information</h2>
+<div class="indent">
+<h3>Peter Saint-Andre</h3>
+<p class="indent">
+        Email: stpeter@jabber.org<br>
+        JID: stpeter@jabber.org</p>
+<h3>Dave Smith</h3>
+<p class="indent">
+        Email: dizzyd@jabber.org<br>
+        JID: dizzyd@jabber.org</p>
+</div>
+<h2>Legal Notice</h2>
+<p class="indent">This Jabber Enhancement Proposal is copyright 1999 - 2005 by the <a href="http://www.jabber.org/jsf/">Jabber Software Foundation</a> (JSF) and is in full conformance with the JSF's Intellectual Property Rights Policy &lt;<a href="http://www.jabber.org/jsf/ipr-policy.shtml">http://www.jabber.org/jsf/ipr-policy.shtml</a>&gt;. This material may be distributed only subject to the terms and conditions set forth in the Open Publication License, v1.0 or later (the latest version is presently available at &lt;<a href="http://www.opencontent.org/openpub/">http://www.opencontent.org/openpub/</a>&gt;).</p>
+<h2>Discussion Venue</h2>
+<p class="indent">The preferred venue for discussion of this document is the Standards-JIG discussion list: &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards-jig">http://mail.jabber.org/mailman/listinfo/standards-jig</a>&gt;.</p>
+<h2>Relation to XMPP</h2>
+<p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the Jabber Software Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this JEP has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p>
+<h2>Conformance Terms</h2>
+<p class="indent">The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119.</p>
+<p><hr></p>
+<h2>Table of Contents</h2>
+<div class="indent"><dl>
+<dt>1.  <a href="#intro">Introduction</a>
+</dt>
+<dt>2.  <a href="#definitions">Definitions</a>
+</dt>
+<dt>3.  <a href="#statechart">State Chart</a>
+</dt>
+<dt>4.  <a href="#bizrules">Business Rules</a>
+</dt>
+<dl>
+<dt>4.1.  <a href="#bizrules-disco">Discovery of Support and Generation of Notifications</a>
+</dt>
+<dt>4.2.  <a href="#bizrules-support">Support Requirements</a>
+</dt>
+<dt>4.3.  <a href="#bizrules-rep">Repetition</a>
+</dt>
+<dt>4.4.  <a href="#bizrules-context">Context of Usage</a>
+</dt>
+<dt>4.5.  <a href="#bizrules-groupchat">Use in Groupchat</a>
+</dt>
+<dt>4.6.  <a href="#bizrules-syntax">Syntax of Notifications</a>
+</dt>
+<dt>4.7.  <a href="#bizrules-threads">Threads</a>
+</dt>
+<dt>4.8.  <a href="#bizrules-notify">Server Handling of Notifications</a>
+</dt>
+</dl>
+<dt>5.  <a href="#example-basic">A Simple Example</a>
+</dt>
+<dt>6.  <a href="#example-detail">A Detailed Conversation</a>
+</dt>
+<dt>7.  <a href="#impl">Implementation Notes</a>
+</dt>
+<dt>8.  <a href="#security">Security Considerations</a>
+</dt>
+<dt>9.  <a href="#iana">IANA Considerations</a>
+</dt>
+<dt>10.  <a href="#registrar">Jabber Registrar Considerations</a>
+</dt>
+<dl><dt>10.1.  <a href="#registrar-ns">Protocol Namespaces</a>
+</dt></dl>
+<dt>11.  <a href="#schema">XML Schema</a>
+</dt>
+<dt><a href="#notes">Notes</a></dt>
+<dt><a href="#revs">Revision History</a></dt>
+</dl></div>
+<p><hr></p>
+<h2>1.
+       <a name="intro">Introduction</a>
+</h2>
+  <p class="" style="">The <span class="ref" style="">Message Events</span>  [<a href="#nt-id2251272">1</a>] protocol was an early attempt to define notifications related to message processing and composing events. However, it is informational only and has the following drawbacks:</p>
+  <ol start="" type="">
+    <li>Message events are used both to communicate the state of one's conversation partner (the composing event) and to track message delivery states (the offline storage, delivery, and display events); this is confusing, especially since message delivery states are now more fully defined by <span class="ref" style="">Advanced Message Processing</span>  [<a href="#nt-id2251308">2</a>], which in part supersedes JEP-0022.</li>
+    <li>Message events can be generated either by a client or by a server, and the sender must depend on the recipient's server in order to receive notification of certain events; this introduces an unnecessary dependency.</li>
+    <li>Message events must be requested on a per-message basis; this is not only verbose but unnecessary in the context of most chat conversations, and requires implementations to maintain a more complex state machine than is desirable.</li>
+    <li>The connection between the 'id' attribute and the &lt;id/&gt; element has traditionally been difficult for developers to understand; this has led to a large number of non-compliant implementations.</li>
+    <li>The necessity for cancelling previously-generated composing events is introduced because the protocol does not define a complete state chart for chat conversations; this is not only incomplete but confusing.</li>
+    <li>There is no message event indicating that the chat session should be considered inactive or finished.</li>
+  </ol>
+  <p class="" style="">This proposal attempts to address those issues and to provide a protocol that can be accepted as a standard by the Jabber Software Foundation.</p>
+<h2>2.
+       <a name="definitions">Definitions</a>
+</h2>
+  <p class="" style="">This proposal supplements the traditional "is-composing" state by defining five additional chat states, for a total of six states that together fully describe the possible states for a chat conversation. These states refer to a user's participation in the chat session, not necessarily to the state of the client interface and certainly not to the disposition of a particular message. However, the user's involvement with the system, device, chat interface, or input interface can provide important clues regarding the user's involvement with the chat session, which should be used by the client in determining when to generate chat state notifications.</p>
+  <p class="" style="">In essence, chat state notifications can be thought of as a form of chat-specific presence. For example, consider what might happen if a user "loses" a chat window on his desktop; the user might still be interacting with his messaging client (thus never automatically changing his basic presence to "away"), but the user's state with regard to the chat session might change progressively from active to inactive to gone. This information would help the user's conversation partner understand why she has not received a response to her messages in the chat session.</p>
+  <p class="" style="">The six chat states addressed in this document are described below. The suggested triggers are simply that: suggestions. It is up to the implementation to determine its own rules for generation of chat state notifications.</p>
+  <p class="caption">Table 1: Chat States</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr class="body">
+      <th colspan="" rowspan="">State</th>
+      <th colspan="" rowspan="">Definition</th>
+      <th colspan="" rowspan="">Suggested Triggers</th>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;initial/&gt;</td>
+      <td align="" colspan="" rowspan="">User has joined the chat session but has not yet sent a message.</td>
+      <td align="" colspan="" rowspan="">User opens a chat window in preparation for sending a message to a contact.</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;active/&gt;</td>
+      <td align="" colspan="" rowspan="">User is actively participating in the chat session.</td>
+      <td align="" colspan="" rowspan="">User accepts initial chat message, sends a message, gives focus to the chat interface, or is otherwise paying attention to the conversation.</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;composing/&gt;</td>
+      <td align="" colspan="" rowspan="">User is composing a message.</td>
+      <td align="" colspan="" rowspan="">User interacts with an input interface specific to this chat session (e.g., types in the input area of a chat window).</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;paused/&gt;</td>
+      <td align="" colspan="" rowspan="">User had been composing but now has stopped.</td>
+      <td align="" colspan="" rowspan="">User was composing but stops interacting with the input interface for a short period of time (e.g., 5 seconds) or starts interacting with another chat interface or application.</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;inactive/&gt;</td>
+      <td align="" colspan="" rowspan="">User is not actively participating in the chat session.</td>
+      <td align="" colspan="" rowspan="">User does not interact with the chat interface for an intermediate period of time (e.g., 30 seconds), minimizes the chat interface, or starts interacting with another chat interface or application.</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;gone/&gt;</td>
+      <td align="" colspan="" rowspan="">User has ended their participation in the chat session.</td>
+      <td align="" colspan="" rowspan="">User terminates the chat interface (e.g., closes a chat window) or does not interact with the chat interface, system, or device for a long period of time (e.g., 2 minutes).</td>
+    </tr>
+  </table>
+<h2>3.
+       <a name="statechart">State Chart</a>
+</h2>
+  <p class="" style="">The following figure attempts to capture the possible state transitions in visual form.</p>
+  <p class="caption"></p>
+<div class="indent"><pre>
+
+             INITIAL
+                |
+                |
+INACTIVE &lt;--&gt; ACTIVE &lt;--&gt; COMPOSING 
+    |           ^            |
+    |           |            |
+    + &lt;------ PAUSED &lt;-----&gt; +
+  </pre></div>
+  <p class="" style="">Note: All five of the states shown may transition to the GONE state.</p>
+<h2>4.
+       <a name="bizrules">Business Rules</a>
+</h2>
+  <div class="indent">
+<h3>4.1 <a name="bizrules-disco">Discovery of Support and Generation of Notifications</a>
+</h3>
+    <ol start="" type="">
+      <li>A User MUST NOT notify a Contact of any chat state other than &lt;initial/&gt; or &lt;active/&gt; until the User has discovered that the Contact supports this protocol (the same is true of the Contact).</li>
+      <li>If the User desires chat state notifications, the user's client MUST either send an &lt;initial/&gt; state notification or include an &lt;active/&gt; notification in its first message.</li>
+      <li>If the user's client sent an &lt;initial&gt; state notification, the contact's client SHOULD send an &lt;initial/&gt; state notification to the user's full JID if it supports the &lt;initial/&gt; state.</li>
+      <li>If the user's client did not send an &lt;initial/&gt; state notification, the Contact MUST NOT send any chat state notifications to the User (e.g., a composing event) before sending a reply to the User's first message in the conversation; the only allowable chat state notification in the Contact's first reply is the &lt;active/&gt; notification.</li>
+      <li>If the Contact replies to the first message but does not include an &lt;active/&gt; notification, the User MUST NOT send subsequent chat state notifications to the Contact.</li>
+      <li>If the Contact replies to the first message and includes an &lt;active/&gt; notification, the Contact SHOULD send subsequent notifications for supported chat states as specified in the next subsection.</li>
+    </ol>
+  </div>
+  <div class="indent">
+<h3>4.2 <a name="bizrules-support">Support Requirements</a>
+</h3>
+    <p class="caption">Table 2: Requirements for Supporting Each Chat State</p>
+<table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <th colspan="" rowspan="">Chat State</th>
+        <th colspan="" rowspan="">Requirement</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">&lt;initial/&gt;</td>
+        <td align="" colspan="" rowspan="">MAY</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">&lt;active/&gt;</td>
+        <td align="" colspan="" rowspan="">MUST</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">&lt;composing/&gt;</td>
+        <td align="" colspan="" rowspan="">MUST</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">&lt;paused/&gt;</td>
+        <td align="" colspan="" rowspan="">SHOULD</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">&lt;inactive/&gt;</td>
+        <td align="" colspan="" rowspan="">SHOULD</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">&lt;gone/&gt;</td>
+        <td align="" colspan="" rowspan="">SHOULD</td>
+      </tr>
+    </table>
+    <p class="" style="">A client MUST allow the user to configure whether he or she wants to send chat state notifications. (Note: Support for only &lt;active/&gt; and &lt;composing/&gt; is functionally equivalent to supporting JEP-0022.)</p>
+  </div>
+  <div class="indent">
+<h3>4.3 <a name="bizrules-rep">Repetition</a>
+</h3>
+    <p class="" style="">Even if the user types continuously for a long time (e.g., while composing a lengthy reply), the client MUST NOT send more than one &lt;composing/&gt; notification in a row. More generally, a client MUST NOT send a second instance of any given chat state notification (i.e., any given notification MUST be followed by a different state, not repetition of the same state).</p>
+  </div>
+  <div class="indent">
+<h3>4.4 <a name="bizrules-context">Context of Usage</a>
+</h3>
+    <ol start="" type="">
+      <li>This protocol MUST NOT be used with stanzas other than &lt;message/&gt;.</li>
+      <li>This protocol SHOULD NOT be used with message types other than "chat" or "groupchat".</li>
+      <li>The 'type' attribute for chat state notification messages SHOULD be set to a value of "chat" or "groupchat" (as appropriate for the context).</li>
+      <li>A chat session MAY span multiple user sessions (i.e., chat state is orthogonal to the availability and presence of one's conversation partner), although this is unlikely given the suggested timing of event triggers.</li>
+    </ol>
+  </div>
+  <div class="indent">
+<h3>4.5 <a name="bizrules-groupchat">Use in Groupchat</a>
+</h3>
+    <ol start="" type="">
+      <li>In the context of groupchat (e.g., as defined in <span class="ref" style="">Multi-User Chat</span>  [<a href="#nt-id2255825">3</a>]), a client SHOULD NOT generate &lt;gone/&gt; notifications, and SHOULD ignore &lt;gone/&gt; notifications received from other room occupants.</li>
+    </ol>
+    <p class="" style="">Note: Use of chat state notifications in the context of groupchat may result in multicasting of such notifications. Forewarned is forearmed.</p>
+  </div>
+  <div class="indent">
+<h3>4.6 <a name="bizrules-syntax">Syntax of Notifications</a>
+</h3>
+    <ol start="" type="">
+      <li>Chat state notification messages MUST contain one and only one child element qualified by the 'http://jabber.org/protocol/chatstates' namespace, unless threads are used (in which case the chat state notification message MUST contain the &lt;thread/&gt; element and the appropriate state element); this is true of all states except &lt;active/&gt;.</li>
+      <li>A &lt;composing/&gt; notification message MUST NOT contain a &lt;subject/&gt; element or a &lt;body/&gt; element.</li>
+    </ol>
+  </div>
+  <div class="indent">
+<h3>4.7 <a name="bizrules-threads">Threads</a>
+</h3>
+    <p class="" style="">While chat state notifications provide a mechanism for managing chat threads (i.e., the &lt;thread/&gt; element), support for threads is OPTIONAL. However, if all of the clients participating in a chat both support and use threads, the following additional business rules apply:</p>
+    <ol start="" type="">
+      <li>Clients MUST copy back Thread IDs (i.e., the value of the &lt;thread/&gt; element) in any replies.</li>
+      <li>When a client terminates a one-to-one chat session (e.g., when a user closes the chat session interface), it MUST generate a &lt;gone/&gt; event.</li>
+      <li>Upon receiving a &lt;gone/&gt; event, a client MUST NOT re-use the same Thread ID and MUST generate a new Thread ID for any subsequent chat messages sent to the conversation partner.</li>
+    </ol>
+  </div>
+  <div class="indent">
+<h3>4.8 <a name="bizrules-notify">Server Handling of Notifications</a>
+</h3>
+    <p class="" style="">Servers in constrained network environments (e.g., serving small-footprint clients via <span class="ref" style="">Jabber HTTP Polling</span>  [<a href="#nt-id2255963">4</a>] or <span class="ref" style="">HTTP Binding</span>  [<a href="#nt-id2255985">5</a>]) and services that rebroadcast message stanzas (e.g., Multi-User Chat services) MAY process chat state notification messages differently from other messages. In particular, a server or service MAY refuse to deliver standalone chat state notifications to its users, and SHOULD NOT store them offline. In contrast to the Message Events protocol, chat state notifications are completely the responsibility of the client, and MUST NOT be generated by a server or service.</p>
+  </div>
+<h2>5.
+       <a name="example-basic">A Simple Example</a>
+</h2>
+  <p class="" style="">In the following conversation, both User and Contact support chat state notifications.</p>
+  <p class="caption">Example 1. User Sends Initial Message With &lt;active/&gt; Notification</p>
+<div class="indent"><pre>
+&lt;message 
+    from='bernardo@shakespeare.lit/pda'
+    to='francisco@shakespeare.lit'
+    type='chat'&gt;
+  &lt;body&gt;Who's there?&lt;/body&gt;
+  &lt;active xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="caption">Example 2. Contact's Client Sends Reply Plus &lt;active/&gt; Notification</p>
+<div class="indent"><pre>
+&lt;message 
+    from='francisco@shakespeare.lit/elsinore'
+    to='bernardo@shakespeare.lit/pda'
+    type='chat'&gt;
+  &lt;body&gt;Nay, answer me: stand, and unfold yourself.&lt;/body&gt;
+  &lt;active xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">Because the User now knows that the Contact supports chat state notifications, the User can send other notification types.</p>
+  <p class="caption">Example 3. User Sends &lt;composing/&gt; Notification</p>
+<div class="indent"><pre>
+&lt;message 
+    from='bernardo@shakespeare.lit/pda'
+    to='francisco@shakespeare.lit/elsinore'
+    type='chat'&gt;
+  &lt;composing xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="caption">Example 4. User Sends a Reply With &lt;active/&gt; Notification</p>
+<div class="indent"><pre>
+&lt;message 
+    from='bernardo@shakespeare.lit/pda'
+    to='francisco@shakespeare.lit/elsinore'
+    type='chat'&gt;
+  &lt;body&gt;Long live the king!&lt;/body&gt;
+  &lt;active xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">And so forth.</p>
+<h2>6.
+       <a name="example-detail">A Detailed Conversation</a>
+</h2>
+  <p class="" style="">The following conversation flow illustrates in more detail the workings of chat state notifications (in this case also using threads).</p> 
+  <p class="" style="">First, the user Romeo opens a chat window in preparation for starting to talk with a contact named Juliet. His client supports the optional &lt;initial/&gt; state and sends that to Juliet.</p>
+  <p class="caption">Example 5. User Sends Initial State (OPTIONAL)</p>
+<div class="indent"><pre>
+&lt;message 
+    from='romeo@shakespeare.lit/orchard'
+    to='juliet@capulet.com'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat1&lt;/thread&gt;
+  &lt;initial xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">At this point Juliet's client knows that Romeo's client supports chat state notifications. If desired, her client MAY also send an initial state notification to Romeo's full JID.</p>
+  <p class="caption">Example 6. Contact Sends Initial State (OPTIONAL)</p>
+<div class="indent"><pre>
+&lt;message 
+    from='juliet@capulet.com/balcony'
+    from='romeo@shakespeare.lit/orchard'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat1&lt;/thread&gt;
+  &lt;initial xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">Now Romeo types a message to Juliet.</p>
+  <p class="caption">Example 7. User Sends First Message</p>
+<div class="indent"><pre>
+&lt;message 
+    from='romeo@shakespeare.lit/orchard'
+    to='juliet@capulet.com'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat1&lt;/thread&gt;
+  &lt;body&gt;
+    I take thee at thy word:
+    Call me but love, and I'll be new baptized;
+    Henceforth I never will be Romeo.
+  &lt;/body&gt;
+  &lt;active xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">Juliet replies to the first message and her client includes a notification that her state is &lt;active/&gt;:</p>
+  <p class="caption">Example 8. Contact's Client Sends Reply Plus &lt;active/&gt; Notification</p>
+<div class="indent"><pre>
+&lt;message 
+    from='juliet@capulet.com/balcony'
+    to='romeo@shakespeare.lit/orchard'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat1&lt;/thread&gt;
+  &lt;body&gt;
+    What man art thou that thus bescreen'd in night
+    So stumblest on my counsel?
+  &lt;/body&gt;
+  &lt;active xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">And so the conversation continues. After a while, Juliet asks a question that brings Romeo up short. Romeo begins composing a reply to Juliet's heartfelt question, and his Jabber client notifies Juliet that he is composing a reply.</p>
+  <p class="caption">Example 9. User's Client Sends &lt;composing/&gt; Notification</p>
+<div class="indent"><pre>
+&lt;message 
+    from='romeo@montague.net/orchard' 
+    to='juliet@capulet.com/balcony'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat1&lt;/thread&gt;
+  &lt;composing xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">Romeo realizes his reply is too rash and pauses to choose the right words; after some (configurable) time period, his Jabber client senses the delay and sends a state of &lt;paused/&gt;.</p>
+  <p class="caption">Example 10. User's Client Sends &lt;active/&gt; Notification</p>
+<div class="indent"><pre>
+&lt;message 
+    from='romeo@montague.net/orchard' 
+    to='juliet@capulet.com/balcony'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat1&lt;/thread&gt;
+  &lt;paused xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">Romeo starts composing again, and his Jabber client sends a &lt;composing/&gt; notification to Juliet's client.</p>
+  <p class="caption">Example 11. User's Clients Sends &lt;composing/&gt; Notification</p>
+<div class="indent"><pre>
+&lt;message 
+    from='romeo@montague.net/orchard' 
+    to='juliet@capulet.com/balcony'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat1&lt;/thread&gt;
+  &lt;composing xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">Romeo finally sends his reply.</p>
+  <p class="caption">Example 12. User Replies</p>
+<div class="indent"><pre>
+&lt;message 
+    from='romeo@montague.net/orchard' 
+    to='juliet@capulet.com/balcony'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat1&lt;/thread&gt;
+  &lt;body&gt;Neither, fair saint, if either thee dislike.&lt;/body&gt;
+  &lt;active xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">The conversation ebbs and flows, waxes and wanes, until Juliet is called away by her Nurse...</p>
+  <p class="caption">Example 13. Contact's Client Sends Message</p>
+<div class="indent"><pre>
+&lt;message 
+    from='juliet@capulet.com/balcony'
+    to='romeo@shakespeare.lit/orchard'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat1&lt;/thread&gt;
+  &lt;body&gt;
+    I hear some noise within; dear love, adieu!
+    Anon, good nurse! Sweet Montague, be true.
+    Stay but a little, I will come again.
+  &lt;/body&gt;
+  &lt;active xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">We suppose that Juliet minimizes the chat window, so her client generates an &lt;inactive/&gt; notification:</p>
+  <p class="caption">Example 14. Contact's Client Sends &lt;inactive/&gt; Notification</p>
+<div class="indent"><pre>
+&lt;message 
+    from='juliet@capulet.com/balcony'
+    to='romeo@shakespeare.lit/orchard'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat1&lt;/thread&gt;
+  &lt;inactive xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">When she returns and brings the window up again, her client generates an &lt;active/&gt; notification:</p>
+  <p class="caption">Example 15. Contact's Client Sends &lt;active/&gt; Notification</p>
+<div class="indent"><pre>
+&lt;message 
+    from='juliet@capulet.com/balcony'
+    to='romeo@shakespeare.lit/orchard'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat1&lt;/thread&gt;
+  &lt;active xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">The conversation continues, but Juliet is called away again by that nagging Nurse:</p>
+  <p class="caption">Example 16. Contact's Client Sends Message</p>
+<div class="indent"><pre>
+&lt;message 
+    from='juliet@capulet.com/balcony'
+    to='romeo@shakespeare.lit/orchard'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat1&lt;/thread&gt;
+  &lt;body&gt;
+    A thousand times good night!
+  &lt;/body&gt;
+  &lt;active xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">We suppose that Juliet closes the chat window, so her client generates a &lt;gone/&gt; notification:</p>
+  <p class="caption">Example 17. Contact's Client Sends &lt;gone/&gt; Notification</p>
+<div class="indent"><pre>
+&lt;message 
+    from='juliet@capulet.com/balcony'
+    to='romeo@shakespeare.lit/orchard'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat1&lt;/thread&gt;
+  &lt;gone xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">Romeo's client now considers the chat thread to be over and generates a new Thread ID when he sends a new message:</p>
+  <p class="caption">Example 18. User's Client Sends Message with New Thread ID</p>
+<div class="indent"><pre>
+&lt;message 
+    from='romeo@shakespeare.lit/orchard'
+    to='juliet@capulet.com/balcony'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat2&lt;/thread&gt;
+  &lt;body&gt;
+    A thousand times the worse, to want thy light.
+    Love goes toward love, as schoolboys from their books,
+    But love from love, toward school with heavy looks.
+  &lt;/body&gt;
+  &lt;active xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">When Juliet returns to her computer on the balcony, she finds the new message from Romeo. When she finishes her reply, her client includes both an &lt;active/&gt; notification and the new Thread ID with the body of her reply:</p>
+  <p class="caption">Example 19. Contact's Client Sends Message</p>
+<div class="indent"><pre>
+&lt;message 
+    from='juliet@capulet.com/balcony'
+    to='romeo@shakespeare.lit/orchard'
+    type='chat'&gt;
+  &lt;thread&gt;act2scene2chat2&lt;/thread&gt;
+  &lt;body&gt;
+    Hist! Romeo, hist! O, for a falconer's voice,....
+  &lt;/body&gt;
+  &lt;active xmlns='http://jabber.org/protocol/chatstates'/&gt;
+&lt;/message&gt;
+  </pre></div>
+  <p class="" style="">And so forth.</p>
+  <p class="" style="">My, these star-crossed lovers do go on, don't they?</p>
+<h2>7.
+       <a name="impl">Implementation Notes</a>
+</h2>
+  <p class="" style="">A client that receives a chat state notification should expect that it may never receive another message or chat state notification from the other entity (e.g., because the other entity crashes or goes offline) and should plan accordingly.</p>
+<h2>8.
+       <a name="security">Security Considerations</a>
+</h2>
+  <p class="" style="">The states of a chat thread may reveal information about a user's interaction with his or her computer, including his or her physical presence; such information SHOULD NOT be revealed to conversation partners who are not trusted to know such information. Client implementations MUST provide a mechanism that enables the user to disable chat state notifications if desired.</p>
+<h2>9.
+       <a name="iana">IANA Considerations</a>
+</h2>
+  <p class="" style="">This JEP requires no interaction with the <span class="ref" style="">Internet Assigned Numbers Authority (IANA)</span>  [<a href="#nt-id2256496">6</a>].</p>
+<h2>10.
+       <a name="registrar">Jabber Registrar Considerations</a>
+</h2>
+  <div class="indent">
+<h3>10.1 <a name="registrar-ns">Protocol Namespaces</a>
+</h3>
+    <p class="" style="">The <span class="ref" style="">Jabber Registrar</span>  [<a href="#nt-id2256547">7</a>] shall include 'http://jabber.org/protocol/chatstates' in its registry of protocol namespaces.</p>
+  </div>
+<h2>11.
+       <a name="schema">XML Schema</a>
+</h2>
+  <p class="caption"></p>
+<div class="indent"><pre>
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='http://jabber.org/protocol/chatstates'
+    xmlns='http://jabber.org/protocol/chatstates'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='active' type='empty'/&gt;
+  &lt;xs:element name='composing' type='empty'/&gt;
+  &lt;xs:element name='gone' type='empty'/&gt;
+  &lt;xs:element name='inactive' type='empty'/&gt;
+  &lt;xs:element name='initial' type='empty'/&gt;
+  &lt;xs:element name='paused' type='empty'/&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+  </pre></div>
+<p><hr></p>
+<a name="notes"></a><h2>Notes</h2>
+<div class="indent">
+<p><a name="nt-id2251272">1</a>. JEP-0022: Message Events &lt;<a href="http://www.jabber.org/jeps/jep-0022.html">http://www.jabber.org/jeps/jep-0022.html</a>&gt;.</p>
+<p><a name="nt-id2251308">2</a>. JEP-0079: Advanced Message Processing &lt;<a href="http://www.jabber.org/jeps/jep-0079.html">http://www.jabber.org/jeps/jep-0079.html</a>&gt;.</p>
+<p><a name="nt-id2255825">3</a>. JEP-0045: Multi-User Chat &lt;<a href="http://www.jabber.org/jeps/jep-0045.html">http://www.jabber.org/jeps/jep-0045.html</a>&gt;.</p>
+<p><a name="nt-id2255963">4</a>. JEP-0025: Jabber HTTP Polling &lt;<a href="http://www.jabber.org/jeps/jep-0025.html">http://www.jabber.org/jeps/jep-0025.html</a>&gt;.</p>
+<p><a name="nt-id2255985">5</a>. JEP-0124: HTTP Binding &lt;<a href="http://www.jabber.org/jeps/jep-0124.html">http://www.jabber.org/jeps/jep-0124.html</a>&gt;.</p>
+<p><a name="nt-id2256496">6</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p>
+<p><a name="nt-id2256547">7</a>. The Jabber Registrar maintains a list of reserved Jabber protocol namespaces as well as registries of parameters used in the context of protocols approved by the Jabber Software Foundation. For further information, see &lt;<a href="http://www.jabber.org/registrar/">http://www.jabber.org/registrar/</a>&gt;.</p>
+</div>
+<p><hr></p>
+<a name="revs"></a><h2>Revision History</h2>
+<div class="indent">
+<h4>Version 0.10 (2005-06-28)</h4>
+<div class="indent">Added optional &lt;initial/&gt; state; added business rule on repetition of notifications added implementation note. (psa)
+    </div>
+<h4>Version 0.9 (2004-10-28)</h4>
+<div class="indent">Made &lt;inactive/&gt; state definition consistent with &lt;paused/&gt; per list discussion; made slight adjustments to wording throughout. (psa)
+    </div>
+<h4>Version 0.8 (2004-10-28)</h4>
+<div class="indent">Further clarified state definitions and adjusted suggested event timing. (psa)
+    </div>
+<h4>Version 0.7 (2004-10-27)</h4>
+<div class="indent">Clarified the meaning of the &lt;gone/&gt; state; adjusted suggested timing for events. (psa)
+    </div>
+<h4>Version 0.6 (2004-02-19)</h4>
+<div class="indent">Added &lt;paused/&gt; state; defined the chat states; clarified the state chart; simplified the business rules. (psa)
+    </div>
+<h4>Version 0.5 (2003-09-18)</h4>
+<div class="indent">Clarified that 'type' must be "chat" or "groupchat" for chat state notification messages. (psa)
+    </div>
+<h4>Version 0.4 (2003-05-22)</h4>
+<div class="indent">Made Thread IDs optional; made &lt;inactive/&gt; and &lt;gone/&gt; states optional if Thread IDs are not used; removed requirement for explicit service discovery in favor of implicit discovery. (psa)
+    </div>
+<h4>Version 0.3 (2003-05-20)</h4>
+<div class="indent">Clarified terminology; added support for groupchat; added several implementation notes. (psa)
+    </div>
+<h4>Version 0.2 (2003-05-19)</h4>
+<div class="indent">General cleanup; added schema. (psa)
+    </div>
+<h4>Version 0.1 (2003-05-19)</h4>
+<div class="indent">Initial version. (dss/psa)
+    </div>
+</div>
+<p><hr></p>
+<p>END</p>
+</body>
+</html>

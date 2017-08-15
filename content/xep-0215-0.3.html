@@ -1,0 +1,304 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0215: External Service Discovery</title><link rel="stylesheet" type="text/css" href="../xmpp.css" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><meta name="DC.Title" content="External Service Discovery" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Creator" content="Sean Egan" /><meta name="DC.Description" content="This document specifies an XMPP protocol extension for discovering services external to the XMPP network." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2007-08-30" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0215" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright (c) 1999 - 2009 by the XMPP Standards Foundation (XSF)." /></head><body><h1>XEP-0215: External Service Discovery</h1><p>Copyright (c) 1999 - 2009 <a href="http://xmpp.org/">XMPP Standards Foundation</a>. See <a href="#appendix-legal">Legal Notices</a>.</p><hr /><p>This document specifies an XMPP protocol extension for discovering services external to the XMPP network.</p><p style="color:red">WARNING: Consideration of this document has been Deferred by the XMPP Standards Foundation. Implementation of the protocol described herein is not recommended.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#protocol">Protocol</a><br />3.  <a href="#usecases">Use Cases</a><br />   
+      3.1.  <a href="#all">Requesting All Services</a><br />   
+      3.2.  <a href="#select">Requesting Selected Services</a><br />4.  <a href="#extended">Extended Information</a><br />5.  <a href="#disco">Determining Support</a><br />6.  <a href="#i18n">Internationalization Considerations</a><br />7.  <a href="#security">Security Considerations</a><br />8.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      8.1.  <a href="#ns">Protocol Namespaces</a><br />   
+      8.2.  <a href="#registrar-services">External Service Types Registry</a><br />9.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">An XMPP client or other entity may need to discover services external to the XMPP network in order to complete certain XMPP-related use cases. One example is the discovery of STUN servers (see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5389">RFC 5389</a></span>  [<a href="#nt-id2251049">1</a>]) and STUN relays (see <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-ietf-behave-turn">TURN</a></span>  [<a href="#nt-id2251074">2</a>]) for the sake of negotiating media exchanges via <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0176.html">Jingle ICE-UDP Transport Method</a></span>  [<a href="#nt-id2251101">3</a>].  [<a href="#nt-id2254618">4</a>] An XMPP entity can already discover such external services in several ways, including:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">The service is specified in the application's default settings.</li>
+    <li class="" style="">The service is manually added into the application's configuration by a human user.</li>
+    <li class="" style="">The service is discovered via non-XMPP service discovery protocols, such as:
+      <ul class="" style="">
+        <li class="" style="">DNS SRV records (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc2782">RFC 2782</a></span>  [<a href="#nt-id2251185">5</a>])</li>
+        <li class="" style="">Service Location Protocol (SLP; <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc2608">RFC 2608</a></span>  [<a href="#nt-id2251219">6</a>])</li>
+        <li class="" style="">The Dynamic Delegation Discovery System (DDDS; <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3401">RFC 3401</a></span>  [<a href="#nt-id2251388">7</a>])</li>
+        <li class="" style="">The NAPTR profile of DDDS (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3403">RFC 3403</a></span>  [<a href="#nt-id2251453">8</a>])</li>
+        <li class="" style="">The S-NAPTR profile of DDDS (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3958">RFC 3958</a></span>  [<a href="#nt-id2251424">9</a>])</li>
+        <li class="" style="">The U-NAPTR profile of DDDS (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4848">RFC 4848</a></span>  [<a href="#nt-id2251253">10</a>])</li>
+      </ul>
+    </li>
+  </ol>
+  <p class="" style="">Unfortunately, some of the foregoing methods are subject to human error and others are either not widely available or cannot be deployed in wide range of scenarios (e.g., when the administrators of an XMPP service do not have access to DNS SRV records). Therefore, this document defines a way for an XMPP server or discovery service to provide information about external services, which may include extended information such as temporary credentials for authentication at such services. This method should be used only as a fallback when the relevant service discovery technologies (DNS SRV, DDDS, SLP, S-NAPTR, U-NAPTR, etc.) are not available to the XMPP entities involved (typically a client and server). This method does not use <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0030.html">Service Discovery</a></span>  [<a href="#nt-id2251299">11</a>] since that technology is designed for discovery of XMPP entities, not entities outside an XMPP network.</p>
+<h2>2.
+       <a name="protocol" id="protocol">Protocol</a></h2>
+  <p class="" style="">In order to learn about external services known to an XMPP server or discovery service, a requesting entity (typically a client) sends an IQ-get containing an empty &lt;services/&gt; element qualified by the 'http://www.xmpp.org/extensions/xep-0215.html#ns' namespace (see <a href="#ns">Protocol Namespaces</a> regarding issuance of one or more permanent namespaces), typically to its own server but perhaps alternatively to a dedicated discovery service.</p>
+  <p class="" style="">The responding entity (XMPP server or discovery service) SHOULD return the list of external services it is aware of, but MAY instead return an appropriate error, such as &lt;service-unavailable/&gt; if the responding entity does not support this protocol or &lt;forbidden/&gt; if the requesting entity does not have permission to receive the list of external services. Each service is encapsulated via a &lt;service/&gt; element.</p>
+  <p class="" style="">Note: The processes by which a responding entity discovers external services for "proxying" to XMPP entities are out of scope for this specification.</p>
+  <p class="" style="">The &lt;service/&gt; element MAY be empty or MAY include extended information about the service as described in the <a href="#extended">Extended Information</a> section of this document.</p>
+  <p class="" style="">The attributes of the &lt;service/&gt; element are summarized in the following table.</p>
+  <div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: Attributes</p><table border="1" cellpadding="3" cellspacing="0">
+    <tr class="body">
+      <th colspan="" rowspan="">Name</th>
+      <th colspan="" rowspan="">Definition</th>
+      <th colspan="" rowspan="">Inclusion</th>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">host</td>
+      <td colspan="" rowspan="">Either a fully qualified domain name (FQDN) or an IP address (IPv4 or IPv6).</td>
+      <td colspan="" rowspan="">REQUIRED</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">name</td>
+      <td colspan="" rowspan="">A friendly (human-readable) name or label for the service.</td>
+      <td colspan="" rowspan="">OPTIONAL</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">password</td>
+      <td colspan="" rowspan="">A service- or server-generated password for use at the service. *</td>
+      <td colspan="" rowspan="">OPTIONAL</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">port</td>
+      <td colspan="" rowspan="">The communications port to be used at the host.</td>
+      <td colspan="" rowspan="">RECOMMENDED</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">transport</td>
+      <td colspan="" rowspan="">The underlying transport protocol to be used when communicating with the service (typically either TCP or UDP).</td>
+      <td colspan="" rowspan="">RECOMMENDED</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">type</td>
+      <td colspan="" rowspan="">The service type as registered with the <span class="ref" style=""><a href="http://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id2261905">12</a>].</td>
+      <td colspan="" rowspan="">REQUIRED</td>
+    </tr>
+    <tr class="body">
+      <td colspan="" rowspan="">username</td>
+      <td colspan="" rowspan="">A service- or server-generated username for use at the service. *</td>
+      <td colspan="" rowspan="">OPTIONAL</td>
+    </tr>
+  </table></div>
+  <p class="" style="">* Note: The processes by which an external service might generate or an XMPP server might negotiate the username and password are outside the scope of this specification. One possible approach is for the XMPP server to generate a short-term authentication credential based on a private key shared with the external service.</p>
+<h2>3.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <div class="indent"><h3>3.1 <a name="all" id="all">Requesting All Services</a></h3>
+    <p class="" style="">A requesting entity requests all services by sending a &lt;services/&gt; element to its server or a discovery service.</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Entity Requests All External Services</p><div class="indent"><pre>
+&lt;iq type='get'
+    from='bard@shakespeare.lit/globe'
+    to='shakespeare.lit'
+    id='all1'&gt;
+  &lt;services xmlns='http://www.xmpp.org/extensions/xep-0215.html#ns'/&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. XMPP Server Returns List</p><div class="indent"><pre>
+&lt;iq type='result'
+    from='shakespeare.lit'
+    to='bard@shakespeare.lit/globe'
+    id='all1'&gt;
+  &lt;services xmlns='http://www.xmpp.org/extensions/xep-0215.html#ns'&gt;
+    &lt;service host='stun.shakespeare.lit' port='9998' transport='udp' type='stun'/&gt;
+    &lt;service host='stun.shakespeare.lit'
+             password='jj929jkj5sadjfj93v3n'
+             port='9999'
+             type='stun-relay'
+             username='nb78932lkjlskjfdb7g8'/&gt;
+    &lt;service host='192.0.2.1' port='8888' transport='udp' type='stun'/&gt;
+    &lt;service host='192.0.2.1'
+             port='8889'
+             password='93jn3bakj9s832lrjbbz'
+             type='stun-relay'
+             username='auu98sjl2wk3e9fjdsl7'/&gt;
+    &lt;service host='ftp.shakespeare.lit' 
+             name='Shakespearean File Server'
+             password='guest' 
+             port='20' 
+             transport='tcp' 
+             type='ftp' 
+             username='guest'/&gt;
+  &lt;/services&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+  <div class="indent"><h3>3.2 <a name="select" id="select">Requesting Selected Services</a></h3>
+    <p class="" style="">A requesting entity requests selected services by sending a &lt;services/&gt; element including a 'type' attribute specifying the service type of interest.</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Entity Requests Selected Services</p><div class="indent"><pre>
+&lt;iq type='get'
+    from='bard@shakespeare.lit/globe'
+    to='shakespeare.lit'
+    id='selected1'&gt;
+  &lt;services xmlns='http://www.xmpp.org/extensions/xep-0215.html#ns'
+            type='stun-relay'/&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. XMPP Server Returns List</p><div class="indent"><pre>
+&lt;iq type='result'
+    from='shakespeare.lit'
+    to='bard@shakespeare.lit/globe'
+    id='selected1'&gt;
+  &lt;services xmlns='http://www.xmpp.org/extensions/xep-0215.html#ns'
+            type='stun-relay'&gt;
+    &lt;service host='stun.shakespeare.lit'
+             password='jj929jkj5sadjfj93v3n'
+             port='9999'
+             type='stun-relay'
+             username='nb78932lkjlskjfdb7g8'/&gt;
+    &lt;service host='192.0.2.1'
+             port='8889'
+             password='93jn3bakj9s832lrjbbz'
+             type='stun-relay'
+             username='auu98sjl2wk3e9fjdsl7'/&gt;
+  &lt;/services&gt;
+&lt;/iq&gt;
+    </pre></div>
+    <p class="" style="">If a requesting entity requests selected services, the responding service MAY as needed send an updated list of the relevant services by "pushing" the list to a requesting entity that has previously requested the list. However, it MUST NOT push updates to the requesting entity unless it has presence information about the requesting entity (e.g., because the requesting entity is connected to the XMPP server or because the requesting entity has shared presence with a remote discovery service).</p>
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Services Push</p><div class="indent"><pre>
+&lt;iq type='set'
+    from='shakespeare.lit'
+    to='bard@shakespeare.lit/globe'
+    id='push1'&gt;
+  &lt;services xmlns='http://www.xmpp.org/extensions/xep-0215.html#ns'
+            type='stun-relay'&gt;
+    &lt;server host='stun.shakespeare.lit' 
+            port='9999' 
+            username='1nas9dlm3hzl89d0b9v' 
+            password='gh9023ljjdk109iajqn'&gt;
+    &lt;server host='192.0.2.2' 
+            port='7778' 
+            username='bnsv120afg48snsdozp' 
+            password='zxp023na98dsfahn1kk'/&gt;
+  &lt;/services&gt;
+&lt;/iq&gt;
+    </pre></div>
+  </div>
+<h2>4.
+       <a name="extended" id="extended">Extended Information</a></h2>
+  <p class="" style="">If a server or service needs to include extended information, it SHOULD do so by including each bit of information as the XML character data of the &lt;value/&gt; child of a distinct &lt;field/&gt; element, with the entire set of fields contained within an &lt;x/&gt; element of type "result" qualified by the 'jabber:x:data' namespace (see <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0004.html">Data Forms</a></span>  [<a href="#nt-id2262143">13</a>]); this &lt;x/&gt; element SHOULD be a child of the &lt;service/&gt; element qualified by the 'http://www.xmpp.org/extensions/xep-0215.html#ns' namespace (see <a href="#ns">Protocol Namespaces</a> regarding issuance of one or more permanent namespaces). Thus the IQ result SHOULD be of the following form:</p>
+  <p class="caption"></p><div class="indent"><pre>
+&lt;iq type='result'&gt;
+  &lt;services xmlns='http://www.xmpp.org/extensions/xep-0215.html#ns'&gt;
+    &lt;service&gt;
+      &lt;x type='result' xmlns='jabber:x:data'&gt;
+        &lt;field var='[var-name]' label='[optional]'&gt;
+          &lt;value&gt;[var-value]&lt;/value&gt;
+        &lt;/field&gt;
+        [ ... ]
+      &lt;/x&gt;
+    &lt;/service&gt;
+  &lt;/services&gt;
+&lt;/iq&gt;</pre></div>
+  <p class="" style="">Note: A &lt;field/&gt; element MAY contain more than one &lt;value/&gt; child if appropriate.</p>
+  <p class="" style="">If the data fields are to be used in the context of a protocol approved by the XMPP Standards Foundation, they SHOULD be registered in accordance with the rules defined in XEP-0068, resulting in the inclusion of a &lt;field/&gt; element whose 'var' attribute has a value of "FORM_TYPE" and whose 'type' attribute has a value of "hidden".</p>
+  <p class="" style="">Note: Although <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions</a></span>  [<a href="#nt-id2262224">14</a>] specifies that an XMPP entity MUST NOT supply extended information about associated children communicated via the 'http://www.xmpp.org/extensions/xep-0215.html#ns' namespace, that rule does not apply to External Service Discovery since services external to the XMPP network cannot communicate via XMPP.</p>
+<h2>5.
+       <a name="disco" id="disco">Determining Support</a></h2>
+  <p class="" style="">If an entity supports the STUN Server Discovery protocol, it MUST report that fact by including a service discovery feature of "http://www.xmpp.org/extensions/xep-0215.html#ns" (see <a href="#ns">Protocol Namespaces</a> regarding issuance of one or more permanent namespaces) in response to a <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0030.html">Service Discovery</a></span>  [<a href="#nt-id2262268">15</a>] information request:</p>
+  <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Service Discovery Information Request</p><div class="indent"><pre>
+&lt;iq type='get'
+    from='romeo@montague.lit/orchard'
+    to='montague.lit'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+  </pre></div>
+  <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Service Discovery Information Response</p><div class="indent"><pre>
+&lt;iq type='result'
+    from='montague.lit'
+    to='romeo@montague.lit/orchard'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;feature var='http://www.xmpp.org/extensions/xep-0215.html#ns'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+  </pre></div>
+<h2>6.
+       <a name="i18n" id="i18n">Internationalization Considerations</a></h2>
+  <p class="" style="">If the requesting entity includes an 'xml:lang' attribute with its request, the responding entity SHUOLD include appropriately internationalized text as the value of the 'name' attribute. No other attributes are human-readable.</p>
+<h2>7.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">Because the responding entity (XMPP server or discovery service) functions as a "proxy" from external services to the XMPP network, it could modify the information it receives before passing it on to the requesting entity.</p>
+<h2>8.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>8.1 <a name="ns" id="ns">Protocol Namespaces</a></h3>
+    <p class="" style="">Until this specification advances to a status of Draft, its associated namespace shall be "http://www.xmpp.org/extensions/xep-0215.html#ns"; upon advancement of this specification, the XMPP Registrar shall issue a permanent namespace in accordance with the process defined in Section 4 of <span class="ref" style=""><a href="http://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function</a></span>  [<a href="#nt-id2262381">16</a>].</p>
+  </div>
+  <div class="indent"><h3>8.2 <a name="registrar-services" id="registrar-services">External Service Types Registry</a></h3>
+    <p class="" style="">The XMPP Registrar shall maintain a registry of external service types and their associated transport protocol(s). Such service types will probably be derived from the <span class="ref" style=""><a href="http://www.iana.org/assignments/port-numbers">IANA Port Numbers Registry</a></span>  [<a href="#nt-id2262430">17</a>], defined DNS SRV record types, defined DDDS records for NAPTR, S-NAPTR, and U-NAPTR, and <span class="ref" style=""><a href="http://www.iana.org/assignments/svrloc-templates.htm">
+IANA Service Location Protocol, Version 2 (SLPv2) Templates</a></span>  [<a href="#nt-id2262458">18</a>].  A future version of this specification shall define the relevant actions requested of the XMPP Registrar.</p>
+  </div>
+<h2>9.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre>
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='http://www.xmpp.org/extensions/xep-0215.html#ns'
+    xmlns='http://www.xmpp.org/extensions/xep-0215.html#ns'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:import
+      namespace='jabber:x:data'
+      schemaLocation='http://www.xmpp.org/schemas/x-data.xsd'/&gt;
+
+  &lt;xs:element name='services'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence minOccurs='0'&gt;
+        &lt;xs:element ref='service'/&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name='type' type='xs:NCName' use='optional'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='service'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='host' type='xs:string' use='required'/&gt;
+          &lt;xs:attribute name='name' type='xs:string' use='optional'/&gt;
+          &lt;xs:attribute name='password' type='xs:string' use='optional'/&gt;
+          &lt;xs:attribute name='port' type='xs:string' use='required'/&gt;
+          &lt;xs:attribute name='transport' type='xs:NCName' use='optional'/&gt;
+          &lt;xs:attribute name='type' type='xs:NCName' use='required'/&gt;
+          &lt;xs:attribute name='username' type='xs:string' use='optional'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+  </pre></div>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://www.xmpp.org/extensions/">XEP</a><br />
+            Number: 0215<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status: 
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a><br />
+            Type:
+            <a href="http://www.xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.3<br />
+            Last Updated: 2007-08-30<br />
+                Approving Body: <a href="http://www.xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT YET ASSIGNED<br />
+              Source Control: 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080/browse/XMPP/trunk/extensions/xep-0215.xml">HTML</a> 
+                <a class="standardsButton" href="http://svn.xmpp.org:18080//changelog/~rss/XMPP/trunk/extensions/xep-0215.xml/rss.xml">RSS</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Peter Saint-Andre</h3><p class="indent">
+        JabberID: 
+        <a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a><br />
+        URI: 
+        <a href="https://stpeter.im/">https://stpeter.im/</a><br /></p><h3>Sean Egan</h3><p class="indent">
+        Email:
+        <a href="mailto:seanegan@google.com">seanegan@google.com</a><br />
+        JabberID: 
+        <a href="xmpp:seanegan@google.com">seanegan@google.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright (c) 1999 - 2009 by the <a href="http://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. In no event shall the XMPP Standards Foundation or the authors of this Specification be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising out of the use or inability to use the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which may be found at &lt;<a href="http://xmpp.org/extensions/ipr-policy.shtml">http://xmpp.org/extensions/ipr-policy.shtml</a>&gt; or obtained by writing to XSF, P.O. Box 1641, Denver, CO 80201 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 3920) and XMPP IM (RFC 3921) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata may be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-id2251049" id="nt-id2251049">1</a>. RFC 5389: Session Traversal Utilities for NAT (STUN) &lt;<a href="http://tools.ietf.org/html/rfc5389">http://tools.ietf.org/html/rfc5389</a>&gt;.</p><p><a name="nt-id2251074" id="nt-id2251074">2</a>. Traversal Using Relays around NAT (TURN): Relay Extensions to Session Traversal Utilities for NAT (STUN) &lt;<a href="http://tools.ietf.org/html/draft-ietf-behave-turn">http://tools.ietf.org/html/draft-ietf-behave-turn</a>&gt;. Work in progress.</p><p><a name="nt-id2251101" id="nt-id2251101">3</a>. XEP-0176: Jingle ICE-UDP Transport Method &lt;<a href="http://xmpp.org/extensions/xep-0176.html">http://xmpp.org/extensions/xep-0176.html</a>&gt;.</p><p><a name="nt-id2254618" id="nt-id2254618">4</a>. The protocol specified herein is functionally equivalent to the protocol currently used in the Google Talk service for discovery of STUN servers, as documented at &lt;<a href="http://code.google.com/apis/talk/jep_extensions/jingleinfo.html">http://code.google.com/apis/talk/jep_extensions/jingleinfo.html</a>&gt;, but has been broadened in scope to address additional use cases if desired.</p><p><a name="nt-id2251185" id="nt-id2251185">5</a>. RFC 2782: A DNS RR for specifying the location of services (DNS SRV) &lt;<a href="http://tools.ietf.org/html/rfc2782">http://tools.ietf.org/html/rfc2782</a>&gt;.</p><p><a name="nt-id2251219" id="nt-id2251219">6</a>. RFC 2608: Service Location Protocol, Version 2 &lt;<a href="http://tools.ietf.org/html/rfc2608">http://tools.ietf.org/html/rfc2608</a>&gt;.</p><p><a name="nt-id2251388" id="nt-id2251388">7</a>. RFC 3401: Dynamic Delegation Discovery System (DDDS) Part One: The Comprehensive DDDS &lt;<a href="http://tools.ietf.org/html/rfc3401">http://tools.ietf.org/html/rfc3401</a>&gt;.</p><p><a name="nt-id2251453" id="nt-id2251453">8</a>. RFC 3403: Dynamic Delegation Discovery System (DDDS) Part Three: The Domain Name System (DNS) Database &lt;<a href="http://tools.ietf.org/html/rfc3403">http://tools.ietf.org/html/rfc3403</a>&gt;.</p><p><a name="nt-id2251424" id="nt-id2251424">9</a>. RFC 3958: Domain-Based Application Service Location Using SRV RRs and the Dynamic Delegation Discovery Service (DDDS) &lt;<a href="http://tools.ietf.org/html/rfc3958">http://tools.ietf.org/html/rfc3958</a>&gt;.</p><p><a name="nt-id2251253" id="nt-id2251253">10</a>. RFC 4848: Domain-Based Application Service Location Using URIs and the Dynamic Delegation Discovery Service (DDDS) &lt;<a href="http://tools.ietf.org/html/rfc4848">http://tools.ietf.org/html/rfc4848</a>&gt;.</p><p><a name="nt-id2251299" id="nt-id2251299">11</a>. XEP-0030: Service Discovery &lt;<a href="http://xmpp.org/extensions/xep-0030.html">http://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id2261905" id="nt-id2261905">12</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="http://xmpp.org/registrar/">http://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id2262143" id="nt-id2262143">13</a>. XEP-0004: Data Forms &lt;<a href="http://xmpp.org/extensions/xep-0004.html">http://xmpp.org/extensions/xep-0004.html</a>&gt;.</p><p><a name="nt-id2262224" id="nt-id2262224">14</a>. XEP-0128: Service Discovery Extensions &lt;<a href="http://xmpp.org/extensions/xep-0128.html">http://xmpp.org/extensions/xep-0128.html</a>&gt;.</p><p><a name="nt-id2262268" id="nt-id2262268">15</a>. XEP-0030: Service Discovery &lt;<a href="http://xmpp.org/extensions/xep-0030.html">http://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id2262381" id="nt-id2262381">16</a>. XEP-0053: XMPP Registrar Function &lt;<a href="http://xmpp.org/extensions/xep-0053.html">http://xmpp.org/extensions/xep-0053.html</a>&gt;.</p><p><a name="nt-id2262430" id="nt-id2262430">17</a>. IANA registry of port numbers &lt;<a href="http://www.iana.org/assignments/port-numbers">http://www.iana.org/assignments/port-numbers</a>&gt;.</p><p><a name="nt-id2262458" id="nt-id2262458">18</a>. IANA registry of parameters related to the Service Location Protocol templates &lt;<a href="http://www.iana.org/assignments/svrloc-templates.htm">http://www.iana.org/assignments/svrloc-templates.htm</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><div class="indent"><h4>Version 0.3 (2007-08-30)</h4><div class="indent"><p class="" style="">Added name attribute for human-readable labels; added internationalization considerations; added security considerations.</p> (psa)
+    </div><h4>Version 0.2 (2007-08-28)</h4><div class="indent"><p class="" style="">Broadened scope from discovery of STUN servers to discovery of any external (non-XMPP) service.</p> (psa)
+    </div><h4>Version 0.1 (2007-05-16)</h4><div class="indent"><p class="" style="">Initial published version.</p> (psa/se)
+    </div><h4>Version 0.0.5 (2007-05-10)</h4><div class="indent"><p class="" style="">Added attributes for username and password; reverted to IQ method since credentials are individualized.</p> (psa)
+    </div><h4>Version 0.0.4 (2007-04-18)</h4><div class="indent"><p class="" style="">Modified to use a well-known publish-subscribe node instead of a dedicated IQ exchange.</p> (psa)
+    </div><h4>Version 0.0.3 (2007-03-30)</h4><div class="indent"><p class="" style="">Made port mandatory since spec assumes that SRV is not available; added XML schema.</p> (psa)
+    </div><h4>Version 0.0.2 (2007-03-27)</h4><div class="indent"><p class="" style="">Made port optional.</p> (psa)
+    </div><h4>Version 0.0.1 (2007-03-23)</h4><div class="indent"><p class="" style="">First draft.</p> (psa/se)
+    </div></div><hr /><p>END</p></body></html>
