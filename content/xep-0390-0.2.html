@@ -1,0 +1,930 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0390: Entity Capabilities 2.0</title><base href="./" /><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Entity Capabilities 2.0" /><meta name="DC.Creator" content="Jonas Wielicki" /><meta name="DC.Description" content="This document overhauls the XMPP protocol extension Entity Capabilities (XEP-0115). It defines an XMPP protocol extension for broadcasting and dynamically discovering client, device, or generic entity capabilities. In order to minimize network impact, the transport mechanism is standard XMPP presence broadcast (thus forestalling the need for polling related to service discovery data), the capabilities information can be cached either within a session or across sessions, and the format has been kept as small as possible." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2017-06-14" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0390" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2017 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0390: Entity Capabilities 2.0</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This document overhauls the XMPP protocol extension Entity Capabilities (XEP-0115). It defines an XMPP protocol extension for broadcasting and dynamically discovering client, device, or generic entity capabilities. In order to minimize network impact, the transport mechanism is standard XMPP presence broadcast (thus forestalling the need for polling related to service discovery data), the capabilities information can be cached either within a session or across sessions, and the format has been kept as small as possible.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Jonas Wielicki</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2017 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.2</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2017-06-14</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#glossary">Glossary</a><br />4.  <a href="#algorithm">Algorithms</a><br />   
+      4.1.  <a href="#algorithm-input">Hash Function Input</a><br />   
+      4.2.  <a href="#algorithm-hashsets">Construction of Capability Hash Sets</a><br />   
+      4.3.  <a href="#algorithm-hashnodes">Construction of Capability Hash Nodes</a><br />   
+      4.4.  <a href="#algorithm-verify">Verification of a Capability Hash Set</a><br />   
+      4.5.  <a href="#algorithm-example">Examples</a><br />      
+      4.5.1.  <a href="#algorithm-example-simple">Simple Example</a><br />      
+      4.5.2.  <a href="#algorithm-examples-complex">Complex Example</a><br />5.  <a href="#usecases">Use Cases</a><br />   
+      5.1.  <a href="#usecases-support">Advertising Support</a><br />   
+      5.2.  <a href="#usecases-stream-feature">Advertisement of Support and Capabilities by Servers</a><br />   
+      5.3.  <a href="#usecases-support">Advertising Support of Caps Optimizations</a><br />   
+      5.4.  <a href="#usecases-broadcast">Broadcasting Entity Capabilities</a><br />   
+      5.5.  <a href="#usecases-hash-query">Service Discovery Query for a Specific Hash Value</a><br />   
+      5.6.  <a href="#usecases-gratuitous">Gratuitous Capabilities</a><br />6.  <a href="#rules">Business Rules</a><br />   
+      6.1.  <a href="#rules-generating">Rules for Generating Entities</a><br />   
+      6.2.  <a href="#rules-processing">Rules for Processing Entities</a><br />      
+      6.2.1.  <a href="#rules-processing-caching">Caching</a><br />   
+      6.3.  <a href="#rules-optimize">Additional Rules for Clients and Servers implementing Caps Optimizations</a><br />   
+      6.4.  <a href="#rules-servers">Query Interception</a><br />7.  <a href="#impl">Implementation Notes</a><br />   
+      7.1.  <a href="#impl-caching">Caching</a><br />   
+      7.2.  <a href="#impl-upgrade">Upgrading from XEP-0115</a><br />8.  <a href="#security">Security Considerations</a><br />   
+      8.1.  <a href="#security-separators">Hash Function Input Data Separators</a><br />   
+      8.2.  <a href="#security-caching">Caching</a><br />   
+      8.3.  <a href="#security-directed-presence">Directed Presence</a><br />   
+      8.4.  <a href="#security-query-interception">Query Interception</a><br />9.  <a href="#design">Design Considerations</a><br />   
+      9.1.  <a href="#design-c14n">Canonical XML</a><br />10.  <a href="#iana">IANA Considerations</a><br />11.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      11.1.  <a href="#ns">Protocol Namespaces</a><br />   
+      11.2.  <a href="#registrar-features">Service Discovery Features</a><br />   
+      11.3.  <a href="#registrar-stream-features">Stream Features</a><br />12.  <a href="#schema">XML Schema</a><br />13.  <a href="#acknowledgements">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">XMPP applications often face choices based on the disco#info (see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm62">1</a>]) exposed by other entities. For example, for a client, knowledge about whether a roster entry is a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0369.html">Mediated Information eXchange (MIX) (XEP-0369)</a></span>  [<a href="#nt-idm66">2</a>] entity or a normal client is important for user experience. It may also be desirable to provide indicators on the type of client a contact is using (mobile or not).</p>
+  <p class="" style="">The canonical way to do so has been issueing <span class="ref">XEP-0030</span> requests to the entities emitting presence. This, with the evergrowing featureset of XMPP, induces a lot of traffic for all involed parties, especially during startup. This is a waste of resources, as <span class="ref">XEP-0030</span> information rarely changes and even more, common client configurations and versions share exactly the same information.</p>
+  <p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm74">3</a>] has provided the XMPP ecosystem with a way to share this information with less bandwith. Entities using that protocol send a hash of their disco#info result along with presence or stream features. As those hashes can be cached, entities receiving these hashes only need to query the information for each hash once, greatly reducing the Service Discovery traffic.</p>
+  <p class="" style="">However, <span class="ref">XEP-0115</span> has two main flaws:</p>
+  <ul class="" style="">
+    <li class="" style="">The hash agility mechanism is underspecified. While it is possible to change the hash function, there is no clearly defined way to send multiple hashes at once to allow for a transition period. Even though it is technically not forbidden to send multiple <span class="ref">XEP-0115</span> &lt;c/&gt; elements with different hashes at once, it is unclear how implementations behave when this happens. Possible issues lie in the use of caps optimization, as well as clients expecting only one &lt;c/&gt; element.</li>
+    <li class="" style="">The algorithm to generate the input for the hash function has flaws as pointed out by Waqas Hussain  [<a href="#nt-idm82">4</a>]. Even though these flaws have partially been fixed and worked around, the fundamental problem that the structural information of the individual strings from the disco response is lost persists.</li>
+  </ul>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p class="" style="">The <span class="em">Entity Capabilities 2.0</span> protocol aims to satisfy the following requirements:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">Entities must be able to participate even if they support only <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-idm91">5</a>], <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6121">XMPP IM</a></span>  [<a href="#nt-idm95">6</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm62">1</a>] [<a href="#nt-idm101">7</a>].</li>
+    <li class="" style="">Entities must be able to participate without connectivity to services except their own XMPP server and without connectivity to specialized XMPP services, including cached information from those services.</li>
+    <li class="" style="">Entities should be able to learn Service Discovery information without actively querying for it.</li>
+    <li class="" style="">The bandwidth consumption should be as minimal as possible, while reusing existing specifications.</li>
+    <li class="" style="">It must be possible to write <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm108">8</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0369.html">Mediated Information eXchange (MIX) (XEP-0369)</a></span>  [<a href="#nt-idm66">2</a>] implementations which can forward this protocol with negligible extra work.</li>
+    <li class="" style="">Entities must be able to update their published information arbitrarily often in a single presence session.</li>
+    <li class="" style="">Server infrastructure beyond <span class="ref">XMPP Core</span> and <span class="ref">XMPP IM</span> must not be required for this to work (but may be beneficial).</li>
+    <li class="" style="">Entities must be able to be confident that the information obtained from the broadcast is equivalent to the information which would be obtained from querying the generating entity directly at the time the broadcast was generated.</li>
+    <li class="" style="">The protocol must be able to coexist (but not necessarily exchange information) with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm74">3</a>].</li>
+    <li class="" style="">No special XML features beyond what is needed to implement <span class="ref">XMPP Core</span> itself should be required.</li>
+    <li class="" style="">Obsoletion of hash functions should not need a new version of the specification.</li>
+    <li class="" style="">Support for pushing Entity Capabilities to the clients server without sending presence.</li>
+  </ol>
+<h2>3.
+       <a name="glossary" id="glossary">Glossary</a></h2>
+  <div class="indent"><dl>
+    <di><dt><strong>Capability Hash</strong></dt><dd>A tuple of hash function and hash value generated as described in the <a href="#algorithm">Hash Function Input</a> section.</dd></di>
+    <di><dt><strong>Capability Hash Cache</strong></dt><dd>A mapping which maps <span class="em">Capability Hashes</span> to disco#info &lt;query/&gt; responses with an empty 'node' attribute.</dd></di>
+    <di><dt><strong>Cabability Hash Node</strong></dt><dd>The name of a <span class="ref">XEP-0030</span> 'node' for a given <span class="em">Capability Hash</span>. See <a href="#algorithm-hashnodes">Construction of Capability Hash Nodes</a>.</dd></di>
+    <di><dt><strong>Capability Hash Set</strong></dt><dd>A set of <span class="em">Capability Hashes</span> which cover the same <span class="ref">XEP-0030</span> response, possibly in the form of a &lt;c/&gt; element with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0300.html">Use of Cryptographic Hash Functions in XMPP (XEP-0300)</a></span>  [<a href="#nt-idm151">9</a>] &lt;hash/&gt; children.</dd></di>
+    <di><dt><strong>Generating Entity</strong></dt><dd>An entity which emits a <span class="em">Capability Hash Set</span> to other entities.</dd></di>
+    <di><dt><strong>Processing Entity</strong></dt><dd>An entity which receives and processes a <span class="em">Capability Hash Set</span> from a <span class="em">Generating Entity</span>.</dd></di>
+    <di><dt><strong>Query Interception</strong></dt><dd>Server-side processing of disco#info queries directed to a resource based on the <span class="em">Capability Hash Sets</span> published by that resource.</dd></di>
+    <di><dt><strong>Gratuitous Capabilities</strong></dt><dd>The sending of a <span class="em">Capability Hash Set</span> to a server before initial presence has been sent and without being asked by the server.</dd></di>
+  </dl></div>
+<h2>4.
+       <a name="algorithm" id="algorithm">Algorithms</a></h2>
+  <p class="" style="">The following algorithms provide data which is sent using this protocol.</p>
+
+  <div class="indent"><h3>4.1 <a name="algorithm-input" id="algorithm-input">Hash Function Input</a></h3>
+    <p class="" style="">The input to this algorithm is a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm62">1</a>] disco#info &lt;query/&gt; response. The output is an octet string which can be used as input to a hash function or an error.</p>
+    <div class="box" style=""><p class="" style="">General remarks:</p>
+    <ul class="" style="">
+      <li class="" style=""><p class="" style="">The algorithm strongly distinguishes between character data (sequences of Unicode code points) and octet strings (sequences of 8-bit bytes). Whenever character data is encoded to octet strings in the following algorithm, the UTF-8 as specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3629">RFC 3629</a></span>  [<a href="#nt-idm185">10</a>] encoding is used. Whenever octet strings are sorted in the following algorithm, the i;octet collation as specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4790">RFC 4790</a></span>  [<a href="#nt-idm189">11</a>] is used.</p></li>
+      <li class="" style=""><p class="" style="">The algorithm uses the <tt>xml:lang</tt> attribute. Implementations must take implicit values for the <tt>xml:lang</tt> attribute into account, for example those inherited from the disco#info or the IQ element.</p></li>
+    </ul></div>
+    <ol start="" class="" style="">
+      <li class="" style="">If the &lt;query/&gt; element contains any elements except &lt;identity/&gt;, &lt;feature/&gt; (both from the <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm62">1</a>] disco#info namespace) or <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions (XEP-0128)</a></span>  [<a href="#nt-idm203">12</a>] data forms, abort with an error.</li>
+      <li class="" style="">If any <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions (XEP-0128)</a></span>  [<a href="#nt-idm203">12</a>] &lt;x/&gt; element contains a data form which contains a &lt;reported/&gt; or &lt;item/&gt; element, abort with an error.</li>
+      <li class="" style="">If any <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions (XEP-0128)</a></span>  [<a href="#nt-idm203">12</a>] &lt;x/&gt; element does not adhere to the "FORM_TYPE" protocol specified by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0068.html">Field Standardization for Data Forms (XEP-0068)</a></span>  [<a href="#nt-idm217">13</a>], abort with an error.</li>
+      <li class="" style=""><p class="" style="">Processing of &lt;feature/&gt; elements:</p>
+        <ol start="" class="" style="">
+          <li class="" style="">For each &lt;feature/&gt; element: Encode the character data of the 'var' attribute and append an octet of value 0x1f (ASCII Unit Separator)</li>
+          <li class="" style="">Join the resulting octet strings together, ordered from lesser to greater.</li>
+          <li class="" style="">Append an octet of value 0x1c (ASCII File Separator).</li>
+        </ol>
+        <p class="" style="">The result of this step is referenced as <span class="em">Features String</span> later.</p>
+      </li>
+      <li class="" style=""><p class="" style="">Processing of &lt;identity/&gt; nodes:</p>
+        <ol start="" class="" style="">
+          <li class="" style=""><p class="" style="">For each &lt;identity/&gt; node:</p>
+            <ol start="" class="" style="">
+              <li class="" style="">Encode the character data of the 'category', 'type', 'xml:lang' and 'name' attributes.</li>
+              <li class="" style="">Append an octet of value 0x1f (ASCII Unit Separator) to each resulting octet string.</li>
+              <li class="" style="">Join the resulting octet strings together, in the order of 'category', 'type', 'xml:lang' and 'name', resulting in a single octet string for the &lt;identity/&gt; node.</li>
+              <li class="" style="">Append an octet of value 0x1e (ASCII Record Separator).</li>
+            </ol>
+          </li>
+          <li class="" style="">Join the resulting octet strings together, ordered from lesser to greater.</li>
+          <li class="" style="">Append an octet of value 0x1c (ASCII File Separator).</li>
+        </ol>
+        <p class="" style="">The result of this step is referenced as <span class="em">Identities String</span> later.</p>
+      </li>
+      <li class="" style=""><p class="" style="">Processing of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions (XEP-0128)</a></span>  [<a href="#nt-idm203">12</a>] &lt;x/&gt; elements:</p>
+        <ol start="" class="" style="">
+          <li class="" style=""><p class="" style="">For each &lt;x/&gt; element:</p>
+            <ol start="" class="" style="">
+              <li class="" style=""><p class="" style="">For each &lt;field/&gt; element:</p>
+                <ol start="" class="" style="">
+                  <li class="" style="">Encode the character data of each &lt;value/&gt; element and append an octet of value 0x1f (ASCII Unit Separator)</li>
+                  <li class="" style="">Join the resulting octet strings together, ordered from lesser to greater.</li>
+                  <li class="" style="">Encode the character data of the 'var' attribute and append an octet of value 0x1f (ASCII Unit Separator) and the result from the previous step.</li>
+                  <li class="" style="">Append an octet of value 0x1e (ASCII Record Separator).</li>
+                </ol>
+              </li>
+              <li class="" style="">Join the resulting octet strings together, ordered from lesser to greater.</li>
+              <li class="" style="">Append an octet of value 0x1d (ASCII Group Separator).</li>
+            </ol>
+          </li>
+          <li class="" style="">Join the resulting octet strings together, ordered from lesser to greater.</li>
+          <li class="" style="">Append an octet of value 0x1c (ASCII File Separator).</li>
+        </ol>
+        <p class="" style="">The result of this step is referenced as <span class="em">Extensions String</span> later.</p>
+      </li>
+      <li class="" style="">Join the <span class="em">Features String</span>, <span class="em">Identities String</span> and <span class="em">Extensions String</span> together, in this order. Return the resulting string as result of the algorithm.</li>
+    </ol>
+  </div>
+
+  <div class="indent"><h3>4.2 <a name="algorithm-hashsets" id="algorithm-hashsets">Construction of Capability Hash Sets</a></h3>
+    <p class="" style="">The entity picks a set of hash functions it wishes to use. The set of hash functions MUST include at least one hash function which MUST be implemented according to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0300.html">Use of Cryptographic Hash Functions in XMPP (XEP-0300)</a></span>  [<a href="#nt-idm151">9</a>] and SHOULD NOT include any hash functions which MUST NOT be supported according to <span class="ref">XEP-0300</span>.</p>
+    <p class="" style="">Using the algorithm from the previous subsection, the entity calculates the input for the hash functions. It then runs the input through each hash function individually. The resulting tuples of hash algorithm and hash values constitute the <span class="em">Capability Hash Set</span>.</p>
+  </div>
+
+  <div class="indent"><h3>4.3 <a name="algorithm-hashnodes" id="algorithm-hashnodes">Construction of Capability Hash Nodes</a></h3>
+    <p class="" style="">The <span class="em">Capability Hash Node</span> is obtained from a <span class="em">Capability Hash</span> with the following simple algorithm:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">To the namespace prefix "urn:xmpp:caps#", append the name of the hash function as per <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0300.html">Use of Cryptographic Hash Functions in XMPP (XEP-0300)</a></span>  [<a href="#nt-idm151">9</a>].</li>
+      <li class="" style="">Append a FULL STOP character (U+002E, ".").</li>
+      <li class="" style="">Append the Base64 encoded (as specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3548">RFC 3548</a></span>  [<a href="#nt-idm291">14</a>]) hash value.</li>
+    </ol>
+    <p class="" style="">The <span class="em">Capability Hash Node</span> can be decomposed into its original components with the following algorithm:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">Remove the namespace prefix "urn:xmpp:caps#" from the input.</li>
+      <li class="" style="">From the <span class="em">end</span> of the string, start searching for the FULL STOP character (U+002E, ".") separator.</li>
+      <li class="" style="">Split the string into the hash function and the Base64-encoded hash value at the position found in the previous step.</li>
+    </ol>
+  </div>
+
+  <div class="indent"><h3>4.4 <a name="algorithm-verify" id="algorithm-verify">Verification of a Capability Hash Set</a></h3>
+    <p class="" style="">The algorithm takes a <span class="em">Capability Hash Set</span> as input and returns successfully if the hash matches and an error otherwise.</p>
+    <ol start="" class="" style="">
+      <li class="" style="">Pick a <span class="em">Capability Hash</span> from the <span class="em">Capability Hash Set</span>.</li>
+      <li class="" style="">Query the <span class="em">Generating Entity</span> for disco#info on the <span class="em">Capability Hash Node</span> for the chosen hash like described above. If the entity returns an error, abort with an error.</li>
+      <li class="" style="">Locally calculate the <span class="em">Capability Hash</span> using the same hash function as in the input as described in the algorithm. If the algorithm exits with an error, abort with an error.</li>
+      <li class="" style="">If the hashes do not match, abort with an error.</li>
+      <li class="" style="">Exit successfully, the hash is verified.</li>
+    </ol>
+  </div>
+
+  <div class="indent"><h3>4.5 <a name="algorithm-example" id="algorithm-example">Examples</a></h3>
+    <p class="" style="">The two examples walk through the process of constructing a <span class="em">Capability Hash Set</span> for SHA-256 and SHA3-256. The full algorithm for generating the hash function input is explained.</p>
+    <div class="indent"><h3>4.5.1 <a name="algorithm-example-simple" id="algorithm-example-simple">Simple Example</a></h3>
+      <p class="caption"><a name="example-1" id="example-1"></a>Example 1. disco#info payload for the simple example; no XEP-0128 forms</p><div class="indent"><pre class="prettyprint">
+&lt;query xmlns="http://jabber.org/protocol/disco#info"&gt;
+  &lt;identity category="client" name="BombusMod" type="mobile"/&gt;
+  &lt;feature var="http://jabber.org/protocol/si"/&gt;
+  &lt;feature var="http://jabber.org/protocol/bytestreams"/&gt;
+  &lt;feature var="http://jabber.org/protocol/chatstates"/&gt;
+  &lt;feature var="http://jabber.org/protocol/disco#info"/&gt;
+  &lt;feature var="http://jabber.org/protocol/disco#items"/&gt;
+  &lt;feature var="urn:xmpp:ping"/&gt;
+  &lt;feature var="jabber:iq:time"/&gt;
+  &lt;feature var="jabber:iq:privacy"/&gt;
+  &lt;feature var="jabber:iq:version"/&gt;
+  &lt;feature var="http://jabber.org/protocol/rosterx"/&gt;
+  &lt;feature var="urn:xmpp:time"/&gt;
+  &lt;feature var="jabber:x:oob"/&gt;
+  &lt;feature var="http://jabber.org/protocol/ibb"/&gt;
+  &lt;feature var="http://jabber.org/protocol/si/profile/file-transfer"/&gt;
+  &lt;feature var="urn:xmpp:receipts"/&gt;
+  &lt;feature var="jabber:iq:roster"/&gt;
+  &lt;feature var="jabber:iq:last"/&gt;
+&lt;/query&gt;
+</pre></div>
+    <p class="" style="">The data from the example was the first entry in the <span class="ref" style=""><a href="https://github.com/xnyhps/capsdb/">capsdb</a></span>  [<a href="#nt-idm322">15</a>] hashes subdirectory which had no data forms at the time of writing. The features have been shuffled to show the sorting step in the algorithm.</p>
+    <p class="" style="">The algorithm starts by constructing the <span class="em">Features String</span>. For this, the values of the 'var' attributes of the feature nodes are encoded as UTF-8 and suffixed with 0x1f (ASCII Unit Separator). The first three of those features are shown as a hexdump below:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+00000000  68 74 74 70 3a 2f 2f 6a  61 62 62 65 72 2e 6f 72  |http://jabber.or|
+00000010  67 2f 70 72 6f 74 6f 63  6f 6c 2f 73 69 1f        |g/protocol/si.|
+0000001e
+
+00000000  68 74 74 70 3a 2f 2f 6a  61 62 62 65 72 2e 6f 72  |http://jabber.or|
+00000010  67 2f 70 72 6f 74 6f 63  6f 6c 2f 62 79 74 65 73  |g/protocol/bytes|
+00000020  74 72 65 61 6d 73 1f                              |treams.|
+00000027
+
+00000000  68 74 74 70 3a 2f 2f 6a  61 62 62 65 72 2e 6f 72  |http://jabber.or|
+00000010  67 2f 70 72 6f 74 6f 63  6f 6c 2f 63 68 61 74 73  |g/protocol/chats|
+00000020  74 61 74 65 73 1f                                 |tates.|
+00000026</pre></div>
+    <p class="" style="">Note the appended 0x1f octet for each of the three strings. Now the strings are ordered using the i;octet collation and concatenated. The result is suffixed with 0x1c (ASCII File Separator), which gives the following hexdump of the final <span class="em">Features String</span>:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+00000000  68 74 74 70 3a 2f 2f 6a  61 62 62 65 72 2e 6f 72  |http://jabber.or|
+00000010  67 2f 70 72 6f 74 6f 63  6f 6c 2f 62 79 74 65 73  |g/protocol/bytes|
+00000020  74 72 65 61 6d 73 1f 68  74 74 70 3a 2f 2f 6a 61  |treams.http://ja|
+00000030  62 62 65 72 2e 6f 72 67  2f 70 72 6f 74 6f 63 6f  |bber.org/protoco|
+00000040  6c 2f 63 68 61 74 73 74  61 74 65 73 1f 68 74 74  |l/chatstates.htt|
+00000050  70 3a 2f 2f 6a 61 62 62  65 72 2e 6f 72 67 2f 70  |p://jabber.org/p|
+00000060  72 6f 74 6f 63 6f 6c 2f  64 69 73 63 6f 23 69 6e  |rotocol/disco#in|
+00000070  66 6f 1f 68 74 74 70 3a  2f 2f 6a 61 62 62 65 72  |fo.http://jabber|
+00000080  2e 6f 72 67 2f 70 72 6f  74 6f 63 6f 6c 2f 64 69  |.org/protocol/di|
+00000090  73 63 6f 23 69 74 65 6d  73 1f 68 74 74 70 3a 2f  |sco#items.http:/|
+000000a0  2f 6a 61 62 62 65 72 2e  6f 72 67 2f 70 72 6f 74  |/jabber.org/prot|
+000000b0  6f 63 6f 6c 2f 69 62 62  1f 68 74 74 70 3a 2f 2f  |ocol/ibb.http://|
+000000c0  6a 61 62 62 65 72 2e 6f  72 67 2f 70 72 6f 74 6f  |jabber.org/proto|
+000000d0  63 6f 6c 2f 72 6f 73 74  65 72 78 1f 68 74 74 70  |col/rosterx.http|
+000000e0  3a 2f 2f 6a 61 62 62 65  72 2e 6f 72 67 2f 70 72  |://jabber.org/pr|
+000000f0  6f 74 6f 63 6f 6c 2f 73  69 1f 68 74 74 70 3a 2f  |otocol/si.http:/|
+00000100  2f 6a 61 62 62 65 72 2e  6f 72 67 2f 70 72 6f 74  |/jabber.org/prot|
+00000110  6f 63 6f 6c 2f 73 69 2f  70 72 6f 66 69 6c 65 2f  |ocol/si/profile/|
+00000120  66 69 6c 65 2d 74 72 61  6e 73 66 65 72 1f 6a 61  |file-transfer.ja|
+00000130  62 62 65 72 3a 69 71 3a  6c 61 73 74 1f 6a 61 62  |bber:iq:last.jab|
+00000140  62 65 72 3a 69 71 3a 70  72 69 76 61 63 79 1f 6a  |ber:iq:privacy.j|
+00000150  61 62 62 65 72 3a 69 71  3a 72 6f 73 74 65 72 1f  |abber:iq:roster.|
+00000160  6a 61 62 62 65 72 3a 69  71 3a 74 69 6d 65 1f 6a  |jabber:iq:time.j|
+00000170  61 62 62 65 72 3a 69 71  3a 76 65 72 73 69 6f 6e  |abber:iq:version|
+00000180  1f 6a 61 62 62 65 72 3a  78 3a 6f 6f 62 1f 75 72  |.jabber:x:oob.ur|
+00000190  6e 3a 78 6d 70 70 3a 70  69 6e 67 1f 75 72 6e 3a  |n:xmpp:ping.urn:|
+000001a0  78 6d 70 70 3a 72 65 63  65 69 70 74 73 1f 75 72  |xmpp:receipts.ur|
+000001b0  6e 3a 78 6d 70 70 3a 74  69 6d 65 1f 1c           |n:xmpp:time..|
+000001bd</pre></div>
+    <p class="" style="">For the <span class="em">Identities String</span>, first the character data of the 'category', 'type', 'xml:lang' and 'name' attributes is encoded as UTF-8 and suffixed with 0x1f (ASCII Unit Separator). The resulting individual strings have the following hexdumps:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+00000000  63 6c 69 65 6e 74 1f                              |client.|
+00000007
+
+00000000  6d 6f 62 69 6c 65 1f                              |mobile.|
+00000007
+
+00000000  1f                                                |.|
+00000001
+
+00000000  42 6f 6d 62 75 73 4d 6f  64 1f                    |BombusMod.|
+0000000a</pre></div>
+    <p class="" style="">The strings are now joined together and the result is suffixed with 0x1e (ASCII Record Separator):</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+00000000  63 6c 69 65 6e 74 1f 6d  6f 62 69 6c 65 1f 1f 42  |client.mobile..B|
+00000010  6f 6d 62 75 73 4d 6f 64  1f 1e                    |ombusMod..|
+0000001a</pre></div>
+    <p class="" style="">Normally, a sorting step would occur here. As the example only has a single string, the sorting and joining is a no-op. The string is now suffixed with 0x1c (ASCII File Separator) to get the <span class="em">Identities String</span>:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+00000000  63 6c 69 65 6e 74 1f 6d  6f 62 69 6c 65 1f 1f 42  |client.mobile..B|
+00000010  6f 6d 62 75 73 4d 6f 64  1f 1e 1c                 |ombusMod...|
+0000001b</pre></div>
+    <p class="" style="">The <span class="em">Extensions String</span> is simply the 0x1c (ASCII File Separator) used to terminate it as no extensions are contained in the example. Thus, the final input for the hash function is, as hexdump:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+00000000  68 74 74 70 3a 2f 2f 6a  61 62 62 65 72 2e 6f 72  |http://jabber.or|
+00000010  67 2f 70 72 6f 74 6f 63  6f 6c 2f 62 79 74 65 73  |g/protocol/bytes|
+00000020  74 72 65 61 6d 73 1f 68  74 74 70 3a 2f 2f 6a 61  |treams.http://ja|
+00000030  62 62 65 72 2e 6f 72 67  2f 70 72 6f 74 6f 63 6f  |bber.org/protoco|
+00000040  6c 2f 63 68 61 74 73 74  61 74 65 73 1f 68 74 74  |l/chatstates.htt|
+00000050  70 3a 2f 2f 6a 61 62 62  65 72 2e 6f 72 67 2f 70  |p://jabber.org/p|
+00000060  72 6f 74 6f 63 6f 6c 2f  64 69 73 63 6f 23 69 6e  |rotocol/disco#in|
+00000070  66 6f 1f 68 74 74 70 3a  2f 2f 6a 61 62 62 65 72  |fo.http://jabber|
+00000080  2e 6f 72 67 2f 70 72 6f  74 6f 63 6f 6c 2f 64 69  |.org/protocol/di|
+00000090  73 63 6f 23 69 74 65 6d  73 1f 68 74 74 70 3a 2f  |sco#items.http:/|
+000000a0  2f 6a 61 62 62 65 72 2e  6f 72 67 2f 70 72 6f 74  |/jabber.org/prot|
+000000b0  6f 63 6f 6c 2f 69 62 62  1f 68 74 74 70 3a 2f 2f  |ocol/ibb.http://|
+000000c0  6a 61 62 62 65 72 2e 6f  72 67 2f 70 72 6f 74 6f  |jabber.org/proto|
+000000d0  63 6f 6c 2f 72 6f 73 74  65 72 78 1f 68 74 74 70  |col/rosterx.http|
+000000e0  3a 2f 2f 6a 61 62 62 65  72 2e 6f 72 67 2f 70 72  |://jabber.org/pr|
+000000f0  6f 74 6f 63 6f 6c 2f 73  69 1f 68 74 74 70 3a 2f  |otocol/si.http:/|
+00000100  2f 6a 61 62 62 65 72 2e  6f 72 67 2f 70 72 6f 74  |/jabber.org/prot|
+00000110  6f 63 6f 6c 2f 73 69 2f  70 72 6f 66 69 6c 65 2f  |ocol/si/profile/|
+00000120  66 69 6c 65 2d 74 72 61  6e 73 66 65 72 1f 6a 61  |file-transfer.ja|
+00000130  62 62 65 72 3a 69 71 3a  6c 61 73 74 1f 6a 61 62  |bber:iq:last.jab|
+00000140  62 65 72 3a 69 71 3a 70  72 69 76 61 63 79 1f 6a  |ber:iq:privacy.j|
+00000150  61 62 62 65 72 3a 69 71  3a 72 6f 73 74 65 72 1f  |abber:iq:roster.|
+00000160  6a 61 62 62 65 72 3a 69  71 3a 74 69 6d 65 1f 6a  |jabber:iq:time.j|
+00000170  61 62 62 65 72 3a 69 71  3a 76 65 72 73 69 6f 6e  |abber:iq:version|
+00000180  1f 6a 61 62 62 65 72 3a  78 3a 6f 6f 62 1f 75 72  |.jabber:x:oob.ur|
+00000190  6e 3a 78 6d 70 70 3a 70  69 6e 67 1f 75 72 6e 3a  |n:xmpp:ping.urn:|
+000001a0  78 6d 70 70 3a 72 65 63  65 69 70 74 73 1f 75 72  |xmpp:receipts.ur|
+000001b0  6e 3a 78 6d 70 70 3a 74  69 6d 65 1f 1c 63 6c 69  |n:xmpp:time..cli|
+000001c0  65 6e 74 1f 6d 6f 62 69  6c 65 1f 1f 42 6f 6d 62  |ent.mobile..Bomb|
+000001d0  75 73 4d 6f 64 1f 1e 1c  1c                       |usMod....|
+000001d9</pre></div>
+    <p class="" style="">Running this octet string through the hash functions leads as to the following <span class="em">Capability Hash Set</span>:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;c xmlns="urn:xmpp:caps"&gt;
+  &lt;hash xmlns="urn:xmpp:hashes:2" algo="sha-256"&gt;kzBZbkqJ3ADrj7v08reD1qcWUwNGHaidNUgD7nHpiw8=&lt;/hash&gt;
+  &lt;hash xmlns="urn:xmpp:hashes:2" algo="sha3-256"&gt;79mdYAfU9rEdTOcWDO7UEAt6E56SUzk/g6TnqUeuD9Q=&lt;/hash&gt;
+&lt;/c&gt;</pre></div>
+    </div>
+    <div class="indent"><h3>4.5.2 <a name="algorithm-examples-complex" id="algorithm-examples-complex">Complex Example</a></h3>
+      <p class="caption"><a name="example-2" id="example-2"></a>Example 2. disco#info payload for the complex example with XEP-0128 forms</p><div class="indent"><pre class="prettyprint">
+&lt;query xmlns="http://jabber.org/protocol/disco#info"&gt;
+  &lt;identity category="client" name="Tkabber" type="pc" xml:lang="en"/&gt;
+  &lt;identity category="client" name="Ткаббер" type="pc" xml:lang="ru"/&gt;
+  &lt;feature var="games:board"/&gt;
+  &lt;feature var="http://jabber.org/protocol/activity"/&gt;
+  &lt;feature var="http://jabber.org/protocol/activity+notify"/&gt;
+  &lt;feature var="http://jabber.org/protocol/bytestreams"/&gt;
+  &lt;feature var="http://jabber.org/protocol/chatstates"/&gt;
+  &lt;feature var="http://jabber.org/protocol/commands"/&gt;
+  &lt;feature var="http://jabber.org/protocol/disco#info"/&gt;
+  &lt;feature var="http://jabber.org/protocol/disco#items"/&gt;
+  &lt;feature var="http://jabber.org/protocol/evil"/&gt;
+  &lt;feature var="http://jabber.org/protocol/feature-neg"/&gt;
+  &lt;feature var="http://jabber.org/protocol/geoloc"/&gt;
+  &lt;feature var="http://jabber.org/protocol/geoloc+notify"/&gt;
+  &lt;feature var="http://jabber.org/protocol/ibb"/&gt;
+  &lt;feature var="http://jabber.org/protocol/iqibb"/&gt;
+  &lt;feature var="http://jabber.org/protocol/mood"/&gt;
+  &lt;feature var="http://jabber.org/protocol/mood+notify"/&gt;
+  &lt;feature var="http://jabber.org/protocol/rosterx"/&gt;
+  &lt;feature var="http://jabber.org/protocol/si"/&gt;
+  &lt;feature var="http://jabber.org/protocol/si/profile/file-transfer"/&gt;
+  &lt;feature var="http://jabber.org/protocol/tune"/&gt;
+  &lt;feature var="http://www.facebook.com/xmpp/messages"/&gt;
+  &lt;feature var="http://www.xmpp.org/extensions/xep-0084.html#ns-metadata+notify"/&gt;
+  &lt;feature var="jabber:iq:avatar"/&gt;
+  &lt;feature var="jabber:iq:browse"/&gt;
+  &lt;feature var="jabber:iq:dtcp"/&gt;
+  &lt;feature var="jabber:iq:filexfer"/&gt;
+  &lt;feature var="jabber:iq:ibb"/&gt;
+  &lt;feature var="jabber:iq:inband"/&gt;
+  &lt;feature var="jabber:iq:jidlink"/&gt;
+  &lt;feature var="jabber:iq:last"/&gt;
+  &lt;feature var="jabber:iq:oob"/&gt;
+  &lt;feature var="jabber:iq:privacy"/&gt;
+  &lt;feature var="jabber:iq:roster"/&gt;
+  &lt;feature var="jabber:iq:time"/&gt;
+  &lt;feature var="jabber:iq:version"/&gt;
+  &lt;feature var="jabber:x:data"/&gt;
+  &lt;feature var="jabber:x:event"/&gt;
+  &lt;feature var="jabber:x:oob"/&gt;
+  &lt;feature var="urn:xmpp:avatar:metadata+notify"/&gt;
+  &lt;feature var="urn:xmpp:ping"/&gt;
+  &lt;feature var="urn:xmpp:receipts"/&gt;
+  &lt;feature var="urn:xmpp:time"/&gt;
+  &lt;x xmlns="jabber:x:data" type="result"&gt;
+    &lt;field type="hidden" var="FORM_TYPE"&gt;
+      &lt;value&gt;urn:xmpp:dataforms:softwareinfo&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;field var="software"&gt;
+      &lt;value&gt;Tkabber&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;field var="software_version"&gt;
+      &lt;value&gt;0.11.1-svn-20111216-mod (Tcl/Tk 8.6b2)&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;field var="os"&gt;
+      &lt;value&gt;Windows&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;field var="os_version"&gt;
+      &lt;value&gt;XP&lt;/value&gt;
+    &lt;/field&gt;
+  &lt;/x&gt;
+&lt;/query&gt;
+</pre></div>
+    <p class="" style="">The data from the example is the shortest entry from the <span class="ref" style=""><a href="https://github.com/xnyhps/capsdb/">capsdb</a></span>  [<a href="#nt-idm322">15</a>] hashes subdirectory which had data forms and multiple identities at the time of writing. The features have been shuffled to show the sorting step in the algorithm.</p>
+    <p class="" style="">We skip over the process for the <span class="em">Features String</span> and only present the final result encoded as base64 for reference:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+Z2FtZXM6Ym9hcmQfaHR0cDovL2phYmJlci5vcmcvcHJvdG9jb2wvYWN0aXZpdHkfaHR0cDovL2ph
+YmJlci5vcmcvcHJvdG9jb2wvYWN0aXZpdHkrbm90aWZ5H2h0dHA6Ly9qYWJiZXIub3JnL3Byb3Rv
+Y29sL2J5dGVzdHJlYW1zH2h0dHA6Ly9qYWJiZXIub3JnL3Byb3RvY29sL2NoYXRzdGF0ZXMfaHR0
+cDovL2phYmJlci5vcmcvcHJvdG9jb2wvY29tbWFuZHMfaHR0cDovL2phYmJlci5vcmcvcHJvdG9j
+b2wvZGlzY28jaW5mbx9odHRwOi8vamFiYmVyLm9yZy9wcm90b2NvbC9kaXNjbyNpdGVtcx9odHRw
+Oi8vamFiYmVyLm9yZy9wcm90b2NvbC9ldmlsH2h0dHA6Ly9qYWJiZXIub3JnL3Byb3RvY29sL2Zl
+YXR1cmUtbmVnH2h0dHA6Ly9qYWJiZXIub3JnL3Byb3RvY29sL2dlb2xvYx9odHRwOi8vamFiYmVy
+Lm9yZy9wcm90b2NvbC9nZW9sb2Mrbm90aWZ5H2h0dHA6Ly9qYWJiZXIub3JnL3Byb3RvY29sL2li
+Yh9odHRwOi8vamFiYmVyLm9yZy9wcm90b2NvbC9pcWliYh9odHRwOi8vamFiYmVyLm9yZy9wcm90
+b2NvbC9tb29kH2h0dHA6Ly9qYWJiZXIub3JnL3Byb3RvY29sL21vb2Qrbm90aWZ5H2h0dHA6Ly9q
+YWJiZXIub3JnL3Byb3RvY29sL3Jvc3RlcngfaHR0cDovL2phYmJlci5vcmcvcHJvdG9jb2wvc2kf
+aHR0cDovL2phYmJlci5vcmcvcHJvdG9jb2wvc2kvcHJvZmlsZS9maWxlLXRyYW5zZmVyH2h0dHA6
+Ly9qYWJiZXIub3JnL3Byb3RvY29sL3R1bmUfaHR0cDovL3d3dy5mYWNlYm9vay5jb20veG1wcC9t
+ZXNzYWdlcx9odHRwOi8vd3d3LnhtcHAub3JnL2V4dGVuc2lvbnMveGVwLTAwODQuaHRtbCNucy1t
+ZXRhZGF0YStub3RpZnkfamFiYmVyOmlxOmF2YXRhch9qYWJiZXI6aXE6YnJvd3NlH2phYmJlcjpp
+cTpkdGNwH2phYmJlcjppcTpmaWxleGZlch9qYWJiZXI6aXE6aWJiH2phYmJlcjppcTppbmJhbmQf
+amFiYmVyOmlxOmppZGxpbmsfamFiYmVyOmlxOmxhc3QfamFiYmVyOmlxOm9vYh9qYWJiZXI6aXE6
+cHJpdmFjeR9qYWJiZXI6aXE6cm9zdGVyH2phYmJlcjppcTp0aW1lH2phYmJlcjppcTp2ZXJzaW9u
+H2phYmJlcjp4OmRhdGEfamFiYmVyOng6ZXZlbnQfamFiYmVyOng6b29iH3Vybjp4bXBwOmF2YXRh
+cjptZXRhZGF0YStub3RpZnkfdXJuOnhtcHA6cGluZx91cm46eG1wcDpyZWNlaXB0cx91cm46eG1w
+cDp0aW1lHxw=</pre></div>
+    <p class="" style="">In the previous example, it was already shown how the individual parts of each &lt;identity/&gt; element are combined. We get the following octet strings as hexdumps:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+00000000  63 6c 69 65 6e 74 1f 70  63 1f 72 75 1f d0 a2 d0  |client.pc.ru....|
+00000010  ba d0 b0 d0 b1 d0 b1 d0  b5 d1 80 1f 1e           |.............|
+0000001d
+
+00000000  63 6c 69 65 6e 74 1f 70  63 1f 65 6e 1f 54 6b 61  |client.pc.en.Tka|
+00000010  62 62 65 72 1f 1e                                 |bber..|
+00000016</pre></div>
+    <p class="" style="">The second string is ordered before the first string in the i;octet collation and afterwards the strings are joined and the result is suffixed with 0x1c (ASCII File Separator) to close the identities part of the input. The final <span class="em">Identities String</span> is thus, as hexdump:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+00000000  63 6c 69 65 6e 74 1f 70  63 1f 65 6e 1f 54 6b 61  |client.pc.en.Tka|
+00000010  62 62 65 72 1f 1e 63 6c  69 65 6e 74 1f 70 63 1f  |bber..client.pc.|
+00000020  72 75 1f d0 a2 d0 ba d0  b0 d0 b1 d0 b1 d0 b5 d1  |ru..............|
+00000030  80 1f 1e 1c                                       |....|
+00000034</pre></div>
+    <p class="" style="">The example has a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions (XEP-0128)</a></span>  [<a href="#nt-idm203">12</a>] form. For each field, a string consisting of the 'var' attributes character data and the values is created as per the algorithm:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+00000000  46 4f 52 4d 5f 54 59 50  45 1f 75 72 6e 3a 78 6d  |FORM_TYPE.urn:xm|
+00000010  70 70 3a 64 61 74 61 66  6f 72 6d 73 3a 73 6f 66  |pp:dataforms:sof|
+00000020  74 77 61 72 65 69 6e 66  6f 1f 1e                 |twareinfo..|
+0000002b
+
+00000000  73 6f 66 74 77 61 72 65  1f 54 6b 61 62 62 65 72  |software.Tkabber|
+00000010  1f 1e                                             |..|
+00000012
+
+00000000  73 6f 66 74 77 61 72 65  5f 76 65 72 73 69 6f 6e  |software_version|
+00000010  1f 30 2e 31 31 2e 31 2d  73 76 6e 2d 32 30 31 31  |.0.11.1-svn-2011|
+00000020  31 32 31 36 2d 6d 6f 64  20 28 54 63 6c 2f 54 6b  |1216-mod (Tcl/Tk|
+00000030  20 38 2e 36 62 32 29 1f  1e                       | 8.6b2)..|
+00000039
+
+00000000  6f 73 1f 57 69 6e 64 6f  77 73 1f 1e              |os.Windows..|
+0000000c
+</pre></div>
+    <p class="" style="">The strings need to be sorted using i;octet and joined together. The result is suffixed with 0x1d (ASCII Group Separator), which closes the form. As this is the only form, the resulting <span class="em">Extensions String</span> is obtained by adding a 0x1c (ASCII File Separator) to close the extensions section of the hash input:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+00000000  46 4f 52 4d 5f 54 59 50  45 1f 75 72 6e 3a 78 6d  |FORM_TYPE.urn:xm|
+00000010  70 70 3a 64 61 74 61 66  6f 72 6d 73 3a 73 6f 66  |pp:dataforms:sof|
+00000020  74 77 61 72 65 69 6e 66  6f 1f 1e 6f 73 1f 57 69  |twareinfo..os.Wi|
+00000030  6e 64 6f 77 73 1f 1e 6f  73 5f 76 65 72 73 69 6f  |ndows..os_versio|
+00000040  6e 1f 58 50 1f 1e 73 6f  66 74 77 61 72 65 1f 54  |n.XP..software.T|
+00000050  6b 61 62 62 65 72 1f 1e  73 6f 66 74 77 61 72 65  |kabber..software|
+00000060  5f 76 65 72 73 69 6f 6e  1f 30 2e 31 31 2e 31 2d  |_version.0.11.1-|
+00000070  73 76 6e 2d 32 30 31 31  31 32 31 36 2d 6d 6f 64  |svn-20111216-mod|
+00000080  20 28 54 63 6c 2f 54 6b  20 38 2e 36 62 32 29 1f  | (Tcl/Tk 8.6b2).|
+00000090  1e 1d 1c                                          |...|
+00000093</pre></div>
+    <p class="" style="">Note the "os" field is now before the other fields but after "FORM_TYPE", due to the sorting.</p>
+    <p class="" style="">The final hash function input is obtained by concatenating the <span class="em">Features String</span>, <span class="em">Identities String</span> and <span class="em">Extensions String</span>:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+00000000  67 61 6d 65 73 3a 62 6f  61 72 64 1f 68 74 74 70  |games:board.http|
+00000010  3a 2f 2f 6a 61 62 62 65  72 2e 6f 72 67 2f 70 72  |://jabber.org/pr|
+00000020  6f 74 6f 63 6f 6c 2f 61  63 74 69 76 69 74 79 1f  |otocol/activity.|
+00000030  68 74 74 70 3a 2f 2f 6a  61 62 62 65 72 2e 6f 72  |http://jabber.or|
+00000040  67 2f 70 72 6f 74 6f 63  6f 6c 2f 61 63 74 69 76  |g/protocol/activ|
+00000050  69 74 79 2b 6e 6f 74 69  66 79 1f 68 74 74 70 3a  |ity+notify.http:|
+00000060  2f 2f 6a 61 62 62 65 72  2e 6f 72 67 2f 70 72 6f  |//jabber.org/pro|
+00000070  74 6f 63 6f 6c 2f 62 79  74 65 73 74 72 65 61 6d  |tocol/bytestream|
+00000080  73 1f 68 74 74 70 3a 2f  2f 6a 61 62 62 65 72 2e  |s.http://jabber.|
+00000090  6f 72 67 2f 70 72 6f 74  6f 63 6f 6c 2f 63 68 61  |org/protocol/cha|
+000000a0  74 73 74 61 74 65 73 1f  68 74 74 70 3a 2f 2f 6a  |tstates.http://j|
+000000b0  61 62 62 65 72 2e 6f 72  67 2f 70 72 6f 74 6f 63  |abber.org/protoc|
+000000c0  6f 6c 2f 63 6f 6d 6d 61  6e 64 73 1f 68 74 74 70  |ol/commands.http|
+000000d0  3a 2f 2f 6a 61 62 62 65  72 2e 6f 72 67 2f 70 72  |://jabber.org/pr|
+000000e0  6f 74 6f 63 6f 6c 2f 64  69 73 63 6f 23 69 6e 66  |otocol/disco#inf|
+000000f0  6f 1f 68 74 74 70 3a 2f  2f 6a 61 62 62 65 72 2e  |o.http://jabber.|
+00000100  6f 72 67 2f 70 72 6f 74  6f 63 6f 6c 2f 64 69 73  |org/protocol/dis|
+00000110  63 6f 23 69 74 65 6d 73  1f 68 74 74 70 3a 2f 2f  |co#items.http://|
+00000120  6a 61 62 62 65 72 2e 6f  72 67 2f 70 72 6f 74 6f  |jabber.org/proto|
+00000130  63 6f 6c 2f 65 76 69 6c  1f 68 74 74 70 3a 2f 2f  |col/evil.http://|
+00000140  6a 61 62 62 65 72 2e 6f  72 67 2f 70 72 6f 74 6f  |jabber.org/proto|
+00000150  63 6f 6c 2f 66 65 61 74  75 72 65 2d 6e 65 67 1f  |col/feature-neg.|
+00000160  68 74 74 70 3a 2f 2f 6a  61 62 62 65 72 2e 6f 72  |http://jabber.or|
+00000170  67 2f 70 72 6f 74 6f 63  6f 6c 2f 67 65 6f 6c 6f  |g/protocol/geolo|
+00000180  63 1f 68 74 74 70 3a 2f  2f 6a 61 62 62 65 72 2e  |c.http://jabber.|
+00000190  6f 72 67 2f 70 72 6f 74  6f 63 6f 6c 2f 67 65 6f  |org/protocol/geo|
+000001a0  6c 6f 63 2b 6e 6f 74 69  66 79 1f 68 74 74 70 3a  |loc+notify.http:|
+000001b0  2f 2f 6a 61 62 62 65 72  2e 6f 72 67 2f 70 72 6f  |//jabber.org/pro|
+000001c0  74 6f 63 6f 6c 2f 69 62  62 1f 68 74 74 70 3a 2f  |tocol/ibb.http:/|
+000001d0  2f 6a 61 62 62 65 72 2e  6f 72 67 2f 70 72 6f 74  |/jabber.org/prot|
+000001e0  6f 63 6f 6c 2f 69 71 69  62 62 1f 68 74 74 70 3a  |ocol/iqibb.http:|
+000001f0  2f 2f 6a 61 62 62 65 72  2e 6f 72 67 2f 70 72 6f  |//jabber.org/pro|
+00000200  74 6f 63 6f 6c 2f 6d 6f  6f 64 1f 68 74 74 70 3a  |tocol/mood.http:|
+00000210  2f 2f 6a 61 62 62 65 72  2e 6f 72 67 2f 70 72 6f  |//jabber.org/pro|
+00000220  74 6f 63 6f 6c 2f 6d 6f  6f 64 2b 6e 6f 74 69 66  |tocol/mood+notif|
+00000230  79 1f 68 74 74 70 3a 2f  2f 6a 61 62 62 65 72 2e  |y.http://jabber.|
+00000240  6f 72 67 2f 70 72 6f 74  6f 63 6f 6c 2f 72 6f 73  |org/protocol/ros|
+00000250  74 65 72 78 1f 68 74 74  70 3a 2f 2f 6a 61 62 62  |terx.http://jabb|
+00000260  65 72 2e 6f 72 67 2f 70  72 6f 74 6f 63 6f 6c 2f  |er.org/protocol/|
+00000270  73 69 1f 68 74 74 70 3a  2f 2f 6a 61 62 62 65 72  |si.http://jabber|
+00000280  2e 6f 72 67 2f 70 72 6f  74 6f 63 6f 6c 2f 73 69  |.org/protocol/si|
+00000290  2f 70 72 6f 66 69 6c 65  2f 66 69 6c 65 2d 74 72  |/profile/file-tr|
+000002a0  61 6e 73 66 65 72 1f 68  74 74 70 3a 2f 2f 6a 61  |ansfer.http://ja|
+000002b0  62 62 65 72 2e 6f 72 67  2f 70 72 6f 74 6f 63 6f  |bber.org/protoco|
+000002c0  6c 2f 74 75 6e 65 1f 68  74 74 70 3a 2f 2f 77 77  |l/tune.http://ww|
+000002d0  77 2e 66 61 63 65 62 6f  6f 6b 2e 63 6f 6d 2f 78  |w.facebook.com/x|
+000002e0  6d 70 70 2f 6d 65 73 73  61 67 65 73 1f 68 74 74  |mpp/messages.htt|
+000002f0  70 3a 2f 2f 77 77 77 2e  78 6d 70 70 2e 6f 72 67  |p://www.xmpp.org|
+00000300  2f 65 78 74 65 6e 73 69  6f 6e 73 2f 78 65 70 2d  |/extensions/xep-|
+00000310  30 30 38 34 2e 68 74 6d  6c 23 6e 73 2d 6d 65 74  |0084.html#ns-met|
+00000320  61 64 61 74 61 2b 6e 6f  74 69 66 79 1f 6a 61 62  |adata+notify.jab|
+00000330  62 65 72 3a 69 71 3a 61  76 61 74 61 72 1f 6a 61  |ber:iq:avatar.ja|
+00000340  62 62 65 72 3a 69 71 3a  62 72 6f 77 73 65 1f 6a  |bber:iq:browse.j|
+00000350  61 62 62 65 72 3a 69 71  3a 64 74 63 70 1f 6a 61  |abber:iq:dtcp.ja|
+00000360  62 62 65 72 3a 69 71 3a  66 69 6c 65 78 66 65 72  |bber:iq:filexfer|
+00000370  1f 6a 61 62 62 65 72 3a  69 71 3a 69 62 62 1f 6a  |.jabber:iq:ibb.j|
+00000380  61 62 62 65 72 3a 69 71  3a 69 6e 62 61 6e 64 1f  |abber:iq:inband.|
+00000390  6a 61 62 62 65 72 3a 69  71 3a 6a 69 64 6c 69 6e  |jabber:iq:jidlin|
+000003a0  6b 1f 6a 61 62 62 65 72  3a 69 71 3a 6c 61 73 74  |k.jabber:iq:last|
+000003b0  1f 6a 61 62 62 65 72 3a  69 71 3a 6f 6f 62 1f 6a  |.jabber:iq:oob.j|
+000003c0  61 62 62 65 72 3a 69 71  3a 70 72 69 76 61 63 79  |abber:iq:privacy|
+000003d0  1f 6a 61 62 62 65 72 3a  69 71 3a 72 6f 73 74 65  |.jabber:iq:roste|
+000003e0  72 1f 6a 61 62 62 65 72  3a 69 71 3a 74 69 6d 65  |r.jabber:iq:time|
+000003f0  1f 6a 61 62 62 65 72 3a  69 71 3a 76 65 72 73 69  |.jabber:iq:versi|
+00000400  6f 6e 1f 6a 61 62 62 65  72 3a 78 3a 64 61 74 61  |on.jabber:x:data|
+00000410  1f 6a 61 62 62 65 72 3a  78 3a 65 76 65 6e 74 1f  |.jabber:x:event.|
+00000420  6a 61 62 62 65 72 3a 78  3a 6f 6f 62 1f 75 72 6e  |jabber:x:oob.urn|
+00000430  3a 78 6d 70 70 3a 61 76  61 74 61 72 3a 6d 65 74  |:xmpp:avatar:met|
+00000440  61 64 61 74 61 2b 6e 6f  74 69 66 79 1f 75 72 6e  |adata+notify.urn|
+00000450  3a 78 6d 70 70 3a 70 69  6e 67 1f 75 72 6e 3a 78  |:xmpp:ping.urn:x|
+00000460  6d 70 70 3a 72 65 63 65  69 70 74 73 1f 75 72 6e  |mpp:receipts.urn|
+00000470  3a 78 6d 70 70 3a 74 69  6d 65 1f 1c 63 6c 69 65  |:xmpp:time..clie|
+00000480  6e 74 1f 70 63 1f 65 6e  1f 54 6b 61 62 62 65 72  |nt.pc.en.Tkabber|
+00000490  1f 1e 63 6c 69 65 6e 74  1f 70 63 1f 72 75 1f d0  |..client.pc.ru..|
+000004a0  a2 d0 ba d0 b0 d0 b1 d0  b1 d0 b5 d1 80 1f 1e 1c  |................|
+000004b0  46 4f 52 4d 5f 54 59 50  45 1f 75 72 6e 3a 78 6d  |FORM_TYPE.urn:xm|
+000004c0  70 70 3a 64 61 74 61 66  6f 72 6d 73 3a 73 6f 66  |pp:dataforms:sof|
+000004d0  74 77 61 72 65 69 6e 66  6f 1f 1e 6f 73 1f 57 69  |twareinfo..os.Wi|
+000004e0  6e 64 6f 77 73 1f 1e 6f  73 5f 76 65 72 73 69 6f  |ndows..os_versio|
+000004f0  6e 1f 58 50 1f 1e 73 6f  66 74 77 61 72 65 1f 54  |n.XP..software.T|
+00000500  6b 61 62 62 65 72 1f 1e  73 6f 66 74 77 61 72 65  |kabber..software|
+00000510  5f 76 65 72 73 69 6f 6e  1f 30 2e 31 31 2e 31 2d  |_version.0.11.1-|
+00000520  73 76 6e 2d 32 30 31 31  31 32 31 36 2d 6d 6f 64  |svn-20111216-mod|
+00000530  20 28 54 63 6c 2f 54 6b  20 38 2e 36 62 32 29 1f  | (Tcl/Tk 8.6b2).|
+00000540  1e 1d 1c                                          |...|
+00000543</pre></div>
+    <p class="" style="">Feeding the concatenated octet string as input to the hash functions yields the following <span class="em">Capability Hash Set</span>:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;c xmlns="urn:xmpp:caps"&gt;
+  &lt;hash xmlns="urn:xmpp:hashes:2" algo="sha-256"&gt;u79ZroNJbdSWhdSp311mddz44oHHPsEBntQ5b1jqBSY=&lt;/hash&gt;
+  &lt;hash xmlns="urn:xmpp:hashes:2" algo="sha3-256"&gt;XpUJzLAc93258sMECZ3FJpebkzuyNXDzRNwQog8eycg=&lt;/hash&gt;
+&lt;/c&gt;</pre></div>
+    </div>
+  </div>
+<h2>5.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <div class="indent"><h3>5.1 <a name="usecases-support" id="usecases-support">Advertising Support</a></h3>
+    <p class="" style="">If an entity supports <span class="em">Entity Capabilities 2.0</span>, it MUST advertise the fact by returning a feature of "urn:xmpp:caps".</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Response to a disco#info request</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='disco1'
+    to='juliet@capulet.lit/chamber'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;feature var='urn:xmpp:caps'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>5.2 <a name="usecases-stream-feature" id="usecases-stream-feature">Advertisement of Support and Capabilities by Servers</a></h3>
+    <p class="" style="">A server MAY advertise its support for this protocol as well as the current hashes in the stream features.</p>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Stream Features of a server</p><div class="indent"><pre class="prettyprint">
+&lt;stream:features&gt;
+  ...
+  &lt;c xmlns="urn:xmpp:caps"&gt;
+    &lt;hash xmlns="urn:xmpp:hashes:2" algo="sha-256"&gt;K1Njy3HZBThlo4moOD5gBGhn0U0oK7/CbfLlIUDi6o4=&lt;/hash&gt;
+    &lt;hash xmlns="urn:xmpp:hashes:2" algo="sha3-256"&gt;+sDTQqBmX6iG/X3zjt06fjZMBBqL/723knFIyRf0sg8=&lt;/hash&gt;
+  &lt;/c&gt;
+  ...
+&lt;/stream:features&gt;
+</pre></div>
+    <p class="" style="">When a connected client or peer server sends a service discovery information request to determine the entity capabilities of a server that advertises capabilities via the stream feature, the requesting entity MUST send the disco#info request to the server's JID as provided in the 'from' attribute of the response stream header. To enable this functionality, a server that advertises support for entity capabilities MUST provide a 'from' address in its response stream headers, in accordance with <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm91">5</a>].</p>
+  </div>
+  <div class="indent"><h3>5.3 <a name="usecases-support" id="usecases-support">Advertising Support of Caps Optimizations</a></h3>
+    <p class="" style="">If a server supports Caps Optimizations, it MUST advertise the fact by returning a feature of "urn:xmpp:caps:optimize".</p>
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Response to a disco#info request</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='montague.lit'
+    id='disco2'
+    to='romeo@montague.lit/chamber'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;feature var='urn:xmpp:caps'/&gt;
+    &lt;feature var='urn:xmpp:caps:optimize'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>5.4 <a name="usecases-broadcast" id="usecases-broadcast">Broadcasting Entity Capabilities</a></h3>
+    <p class="" style="">An entity publishes the current <span class="em">Capability Hash Set</span> in presence stanzas it sends:</p>
+    <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Presence broadcast with hashes</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='juliet@capulet.lit'&gt;
+  &lt;c xmlns="urn:xmpp:caps"&gt;
+    &lt;hash xmlns="urn:xmpp:hashes:2" algo="sha-256"&gt;u79ZroNJbdSWhdSp311mddz44oHHPsEBntQ5b1jqBSY=&lt;/hash&gt;
+    &lt;hash xmlns="urn:xmpp:hashes:2" algo="sha3-256"&gt;XpUJzLAc93258sMECZ3FJpebkzuyNXDzRNwQog8eycg=&lt;/hash&gt;
+  &lt;/c&gt;
+&lt;/presence&gt;
+</pre></div>
+    <p class="" style="">The &lt;hash/&gt; element is specified by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0300.html">Use of Cryptographic Hash Functions in XMPP (XEP-0300)</a></span>  [<a href="#nt-idm151">9</a>] and is used to transport the <span class="em">Capability Hashes</span>.</p>
+  </div>
+  <div class="indent"><h3>5.5 <a name="usecases-hash-query" id="usecases-hash-query">Service Discovery Query for a Specific Hash Value</a></h3>
+    <p class="" style="">To query the <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm62">1</a>] information for a specific <span class="em">Capability Hash</span> value, an entity MUST query a Service Discovery node equal to the <span class="em">Capability Hash Node</span> [<a href="#nt-idm411">16</a>].</p>
+    <p class="" style="">An entity is free to choose for which <span class="em">Capability Hash</span> of a <span class="em">Capability Hash Set</span> the request is sent.</p>
+    <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Service Discovery request in response to a broadcast Capability Hash Set</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='juliet@capulet.lit/chamber' to='romeo@montague.lit/orchard'&gt;
+  &lt;c xmlns="urn:xmpp:caps"&gt;
+    &lt;hash xmlns="urn:xmpp:hashes:2" algo="sha-256"&gt;u79ZroNJbdSWhdSp311mddz44oHHPsEBntQ5b1jqBSY=&lt;/hash&gt;
+    &lt;hash xmlns="urn:xmpp:hashes:2" algo="sha3-256"&gt;XpUJzLAc93258sMECZ3FJpebkzuyNXDzRNwQog8eycg=&lt;/hash&gt;
+  &lt;/c&gt;
+&lt;/presence&gt;
+
+&lt;iq from='romeo@montague.lit/orchard'
+    id='disco3'
+    to='juliet@capulet.lit/chamber'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'
+         node='urn:xmpp:caps#sha-256.u79ZroNJbdSWhdSp311mddz44oHHPsEBntQ5b1jqBSY='/&gt;
+&lt;/iq&gt;
+
+&lt;iq from='juliet@capulet.lit/chamber'
+    id='disco3'
+    to='romeo@montague.lit/orchard'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'
+         node='urn:xmpp:caps#sha-256.u79ZroNJbdSWhdSp311mddz44oHHPsEBntQ5b1jqBSY='&gt;
+    &lt;identity category="client" name="Tkabber" type="pc" xml:lang="en"/&gt;
+    &lt;identity category="client" name="Ткаббер" type="pc" xml:lang="ru"/&gt;
+    &lt;feature var="games:board"/&gt;
+    &lt;feature var="http://jabber.org/protocol/activity"/&gt;
+    &lt;feature var="http://jabber.org/protocol/activity+notify"/&gt;
+    &lt;feature var="http://jabber.org/protocol/bytestreams"/&gt;
+    &lt;feature var="http://jabber.org/protocol/chatstates"/&gt;
+    &lt;feature var="http://jabber.org/protocol/commands"/&gt;
+    &lt;feature var="http://jabber.org/protocol/disco#info"/&gt;
+    &lt;feature var="http://jabber.org/protocol/disco#items"/&gt;
+    &lt;feature var="http://jabber.org/protocol/evil"/&gt;
+    &lt;feature var="http://jabber.org/protocol/feature-neg"/&gt;
+    &lt;feature var="http://jabber.org/protocol/geoloc"/&gt;
+    &lt;feature var="http://jabber.org/protocol/geoloc+notify"/&gt;
+    &lt;feature var="http://jabber.org/protocol/ibb"/&gt;
+    &lt;feature var="http://jabber.org/protocol/iqibb"/&gt;
+    &lt;feature var="http://jabber.org/protocol/mood"/&gt;
+    &lt;feature var="http://jabber.org/protocol/mood+notify"/&gt;
+    &lt;feature var="http://jabber.org/protocol/rosterx"/&gt;
+    &lt;feature var="http://jabber.org/protocol/si"/&gt;
+    &lt;feature var="http://jabber.org/protocol/si/profile/file-transfer"/&gt;
+    &lt;feature var="http://jabber.org/protocol/tune"/&gt;
+    &lt;feature var="http://www.facebook.com/xmpp/messages"/&gt;
+    &lt;feature var="http://www.xmpp.org/extensions/xep-0084.html#ns-metadata+notify"/&gt;
+    &lt;feature var="jabber:iq:avatar"/&gt;
+    &lt;feature var="jabber:iq:browse"/&gt;
+    &lt;feature var="jabber:iq:dtcp"/&gt;
+    &lt;feature var="jabber:iq:filexfer"/&gt;
+    &lt;feature var="jabber:iq:ibb"/&gt;
+    &lt;feature var="jabber:iq:inband"/&gt;
+    &lt;feature var="jabber:iq:jidlink"/&gt;
+    &lt;feature var="jabber:iq:last"/&gt;
+    &lt;feature var="jabber:iq:oob"/&gt;
+    &lt;feature var="jabber:iq:privacy"/&gt;
+    &lt;feature var="jabber:iq:roster"/&gt;
+    &lt;feature var="jabber:iq:time"/&gt;
+    &lt;feature var="jabber:iq:version"/&gt;
+    &lt;feature var="jabber:x:data"/&gt;
+    &lt;feature var="jabber:x:event"/&gt;
+    &lt;feature var="jabber:x:oob"/&gt;
+    &lt;feature var="urn:xmpp:avatar:metadata+notify"/&gt;
+    &lt;feature var="urn:xmpp:ping"/&gt;
+    &lt;feature var="urn:xmpp:receipts"/&gt;
+    &lt;feature var="urn:xmpp:time"/&gt;
+    &lt;x xmlns="jabber:x:data" type="result"&gt;
+      &lt;field type="hidden" var="FORM_TYPE"&gt;
+        &lt;value&gt;urn:xmpp:dataforms:softwareinfo&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var="software"&gt;
+        &lt;value&gt;Tkabber&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var="software_version"&gt;
+        &lt;value&gt;0.11.1-svn-20111216-mod (Tcl/Tk 8.6b2)&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var="os"&gt;
+        &lt;value&gt;Windows&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var="os_version"&gt;
+        &lt;value&gt;XP&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>5.6 <a name="usecases-gratuitous" id="usecases-gratuitous">Gratuitous Capabilities</a></h3>
+    <p class="" style="">A server MAY support pushing of <span class="em">Capability Hashes</span> from clients before sending initial presence. This allows servers to discover capabilities of clients before those have sent initial presence, which may be useful or important for some protocols (such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0369.html">Mediated Information eXchange (MIX) (XEP-0369)</a></span>  [<a href="#nt-idm66">2</a>]). This feature is called <span class="em">Gratuitous Capabilities</span>.</p>
+    <p class="" style="">To advertise support, the server publishes the <tt>urn:xmpp:caps:gratuitous</tt> feature:</p>
+    <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Response to a disco#info request if the server supports Gratuitous Capabilities</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='montague.lit'
+    id='disco3'
+    to='romeo@montague.lit/chamber'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;feature var='urn:xmpp:caps'/&gt;
+    &lt;feature var='urn:xmpp:caps:gratuitous'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">After determining server support, a client can send <span class="em">Capability Hashes</span> via <span class="em">Gratuitous Capabilities</span> before sending initial presence:</p>
+    <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Sending Gratuitous Capabilities</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/chamber'
+    to='montague.lit'
+    id='grat1'
+    type='set'&gt;
+  &lt;c xmlns="urn:xmpp:caps"&gt;
+    &lt;hash xmlns="urn:xmpp:hashes:2" algo="sha-256"&gt;u79ZroNJbdSWhdSp311mddz44oHHPsEBntQ5b1jqBSY=&lt;/hash&gt;
+    &lt;hash xmlns="urn:xmpp:hashes:2" algo="sha3-256"&gt;XpUJzLAc93258sMECZ3FJpebkzuyNXDzRNwQog8eycg=&lt;/hash&gt;
+  &lt;/c&gt;
+&lt;/iq&gt;
+
+&lt;iq from='montague.lit'
+    to='romeo@montague.lit/chamber'
+    id='grat1'
+    type='result'&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">The server replies with an empty result on success.</p>
+    <p class="" style="">The server MUST NOT broadcast the <span class="em">Capability Hashes</span> submitted via <span class="em">Gratuitous Capabilities</span> using presence.</p>
+    <p class="" style="">Clients SHOULD NOT send <span class="em">Gratuitous Capabilities</span> after they have sent initial presence; instead, they SHOULD re-send presence to update the <span class="em">Capability Hashes</span>. Otherwise, entities subscribed to the presence will not receive the updated <span class="em">Capability Hashes</span>.</p>
+  </div>
+<h2>6.
+       <a name="rules" id="rules">Business Rules</a></h2>
+  <div class="indent"><h3>6.1 <a name="rules-generating" id="rules-generating">Rules for Generating Entities</a></h3>
+    <ul class="" style="">
+      <li class="" style="">Entities MUST respond to disco#info queries for all <span class="em">Capability Hash Nodes</span> of at least the most recent 3 <span class="em">Capability Hash Sets</span> emitted.</li>
+      <li class="" style="">Entities MUST broadcast the <span class="em">Capability Hash Set</span> of the current disco#info it publishes in every non-directed "available" &lt;presence/&gt; they send and SHOULD do so for directed "available" &lt;presence/&gt;.</li>
+      <li class="" style="">After initial presence has been sent, entities MUST re-broadcast the <span class="em">Capability Hash Set</span> after their disco#info response changes, but MAY limit the rate at which presences are emitted solely for the purpose of sending new <span class="em">Capability Hash Sets</span>.</li>
+      <li class="" style="">Before initial presence has been sent and if the server supports <span class="em">Gratuitous Capabilities</span>, entities SHOULD send <span class="em">Gratuitous Capabilities</span> after their disco#info response changes, but MAY limit the rate at which <span class="em">Gratuitous Capabilities</span> are sent. (For example, a client may load and enable additional functionality (thus changing its features) based on server support and only send <span class="em">Gratuitous Capabilities</span> once all functionality has been set up, not after each individual feature.)</li>
+      <li class="" style="">Entities MAY assume that another entity supports <span class="em">Entity Capabilities 2.0</span> after receiving a <span class="em">Capability Hash Set</span> from that entity.</li>
+      <li class="" style="">Entities MAY also send <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm74">3</a>] capabilities to support legacy entities.</li>
+    </ul>
+  </div>
+
+  <div class="indent"><h3>6.2 <a name="rules-processing" id="rules-processing">Rules for Processing Entities</a></h3>
+    <ul class="" style="">
+      <li class="" style="">Entities MAY limit the rate at which they process incoming <span class="em">Capability Hash Sets</span>.</li>
+      <li class="" style="">Entities MUST be able to process <span class="em">Capability Hash Nodes</span> which use a hash function whose name includes the FULL STOP character (U+002E, ".").</li>
+      <li class="" style="">Entities MAY verify incoming <span class="em">Capability Hash Sets</span>.</li>
+      <li class="" style="">Entities MUST NOT expect to receive <span class="em">Capability Hash Sets</span> on every presence sent by an entity supporting <span class="em">Entity Capabilities 2.0</span>.</li>
+    </ul>
+    <div class="indent"><h3>6.2.1 <a name="rules-processing-caching" id="rules-processing-caching">Caching</a></h3>
+      <p class="" style="">A <span class="em">Capability Hash</span> MAY be stored alongside with its disco#info in a <span class="em">Capability Hash Cache</span>. A received <span class="em">Capability Hash</span> which has not been verified MUST NOT be stored.</p>
+      <p class="" style="">Instead of issuing a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm62">1</a>] disco#info &lt;query/&gt; with absent 'node' attribute to a target entity, an entity MAY use a <span class="em">Capability Hash Cache</span> to obtain the response. To look up the disco#info response in the <span class="em">Capability Hash Cache</span>, an entity MUST use a hash from the <span class="em">Capability Hash Set</span> which was most recently received from the entity to which the &lt;query/&gt; would have been sent otherwise. If none of the most recently received <span class="em">Capability Hashes</span> are found in the <span class="em">Capability Hash Cache</span>, the entity MUST fall back to sending the request.</p>
+      <p class="" style="">An entity MUST NOT use <span class="em">Capability Hashes</span> which were not included in the most recent <span class="em">Capability Hash Set</span> received from the target entity.</p>
+      <p class="" style="">An entity MAY use external data sources to fill the <span class="em">Capability Hash Cache</span>.</p>
+      <p class="" style="">An entity MUST ensure that implicit values for <tt>xml:lang</tt> attributes is preserved when disco#info data is cached. This can for example happen by making the implicit values explicit in the storage.</p>
+    </div>
+  </div>
+
+  <div class="indent"><h3>6.3 <a name="rules-optimize" id="rules-optimize">Additional Rules for Clients and Servers implementing Caps Optimizations</a></h3>
+    <ul class="" style="">
+      <li class="" style="">Servers MAY strip off the &lt;c/&gt; element if it has not changed since the previous presence broadcast.</li>
+      <li class="" style="">Servers MUST ensure that the first presence notification sent to each subscriber contains the most recent &lt;c/&gt; element, if any were sent in the current presence session.</li>
+      <li class="" style="">Servers MUST ensure that every change in the &lt;c/&gt; element is sent to all subscribers.</li>
+      <li class="" style="">Clients MAY omit the &lt;c/&gt; element if it has not changed since the last presence <span class="em">iff</span> they determined that their server supports Caps Optimization.</li>
+      <li class="" style="">Servers MAY answer disco#info requests for <span class="em">Capability Hash Nodes</span> on behalf of their and others clients if the disco#info response belonging to that <span class="em">Capability Hash</span> is known to them.</li>
+    </ul>
+  </div>
+
+  <div class="indent"><h3>6.4 <a name="rules-servers" id="rules-servers">Query Interception</a></h3>
+    <p class="" style="">Servers MAY implement <span class="em">Query Interception</span> to further optimise bandwidth consumption. The idea is that servers intercept <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm62">1</a>] disco#info queries sent to clients if they already know the answer from <span class="em">Capability Hashes</span> published by the client. The rules for <span class="em">Query Interception</span> are the following (to be applied in this order):</p>
+    <ul class="" style="">
+      <li class="" style="">Servers MUST NOT intercept disco#info queries except those with empty <tt>node</tt> or a <tt>node</tt> which refers to a <span class="em">Capability Hash Node</span> known to the server.</li>
+      <li class="" style="">Servers MUST NOT intercept disco#info queries on behalf of the resource unless the query would be forwarded to the resource otherwise.</li>
+      <li class="" style="">Servers MUST NOT intercept disco#info queries to resources which do not support <span class="em">Entity Capabilities 2.0</span> (clients not implementing <span class="em">Entity Capabilities 2.0</span> may legitimately use disco#info nodes matching the format of <span class="em">Capability Hash Nodes</span> for different purposes).</li>
+      <li class="" style="">Servers SHOULD intercept disco#info queries with empty <tt>node</tt> and answer them with the disco#info of the most recent <span class="em">Capability Hash Set</span> published by the client.</li>
+      <li class="" style="">Servers SHOULD intercept disco#info queries a valid <span class="em">Capability Hash Node</span> <tt>node</tt>, if the server knows the disco#info for the <span class="em">Capability Hash Node</span>. Otherwise, the query MUST be forwarded to the addressed resource. Note that it is valid for a sevrer to reply for <span class="em">Capability Hash Nodes</span> which have not been published by the resource.</li>
+    </ul>
+  </div>
+<h2>7.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <div class="indent"><h3>7.1 <a name="impl-caching" id="impl-caching">Caching</a></h3>
+    <p class="" style="">It is RECOMMENDED that entities use the caching mechanisms outlined in <a href="#rules-processing-caches">the Caching Business Rules</a>. Entities MAY share caches among connections and accounts.</p>
+  </div>
+  <div class="indent"><h3>7.2 <a name="impl-upgrade" id="impl-upgrade">Upgrading from XEP-0115</a></h3>
+    <p class="" style=""><span class="em">Generating Entities</span> are encouraged to also emit <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm74">3</a>] &lt;c/&gt; elements in their presence updates (as specified in <span class="ref">XEP-0115</span>) for a reasonable transition period.</p>
+    <p class="" style="">When receiving a <span class="em">Capability Hash Set</span> along with <span class="ref">XEP-0115</span> capabilities, a <span class="em">Processing Entity</span> MAY obtain the disco#info &lt;query/&gt; for verification from a <span class="ref">XEP-0115</span> based cache instead of querying the <span class="em">Generating Entity</span> directly. A <span class="em">Processing Entity</span> MUST NOT use disco#info data from a <span class="ref">XEP-0115</span> cache without verification if a <span class="em">Entity Capabilities 2.0</span> &lt;c/&gt; element is available.</p>
+  </div>
+<h2>8.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <div class="indent"><h3>8.1 <a name="security-separators" id="security-separators">Hash Function Input Data Separators</a></h3>
+    <p class="" style="">The codepoints used for separating the different parts in the <a href="#algorithm-input">Hash Function Input Algortihm</a> (0x1c (ASCII File Separator) through 0x1f (ASCII Unit Separator)) are not allowed in well-formed XML character data. As entities are, per <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-idm91">5</a>], required to close a stream if non-well-formed XML data is received, these codepoints cannot occur in the input to the algorithm and their use as separators is safe.</p>
+  </div>
+
+  <div class="indent"><h3>8.2 <a name="security-caching" id="security-caching">Caching</a></h3>
+    <p class="" style="">If the algorithm for constructing the input to the hash function or the used hash function itself allow for cheap collisions, caching the hashes will become dangerous as it allows for cache poisoning. This in turn allows entities to effectively fake disco#info responses of other entities.</p>
+    <p class="" style="">This was an issue with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm74">3</a>] and has been addressed with a new algorithm for generating the hash function input which keeps the structural information of the disco#info input.</p>
+    <p class="" style="">An entity MUST NOT ever use disco#info which has not been verified to belong to a <span class="em">Capability Hash</span> obtained from a cache using that <span class="em">Capability Hash</span>. Using cache contents from a trusted source (at the discretion of the entity) counts as verifying.</p>
+    <p class="" style="">A malicious entity could send a large amount of <span class="em">Capability Hash Sets</span> in short intervals, while making sure that it provides matching disco#info responses. If a <span class="em">Processing Entity</span> uses caching, this can overflow or thrash the caches. <span class="em">Processing Entities</span> should be aware of this risk and apply proper rate-limiting for processing <span class="em">Capability Hash Sets</span>. To reduce the attack surface, an entity MAY choose to not cache <span class="em">Capability Hashes</span> obtained from entities not in its roster.</p>
+    <p class="" style="">As mentioned earlier, when storing disco#info data in a cache for later retrieval, implementations MUST ensure that implicit values for <tt>xml:lang</tt> attributes are reconstructed correctly when the disco#info is restored.</p>
+  </div>
+
+  <div class="indent"><h3>8.3 <a name="security-directed-presence" id="security-directed-presence">Directed Presence</a></h3>
+    <p class="" style="">Entities MAY choose to not send <span class="em">Capability Hash Sets</span> with directed presence (for example to increase privacy). In that case, entities SHOULD also refuse direct <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm62">1</a>] queries.</p>
+  </div>
+
+  <div class="indent"><h3>8.4 <a name="security-query-interception" id="security-query-interception">Query Interception</a></h3>
+    <p class="" style="">The server replies to certain disco#info queries on behalf of the client. This means that the client has no choice on to whom they reply. Otherwise, a client could choose to reply with <tt>&lt;service-unavailable/&gt;</tt> to mask its existence. We consider two effects of this:</p>
+    <ul class="" style="">
+      <li class="" style="">
+        <p class="" style="">A remote entity could attempt to detect that an entity exists behind a resource. For this, they send a disco#info query to the resource since nearly everyone implements disco#info. As the client responds with <tt>&lt;service-unavailable/&gt;</tt>, it looks as if no client was present at this resource.</p>
+        <p class="" style="">With <span class="em">Query Interception</span>, the server would reply on behalf of the client. However, the consensus in the community is that by measuring the difference between the reply from the server of the resource and the reply from the actual resource, it would generally be possible to detect the existence of a resource.</p>
+      </li>
+      <li class="" style="">
+        <p class="" style="">A remote entity can obtain the disco#info information of any resource which supports <span class="em">Entity Capabilities 2.0</span> and of which the entity knows the resource.</p>
+        <p class="" style="">This cannot be mitigated with <span class="em">Query Interception</span>. The risk is deemed acceptable considering that resources should generally be chosen randomly.</p>
+      </li>
+    </ul>
+  </div>
+<h2>9.
+       <a name="design" id="design">Design Considerations</a></h2>
+  <p class="" style="">The following alternatives to the custom algorithm were considered and eventually rejected:</p>
+  <div class="indent"><h3>9.1 <a name="design-c14n" id="design-c14n">Canonical XML</a></h3>
+    <p class="" style="">A common way to canonicalize XML which could be used is <span class="ref" style=""><a href="http://www.w3.org/TR/xml-c14n">Canonical XML</a></span>  [<a href="#nt-idm607">17</a>]. It was decided not to use <span class="ref">Canonical XML</span> for the following reasons:</p>
+    <ul class="" style="">
+      <li class="" style="">Implementing it is quite some effort and not all XML libraries come with an implementation.</li>
+      <li class="" style="">It is sensitive to the relative ordering of the elements. The relative ordering of children in disco#info &lt;query/&gt; elements, however, does not matter.</li>
+      <li class="" style="">Several children of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions (XEP-0128)</a></span>  [<a href="#nt-idm203">12</a>] data forms are deliberately ignored, like instructions and other descriptive text. The descriptive text is not relevant for the information is being conveyed.</li>
+    </ul>
+    <p class="" style="">Thus, using <span class="ref">Canonical XML</span> would require additional, non-trivial software support and still require non-trivial additional canonicalization rules.</p>
+  </div>
+<h2>10.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+    <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm624">18</a>]. </p>
+<h2>11.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+    <div class="indent"><h3>11.1 <a name="ns" id="ns">Protocol Namespaces</a></h3>
+      <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm631">19</a>] includes "urn:xmpp:caps" in its registry of protocol namespaces  (see &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;).</p>
+      <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;ns&gt;
+  &lt;name&gt;urn:xmpp:caps&lt;/name&gt;
+  &lt;doc&gt;&amp;xep0390;&lt;/doc&gt;
+&lt;/ns&gt;
+</pre></div>
+    </div>
+    <div class="indent"><h3>11.2 <a name="registrar-features" id="registrar-features">Service Discovery Features</a></h3>
+      <p class="" style="">The XMPP Registrar includes "urn:xmpp:caps" and "urn:xmpp:caps:optimize" in its registry of service discovery features (see &lt;<a href="https://xmpp.org/registrar/disco-features.html">https://xmpp.org/registrar/disco-features.html</a>&gt;).</p>
+      <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;var&gt;
+  &lt;name&gt;urn:xmpp:caps&lt;/name&gt;
+  &lt;desc&gt;Indicate support for Entity Capabilities 2.0&lt;/desc&gt;
+  &lt;doc&gt;&amp;xep0390;&lt;/doc&gt;
+&lt;/var&gt;
+&lt;var&gt;
+  &lt;name&gt;urn:xmpp:caps:optimize&lt;/name&gt;
+  &lt;desc&gt;Indicate support for optimisation of Entity Capabilities 2.0 broadcast.&lt;/desc&gt;
+  &lt;doc&gt;&amp;xep0390;&lt;/doc&gt;
+&lt;/var&gt;</pre></div>
+    </div>
+    <div class="indent"><h3>11.3 <a name="registrar-stream-features" id="registrar-stream-features">Stream Features</a></h3>
+      <p class="" style="">The XMPP Registrar includes "urn:xmpp:caps" in its registry of stream features (see &lt;<a href="https://xmpp.org/registrar/stream-features.html">https://xmpp.org/registrar/stream-features.html</a>&gt;).</p>
+      <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;feature&gt;
+  &lt;ns&gt;urn:xmpp:caps&lt;/ns&gt;
+  &lt;name&gt;ecaps2&lt;/name&gt;
+  &lt;element&gt;c&lt;/element&gt;
+  &lt;desc&gt;Indicate support for Entity Capabilities 2.0 and publish capabilities to peer.&lt;/desc&gt;
+  &lt;doc&gt;&amp;xep0390;&lt;/doc&gt;
+&lt;/feature&gt;
+</pre></div>
+    </div>
+<h2>12.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+  xmlns:xs='http://www.w3.org/2001/XMLSchema'
+  targetNamespace='urn:xmpp:caps'
+  xmlns='urn:xmpp:caps'
+  elementFormDefault='qualified'
+  xmlns:hashes='urn:xmpp:hashes:2'&gt;
+
+  &lt;!-- FIXME: import of XEP-0300 schema, which isn't at https://xmpp.org/schemas/ at the time of writing --&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in XEP-0390:
+      http://www.xmpp.org/extensions/xep-0390.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name='c'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence minOccurs='1'&gt;
+        &lt;xs:element ref='hashes:hash' minOccurs='1' maxOccurs='unbounded'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+&lt;/xs:schema&gt;
+</pre></div>
+<h2>13.
+       <a name="acknowledgements" id="acknowledgements">Acknowledgements</a></h2>
+  <p class="" style="">Thanks to the authors of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm74">3</a>] for coming up with the original idea of using presence broadcast to convey service discovery information, as well as the optimization strategies.</p>
+  <p class="" style="">The note below the example in <a href="#usecases-stream-feature">Advertisement of Support and Capabilities by Servers</a> has been copied verbatimly from <span class="ref">XEP-0115</span>.</p>
+  <p class="" style="">Thanks to Waqas Hussain for originally (to my knowledge) pointing out the security flaws in <span class="ref">XEP-0115</span> (see  [<a href="#nt-idm82">4</a>]).</p>
+  <p class="" style="">Thanks to Dave Cridland, Georg Lukas, Link Mauve, Sebastian Riese, Florian Schmaus and Sam Whited for their input, editorial and otherwise.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0390<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.2<br />
+            Last Updated: 2017-06-14<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XMPP IM, XEP-0030, XEP-0300<br />Supersedes: XEP-0115<br />
+                Superseded By: None<br />
+            Short Name: ecaps2<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0390.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0390.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0390.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Jonas Wielicki</h3><p class="indent">
+        Email:
+        <a href="mailto:jonas@wielicki.name">jonas@wielicki.name</a><br />
+        JabberID:
+        <a href="xmpp:jonas@wielicki.name">jonas@wielicki.name</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2017 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm62" id="nt-idm62">1</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm66" id="nt-idm66">2</a>. XEP-0369: Mediated Information eXchange (MIX) &lt;<a href="https://xmpp.org/extensions/xep-0369.html">https://xmpp.org/extensions/xep-0369.html</a>&gt;.</p><p><a name="nt-idm74" id="nt-idm74">3</a>. XEP-0115: Entity Capabilities &lt;<a href="https://xmpp.org/extensions/xep-0115.html">https://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-idm82" id="nt-idm82">4</a>. org.jabber.security Mailing List Archive: '[Security] Trivial preimage attack against the entity capabilities protocol)' from 2009-07-22, &lt;<a href="https://mail.jabber.org/pipermail/security/2009-July/000812.html">https://mail.jabber.org/pipermail/security/2009-July/000812.html</a>&gt;.</p><p><a name="nt-idm91" id="nt-idm91">5</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm95" id="nt-idm95">6</a>. RFC 6121: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc6121">http://tools.ietf.org/html/rfc6121</a>&gt;.</p><p><a name="nt-idm101" id="nt-idm101">7</a>. While elements of XEP-0300 are re-used here, full support of XEP-0300 is not formally required to implement this specification.</p><p><a name="nt-idm108" id="nt-idm108">8</a>. XEP-0045: Multi-User Chat &lt;<a href="https://xmpp.org/extensions/xep-0045.html">https://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-idm151" id="nt-idm151">9</a>. XEP-0300: Use of Cryptographic Hash Functions in XMPP &lt;<a href="https://xmpp.org/extensions/xep-0300.html">https://xmpp.org/extensions/xep-0300.html</a>&gt;.</p><p><a name="nt-idm185" id="nt-idm185">10</a>. RFC 3629: UTF-8, a transformation format of ISO 10646 &lt;<a href="http://tools.ietf.org/html/rfc3629">http://tools.ietf.org/html/rfc3629</a>&gt;.</p><p><a name="nt-idm189" id="nt-idm189">11</a>. RFC 4790: Internet Application Protocol Collation Registry &lt;<a href="http://tools.ietf.org/html/rfc4790">http://tools.ietf.org/html/rfc4790</a>&gt;.</p><p><a name="nt-idm203" id="nt-idm203">12</a>. XEP-0128: Service Discovery Extensions &lt;<a href="https://xmpp.org/extensions/xep-0128.html">https://xmpp.org/extensions/xep-0128.html</a>&gt;.</p><p><a name="nt-idm217" id="nt-idm217">13</a>. XEP-0068: Field Data Standardization for Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0068.html">https://xmpp.org/extensions/xep-0068.html</a>&gt;.</p><p><a name="nt-idm291" id="nt-idm291">14</a>. RFC 3548: The Base16, Base32, and Base64 Data Encodings &lt;<a href="http://tools.ietf.org/html/rfc3548">http://tools.ietf.org/html/rfc3548</a>&gt;.</p><p><a name="nt-idm322" id="nt-idm322">15</a>. <a href="https://github.com/xnyhps/capsdb/">https://github.com/xnyhps/capsdb/</a></p><p><a name="nt-idm411" id="nt-idm411">16</a>. As outlined in the Business Rules, this statement does not oblige an entity to actually perform this query.</p><p><a name="nt-idm607" id="nt-idm607">17</a>. Canonical XML 1.0 &lt;<a href="http://www.w3.org/TR/xml-c14n">http://www.w3.org/TR/xml-c14n</a>&gt;.</p><p><a name="nt-idm624" id="nt-idm624">18</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm631" id="nt-idm631">19</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.2 (2017-06-14)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Clearly specify handling of xml:lang attributes.</li>
+        <li class="" style="">Add Query Interception.</li>
+        <li class="" style="">Add Gratuitous Caps.</li>
+      </ul>
+     (jwi)
+    </div><h4>Version 0.1 (2017-03-23)</h4><div class="indent"><ul class="" style=""><li class="" style="">Add security consideration for caps spamming.</li><li class="" style="">Properly reference UTF-8 and Base64 RFCs.</li><li class="" style="">Remove namespace prefixes from examples.</li><li class="" style="">Properly reference FULL STOP character (U+002E, ".").</li><li class="" style="">Clarify the first error condition in the Hash Function Input algorithm.</li></ul> (jwi)
+    </div><h4>Version 0.0.1 (2017-02-28)</h4><div class="indent"><p class="" style="">First draft.</p> (jwi)
+    </div></div><hr /><p>END</p></body></html>
