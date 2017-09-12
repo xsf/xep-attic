@@ -1,0 +1,103 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0319: Last User Interaction in Presence</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Last User Interaction in Presence" /><meta name="DC.Creator" content="Tobias Markmann" /><meta name="DC.Description" content="This specification defines a way to communicate time of last user interaction with her system using XMPP presence notifications." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2017-05-30" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0319" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2017 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0319: Last User Interaction in Presence</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines a way to communicate time of last user interaction with her system using XMPP presence notifications.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Tobias Markmann</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2017 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Draft</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>1.0.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2017-05-30</td></tr></table><hr /><p style="color:green">NOTICE: The protocol defined herein is a <strong>Draft Standard</strong> of the XMPP Standards Foundation. Implementations are encouraged and the protocol is appropriate for deployment in production systems, but some changes to the protocol are possible before it becomes a Final Standard.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#usecases">Use Cases</a><br />   
+      2.1.  <a href="#last-interact">Presence with Last Interaction</a><br />   
+      2.2.  <a href="#back-from-idle">Presence Indicating User Coming Back From Idle</a><br />3.  <a href="#schema">XML Schema</a><br />4.  <a href="#ack">Acknowledgements</a><br />5.  <a href="#security">Security Considerations</a><br />6.  <a href="#iana">IANA Considerations</a><br />7.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      7.1.  <a href="#sect-idm174522643056">Protocol Namespace</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">This protocol describes a way to communicate a user's last interaction time with other XMPP entities over &lt;presence/&gt; stanzas. For the purposes of this document, user interaction here refers to a human end user interacting with her device by means of a keyboard, mouse, touch screen, and so on. Based on this information XMPP clients can display the time a contact went idle or a duration for how long a contact has been idle, thereby allowing end users to estimate the expected responsiveness of their contacts.</p>
+  <p class="" style="">This protocol uses absolute timestamps formatted according to the DateTime profile of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles (XEP-0082)</a></span>  [<a href="#nt-idm174522705056">1</a>], indicated as value of the 'since' attribute in the &lt;idle/&gt; element.</p>
+  <p class="" style="">Experience has shown a number of issues with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0256.html">Last Activity in Presence (XEP-0256)</a></span>  [<a href="#nt-idm174522683232">2</a>]:</p>
+  <ul class="" style="">
+    <li class="" style="">The use of relative durations is too vague. It requires additional information from <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0203.html">Delayed Delivery (XEP-0203)</a></span>  [<a href="#nt-idm174522676720">3</a>] to provide a reliable user experience.</li>
+    <li class="" style="">Distinguishing between the idle and last online use cases is very difficult.</li>
+    <li class="" style="">It is desirable to have idle time indiciated for &lt;presence/&gt; &lt;show/&gt; values other than "away" and "xa".</li>
+  </ul>
+  <p class="" style="">Updating <span class="ref">XEP-0256</span> directly would be problematic as it would break compatibility with existing implementations.  Instead a new protocol is described for handling the idle time use case; the last online use case is handled by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0312.html">PubSub Since (XEP-0312)</a></span>  [<a href="#nt-idm174522668352">4</a>].</p>
+<h2>2.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <p class="" style="">There are two main use cases for this extension, explained in more detail in the following sections.</p>
+  <div class="indent"><h3>2.1 <a name="last-interact" id="last-interact">Presence with Last Interaction</a></h3>
+  <p class="" style="">After a user has not interacted with her device for some amount of time the user wants to inform her contacts about this fact. The client sends a &lt;presence/&gt; stanza with time of last interaction.</p>
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Time of Last User Interaction in Auto-Away</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='juliet@capulet.com/balcony'&gt;
+  &lt;show&gt;away&lt;/show&gt;
+  &lt;idle xmlns='urn:xmpp:idle:1' since='1969-07-21T02:56:15Z'/&gt;
+&lt;/presence&gt;
+</pre></div>
+  <p class="" style="">The amount of time the user has to be idle before a client sends this enhanced presence is application-specific; it is suggested that a sensible default interval of 5 minutes be used.</p>
+  </div>
+  <div class="indent"><h3>2.2 <a name="back-from-idle" id="back-from-idle">Presence Indicating User Coming Back From Idle</a></h3>
+    <p class="" style="">When a user comes back and uses her device again the client informs user's contacts by sending a normal presence stanza like shown in the following example, omiting the &lt;idle/&gt; element.</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Presence Indicating Return to Device</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='juliet@capulet.com/balcony' /&gt;
+</pre></div>
+  </div>
+<h2>3.
+       <a name="schema" id="schema">XML Schema</a></h2>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version="1.0" encoding="utf-8"?&gt;
+
+&lt;xs:schema
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    elementFormDefault="qualified"
+    targetNamespace="urn:xmpp:idle:1"
+    xmlns="urn:xmpp:idle:1"&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-0319: http://www.xmpp.org/extensions/xep-0319.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name="idle"&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:attribute name="since" use="required" type="xs:string"/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+&lt;/xs:schema&gt;
+</pre></div>
+<h2>4.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+  <p class="" style="">Thanks to Florian Schmaus, Christian Schudt, and Lance Stout for their helpful comments.</p>
+<h2>5.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">The security considerations of <span class="ref">XEP-0082</span> apply to this protocol.</p>
+  <p class="" style="">This specification introduces no new security or privacy concerns. While including a last user interaction notation in &lt;presence/&gt; updates can enable recipients to determine exactly when a user has stopped interacting with her XMPP client or even their system, this information is in essence already available if the user's client publishes timely presence updates.</p>
+<h2>6.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm174522645808">5</a>].</p>
+<h2>7.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>7.1 <a name="sect-idm174522643056" id="sect-idm174522643056">Protocol Namespace</a></h3>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm174522638064">6</a>] shall add 'urn:xmpp:idle:1' to its registry at <a href="http://xmpp.org/registrar/namespaces.html">http://xmpp.org/registrar/namespaces.html</a>.</p>
+  </div>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0319<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Draft">Draft</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 1.0.1<br />
+            Last Updated: 2017-05-30<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XMPP IM, XEP-0082<br />Supersedes: XEP-0256<br />
+                Superseded By: None<br />
+            Short Name: idle<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0319.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0319.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0319.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Tobias Markmann</h3><p class="indent">
+        Email:
+        <a href="mailto:tobias.markmann@isode.com">tobias.markmann@isode.com</a><br />
+        JabberID:
+        <a href="xmpp:tm@ayena.de">tm@ayena.de</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2017 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm174522705056" id="nt-idm174522705056">1</a>. XEP-0082: XMPP Date and Time Profiles &lt;<a href="https://xmpp.org/extensions/xep-0082.html">https://xmpp.org/extensions/xep-0082.html</a>&gt;.</p><p><a name="nt-idm174522683232" id="nt-idm174522683232">2</a>. XEP-0256: Last Activity in Presence &lt;<a href="https://xmpp.org/extensions/xep-0256.html">https://xmpp.org/extensions/xep-0256.html</a>&gt;.</p><p><a name="nt-idm174522676720" id="nt-idm174522676720">3</a>. XEP-0203: Delayed Delivery &lt;<a href="https://xmpp.org/extensions/xep-0203.html">https://xmpp.org/extensions/xep-0203.html</a>&gt;.</p><p><a name="nt-idm174522668352" id="nt-idm174522668352">4</a>. XEP-0312: PubSub Since &lt;<a href="https://xmpp.org/extensions/xep-0312.html">https://xmpp.org/extensions/xep-0312.html</a>&gt;.</p><p><a name="nt-idm174522645808" id="nt-idm174522645808">5</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm174522638064" id="nt-idm174522638064">6</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 1.0.1 (2017-05-30)</h4><div class="indent"><p class="" style="">Be precise about the <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles (XEP-0082)</a></span>  [<a href="#nt-idm174522705056">1</a>] profile used.</p> (egp)
+    </div><h4>Version 1.0 (2015-04-02)</h4><div class="indent"><p class="" style="">Per a vote of the XMPP Council, advanced specification from Experimental to Draft.</p> (XEP editor (mam))
+    </div><h4>Version 0.2 (2013-08-27)</h4><div class="indent"><p class="" style="">Fix issues raised in XMPP Council meeting.</p> (tobias)
+    </div><h4>Version 0.1 (2013-03-04)</h4><div class="indent"><p class="" style="">Initial published version approved by the XMPP Council.</p> (psa)
+    </div><h4>Version 0.0.1 (2013-02-17)</h4><div class="indent"><p class="" style="">Initial version.</p> (tobias)
+    </div></div><hr /><p>END</p></body></html>
