@@ -1,0 +1,540 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0348: Signing Forms</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Signing Forms" /><meta name="DC.Creator" content="Peter Waher" /><meta name="DC.Description" content="This specification describes a method whereby a client can sign a form using credentials not related to the current connection." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2015-11-09" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0348" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2017 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0348: Signing Forms</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification describes a method whereby a client can sign a form using credentials not related to the current connection.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Peter Waher</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2017 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.2</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2015-11-09</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#signingform">Signing a form</a><br />   
+      2.1.  <a href="#hashfunction">Choose Hash function</a><br />   
+      2.2.  <a href="#sortparameters">Sort parameters</a><br />   
+      2.3.  <a href="#pstr">Calculating Parameter String (PStr)</a><br />   
+      2.4.  <a href="#bstr">Calculating Signature Base String (BStr)</a><br />   
+      2.5.  <a href="#signature">Generating Signature</a><br />   
+      2.6.  <a href="#sendingform">Sending Form</a><br />   
+      2.7.  <a href="#validatingform">Validating Form</a><br />3.  <a href="#usecases">Use Cases</a><br />   
+      3.1.  <a href="#ibr">Securing In-Band Registration of new accounts</a><br />4.  <a href="#support">Determining Support</a><br />5.  <a href="#impl">Implementation Notes</a><br />   
+      5.1.  <a href="#namespaces">Signature algorithms and namespaces</a><br />6.  <a href="#security">Security Considerations</a><br />   
+      6.1.  <a href="#secplaintext">PLAINTEXT</a><br />   
+      6.2.  <a href="#secsession">Session parameters</a><br />7.  <a href="#iana">IANA Considerations</a><br />8.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      8.1.  <a href="#fieldstandardization">Field Standardization</a><br />9.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+		<p class="" style="">
+			Sometimes there might be a need for an application to sign a data form (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0004.html">Data Forms (XEP-0004)</a></span>  [<a href="#nt-idm70">1</a>]) using other credentials than provided by the XMPP account or connection. An example can
+			be automatic account creation using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0077.html">In-Band Registration (XEP-0077)</a></span>  [<a href="#nt-idm74">2</a>]. Many server operators disable the in-band registration feature since it makes it possible for malicious
+			users or robots to freely create accounts on the server. One way to combat robots, has been through the use of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0158.html">CAPTCHA Forms (XEP-0158)</a></span>  [<a href="#nt-idm78">3</a>]. But in some cases, like in the Internet of Things,
+			it is not robots that are the problem, but malicious users.
+		</p>
+		<p class="" style="">
+			This document describes a method whereby forms can be signed using other credentials. This can be used in an In-band registration form to sign the form with the credentials
+			of a special account on the server with permissions to create new XMPP accounts, with perhaps a limit on number of accounts that can be created. This method can be used by
+			manufacturers of devices for Internet of Things, so that devices can create accounts automatically on XMPP servers in an orderly fashion, and manufacturers are allowed to
+			administer and control their automatically created accounts separately. It also provides a mechanism whereby server operators can monitor who is responsible for account creation
+			and to what extent.
+		</p>
+		<p class="" style="">
+			A fixed algorithm (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5849">OAuth 1.0 Protocol</a></span>
+			 [<a href="#nt-idm84">4</a>]) has been chosen in favor of a method where the user can select an authentication method from a list of available methods, modelled in the likeness of SASL. The main reason is
+			to avoid multiple callbacks during form signature. The idea is to make form signature possible without having to do any intermediate server callbacks, or having to change the original
+			request returning the form. The method is still extensible, allowing possible future extensions. The form signing algorithm to use is defined by the FORM_TYPE parameter in the form
+			being signed.
+		</p>
+	<h2>2.
+       <a name="signingform" id="signingform">Signing a form</a></h2>
+		<p class="" style="">
+			A form that needs to be signed by the client using external credentials, shows this by including a hidden <span class="strong">FORM_TYPE</span> field valued
+			<span class="strong">urn:xmpp:xdata:signature:oauth1</span>. The sub-namespace <span class="strong">:oauth1</span> identifies the algorithm to be used, in this case OAUTH v1.0.
+		</p>
+		<p class="caption"><a name="example-1" id="example-1"></a>Example 1. Form requiring signature</p><div class="indent"><pre class="prettyprint">
+			
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Create Account&lt;/title&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;urn:xmpp:xdata:signature:oauth1&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field type='hidden' var='oauth_version'&gt;
+        &lt;value&gt;1.0&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field type='hidden' var='oauth_signature_method'&gt;
+        &lt;value&gt;HMAC-SHA1&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field type='hidden' var='oauth_token'&gt;
+        &lt;value&gt;...&lt;value&gt;
+      &lt;/field&gt;
+      &lt;field type='hidden' var='oauth_token_secret'&gt;
+        &lt;value&gt;...&lt;value&gt;
+      &lt;/field&gt;
+      &lt;field type='hidden' var='oauth_nonce'&gt;
+        &lt;value/&gt;
+      &lt;/field&gt;
+      &lt;field type='hidden' var='oauth_timestamp'&gt;
+        &lt;value/&gt;
+      &lt;/field&gt;
+      &lt;field type='hidden' var='oauth_consumer_key'&gt;
+        &lt;value/&gt;
+      &lt;/field&gt;
+      &lt;field type='hidden' var='oauth_signature'&gt;
+        &lt;value/&gt;
+      &lt;/field&gt;
+      &lt;field type='text-single' label='User Name' var='UserName'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+      &lt;field type='text-single' label='Password' var='Password'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+		</pre></div>
+		<p class="" style="">
+			The form contains a set of invisible parameters that the underlying software signing the form and supporting this specification must understand. These are:
+		</p>
+		<div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: OAUTH parameters</p><table border="1" cellpadding="3" cellspacing="0">
+			<tr class="body">
+				<th colspan="" rowspan="">Name</th>
+				<th colspan="" rowspan="">Description</th>
+			</tr>
+			<tr class="body">
+				<td align="" colspan="" rowspan="">oauth_version</td>
+				<td align="" colspan="" rowspan="">Must be 1.0. Is not changed by the client performing the signing.</td>
+			</tr>
+			<tr class="body">
+				<td align="" colspan="" rowspan="">oauth_signature_method</td>
+				<td align="" colspan="" rowspan="">Specifies the signature method, or hash function, to use when signing the form. This can be changed by the client. Possible values are: HMAC-SHA1, RSA-SHA1 and PLAINTEXT.</td>
+			</tr>
+			<tr class="body">
+				<td align="" colspan="" rowspan="">oauth_token</td>
+				<td align="" colspan="" rowspan="">This is a token provided by the server to the client. This parameter might not be available if the server has provided the client with this token earlier during the session.</td>
+			</tr>
+			<tr class="body">
+				<td align="" colspan="" rowspan="">oauth_token_secret</td>
+				<td align="" colspan="" rowspan="">This is a temporary secret shared between the server and client, and is related to the token. This parameter might not be available if the server has provided the client with this token earlier during the session.</td>
+			</tr>
+			<tr class="body">
+				<td align="" colspan="" rowspan="">oauth_nonce</td>
+				<td align="" colspan="" rowspan="">A nonce value that the client has to set. Can be a random alphanumerical string.</td>
+			</tr>
+			<tr class="body">
+				<td align="" colspan="" rowspan="">oauth_timestamp</td>
+				<td align="" colspan="" rowspan="">Number of seconds since 1st of January 1970, 00:00:00 GMT. The client has to set this at the time of signature.</td>
+			</tr>
+			<tr class="body">
+				<td align="" colspan="" rowspan="">oauth_consumer_key</td>
+				<td align="" colspan="" rowspan="">A key identifying the account doing the signing of the form. The client has to set this to identify who performs the signature.</td>
+			</tr>
+			<tr class="body">
+				<td align="" colspan="" rowspan="">oauth_signature</td>
+				<td align="" colspan="" rowspan="">The signature, signing the form. The client has to set this with the signature of the form, as calculated and described below.</td>
+			</tr>
+		</table></div>
+		<p class="" style="">
+			Before calculating the signature, the following functions need to be defined:
+		</p>
+		<div class="indent"><dl>
+			<di>
+				<dt><strong>Base64(x)</strong></dt>
+				<dd>
+					<p class="" style="">
+						Converts the sequence of octets <span class="strong">x</span> into a Base-64 encoded string.
+					</p>
+				</dd>
+			</di>
+			<di>
+				<dt><strong>Escape(s)</strong></dt>
+				<dd>
+					<p class="" style="">
+						The string <span class="strong">s</span> are escaped using the <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3986">RFC 3986</a></span>  [<a href="#nt-idm135">5</a>] percent-encoding (%xx) mechanism. Characters not in the unreserved character set (§ 2.3) MUST be encoded.
+						Characters in the unreserved character set MUST NOT be encoded. Hexadecimal characters in encodings MUST be upper case. Text names and values MUST first be normalized
+						using Normalization Form C (NFC) as defined in <span class="ref" style="">
+							<a href="http://unicode.org/reports/tr15/#Norm_Forms">Unicode Standard Annex #15, Unicode Normalization Forms</a>
+						</span>  [<a href="#nt-idm139">6</a>] and then encoded as UTF-8 octets before percent-encoding them per <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3629">RFC 3629</a></span>  [<a href="#nt-idm143">7</a>].
+					</p>
+					<p class="" style="">
+						Unreserved characters are alphanumeric characters (a-z, A-Z, 0-9), hyphen ('-'), period ('.'), underscore ('_') and tilde ('~').
+					</p>
+				</dd>
+			</di>
+			<di>
+				<dt><strong>H(x)</strong></dt>
+				<dd>
+					<p class="" style="">
+						Corresponds to the Hash-function to use, according to the parameter <span class="strong">oauth_signature_method</span>. It computes the hash value of the octets <span class="strong">x</span>,
+						and returns a sequence of octets.
+					</p>
+				</dd>
+			</di>
+		</dl></div>
+		<p class="" style="">
+			To calculate the signature of the form, follow the steps in the following subsections, in the same order.
+		</p>
+		<div class="indent"><h3>2.1 <a name="hashfunction" id="hashfunction">Choose Hash function</a></h3>
+			<p class="" style="">
+				You choose Hash function by setting the parameter <span class="strong">oauth_signature_method</span> to either <span class="strong">HMAC-SHA1</span>, <span class="strong">RSA-SHA1</span> or <span class="strong">PLAINTEXT</span>.
+			</p>
+		</div>
+		<div class="indent"><h3>2.2 <a name="sortparameters" id="sortparameters">Sort parameters</a></h3>
+			<p class="" style="">
+				First, all form parameters to be signed, including hidden parameters and the OAUTH parameters except <span class="strong">oauth_token_secret</span> and <span class="strong">oauth_signature</span>,
+				are sorted by variable name (<span class="strong">var</span>).
+			</p>
+		</div>
+		<div class="indent"><h3>2.3 <a name="pstr" id="pstr">Calculating Parameter String (PStr)</a></h3>
+			<p class="" style="">
+				Each (name, value) pair in the list of sorted parameters are first transformed into pairs of <span class="strong">Escape(name)=Escape(value)</span> segments, and then concatenated
+				into one string, where each segment is delimited using an ampersand ('&amp;') character.
+			</p>
+			<p class="caption"><a name="example-2" id="example-2"></a>Example 2. Calculating Parameter String</p><div class="indent"><pre class="prettyprint">
+				
+    PStr:=Escape(name_1)+'='+Escape(value_1)+'&amp;'+...+Escape(name_N)+'='+Escape(value_N)
+			</pre></div>
+		</div>
+		<div class="indent"><h3>2.4 <a name="bstr" id="bstr">Calculating Signature Base String (BStr)</a></h3>
+			<p class="" style="">
+				The Signature Base String (BStr) is then formed concatenating <span class="strong">Escape(type)</span> (the form type used when submitting the form),
+				<span class="strong">Escape(to)</span> (the full destination address, including resource, if any) and <span class="strong">Escape(PStr)</span>, using ampersands ('&amp;') as
+				delimiter.
+			</p>
+			<p class="caption"><a name="example-3" id="example-3"></a>Example 3. Calculating Signature Base String</p><div class="indent"><pre class="prettyprint">
+				
+    BStr:=Escape(type)+'&amp;'+Escape(to)+'&amp;'+Escape(PStr)
+			</pre></div>
+		</div>
+		<div class="indent"><h3>2.5 <a name="signature" id="signature">Generating Signature</a></h3>
+			<p class="" style="">
+				Depending on which signature method is chosen, different Hash functions are used. If <span class="strong">HMAC-SHA1</span> is chosen, then the Hash function
+				<span class="strong">HMAC(text, key)</span> according to <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc2104">RFC 2104</a></span>  [<a href="#nt-idm180">8</a>] is used as follows:
+			</p>
+			<p class="caption"><a name="example-4" id="example-4"></a>Example 4. HMAC-SHA1</p><div class="indent"><pre class="prettyprint">
+				
+    H(x):=HMAC-SHA1(x,Escape(oauth_consumer_secret)+'&amp;'+Escape(oauth_token_secret))
+    oauth_signature:=Escape(Base64(H(BStr)))
+			</pre></div>
+			<p class="" style="">
+				Here, the client signing the form must have the <span class="strong">oauth_consumer_secret</span> available to be able to sign the form correctly.
+			</p>
+			<p class="" style="">
+				If <span class="strong">RSA-SHA1</span> is chosen, then the signature method <span class="strong">RSASSA-PKCS1-v1_5(K, M)</span> according to <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3447">RFC 3447</a></span>  [<a href="#nt-idm190">9</a>] is used as follows:
+			</p>
+			<p class="caption"><a name="example-5" id="example-5"></a>Example 5. RSA-SHA1</p><div class="indent"><pre class="prettyprint">
+				
+    H(x):=RSASSA-PKCS1-v1_5(oauth_consumer_secret,x)
+    oauth_signature:=Escape(Base64(H(BStr)))
+			</pre></div>
+			<p class="" style="">
+				In this example, the <span class="strong">oauth_consumer_secret</span> must be an RSA private key.
+			</p>
+			<p class="" style="">
+				If <span class="strong">PLAINTEXT</span> is chosen, no Hash function is used. Instead, the signature is calculated as follows:
+			</p>
+			<p class="caption"><a name="example-6" id="example-6"></a>Example 6. RSA-SHA1</p><div class="indent"><pre class="prettyprint">
+				
+    oauth_signature:=Escape(oauth_consumer_secret)+Escape(oauth_token_secret)
+			</pre></div>
+		</div>
+		<div class="indent"><h3>2.6 <a name="sendingform" id="sendingform">Sending Form</a></h3>
+			<p class="" style="">
+				Once the signature has been calculated, the corresponding parameter <span class="strong">oauth_signature</span> has to be set in the form before sending it to the destination
+				address.
+			</p>
+		</div>
+		<div class="indent"><h3>2.7 <a name="validatingform" id="validatingform">Validating Form</a></h3>
+			<p class="" style="">
+				When the recipient receives the signed formm it performs the same calculations as above, based on the parameters received, and knowledge of the shared secret which it
+				can look up by using the parameter <span class="strong">oauth_consumer_key</span>.
+			</p>
+		</div>
+	<h2>3.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+		<div class="indent"><h3>3.1 <a name="ibr" id="ibr">Securing In-Band Registration of new accounts</a></h3>
+			<p class="" style="">
+				As mentioned above, a major use case for signing forms, is in-band registration for creating new accounts on an XMPP Server, as defined in XEP-0077.
+			</p>
+			<p class="caption"><a name="example-7" id="example-7"></a>Example 7. Entity Requests Registration Fields from Host</p><div class="indent"><pre class="prettyprint">
+				
+    &lt;iq type='get'
+        from='juliet@capulet.com/balcony'
+        to='contests.shakespeare.lit'
+        id='reg3'&gt;
+      &lt;query xmlns='jabber:iq:register'/&gt;
+    &lt;/iq&gt;
+			</pre></div>
+			<p class="caption"><a name="example-8" id="example-8"></a>Example 8. Host Returns Registration Form to Entity requiring signature</p><div class="indent"><pre class="prettyprint">
+				
+    &lt;iq type='result'
+        from='contests.shakespeare.lit'
+        to='juliet@capulet.com/balcony'
+        id='reg3'&gt;
+      &lt;query xmlns='jabber:iq:register'&gt;
+        &lt;instructions&gt;
+          Use the enclosed form to register. If your Jabber client does not
+          support Data Forms, visit http://www.shakespeare.lit/contests.php
+        &lt;/instructions&gt;
+        &lt;x xmlns='jabber:x:data' type='form'&gt;
+          &lt;title&gt;Contest Registration&lt;/title&gt;
+          &lt;instructions&gt;
+            Please provide the following information
+            to sign up for our special contests!
+          &lt;/instructions&gt;
+          &lt;field type='hidden' var='FORM_TYPE'&gt;
+            &lt;value&gt;urn:xmpp:xdata:signature:oauth1&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field type='text-single' label='Given Name' var='first'&gt;
+            &lt;required/&gt;
+          &lt;/field&gt;
+          &lt;field type='text-single' label='Family Name' var='last'&gt;
+            &lt;required/&gt;
+          &lt;/field&gt;
+          &lt;field type='text-single' label='Email Address' var='email'&gt;
+            &lt;required/&gt;
+          &lt;/field&gt;
+          &lt;field type='list-single' label='Gender' var='x-gender'&gt;
+            &lt;option label='Male'&gt;&lt;value&gt;M&lt;/value&gt;&lt;/option&gt;
+            &lt;option label='Female'&gt;&lt;value&gt;F&lt;/value&gt;&lt;/option&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_version'&gt;
+            &lt;value&gt;1.0&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_signature_method'&gt;
+            &lt;value&gt;HMAC-SHA1&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_token'&gt;
+            &lt;value&gt;...&lt;value&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_token_secret'&gt;
+            &lt;value&gt;...&lt;value&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_nonce'&gt;
+            &lt;value/&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_timestamp'&gt;
+            &lt;value/&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_consumer_key'&gt;
+            &lt;value/&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_signature'&gt;
+            &lt;value/&gt;
+          &lt;/field&gt;
+        &lt;/x&gt;
+      &lt;/query&gt;
+    &lt;/iq&gt;
+			</pre></div>
+			<p class="caption"><a name="example-9" id="example-9"></a>Example 9. User Submits Signed Registration Form</p><div class="indent"><pre class="prettyprint">
+				
+    &lt;iq type='set'
+        from='juliet@capulet.com/balcony'
+        to='contests.shakespeare.lit'
+        id='reg4'&gt;
+      &lt;query xmlns='jabber:iq:register'&gt;
+        &lt;x xmlns='jabber:x:data' type='submit'&gt;
+          &lt;field type='hidden' var='FORM_TYPE'&gt;
+            &lt;value&gt;urn:xmpp:xdata:signature:oauth1&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field type='text-single' label='Given Name' var='first'&gt;
+            &lt;value&gt;Juliet&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field type='text-single' label='Family Name' var='last'&gt;
+            &lt;value&gt;Capulet&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field type='text-single' label='Email Address' var='email'&gt;
+            &lt;value&gt;juliet@capulet.com&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field type='list-single' label='Gender' var='x-gender'&gt;
+            &lt;value&gt;F&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_version'&gt;
+            &lt;value&gt;1.0&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_signature_method'&gt;
+            &lt;value&gt;HMAC-SHA1&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_token'&gt;
+            &lt;value&gt;...&lt;value&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_token_secret'&gt;
+            &lt;value&gt;...&lt;value&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_nonce'&gt;
+            &lt;value&gt;...&lt;value&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_timestamp'&gt;
+            &lt;value&gt;...&lt;value&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_consumer_key'&gt;
+            &lt;value&gt;...&lt;value&gt;
+          &lt;/field&gt;
+          &lt;field type='hidden' var='oauth_signature'&gt;
+            &lt;value&gt;...&lt;value&gt;
+          &lt;/field&gt;
+        &lt;/x&gt;
+      &lt;/query&gt;
+    &lt;/iq&gt;
+			</pre></div>
+			<p class="" style="">
+				In case a form signature is not value, the server MUST respond with a <span class="strong">bad-request</span> error message, as follows:
+			</p>
+			<p class="caption"><a name="example-10" id="example-10"></a>Example 10. Error message when form signature is invalid</p><div class="indent"><pre class="prettyprint">
+				
+    &lt;iq type='error'
+        from='contests.shakespeare.lit'
+        to='juliet@capulet.com/balcony'
+        id='reg4'&gt;
+      &lt;error code='400' type='modify'&gt;
+        &lt;bad-request xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+      &lt;/error&gt;
+    &lt;/iq&gt;
+			</pre></div>
+		</div>
+	<h2>4.
+       <a name="support" id="support">Determining Support</a></h2>
+		<p class="" style="">If an entity supports signing forms as specified herein, it MUST advertise that fact by returning a feature of "urn:xmpp:xdata:signature:oauth1" in response to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm217">10</a>] information requests.</p>
+		<p class="caption"><a name="example-11" id="example-11"></a>Example 11. Service discovery information request</p><div class="indent"><pre class="prettyprint">
+			
+    &lt;iq type='get'
+        from='example.org'
+        to='device@example.org'
+        id='disco1'&gt;
+      &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+    &lt;/iq&gt;
+		</pre></div>
+		<p class="caption"><a name="example-12" id="example-12"></a>Example 12. Service discovery information response</p><div class="indent"><pre class="prettyprint">
+			
+    &lt;iq type='result'
+        from='device@example.org'
+        to='example.org'
+        id='disco1'&gt;
+      &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+        ...
+        &lt;feature var='urn:xmpp:xdata:signature:oauth1'/&gt;
+        ...
+      &lt;/query&gt;
+    &lt;/iq&gt;
+		</pre></div>
+		<p class="" style="">
+			In order for an application to determine whether an entity supports this protocol, where possible it SHOULD use the dynamic, presence-based profile of service discovery defined
+			in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm224">11</a>]. However, if an application has not received entity capabilities information from an entity, it SHOULD use explicit service discovery instead.
+		</p>
+	<h2>5.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+		<div class="indent"><h3>5.1 <a name="namespaces" id="namespaces">Signature algorithms and namespaces</a></h3>
+			<p class="" style="">
+				This document only specifies signatures using OAUTH v1.0. Each entity that supports form signatures using this method, reports this by including the
+				namespace <span class="strong">urn:xmpp:xdata:signature:oauth1</span> in its features. The specification is extensible, in that it can allow for future signature
+				methods to be used, by defining new namespaces replacing <span class="strong">oauth1</span> by another string corresponding to the desired method, but leaving the
+				base part of the namespace <span class="strong">urn:xmpp:xdata:signature:</span> intact.
+			</p>
+		</div>
+	<h2>6.
+       <a name="security" id="security">Security Considerations</a></h2>
+		<div class="indent"><h3>6.1 <a name="secplaintext" id="secplaintext">PLAINTEXT</a></h3>
+			<p class="" style="">
+				The PLAINTEXT signature method should only be used if SSL/TLS is used by both the entity signing the form as well as the creator of the form. If the creator of the form
+				is a server, this later part can be ignored. If unsure, PLAINTEXT should only be used in development &amp; debugging cycles of an application, and not in production environments.
+			</p>
+		</div>
+		<div class="indent"><h3>6.2 <a name="secsession" id="secsession">Session parameters</a></h3>
+			<p class="" style="">
+				If the server provides information to be used in signing a form, it must also verify that the client only changes values it is allowed to change. An alternative is to
+				not use the values provided by the client for the corresponding server-side parameters when calculating the signature on the server side. This makes sure a client
+				cannot willfully alter server-side parameters when it returns the signed form.
+			</p>
+		</div>
+	<h2>7.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+		<p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm241">12</a>].</p>
+	<h2>8.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+		<p class="" style="">
+			The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm247">13</a>] includes the following information in its registries.
+		</p>
+		<div class="indent"><h3>8.1 <a name="fieldstandardization" id="fieldstandardization">Field Standardization</a></h3>
+			<p class="" style="">
+				<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0068.html">Field Standardization for Data Forms (XEP-0068)</a></span>  [<a href="#nt-idm253">14</a>] defines a process for standardizing the fields used within Data Forms qualified by a particular namespace, and XEP-0128 describes how to use
+				field standardization in the context of service discovery. This section registers fields for server information scoped by the "urn:xmpp:xdata:signature:oauth1" FORM_TYPE.
+			</p>
+			<p class="caption"><a name="example-13" id="example-13"></a>Example 13. Registry submission</p><div class="indent"><pre class="prettyprint">
+				
+&lt;form_type&gt;
+  &lt;name&gt;urn:xmpp:xdata:signature:oauth1&lt;/name&gt;
+  &lt;doc&gt;XEP-xxxx&lt;/doc&gt;
+  &lt;desc&gt;
+    Forms that require signatures using OAuth v1.0 signature algorithm.
+  &lt;/desc&gt;
+  &lt;field
+      var='oauth_version'
+      type='hidden'
+      label='OAuth version. Must be 1.0.'/&gt;
+  &lt;field
+      var='oauth_signature_method'
+      type='hidden'
+      label='OAuth signature method. Can be "HMAC-SHA1", "RSA-SHA1" or "PLAINTEXT".'/&gt;
+  &lt;field
+      var='oauth_token'
+      type='hidden'
+      label='OAuth token. Provided by the creator of the form.'/&gt;
+  &lt;field
+      var='oauth_token_secret'
+      type='hidden'
+      label='OAuth token secret. Provided by the creator of the form.'/&gt;
+  &lt;field
+      var='oauth_nonce'
+      type='hidden'
+      label='Nonce value. Random string, created by the entity signing the form.'/&gt;
+  &lt;field
+      var='oauth_timestamp'
+      type='hidden'
+      label='Seconds since 1st of January 1970, 00:00:00 GMT. Value provided by the entity signing the form.'/&gt;
+  &lt;field
+      var='oauth_consumer_key'
+      type='hidden'
+      label='Consumer Key, identifying the entity signing the form using an external set of credentials. Value provided by the entity signing the form.'/&gt;
+  &lt;field
+      var='oauth_signature'
+      type='hidden'
+      label='Form signature. Value provided by the entity signing the form.'/&gt;
+&lt;/form_type&gt;
+			</pre></div>
+		</div>
+	<h2>9.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+		<p class="" style="">Thanks to Kevin Smith, Lance Stout, Matthew Wild, Philipp Hancke and Tobias Markmann for all valuable feedback.</p>
+	<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0348<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.2<br />
+            Last Updated: 2015-11-09<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0004, XEP-0030, XEP-0068, XEP-0077<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: signing-forms<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0348.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0348.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0348.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Peter Waher</h3><p class="indent">
+        Email:
+        <a href="mailto:peterwaher@hotmail.com">peterwaher@hotmail.com</a><br />
+        JabberID:
+        <a href="xmpp:peter.waher@jabber.org">peter.waher@jabber.org</a><br />
+        URI:
+        <a href="http://www.linkedin.com/in/peterwaher">http://www.linkedin.com/in/peterwaher</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2017 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm70" id="nt-idm70">1</a>. XEP-0004: Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0004.html">https://xmpp.org/extensions/xep-0004.html</a>&gt;.</p><p><a name="nt-idm74" id="nt-idm74">2</a>. XEP-0077: In-Band Registration &lt;<a href="https://xmpp.org/extensions/xep-0077.html">https://xmpp.org/extensions/xep-0077.html</a>&gt;.</p><p><a name="nt-idm78" id="nt-idm78">3</a>. XEP-0158: CAPTCHA Forms &lt;<a href="https://xmpp.org/extensions/xep-0158.html">https://xmpp.org/extensions/xep-0158.html</a>&gt;.</p><p><a name="nt-idm84" id="nt-idm84">4</a>. 
+				RFC-5849: The OAuth 1.0 Protocol &lt;<a href="http://tools.ietf.org/html/rfc5849">http://tools.ietf.org/html/rfc5849</a>&gt;.
+			</p><p><a name="nt-idm135" id="nt-idm135">5</a>. RFC 3986: Uniform Resource Identifiers (URI): Generic Syntax &lt;<a href="http://tools.ietf.org/html/rfc3986">http://tools.ietf.org/html/rfc3986</a>&gt;.</p><p><a name="nt-idm139" id="nt-idm139">6</a>. 
+							Unicode Standard Annex #15, Unicode Normalization Forms &lt;<a href="http://unicode.org/reports/tr15/#Norm_Forms">http://unicode.org/reports/tr15/#Norm_Forms</a>&gt;.
+						</p><p><a name="nt-idm143" id="nt-idm143">7</a>. RFC 3629: UTF-8, a transformation format of ISO 10646 &lt;<a href="http://tools.ietf.org/html/rfc3629">http://tools.ietf.org/html/rfc3629</a>&gt;.</p><p><a name="nt-idm180" id="nt-idm180">8</a>. RFC 2104: HMAC: Keyed-Hashing for Message Authentication &lt;<a href="http://tools.ietf.org/html/rfc2104">http://tools.ietf.org/html/rfc2104</a>&gt;.</p><p><a name="nt-idm190" id="nt-idm190">9</a>. RFC 3447: Public-Key Cryptography Standards (PKCS) #1: RSA Cryptography Specifications Version 2.1 &lt;<a href="http://tools.ietf.org/html/rfc3447">http://tools.ietf.org/html/rfc3447</a>&gt;.</p><p><a name="nt-idm217" id="nt-idm217">10</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm224" id="nt-idm224">11</a>. XEP-0115: Entity Capabilities &lt;<a href="https://xmpp.org/extensions/xep-0115.html">https://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-idm241" id="nt-idm241">12</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm247" id="nt-idm247">13</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idm253" id="nt-idm253">14</a>. XEP-0068: Field Data Standardization for Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0068.html">https://xmpp.org/extensions/xep-0068.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.2 (2015-11-09)</h4><div class="indent">
+				<p class="" style="">Updated contact information.</p>
+				<p class="" style="">Updated example JIDs to example.org</p>
+			 (pw)
+    </div><h4>Version 0.1 (2014-05-28)</h4><div class="indent">
+        <p class="" style="">Initial published version approved by the XMPP Council.</p>
+       (editor (mam))
+    </div><h4>Version 0.0.3 (2014-05-13)</h4><div class="indent">
+				<p class="" style="">Added acknowledgements section.</p>
+			 (pw)
+    </div><h4>Version 0.0.2 (2014-05-09)</h4><div class="indent">
+				<p class="" style="">Removed links to articles expression opinions.</p>
+				<p class="" style="">Reformulated the reference to SASL in the introduction.</p>
+				<p class="" style="">A reference to Unicode Standard Annex #15, Unicode Normalization Forms, and NFC normalization has been added.</p>
+			 (pw)
+    </div><h4>Version 0.0.1 (2014-04-16)</h4><div class="indent">
+				<p class="" style="">First draft.</p>
+			 (pw)
+    </div></div><hr /><p>END</p></body></html>

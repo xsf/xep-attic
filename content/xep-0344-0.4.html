@@ -1,0 +1,425 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0344: Impact of TLS and DNSSEC on Dialback</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Impact of TLS and DNSSEC on Dialback" /><meta name="DC.Creator" content="Philipp Hancke" /><meta name="DC.Creator" content="Dave Cridland" /><meta name="DC.Description" content="This specification provides documentation how Server Dialback is used together with Transport Layer Security, and discusses how the security considerations of Dialback are changed by the introduction of TLS and/or DNSSEC." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2015-03-23" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0344" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2017 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0344: Impact of TLS and DNSSEC on Dialback</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification provides documentation how Server Dialback is used together with Transport Layer Security, and discusses how the security considerations of Dialback are changed by the introduction of TLS and/or DNSSEC.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Philipp Hancke, Dave Cridland</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2017 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.3</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2015-03-23</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#protocol">Protocol</a><br />   
+      2.1.  <a href="#sect-idm82">Dramatis Personae</a><br />   
+      2.2.  <a href="#classic">Classic Dialback Flow</a><br />   
+      2.3.  <a href="#dialback-stanzas">XMPP Exchanges in Classic Dialback over TLS</a><br />   
+      2.4.  <a href="#dwd">Dialback without dialback flow</a><br />   
+      2.5.  <a href="#dwd-stanzas">XMPP Exchanges in Dialback without dialback</a><br />   
+      2.6.  <a href="#samecert">Same Certificate shortcut</a><br />   
+      2.7.  <a href="#samecert-stanzas">XMPP Exchanges in Same Certifiate shortcut</a><br />3.  <a href="#security">Security Considerations</a><br />   
+      3.1.  <a href="#sect-idm139">Dialback without dialback shortcut</a><br />   
+      3.2.  <a href="#sect-idm143">Same Certificate shortcut</a><br />   
+      3.3.  <a href="#sect-idm145">DNSSEC</a><br />4.  <a href="#iana">IANA Considerations</a><br />5.  <a href="#registrar">XMPP Registrar Considerations</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">Although <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0220.html">Server Dialback (XEP-0220)</a></span>  [<a href="#nt-idm74">1</a>] describes dialback as being run before any other negotiation, it is typically run over TLS where supported. This allows it to be used as a simple convenient fallback to X.509 Strong Authentication within the TLS layer, as described in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm78">2</a>], and also affords greater protection to the exchange.</p>
+  <p class="" style="">This document describes these practises, and also describes various functionally equivalent shortcuts to the protocol, including that known as "dialback without dialback".</p>
+<h2>2.
+       <a name="protocol" id="protocol">Protocol</a></h2>
+  <div class="indent"><h3>2.1 <a name="sect-idm82" id="sect-idm82">Dramatis Personae</a></h3>
+    <p class="" style="">This document will tell a tale of two servers; orchard.capulet.example is trying to contact home.montague.example. Each server operates a single domain; these are capulet.example and montague.example respectively.</p>
+  </div>
+  <div class="indent"><h3>2.2 <a name="classic" id="classic">Classic Dialback Flow</a></h3>
+    <p class="" style="">The traditional pattern is shown here:</p>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+orchard.capulet.     home.montague.
+example              example
+(as Initiating)      (as Receiving
+   Server)              Server)
+----------------     -------------
+    |                    |
+    |  [if necessary,    |
+    |   perform DNS      |
+    |   lookup on        |
+    |   Target Domain,   |
+    |   open TCP         |
+    |   connection,      |
+    |   and establish    |
+    |   stream]          |
+    | -----------------&gt; |
+    |  (ID D60000229F)   |
+    |                    |
+    |      send          |               capulet.example
+    |  dialback key      |             (as Authoritative
+    | -----(STEP 1)----&gt; |                 Server)
+    |                    |             -----------------
+    |                    |  [if necessary,    |
+    |                    |   perform DNS      |
+    |                    |   lookup on        |
+    |                    |   Sender Domain,   |
+    |                    |   open TCP         |
+    |                    |   connection,      |
+    |                    |   and establish    |
+    |                    |   stream]          |
+    |                    | -----------------&gt; |
+    |                    |                    |
+    |                    |       send         |
+    |                    |   verify request   |
+    |                    | ----(STEP 2)-----&gt; |
+    |                    |                    |
+    |                    |       send         |
+    |                    |   verify response  |
+    |                    | &lt;----(STEP 3)----- |
+    |                    |                    |
+    |      report        |                    |
+    |  dialback result   |                    |
+    | &lt;-----(STEP 4)---- |                    |
+</pre></div>
+  </div>
+  <div class="indent"><h3>2.3 <a name="dialback-stanzas" id="dialback-stanzas">XMPP Exchanges in Classic Dialback over TLS</a></h3>
+    <p class="" style="">This traditional pattern involves the following protocol exchanges when dialback over TLS is used:</p>
+      <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Initiating Server Opens Stream</p><div class="indent"><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        from='capulet.example'
+        to='montague.example'
+        version='1.0'&gt;
+</pre></div>
+      <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Receiving Server Responds with a stream header and advertises TLS feature</p><div class="indent"><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        id='D60000229F'
+        from='montague.example'
+        to='capulet.example'
+        version='1.0'&gt;
+&lt;stream:features&gt;
+  &lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'&gt;
+    &lt;required/&gt;
+  &lt;/starttls&gt;
+&lt;/stream:features&gt;
+</pre></div>
+      <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Initiating Server Sends STARTTLS command</p><div class="indent"><pre class="prettyprint">
+&lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+</pre></div>
+      <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Receiving Server informs Initiating Server to proceed</p><div class="indent"><pre class="prettyprint">
+&lt;proceed xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+</pre></div>
+      <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Initiating Server Opens Stream</p><div class="indent"><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        from='capulet.example'
+        to='montague.example'
+        version='1.0'&gt;
+</pre></div>
+      <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Receiving Server Responds with a stream header</p><div class="indent"><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        id='D60000229F'
+        from='montague.example'
+        to='capulet.example'
+        version='1.0'&gt;
+&lt;stream:features&gt;
+  &lt;mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'&gt;
+  &lt;/mechanisms&gt;
+&lt;/stream:features&gt;
+</pre></div>
+      <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Initiating Server Sends Dialback Key (Step 1)</p><div class="indent"><pre class="prettyprint">
+&lt;db:result
+    from='capulet.example'
+    to='montague.example'&gt;
+  b4835385f37fe2895af6c196b59097b16862406db80559900d96bf6fa7d23df3
+&lt;/db:result&gt;
+</pre></div>
+      <p class="" style="">The Receiving Server may need to establish a connection to the Authoritative Server at this point.</p>
+      <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Receiving Server Sends Verification Request to Authoritative Server (Step 2)</p><div class="indent"><pre class="prettyprint">
+&lt;db:verify
+    from='montague.example'
+    id='D60000229F'
+    to='capulet.example'&gt;
+  b4835385f37fe2895af6c196b59097b16862406db80559900d96bf6fa7d23df3
+&lt;/db:verify&gt;
+</pre></div>
+      <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Receiving Server is Informed by Authoritative Server that Key is Valid (Step 3)</p><div class="indent"><pre class="prettyprint">
+&lt;db:verify
+  from='capulet.example'
+  id='D60000229F'
+  to='montague.example'
+  type='valid'/&gt;
+</pre></div>
+      <p class="caption"><a name="example-10" id="example-10"></a>Example 10. Initiating Server Receives Valid Verification Result from Receiving Server (Step 4)</p><div class="indent"><pre class="prettyprint">
+&lt;db:result
+  from='montague.example'
+  to='capulet.example'
+  type='valid'/&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>2.4 <a name="dwd" id="dwd">Dialback without dialback flow</a></h3>
+    <p class="" style="">If during the initial connection, home.montague.example is able to determine that the certificate presented is trustworthy, and authenticates orchard.capulet.example as authorized to offer the XMPP service for capulet.example, then the flow can be shortcutted heavily, allowing the entire Authoritative Server process to be elided.</p>
+    <p class="" style="">This is particularly useful in cases where the dialback exchange is a subsequent exchange used in piggybacking, as it remains the only solution for piggybacking with strong authentication.</p>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+orchard.capulet.     home.montague.
+example              example
+(as Initiating)      (as Receiving
+   Server)              Server)
+----------------     -------------
+    |                    |
+    |  [if necessary,    |
+    |   perform DNS      |
+    |   lookup on        |
+    |   Target Domain,   |
+    |   open TCP         |
+    |   connection,      |
+    |   and establish    |
+    |   stream]          |
+    | -----------------&gt; |
+    |  (ID D60000229F)   |
+    |                    |
+    |      send          |
+    |  dialback key      |
+    | -----(STEP 1)----&gt; |
+    |                    |
+    |                    |  [observe certificate
+    |                    |   trustworthy and
+    |                    |   correct for capulet.example
+    |                    |   as per RFC 6125]
+    |                    |
+    |      report        |
+    |  dialback result   |
+    | &lt;-----(STEP 4)---- |
+</pre></div>
+  </div>
+  <div class="indent"><h3>2.5 <a name="dwd-stanzas" id="dwd-stanzas">XMPP Exchanges in Dialback without dialback</a></h3>
+    <p class="" style="">This traditional pattern involves the following protocol exchanges when dialback over TLS is used:</p>
+      <p class="caption"><a name="example-11" id="example-11"></a>Example 11. Initiating Server Opens Stream</p><div class="indent"><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        from='capulet.example'
+        to='montague.example'
+        version='1.0'&gt;
+</pre></div>
+      <p class="caption"><a name="example-12" id="example-12"></a>Example 12. Receiving Server Responds with a stream header and advertises TLS feature</p><div class="indent"><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        id='D60000229F'
+        from='montague.example'
+        to='capulet.example'
+        version='1.0'&gt;
+&lt;stream:features&gt;
+  &lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'&gt;
+    &lt;required/&gt;
+  &lt;/starttls&gt;
+&lt;/stream:features&gt;
+</pre></div>
+      <p class="caption"><a name="example-13" id="example-13"></a>Example 13. Initiating Server Sends STARTTLS command</p><div class="indent"><pre class="prettyprint">
+&lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+</pre></div>
+      <p class="caption"><a name="example-14" id="example-14"></a>Example 14. Receiving Server informs Initiating Server to proceed</p><div class="indent"><pre class="prettyprint">
+&lt;proceed xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+</pre></div>
+      <p class="caption"><a name="example-15" id="example-15"></a>Example 15. Initiating Server Opens Stream</p><div class="indent"><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        from='capulet.example'
+        to='montague.example'
+        version='1.0'&gt;
+</pre></div>
+      <p class="caption"><a name="example-16" id="example-16"></a>Example 16. Receiving Server Responds with a stream header</p><div class="indent"><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        id='D60000229F'
+        from='montague.example'
+        to='capulet.example'
+        version='1.0'&gt;
+&lt;stream:features&gt;
+  &lt;mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'&gt;
+    &lt;mechanism name='EXTERNAL'/&gt;
+  &lt;/mechanisms&gt;
+&lt;/stream:features&gt;
+</pre></div>
+      <p class="" style="">Note that having authenticated the certificate and found it authorized for capulet.example, montague.example has offered EXTERNAL above. It's not clear why capulet.example does not avail itself of the offer below; however it should be noted that EXTERNAL would not be available with piggybacking for example.</p>
+      <p class="caption"><a name="example-17" id="example-17"></a>Example 17. Initiating Server Sends Dialback Key (Step 1)</p><div class="indent"><pre class="prettyprint">
+&lt;db:result
+    from='capulet.example'
+    to='montague.example'&gt;
+  b4835385f37fe2895af6c196b59097b16862406db80559900d96bf6fa7d23df3
+&lt;/db:result&gt;
+</pre></div>
+      <p class="" style="">Critically, it is at this point that home.montague.example both authenticates and checks authorization on the certificate, or at least ensure that the certificate presented at this stage matches that presented at the initial handshake.</p>
+      <p class="caption"><a name="example-18" id="example-18"></a>Example 18. Initiating Server Receives Valid Verification Result from Receiving Server (Step 4)</p><div class="indent"><pre class="prettyprint">
+&lt;db:result
+  from='montague.example'
+  to='capulet.example'
+  type='valid'/&gt;
+  from='montague.example'
+  to='capulet.example'
+  type='valid'/&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>2.6 <a name="samecert" id="samecert">Same Certificate shortcut</a></h3>
+    <p class="" style="">If during the initial connection, the Receiving Server is unable to determine that the certificate presented is trustworthy but the Authoritative Server presents the same certificate as the Originating Server, the &lt;db:verify/&gt; step can be elided.</p>
+    <p class="" style="">Note: the Receiving Server MUST still check that the hostname in the certificate matches.</p>
+    <p class="" style="">Essentially, this replaces the Dialback Key Validation step from <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0185.html">Dialback Key Generation and Validation  (XEP-0185)</a></span>  [<a href="#nt-idm122">3</a>] with the somewhat more elaborate proof of posession of the private key associated with the certificate.</p>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+orchard.capulet.     home.montague.
+example              example
+(as Initiating)      (as Receiving
+   Server)              Server)
+----------------     -------------
+    |                    |
+    |  [if necessary,    |
+    |   perform DNS      |
+    |   lookup on        |
+    |   Target Domain,   |
+    |   open TCP         |
+    |   connection,      |
+    |   and establish    |
+    |   stream]          |
+    | -----------------&gt; |
+    |  (ID D60000229F)   |
+    |                    |
+    |      send          |               capulet.example
+    |  dialback key      |             (as Authoritative
+    | -----(STEP 1)----&gt; |                 Server)
+    |                    |             -----------------
+    |                    |  [if necessary,    |
+    |                    |   perform DNS      |
+    |                    |   lookup on        |
+    |                    |   Sender Domain,   |
+    |                    |   open TCP         |
+    |                    |   connection,      |
+    |                    |   and establish    |
+    |                    |   stream]          |
+    |                    | -----------------&gt; |
+    |                    | [observe certificate is for
+    |                    |  capulet.example and same as
+    |                    |  used by orchard.capulat.example]
+    |      report        |
+    |  dialback result   |
+    | &lt;-----(STEP 4)---- |
+</pre></div>
+  </div>
+  <div class="indent"><h3>2.7 <a name="samecert-stanzas" id="samecert-stanzas">XMPP Exchanges in Same Certifiate shortcut</a></h3>
+    <p class="" style="">This pattern involves the following protocol exchanges:</p>
+      <p class="caption"><a name="example-19" id="example-19"></a>Example 19. Initiating Server Opens Stream</p><div class="indent"><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        from='capulet.example'
+        to='montague.example'
+        version='1.0'&gt;
+</pre></div>
+      <p class="caption"><a name="example-20" id="example-20"></a>Example 20. Receiving Server Responds with a stream header and advertises TLS feature</p><div class="indent"><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        id='D60000229F'
+        from='montague.example'
+        to='capulet.example'
+        version='1.0'&gt;
+&lt;stream:features&gt;
+  &lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'&gt;
+    &lt;required/&gt;
+  &lt;/starttls&gt;
+&lt;/stream:features&gt;
+</pre></div>
+      <p class="caption"><a name="example-21" id="example-21"></a>Example 21. Initiating Server Sends STARTTLS command</p><div class="indent"><pre class="prettyprint">
+&lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+</pre></div>
+      <p class="caption"><a name="example-22" id="example-22"></a>Example 22. Receiving Server informs Initiating Server to proceed</p><div class="indent"><pre class="prettyprint">
+&lt;proceed xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+</pre></div>
+      <p class="caption"><a name="example-23" id="example-23"></a>Example 23. Initiating Server Opens Stream</p><div class="indent"><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        from='capulet.example'
+        to='montague.example'
+        version='1.0'&gt;
+</pre></div>
+      <p class="caption"><a name="example-24" id="example-24"></a>Example 24. Receiving Server Responds with a stream header</p><div class="indent"><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        id='D60000229F'
+        from='montague.example'
+        to='capulet.example'
+        version='1.0'&gt;
+&lt;stream:features&gt;
+  &lt;mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'&gt;
+  &lt;/mechanisms&gt;
+&lt;/stream:features&gt;
+</pre></div>
+      <p class="caption"><a name="example-25" id="example-25"></a>Example 25. Initiating Server Sends Dialback Key (Step 1)</p><div class="indent"><pre class="prettyprint">
+&lt;db:result
+    from='capulet.example'
+    to='montague.example'&gt;
+  b4835385f37fe2895af6c196b59097b16862406db80559900d96bf6fa7d23df3
+&lt;/db:result&gt;
+</pre></div>
+      <p class="" style="">The Receiving Server may need to establish a connection to the Authoritative Server at this point. Here we assume that this connection is using TLS and the certificate presented by the Authoritative Server is the same as the one used by the Originating Server and contains the domain name claimed by the Originating Server.</p>
+      <p class="caption"><a name="example-26" id="example-26"></a>Example 26. Initiating Server Receives Valid Verification Result from Receiving Server (Step 4)</p><div class="indent"><pre class="prettyprint">
+&lt;db:result
+  from='montague.example'
+  to='capulet.example'
+  type='valid'/&gt;
+</pre></div>
+  </div>
+<h2>3.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">With respect to <span class="strong">XEP-0220</span>'s security considerations, the adaptations in this document add at minimum channel encryption and integrity, which forces an attacker into making an active attack, rather than passive eavesdropping. This raises the cost of an attack significantly. However, unless the certificates are authenticated, there is still a man-in-the-middle attack possible, and the reliance on unauthenticated DNS remains problematic.</p>
+  <div class="indent"><h3>3.1 <a name="sect-idm139" id="sect-idm139">Dialback without dialback shortcut</a></h3>
+  <p class="" style="">Use of the "Dialback without dialback" shortcut described in section 2.4 raises the level of authentication to that of the TLS/SASL-EXTERNAL process described in <span class="strong">RFC 6120</span>, and is thought to be indistinguishable from a security standpoint. As such, the security considerations relating to this in <span class="strong">RFC 6120</span> et al apply.</p>
+  </div>
+  <div class="indent"><h3>3.2 <a name="sect-idm143" id="sect-idm143">Same Certificate shortcut</a></h3>
+  <p class="" style="">Use of the "Same Certificate" shortcut described in section 2.6 is not thought to materially alter the security profile beyond that described above. In particular, it does not alter the level of trust an implementation may put in authentication.</p>
+  </div>
+  <div class="indent"><h3>3.3 <a name="sect-idm145" id="sect-idm145">DNSSEC</a></h3>
+    <p class="" style="">If both SRV and A/AAAA records are protected by DNSSEC, this means that the correct address for the peer can be proven, removing DNS forgery as an attack vector. Without TLS, it is however still possible to mount an array of attacks, including IP spoofing and eavesdropping.</p>
+    <p class="" style="">With TLS, however, the situation improves. Since TLS protects against a naïve IP spoofing attack, a routing protocol attack (such as BGP hijacking) is required to forge the server.</p>
+  </div>
+  <p class="" style="">In addition, it is of critical importance to check the certificate at the time when the dialback result is received, and not only in the initial handshake. This protects against an attack based around renegotiation.</p>
+<h2>4.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm153">4</a>].</p>
+<h2>5.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the XMPP Registrar.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0344<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.3<br />
+            Last Updated: 2015-03-23<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0220<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: N/A<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0344.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0344.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0344.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Philipp Hancke</h3><p class="indent">
+        Email:
+        <a href="mailto:fippo@andyet.com">fippo@andyet.com</a><br />
+        JabberID:
+        <a href="xmpp:fippo@goodadvice.pages.de">fippo@goodadvice.pages.de</a><br /></p><h3>Dave Cridland</h3><p class="indent">
+        Email:
+        <a href="mailto:dave.cridland@surevine.com">dave.cridland@surevine.com</a><br />
+        JabberID:
+        <a href="xmpp:dave.cridland@surevine.com">dave.cridland@surevine.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2017 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm74" id="nt-idm74">1</a>. XEP-0220: Server Dialback &lt;<a href="https://xmpp.org/extensions/xep-0220.html">https://xmpp.org/extensions/xep-0220.html</a>&gt;.</p><p><a name="nt-idm78" id="nt-idm78">2</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm122" id="nt-idm122">3</a>. XEP-0185: Dialback Key Generation and Validation &lt;<a href="https://xmpp.org/extensions/xep-0185.html">https://xmpp.org/extensions/xep-0185.html</a>&gt;.</p><p><a name="nt-idm153" id="nt-idm153">4</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.3 (2015-03-23)</h4><div class="indent">
+       <p class="" style="">Described same-certificate flow.</p>
+     (dwd/ph)
+    </div><h4>Version 0.2 (2014-03-19)</h4><div class="indent">
+       <p class="" style="">Editorial fixes.</p>
+     (editor (mam))
+    </div><h4>Version 0.1 (2014-03-14)</h4><div class="indent">
+       <p class="" style="">Initial published version approved by the XMPP Council.</p>
+     (editor (mam))
+    </div><h4>Version 0.0.3 (2014-02-28)</h4><div class="indent">
+       <p class="" style="">Changed title and added more security considerations.</p>
+     (dwd)
+    </div><h4>Version 0.0.2 (2013-11-13)</h4><div class="indent"><p class="" style="">Added some narrative and a section on dwd.</p> (dwd)
+    </div><h4>Version 0.0.1 (2013-11-04)</h4><div class="indent"><p class="" style="">First draft.</p> (ph)
+    </div></div><hr /><p>END</p></body></html>

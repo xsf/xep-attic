@@ -1,0 +1,341 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0343: Signaling WebRTC datachannels in Jingle</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Signaling WebRTC datachannels in Jingle" /><meta name="DC.Creator" content="Jens Bavendiek" /><meta name="DC.Description" content="This specification defines how to use the ICE-UDP Jingle transport method to send media data using WebRTC DataChannels, so technically uses DTLS/SCTP on top of the Interactive Connectivity Establishment (ICE) methodology, which provides robust NAT traversal for media traffic." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2014-07-15" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0343" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2017 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0343: Signaling WebRTC datachannels in Jingle</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines how to use the ICE-UDP Jingle transport method to send media data using WebRTC DataChannels, so technically uses DTLS/SCTP on top of the Interactive Connectivity Establishment (ICE) methodology, which provides robust NAT traversal for media traffic.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Jens Bavendiek</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2017 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.2</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2014-07-15</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#usecases">Use Cases</a><br />3.  <a href="#conformance">Jingle Conformance</a><br />4.  <a href="#protocol">Protocol Description</a><br />   
+      4.1.  <a href="#protocol-initiate">Session Initiation</a><br />   
+      4.2.  <a href="#protocol-syntax">Syntax</a><br />   
+      4.3.  <a href="#protocol-response">Response</a><br />   
+      4.4.  <a href="#protocol-add">Adding a new channel</a><br />5.  <a href="#security">Security Considerations</a><br />6.  <a href="#acks">Acknowledgements</a><br />7.  <a href="#iana">IANA Considerations</a><br />8.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      8.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      8.2.  <a href="#registrar-versioning">Protocol Versioning</a><br />   
+      8.3.  <a href="#registrar-features">SCTP Mapping</a><br />9.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">This document specifies a method for establishing a direct connection using SCTP channels over DTLS. As WebRTC supports the SCTP partial reliability extension (see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3758">RFC 3758</a></span>  [<a href="#nt-idm50">1</a>]), the connection established can either be reliable or partial-reliable. However due to the wider use (e.g. <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0234.html">Jingle File Transfer (XEP-0234)</a></span>  [<a href="#nt-idm54">2</a>]) and easier maintenance, this transport method defines the mandatory use of reliable and in-order-delivery datachannels (thus a streaming transport). If the need for partial-reliability is there, a second specification for datagram type datachannels might be created. The establishment of this connection is managed by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0176.html">Jingle ICE-UDP Transport Method (XEP-0176)</a></span>  [<a href="#nt-idm58">3</a>]. The establishment of security provided by DTLS is described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0320.html">Use of DTLS-SRTP in Jingle Sessions (XEP-0320)</a></span>  [<a href="#nt-idm62">4</a>].</p>
+<h2>2.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <p class="" style="">There are several use cases. Given below are a few examples:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">Two parties engaged in a WebRTC-based video conference want to share a file via <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0234.html">Jingle File Transfer (XEP-0234)</a></span>  [<a href="#nt-idm54">2</a>]</li>
+    <li class="" style="">A browser application that uses XMPP for communication wants to support file-transfer</li>
+    <li class="" style="">A browser based application wants to send a file to a non-browser client</li>
+  </ol>
+<h2>3.
+       <a name="conformance" id="conformance">Jingle Conformance</a></h2>
+   <p class="" style="">In accordance with Section 10 of <span class="ref">XEP-0166</span>, this document specifies the following information related to the Jingle DTLS/SCTP transport method:</p>
+   <ol start="" class="" style="">
+     <li class="" style=""><p class="" style="">The transport negotiation process is defined in the <a href="#protocol">Protocol Description</a> section of this document.</p></li>
+     <li class="" style=""><p class="" style="">The semantics of the &lt;sctpmap/&gt; element are defined in the <a href="#protocol-syntax">Syntax</a> section of this document.</p></li>
+   </ol>
+<h2>4.
+       <a name="protocol" id="protocol">Protocol Description</a></h2>
+    <p class="" style="">This protocol requires the Stream Control Transmission Protocol (SCTP) to run within the security context of the Datagram Transport Layer Security (DTLS) protocol. As determined by <span class="ref">RTCWeb Data Channels</span> running SCTP on top of DTLS is preferred, as in this order the control messages are encrypted as well and the DTLS channel can be shared with several applications</p>
+
+  <div class="indent"><h3>4.1 <a name="protocol-initiate" id="protocol-initiate">Session Initiation</a></h3>
+    <p class="" style="">In order for the initiator in a Jingle exchange to start the negotiation, it sends a Jingle "session-initiate" stanza that includes at least one content type, as described in <span class="ref">XEP-0166</span>. If the initiator wishes to negotiate the SCTP transport method for an application format, it MUST include a &lt;sctpmap/&gt; child element qualified by the 'urn:xmpp:jingle:transports:dtls-sctp:1' namespace (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number). The &lt;transport/&gt; element SHOULD in turn contain one &lt;candidate/&gt; element for each of the initiator's higher-priority transport candidates as determined in accordance with the ICE methodology, but MAY instead be empty (with each candidate to be sent as the payload of a transport-info message).</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Initiation</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='ixt174g9'
+    to='juliet@capulet.lit/balcony'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-initiate'
+          initiator='romeo@montague.lit/orchard'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='file-552da749930852c69ae5d2141d3766b1'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:file-transfer:3'&gt;
+        &lt;offer&gt;
+          &lt;file&gt;
+            &lt;date&gt;1969-07-21T02:56:15Z&lt;/date&gt;
+            &lt;desc&gt;This is a test. If this were a real file...&lt;/desc&gt;
+            &lt;name&gt;test.txt&lt;/name&gt;
+            &lt;range/&gt;
+            &lt;size&gt;1022&lt;/size&gt;
+            &lt;hash xmlns='urn:xmpp:hashes:1' algo='sha-1'&gt;552da749930852c69ae5d2141d3766b1&lt;/hash&gt;
+          &lt;/file&gt;
+        &lt;/offer&gt;
+      &lt;/description&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:ice-udp:1'
+                 pwd='asd88fgpdd777uzjYhagZg'
+                 ufrag='8hhy'&gt;
+        &lt;sctpmap xmlns='urn:xmpp:jingle:transports:dtls-sctp:1' number='5000' protocol='webrtc-datachannel' streams='1024'/&gt;
+        &lt;fingerprint mlns='urn:xmpp:jingle:apps:dtls:0' hash='sha-256' setup='actpass'&gt;
+            02:1A:CC:54:27:AB:EB:9C:53:3F:3E:4B:65:2E:7D:46:3F:54:42:CD:54:F1:7A:03:A2:7D:F9:B0:7F:46:19:B2
+        &lt;/fingerprint&gt;
+        &lt;candidate component='1'
+                   foundation='1'
+                   generation='0'
+                   id='el0747fg11'
+                   ip='10.0.1.1'
+                   network='1'
+                   port='8998'
+                   priority='2130706431'
+                   protocol='udp'
+                   type='host'/&gt;
+        &lt;candidate component='1'
+                   foundation='2'
+                   generation='0'
+                   id='y3s2b30v3r'
+                   ip='192.0.2.3'
+                   network='1'
+                   port='45664'
+                   priority='1694498815'
+                   protocol='udp'
+                   rel-addr='10.0.1.1'
+                   rel-port='8998'
+                   type='srflx'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">As seen in the example, there is no notion about DataChannel internals. The only things negotiated here are the port on which the SCTP Stream runs and the name of the DataChannel. Further negotiation is happening through the <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-jesup-rtcweb-data-protocol-04">WebRTC Data Channel Protocol</a></span>  [<a href="#nt-idm95">5</a>], thus the DataChannel is identified through the content name.</p>
+    <p class="" style="">For some uses like negotiated datachannels, it might be required to explicitly signal the channel properties. This is done by including a &lt;channel/&gt; element qualified by the 'urn:xmpp:jingle:transports:webrtc-datachannel:0' namespace (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number) as child of the &lt;transport/&gt; for each channel that has to be signaled. An abbreviated example follows:</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Initiation (with explicit channel signaling)</p><div class="indent"><pre class="prettyprint">
+      [...]
+      &lt;transport xmlns='urn:xmpp:jingle:transports:ice-udp:1'
+                 pwd='asd88fgpdd777uzjYhagZg'
+                 ufrag='8hhy'&gt;
+        &lt;sctpmap xmlns='urn:xmpp:jingle:transports:dtls-sctp:1' number='5000' protocol='webrtc-datachannel' streams='1024'/&gt;
+        &lt;channel xmlns='urn:xmpp:jingle:transports:webrtc-datachannel:0' id="1" negotiated="true"/&gt;
+        &lt;channel xmlns='urn:xmpp:jingle:transports:webrtc-datachannel:0' id="3" negotiated="true"/&gt;
+        &lt;fingerprint mlns='urn:xmpp:jingle:apps:dtls:0' hash='sha-256' setup='actpass'&gt;
+        [...]
+</pre></div>
+  </div>
+  <div class="indent"><h3>4.2 <a name="protocol-syntax" id="protocol-syntax">Syntax</a></h3>
+    <p class="" style="">The values and names for the &lt;sctpmap/&gt; element are taken from the corresponding SDP. The attributes of the &lt;sctpmap/&gt; element are as follows.</p>
+    <div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: Sctpmap Attributes</p><table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <th colspan="" rowspan="">Name</th>
+        <th colspan="" rowspan="">Description</th>
+        <th colspan="" rowspan="">SDP Syntax</th>
+        <th colspan="" rowspan="">Example</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">port</td>
+        <td align="" colspan="" rowspan="">A port number where the channel is to be contacted</td>
+        <td align="" colspan="" rowspan="">Port value in a=sctpmap line</td>
+        <td align="" colspan="" rowspan="">5000</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">protocol</td>
+        <td align="" colspan="" rowspan="">Media format</td>
+        <td align="" colspan="" rowspan="">Protocol value in a=sctpmap line</td>
+        <td align="" colspan="" rowspan="">webrtc-datachannel</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">streams</td>
+        <td align="" colspan="" rowspan="">Number of supported incoming streams</td>
+        <td align="" colspan="" rowspan="">Stream value in a=sctpmap line</td>
+        <td align="" colspan="" rowspan="">16</td>
+      </tr>
+    </table></div>
+    <p class="" style="">The attributes of the &lt;channel/&gt; element map directly to the attributes of the <a href="http://www.w3.org/TR/2013/WD-webrtc-20130910/#dictionary-rtcdatachannelinit-members">RTCDataChannelInit</a> dictionary as defined in <span class="ref" style=""><a href="http://www.w3.org/TR/2013/WD-webrtc-20130910/">WebRTC 1.0: Real-time Communication Between Browsers</a></span>  [<a href="#nt-idm127">6</a>].</p>
+  </div>
+  <div class="indent"><h3>4.3 <a name="protocol-response" id="protocol-response">Response</a></h3>
+    <p class="" style="">As described in <span class="ref">XEP-0166</span>, to acknowledge receipt of the session initiation request, the responder immediately returns an IQ-result.</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Responder acknowledges receipt of session-initiate request</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='ixt174g9'
+    to='romeo@montague.lit/orchard'
+    type='result'/&gt;
+</pre></div>
+    <p class="" style="">Depending on the application type, a user agent controlled by a human user might need to wait for the user to affirm a desire to proceed with the session before continuing. When the user agent has received such affirmation (or if the user agent can automatically proceed for any reason, e.g. because no human intervention is expected or because a human user has configured the user agent to automatically accept sessions with a given entity), it returns a Jingle session-accept message. This message MUST contain a &lt;transport/&gt; element qualified by the 'urn:xmpp:jingle:transports:ice-udp:1' namespace, which SHOULD in turn contain one &lt;sctpmap/&gt; element qualified by the 'urn:xmpp:jingle:transports:dtls-sctp:1' namespace for the channel used by the responder.</p>
+     <p class="" style="">Note: See the <a href="#security">Security Considerations</a> section of this document regarding the exposure of IP addresses by the responder's client.</p>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Responder accepts the session request</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='rw782g55'
+    to='romeo@montague.lit/orchard'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-accept'
+          initiator='romeo@montague.lit/orchard'
+          responder='juliet@capulet.lit/balcony'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='file-552da749930852c69ae5d2141d3766b1'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:file-transfer:3'&gt;
+        &lt;offer&gt;
+          &lt;file&gt;
+            &lt;date&gt;1969-07-21T02:56:15Z&lt;/date&gt;
+            &lt;desc&gt;This is a test. If this were a real file...&lt;/desc&gt;
+            &lt;name&gt;test.txt&lt;/name&gt;
+            &lt;range/&gt;
+            &lt;size&gt;1022&lt;/size&gt;
+            &lt;hash xmlns='urn:xmpp:hashes:1' algo='sha-1'&gt;552da749930852c69ae5d2141d3766b1&lt;/hash&gt;
+          &lt;/file&gt;
+        &lt;/offer&gt;
+      &lt;/description&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:ice-udp:1'
+                 pwd='YH75Fviy6338Vbrhrlp8Yh'
+                 ufrag='9uB6'&gt;
+        &lt;fingerprint xmlns='urn:xmpp:jingle:apps:dtls:0' hash='sha-256' setup='actpass'&gt;
+            02:1A:CC:54:27:AB:EB:9C:53:3F:3E:4B:65:2E:7D:46:3F:54:42:CD:54:F1:7A:03:A2:7D:F9:B0:7F:46:19:B2
+        &lt;/fingerprint&gt;
+        &lt;sctpmap xmlns='urn:xmpp:jingle:transports:dtls-sctp:1' number='5000' protocol='webrtc-datachannel' streams='1024'/&gt;
+        &lt;candidate component='1'
+                   foundation='1'
+                   generation='0'
+                   id='or2ii2syr1'
+                   ip='192.0.2.1'
+                   network='0'
+                   port='3478'
+                   priority='2130706431'
+                   protocol='udp'
+                   type='host'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">The initiator acknowledges the Jingle session-accept.</p>
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Initiator acknowledges session-accept.</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='ixt174g9'
+    to='romeo@montague.lit/orchard'
+    type='result'/&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>4.4 <a name="protocol-add" id="protocol-add">Adding a new channel</a></h3>
+    <p class="" style="">Even after media has begun to flow, either party MAY continue to send additional channels to the other party (e.g., because the user wants to transmit a new file). Such events are shared by sending a content-add message.</p>
+    <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Initiator sends a content-add</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='uh3g1f48'
+    to='juliet@capulet.lit/balcony'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='content-add'
+          initiator='romeo@montague.lit/orchard'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='this-is-the-new-content'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:some-file' media='file'/&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:ice-udp:1'/&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">The receiving party MUST acknowledge receipt.</p>
+    <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Recipient acknowledges receipt</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='uh3g1f48'
+    to='romeo@montague.lit/orchard'
+    type='result'/&gt;
+</pre></div>
+  </div>
+<h2>5.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">By design is the sent media already encrypted by the DTLS layer</p>
+<h2>6.
+       <a name="acks" id="acks">Acknowledgements</a></h2>
+  <p class="" style="">Special thanks to István Koren at i5 and their <a href="http://dbis.rwth-aachen.de/cms/projects/the-xmpp-experience/">XMPP Experience</a></p>
+  <p class="" style="">Thanks to Philipp Hancke and Tobias Markmann for their help and support and all the XEP-Authors for their examples.</p>
+<h2>7.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm154">7</a>].</p>
+<h2>8.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>8.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:jingle:transports:dtls-sctp:1</li>
+      <li class="" style="">urn:xmpp:jingle:transports:webrtc-datachannel:0</li>
+    </ul>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm165">8</a>] includes the foregoing namespace in its registry at &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;, as governed by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idm170">9</a>].</p>
+  </div>
+  <div class="indent"><h3>8.2 <a name="registrar-versioning" id="registrar-versioning">Protocol Versioning</a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+  <div class="indent"><h3>8.3 <a name="registrar-features" id="registrar-features">SCTP Mapping</a></h3>
+    <p class="" style="">The registry submission is as follows.</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;var&gt;
+  &lt;name&gt;IETF Draft MMUSIC&lt;/name&gt;
+  &lt;desc&gt;
+    Signals support for SCTP in the SDP as described in draft-ietf-mmusic-sctp-sdp-05
+  &lt;/desc&gt;
+  &lt;doc&gt;XEP-SCTP&lt;/doc&gt;
+&lt;/var&gt;
+</pre></div>
+  </div>
+<h2>9.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:jingle:transports:dtls-sctp:1'
+    xmlns='urn:xmpp:jingle:transports:dtls-sctp:1'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-0343: http://www.xmpp.org/extensions/xep-0343.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name='sctpmap'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='xs:string'&gt;
+          &lt;xs:attribute name='number' type='xs:unsignedByte' use='required'/&gt;
+          &lt;xs:attribute name='protocol' type='xs:string' use='required'/&gt;
+          &lt;xs:attribute name='streams' type='xs:positiveInteger' use='optional'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+&lt;/xs:schema&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:jingle:transports:webrtc-datachannel:0'
+    xmlns='urn:xmpp:jingle:transports:webrtc-datachannel:0'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-0343: http://www.xmpp.org/extensions/xep-0343.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name='channel'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='xs:string'&gt;
+          &lt;xs:attribute name='id' type='xs:unsignedShort' use='optional'/&gt;
+          &lt;xs:attribute name='maxPacketLifeTime' type='xs:unsignedShort' use='optional'/&gt;
+          &lt;xs:attribute name='maxRetransmits' type='xs:unsignedShort' use='optional'/&gt;
+          &lt;xs:attribute name='negotiated' type='xs:boolean' use='optional' default='false'/&gt;
+          &lt;xs:attribute name='ordered' type='xs:boolean' use='optional' default='true'/&gt;
+          &lt;xs:attribute name='protocol' type='xs:string' use='optional'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+&lt;/xs:schema&gt;
+</pre></div>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0343<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.2<br />
+            Last Updated: 2014-07-15<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XEP-0176, XEP-0320<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: jingle-webrtc-datachannels<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0343.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0343.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0343.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Jens Bavendiek</h3><p class="indent">
+        Email:
+        <a href="mailto:bavendiek@dbis.rwth-aachen.de">bavendiek@dbis.rwth-aachen.de</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2017 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm50" id="nt-idm50">1</a>. RFC 3758: Stream Control Transmission Protocol (SCTP) Partial Reliability Extension &lt;<a href="http://tools.ietf.org/html/rfc3758">http://tools.ietf.org/html/rfc3758</a>&gt;.</p><p><a name="nt-idm54" id="nt-idm54">2</a>. XEP-0234: Jingle File Transfer &lt;<a href="https://xmpp.org/extensions/xep-0234.html">https://xmpp.org/extensions/xep-0234.html</a>&gt;.</p><p><a name="nt-idm58" id="nt-idm58">3</a>. XEP-0176: Jingle ICE-UDP Transport Method &lt;<a href="https://xmpp.org/extensions/xep-0176.html">https://xmpp.org/extensions/xep-0176.html</a>&gt;.</p><p><a name="nt-idm62" id="nt-idm62">4</a>. XEP-0320: Use of DTLS-SRTP in Jingle Sessions &lt;<a href="https://xmpp.org/extensions/xep-0320.html">https://xmpp.org/extensions/xep-0320.html</a>&gt;.</p><p><a name="nt-idm95" id="nt-idm95">5</a>. WebRTC Data Channel Protocol &lt;<a href="http://tools.ietf.org/html/draft-jesup-rtcweb-data-protocol-04">http://tools.ietf.org/html/draft-jesup-rtcweb-data-protocol-04</a>&gt;.</p><p><a name="nt-idm127" id="nt-idm127">6</a>. WebRTC 1.0: Real-time Communication Between Browsers &lt;<a href="http://www.w3.org/TR/2013/WD-webrtc-20130910/">http://www.w3.org/TR/2013/WD-webrtc-20130910/</a>&gt;.</p><p><a name="nt-idm154" id="nt-idm154">7</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm165" id="nt-idm165">8</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idm170" id="nt-idm170">9</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.2 (2014-07-15)</h4><div class="indent"><p class="" style="">Add optional explicit signaling of channels to the transport element.</p> (ph)
+    </div><h4>Version 0.1 (2014-01-23)</h4><div class="indent"><p class="" style="">Initial published version approved by the XMPP Council.</p> (psa)
+    </div><h4>Version 0.0.1 (2013-12-03)</h4><div class="indent"><p class="" style="">First draft.</p> (jab)
+    </div></div><hr /><p>END</p></body></html>
