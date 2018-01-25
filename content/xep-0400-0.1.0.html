@@ -1,0 +1,161 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0400: Multi-Factor Authentication with TOTP</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Multi-Factor Authentication with TOTP" /><meta name="DC.Creator" content="Dave Cridland" /><meta name="DC.Description" content="This specification defines support for multi-factor authentication in terms of SASL2 Tasks based around the Time-based One Time Password mechanism." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2018-01-25" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0400" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2017 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0400: Multi-Factor Authentication with TOTP</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines support for multi-factor authentication in terms of SASL2 Tasks based around the Time-based One Time Password mechanism.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Dave Cridland</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2017 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1.0</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2018-01-25</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#sect-idm54">Outline of use</a><br />3.  <a href="#sect-idm63">Interoperability Notes</a><br />   
+      3.1.  <a href="#sect-idm64">Use with naïve clients</a><br />   
+      3.2.  <a href="#sect-idm67">TOTP Parameters</a><br />4.  <a href="#sect-idm75">TOTP URIs</a><br />5.  <a href="#sect-idm82">TOTP Support Operations</a><br />   
+      5.1.  <a href="#sect-idm83">Voluntary Account Enrollment</a><br />6.  <a href="#sect-idm92">TOTP SASL2 Tasks</a><br />   
+      6.1.  <a href="#sect-idm93">TOTP-INIT</a><br />   
+      6.2.  <a href="#sect-idm100">TOTP</a><br />7.  <a href="#support">Determining Support</a><br />8.  <a href="#security">Security Considerations</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">It is generally agreed that the security of passwords can be improved
+    when combining with another factor, such as possession of a hardware token
+    or control of another account, etc. This specification provides a suite of SASL2
+    tasks (see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-idm50">1</a>]) and supporting protocol to allow users or administrators
+    to perform such secondary authentication.</p>
+  <p class="" style="">This specification currently only discusses use of TOTP with SASL2; it should
+    be noted that if client support is needed, it is far superior
+    to simply support SASL2.</p>
+  <p class="" style="">Therefore this specification takes the view that support for entry of TOTP
+    codes where the client has no support should be of an ad-hoc nature, or
+    potentially unsupported by the server.</p>
+<h2>2.
+       <a name="sect-idm54" id="sect-idm54">Outline of use</a></h2>
+    <p class="" style="">We start by describing the user's device capable of generating TOTP Codes
+      as the TOTP Device. In order to support TOTP, both the TOTP Device and the
+      server are required to have a shared TOTP Secret which can be used to generate
+      the codes according to <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6238">RFC 6238</a></span>  [<a href="#nt-idm58">2</a>]. The process by which a TOTP Secret is generated
+      by the server and passed to the TOTP Device is known as enrollment.</p>
+    <p class="" style="">In XMPP, enrollment can be initiated either by the server (due to an
+      administrative fiat that the account requires TOTP) or by the user. If it is
+      initiated by the user, the flow is a simple &lt;iq/&gt; based protocol; on the other
+    hand enforced enrollment by the server is performed as a SASL2 Task.</p>
+    <p class="" style="">Once enrolled, codes are sent by the client during a second SASL2 Task.
+      Servers might offer this as the only Multifactor option, or as one of many.</p>
+    <p class="" style="">Typically, servers supporting MFA also support CLIENT-KEY and/or
+      CLIENT-KEY-PLUS, and will suppress MFA when these are used. This vastly
+    improves user experience for many cases.</p>
+  <h2>3.
+       <a name="sect-idm63" id="sect-idm63">Interoperability Notes</a></h2>
+    <div class="indent"><h3>3.1 <a name="sect-idm64" id="sect-idm64">Use with naïve clients</a></h3>
+      <p class="" style="">Clients which do not have support for TOTP will no longer work on accounts
+      which have been enrolled. This is problematic, and a number of options have
+        been considered, such as sending a plain &lt;message/&gt; stanza during client
+      connection.</p>
+      <p class="" style="">However, use of plain messages from the server has been known to train
+      users into bad behaviour and is easily spoofable. Therefore this specification leaves
+      how to support legacy clients open, and proposes that users do not enroll TOTP
+      until all their clients support it.</p>
+    </div>
+  <div class="indent"><h3>3.2 <a name="sect-idm67" id="sect-idm67">TOTP Parameters</a></h3>
+    <p class="" style="">Although TOTP is hash-agile and supports a range of parameters, in
+      practise deployment has been geared heavily toward a single implementation,
+      and therefore practical constraints on the algorithm defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6238">RFC 6238</a></span>  [<a href="#nt-idm58">2</a>] are
+      significant.
+    </p>
+    <p class="" style="">In particular, the hash algorithm MUST be SHA-1, and the period MUST be 30
+      seconds. 6 SHALL be the number of digits, and the number of digits SHALL be 6.</p>
+    <p class="" style="">A single implementation restricting the use of modern hash algorithms is,
+    of course, bad, but lack of interoperability would be similarly bad.</p>
+  </div>
+  <h2>4.
+       <a name="sect-idm75" id="sect-idm75">TOTP URIs</a></h2>
+    <p class="" style="">A commonly implemented technique for passing TOTP Secrets is to encode them as a URI within which the various parameters, including the TOTP secret, are specified. Unfortunately this URI scheme appears to only be specified on a Wiki page.</p>
+    <p class="" style="">However, this URI scheme is so widely supported that interoperability demands that it is used, so this document therefore specifies a cut-down variant of the URI which is to be used within XMPP. Treatment of this URI as anything but an especially formatted string is not within the scope of this document.</p>
+    <p class="" style="">A TOTP URI is specified with the following ABNF:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+totp-uri = "otpauth://totp/" label "?secret=" secret "&amp;issuer=" issuer
+label = issuer (":" / "%3A") jid
+jid = 1*CHAR ; URI-encoded jid
+secret = 40 * HEXCHAR ; Base32 (hex) encoded secret with no padding.
+issuer = 1*CHAR ; Issuer name.
+</pre></div>
+    <p class="" style="">Yes, issuer is in there twice. No, I don't either.</p>
+    <p class="" style="">TOTP URIs are normally presented to the user as a QR Code</p>
+  <h2>5.
+       <a name="sect-idm82" id="sect-idm82">TOTP Support Operations</a></h2>
+    <div class="indent"><h3>5.1 <a name="sect-idm83" id="sect-idm83">Voluntary Account Enrollment</a></h3>
+      <p class="" style="">In order to voluntarily enroll, a client sends an &lt;iq/&gt; of type set containing an empty element &lt;setup/&gt;, qualified by the namespace urn:xmpp:mfa:0.</p>
+      <p class="caption"><a name="example-1" id="example-1"></a>Example 1. </p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set' id='123456'&gt;
+  &lt;setup xmlns='urn:xmpp:mfa:0'/&gt;
+&lt;/iq&gt;
+</pre></div>
+      <p class="" style="">The server then generates a suitable TOTP secret and returns it as a URI, transmitted as the child of the &lt;setup/&gt; element. Note that TOTP MUST NOT be enabled at this point, since it has yet to be tested.</p>
+      <p class="caption"><a name="example-2" id="example-2"></a>Example 2. </p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result' id='123456'&gt;
+  &lt;setup xmlns='urn:xmpp:mfa:0'&gt;otpauth://totp/XMPP:portia@venice.shakespeare.example?secret=58d888c08aa561f370e38cee976121532a883d71&amp;issuer=XMPP&lt;/setup&gt;
+&lt;/iq&gt;
+</pre></div>
+      <p class="" style="">Next, the user configures the TOTP Device and generates a code. On the same session, it then completes setup by passing a code:</p>
+      <p class="caption"><a name="example-3" id="example-3"></a>Example 3. </p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set' id='654321'&gt;
+  &lt;setup xmlns='urn:xmpp:mfa:0'&gt;123456&lt;/setup&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">If the code matches, the server responds with success and TOTP is mandatory for the account from this point.</p>
+      <p class="caption"><a name="example-4" id="example-4"></a>Example 4. </p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result' id='654321'/&gt;
+</pre></div>
+    </div>
+  <h2>6.
+       <a name="sect-idm92" id="sect-idm92">TOTP SASL2 Tasks</a></h2>
+    <div class="indent"><h3>6.1 <a name="sect-idm93" id="sect-idm93">TOTP-INIT</a></h3>
+      <p class="" style="">This task is used to provide (or, more typically, enforce) TOTP enrollment.</p>
+      <p class="" style="">This is typically done on first authentication.</p>
+      <p class="" style="">There is no initial-response for this task; the server speaks first.</p>
+      <p class="" style="">The server sends a challenge containing a TOTP URI. The user should configure their TOTP Device, generate a code, and the client then sends this code to the server as an ASCII string.</p>
+      <p class="" style="">If this matches, the Task succeeds, and TOTP is mandatory for the account from this point onward; servers SHOULD NOT require a TOTP task for this SASL2 process however.</p>
+      <p class="" style="">There is no additional-data on success or continue with this task.</p>
+    </div>
+    <div class="indent"><h3>6.2 <a name="sect-idm100" id="sect-idm100">TOTP</a></h3>
+      <p class="" style="">This task is used to require a TOTP code from the user. In general, this
+      can be one of a group of MFA tasks available to the user, depending on which
+      the user has enrolled for. It MUST NOT be offered to accounts which have not
+      enrolled.</p>
+      <p class="" style="">The Task SHOULD NOT be requested if the client has authenticated using
+        CLIENT-KEY, however security concerns might suggest that a Client Key which
+      has not been used for a lengthy period might benefit from a TOTP challenge.</p>
+      <p class="" style="">The client MAY send first using an initial-response.</p>
+      <p class="" style="">The server will otherwise send an empty challenge.</p>
+      <p class="" style="">The response (or initial-reponse) SHALL be a TOTP code.</p>
+      <p class="" style="">If this matches, the Task succeeds.</p>
+      <p class="" style="">There is no additional-data on success or continue with this task.</p>
+    </div>
+  <h2>7.
+       <a name="support" id="support">Determining Support</a></h2>
+  <p class="" style="">Support for the voluntary enrollment protocol by servers is advertised as the Disco feature 'urn:xmpp:mfa:0'.</p>
+    <p class="" style="">Support for TOTP itself in client can be determined similarly.</p>
+<h2>8.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">The TOTP secret is a plaintext equivalent shared secret. Both clients and servers MUST protect this. It is RECOMMENDED that it be stored encrypted, with the encryption key held in a distinct location to the per-user TOTP secret. TOTP secrets MUST be hard for an attacker to guess - see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6238">RFC 6238</a></span>  [<a href="#nt-idm58">2</a>] for more detail.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0400<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1.0<br />
+            Last Updated: 2018-01-25<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />
+                Dependencies: None<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: mfa<br />
+              Registry:
+              
+              &lt;<a href="http://xmpp.org/registrar/mfa.html">http://xmpp.org/registrar/mfa.html</a>&gt;
+              <br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0400.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0400.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0400.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Dave Cridland</h3><p class="indent">
+        Email:
+        <a href="mailto:dave.cridland@surevine.com">dave.cridland@surevine.com</a><br />
+        JabberID:
+        <a href="xmpp:dave.cridland@surevine.com">dave.cridland@surevine.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2017 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">There exists a special venue for discussion related to the technology described in this document: the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; mailing list.</p><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm50" id="nt-idm50">1</a>. XEP-0388: Extensible SASL Profile &lt;<a href="https://xmpp.org/extensions/xep-0388.html">https://xmpp.org/extensions/xep-0388.html</a>&gt;.</p><p><a name="nt-idm58" id="nt-idm58">2</a>. RFC 6238: TOTP: Time-Based One-Time Password Algorithm &lt;<a href="http://tools.ietf.org/html/rfc6238">http://tools.ietf.org/html/rfc6238</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1.0 (2018-01-25)</h4><div class="indent">Accepted by vote of Council on 2018-01-10. (XEP Editor (jwi))
+    </div><h4>Version 0.0.2 (2018-01-08)</h4><div class="indent"><p class="" style="">So ABNF isn't well-formed XML, of course...</p> (dwd)
+    </div><h4>Version 0.0.1 (2018-01-08)</h4><div class="indent"><p class="" style="">First draft</p> (dwd)
+    </div></div><hr /><p>END</p></body></html>

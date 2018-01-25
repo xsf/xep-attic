@@ -1,0 +1,116 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0399: Client Key Support</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Client Key Support" /><meta name="DC.Creator" content="Dave Cridland" /><meta name="DC.Description" content="This specification defines an XMPP binding of the supporting functions for the CLIENT-KEY SASL mechanism." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2018-01-25" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0399" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2017 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0399: Client Key Support</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines an XMPP binding of the supporting functions for the CLIENT-KEY SASL mechanism.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Dave Cridland</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2017 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1.0</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2018-01-25</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#sect-idm42">Typical Flow</a><br />3.  <a href="#sect-idm51">Client Key Support Operations</a><br />   
+      3.1.  <a href="#sect-idm52">Client Registration</a><br />   
+      3.2.  <a href="#sect-idm64">Key Revocation</a><br />   
+      3.3.  <a href="#sect-idm67">Key Enumeration</a><br />4.  <a href="#support">Determining Support</a><br />5.  <a href="#security">Security Considerations</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">The CLIENT-KEY SASL mechanism defined in draft-cridland-kitten-clientkey-00.txt suggests supporting protocol messages to be present in the application protocol. This specification defines these for XMPP.</p>
+<h2>2.
+       <a name="sect-idm42" id="sect-idm42">Typical Flow</a></h2>
+    <p class="" style="">A typical client might use this protocol alongside that of TOTP, <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-idm46">1</a>], and draft-cridland-kitten-clientkey-00.txt as follows.</p>
+    <p class="" style="">On first use, a client will use a traditional SASL mechanism using SASL2, such as SCRAM. The server will then prompt using &lt;next-authenticate/&gt; to initiate, or perform, TOTP.</p>
+    <p class="" style="">The client will then request a Client Key to reauthenticate later. This may be one or both of a short-term Client Key intended for in-memory storage, perhaps for use with ISR, and a longer-term Client Key used for a "remember this client" to suppress 2FA for a period.</p>
+    <p class="" style="">Later authentications will use CLIENT-KEY or CLIENT-KEY-PLUS, and the server SHOULD suppress TOTP in such cases.</p>
+  <h2>3.
+       <a name="sect-idm51" id="sect-idm51">Client Key Support Operations</a></h2>
+    <div class="indent"><h3>3.1 <a name="sect-idm52" id="sect-idm52">Client Registration</a></h3>
+      <p class="" style="">Client registration requests a Client Key from the server. It is typically used to speed reauthentication during a session, and to elide a full reauthentication at the start of a subsequent session.</p>
+      <p class="" style="">In order to register and obtain a Client Key, a client sends an &lt;iq/&gt; of type "set" containing an XML representation of the data required, within a &lt;register/&gt; element qualified by the 'urn:xmpp:client-key:0' namespace, containing four elements in any order. Descriptions of values are here informative; the canonical definition is in draft-cridland-kitten-clientkey-00.txt.</p>
+      <p class="" style="">&lt;id/&gt; has a text value of the ClientID, a suitable identifier for the client instance, unique within the scope of the authenticated (&lt;localpart@domain.tld&gt; or &lt;domain.tld&gt;).</p>
+      <p class="" style="">&lt;name/&gt; has a text value of the Client Name, a human-readable name for the client instance.</p>
+      <p class="" style="">&lt;key/&gt; has a text value of the ValidationKey, encoded using Base 64. Implementors are strongly advised to take careful note of the requirements of the ValidationKey as discussed in draft-cridland-kitten-clientkey-00.txt.</p>
+      <p class="" style="">&lt;ttl/&gt; has a text value containing a integer string representation of the number of seconds the Client Key is requested to last for.</p>
+      <p class="" style="">In the following example, the ValidationKey is H("Random"), and the TTL is for 30 days - a reasonable "Remember this client" option.</p>
+      <p class="caption"><a name="example-1" id="example-1"></a>Example 1. </p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set' id='123456'&gt;
+  &lt;register xmlns='urn:xmpp:client-key:0'&gt;
+    &lt;id&gt;213456-987123-123987&lt;/iq&gt;
+    &lt;name&gt;SuperChatBiscuit on Honest Pete's Mobile OS&lt;/name&gt;
+    &lt;key&gt;WNiIwIqlYfNw44zul2EhUyqIPXE=&lt;/key&gt;
+    &lt;ttl&gt;2592000&lt;/ttl&gt;
+  &lt;/register&gt;
+&lt;/iq&gt;
+      </pre></div>
+      <p class="" style="">The server responds with two items of information in a &lt;registered/&gt; element qualified by the 'urn:xmpp:client-key:0' namespace. The EncryptedSecret is contained within a &lt;encrypted-secret/&gt; element as a base64-encoded value, and the &lt;expiry/&gt; element contains a timestamp for expiry.</p>
+      <p class="caption"><a name="example-2" id="example-2"></a>Example 2. </p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result' id='123456'&gt;
+  &lt;registered xmlns='urn:xmpp:client-key:0'&gt;
+    &lt;encrypted-secret&gt;WNiIwIqlYfNw44zul2EhUyqIPXE=&lt;/encrypted-secret&gt;
+    &lt;expiry&gt;2017-10-15T12:00:00Z&lt;/expiry&gt;
+  &lt;/registered&gt;
+&lt;/iq&gt;
+</pre></div>
+      <p class="" style="">Note that the expiry time might not be 30 days simply because the client has requested it - the server is free to shorten expiry times.</p>
+    </div>
+    <div class="indent"><h3>3.2 <a name="sect-idm64" id="sect-idm64">Key Revocation</a></h3>
+      <p class="" style="">Any authenticated client may revoke a key belonging to the same user by sending an &lt;iq/&gt; of type "set" containing a &lt;revoke/&gt; element qualified by the 'urn:xmpp:client-key:0' namespace, containing a &lt;key/&gt; element whose text value is the ClientID corresponding to the key to be revoked.</p>
+      <p class="caption"><a name="example-3" id="example-3"></a>Example 3. </p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set' id='123456'&gt;
+  &lt;revoke xmlns='urn:xmpp:client-key:0'&gt;
+    &lt;id&gt;213456-987123-123987&lt;/iq&gt;
+  &lt;/revoke&gt;
+&lt;/iq&gt;
+      </pre></div>
+    </div>
+    <div class="indent"><h3>3.3 <a name="sect-idm67" id="sect-idm67">Key Enumeration</a></h3>
+      <p class="" style="">Any authenticated client may enumerate keys belonging to the same user by sending an &lt;iq/&gt; of type "get" containing a &lt;list/&gt; element qualified by the 'urn:xmpp:client-key:0' namespace.</p>
+      <p class="caption"><a name="example-4" id="example-4"></a>Example 4. </p><div class="indent"><pre class="prettyprint">
+&lt;iq type='get' id='123456'&gt;
+  &lt;list xmlns='urn:xmpp:client-key:0'/&gt;
+&lt;/iq&gt;
+      </pre></div>
+      <p class="" style="">The server responds with an &lt;iq/&gt; of type 'result', containing the &lt;list/&gt; element qualified by the 'urn:xmpp:client-key:0' namespace. This element contains a sequence of &lt;key/&gt; elements each containing (in any order) the &lt;id/&gt;, &lt;name/&gt; and &lt;expiry/&gt; elements as in registration.</p>
+      <p class="caption"><a name="example-5" id="example-5"></a>Example 5. </p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result' id='123456'&gt;
+  &lt;list xmlns='urn:xmpp:client-key:0'&gt;
+    &lt;key&gt;
+      &lt;id&gt;213456-987123-123987&lt;/iq&gt;
+      &lt;name&gt;SuperChatBiscuit on Honest Pete's Mobile OS&lt;/name&gt;
+      &lt;expiry&gt;2017-10-15T12:00:00Z&lt;/expiry&gt;
+    &lt;/key&gt;
+    &lt;key&gt;
+      &lt;id&gt;313456-987123-123987&lt;/iq&gt;
+      &lt;name&gt;SuperChatChocolate on Honest Bob's Mobile OS&lt;/name&gt;
+      &lt;expiry&gt;2018-01-08T12:00:00Z&lt;/expiry&gt;
+    &lt;/key&gt;
+  &lt;/list&gt;
+&lt;/iq&gt;
+      </pre></div>
+    </div>
+  <h2>4.
+       <a name="support" id="support">Determining Support</a></h2>
+  <p class="" style="">Support for this protocol is advertised as the Disco feature 'urn:xmpp:client-key:0'; however clients MAY infer support if the CLIENT-KEY or CLIENT-KEY-PLUS SASL mechanism is supported.</p>
+<h2>5.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">Security considerations for this specification are covered within the Internet-Draft draft-cridland-kitten-clientkey-00.txt - this specification introduces no further considerations by design, but relies heavily on the guidance given there.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0399<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1.0<br />
+            Last Updated: 2018-01-25<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />
+                Dependencies: None<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: client-key<br />
+              Registry:
+              
+              &lt;<a href="http://xmpp.org/registrar/client-key.html">http://xmpp.org/registrar/client-key.html</a>&gt;
+              <br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0399.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0399.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0399.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Dave Cridland</h3><p class="indent">
+        Email:
+        <a href="mailto:dave.cridland@surevine.com">dave.cridland@surevine.com</a><br />
+        JabberID:
+        <a href="xmpp:dave.cridland@surevine.com">dave.cridland@surevine.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2017 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">There exists a special venue for discussion related to the technology described in this document: the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; mailing list.</p><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm46" id="nt-idm46">1</a>. XEP-0388: Extensible SASL Profile &lt;<a href="https://xmpp.org/extensions/xep-0388.html">https://xmpp.org/extensions/xep-0388.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1.0 (2018-01-25)</h4><div class="indent">Accepted by vote of Council on 2018-01-10. (XEP Editor (jwi))
+    </div><h4>Version 0.0.1 (2018-01-08)</h4><div class="indent"><p class="" style="">First draft</p> (dwd)
+    </div></div><hr /><p>END</p></body></html>
