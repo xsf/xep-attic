@@ -1,0 +1,103 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0386: Bind 2.0</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Bind 2.0" /><meta name="DC.Creator" content="Kevin Smith" /><meta name="DC.Description" content="This specification provides a single-request replacement for several activities an XMPP client needs to do at startup." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2018-02-08" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0386" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0386: Bind 2.0</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification provides a single-request replacement for several activities an XMPP client needs to do at startup.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Kevin Smith</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2017 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Deferred</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.2.0</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2018-02-08</td></tr></table><hr /><p style="color:red">WARNING: This document has been automatically Deferred after 12 months of inactivity in its previous Experimental state. Implementation of the protocol described herein is not recommended for production systems. However, exploratory implementations are encouraged to resume the standards process.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#usecases">Use Cases</a><br />   
+      3.1.  <a href="#sect-idm257669669408">Discovering support</a><br />   
+      3.2.  <a href="#sect-idm257669666448">Performing the bind</a><br />   
+      3.3.  <a href="#sect-idm257669656304">Pipelining</a><br />4.  <a href="#security">Security Considerations</a><br />5.  <a href="#iana">IANA Considerations</a><br />6.  <a href="#registrar">XMPP Registrar Considerations</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">As XMPP has grown more feature-rich over time, more steps have been introduced that clients are likely to perform at startup, e.g. resource binding, archive synchronisation, enabling Carbons. Some of these introduce race conditions - e.g. if a client synchronises the archive before enabling Carbons, it can miss stanzas sent between these events, or if it enables Carbons before synchronising the archive it can receive duplicate messages. It may also cause duplicate messages by combining archive synchronisation and receipt of offline messages, or by receipt of messages addressed to the full JID between resource binding and archive synchronisation. This document provides a mechanism for atomically performing these operations to avoid these race conditions. It also provides information to a client that is generally useful about the state of the archive.</p>
+  <p class="" style="">There have been other (not-yet documented) suggestions of further enhancements to the stream startup process, and it is possible that in the future some protocol here may be reframed in terms of such new facilities, but the core premise of the XEP (that these features are needed, and need enabling together) remains. It may be desirable to make the enabling of features extensible, such that the client can request which features are needed, together, but the current approach should serve as a suitable basis for discussion.</p>
+  <p class="" style="">The returning of unread message state to the client relies on the archive having these data, which is a topic for another specification.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <ul class="" style="">
+    <li class="" style="">Allow MAM synchronisation and Carbons enabling without a race condition leading to missed or duplicated stanzas</li>
+    <li class="" style="">Avoid offline messages being received by clients using the MAM archive for message retrieval</li>
+    <li class="" style="">Allow clients to know which messages are unread in the archive, providing a cross-client alternative to offline messages</li>
+    <li class="" style="">Avoid clients receiving 'live' messages until they have synchronised their state from the server (to avoid double-receipt of messages, one from the archive one live)</li>
+  </ul>
+<h2>3.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <div class="indent"><h3>3.1 <a name="sect-idm257669669408" id="sect-idm257669669408">Discovering support</a></h3>
+    <p class="" style="">A client does not advertise support for bind 2.0. If a server supports bind 2.0, it MUST advertise this in the stream features with an feature named 'bind' in the namespace 'urn:xmpp:bind2:0'.</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Server advertises support in stream features</p><div class="indent"><pre class="prettyprint">
+&lt;stream:features&gt;
+  &lt;bind xmlns='urn:xmpp:bind2:0'/&gt;
+  &lt;bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'/&gt;
+  &lt;sm xmlns='urn:xmpp:sm:3'/&gt;
+&lt;/stream:features&gt;
+</pre></div>
+  </div>
+
+  <div class="indent"><h3>3.2 <a name="sect-idm257669666448" id="sect-idm257669666448">Performing the bind</a></h3>
+    <p class="" style="">After authentication, a client performs a bind 2.0 by sending an element 'bind' in the samespace 'urn:xmpp:bind2:0'. (Note: this gets rid of manual resource binding altogether. For discussion on standards@)</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Client initiates a bind 2.0</p><div class="indent"><pre class="prettyprint">
+&lt;bind xmlns='urn:xmpp:bind2:0'/&gt;
+</pre></div>
+    <p class="" style="">When it receives a bind 2.0 on an authenticated not-yet-bound session, the server MUST:</p>
+    <ul class="" style="">
+      <li class="" style="">Clear the offline messages for this user, if any, without sending them (as they will be provided by MAM).</li>
+      <li class="" style="">Perform resource binding to a random resource (see 6120)</li>
+      <li class="" style="">Work out which contacts have unread messages in the user's MAM archive, how many, and what the id of the last read message is</li>
+      <li class="" style="">Get the id of the newest stanza in the user's MAM archive</li>
+      <li class="" style="">Silently enable carbons for this session</li>
+    </ul>
+    <p class="" style="">After processing the bind stanza, as above, the server MUST respond with an element of type 'bound' in the namespace 'urn:xmpp:bind2:0', as in the below example</p>
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Server responds after processing the bind</p><div class="indent"><pre class="prettyprint">
+&lt;bound xmlns='urn:xmpp:bind2:0'&gt;
+  &lt;jid&gt;nurse@shakespeare.lit/abtet29a9fu&lt;/jid&gt;
+  &lt;latest-id&gt;balisoseb&lt;/latest-id&gt;
+  &lt;unreads&gt;
+    &lt;unread jid='romeo@shakespeare.lit' read-id='onuheuhoeu', unread-count='3'/&gt;
+    &lt;unread jid='juliet@shakespeare.lit' read-id='koeunhth29', unread-count='43'/&gt;
+  &lt;/unreads&gt;
+&lt;/bound&gt;
+</pre></div>
+  </div>
+
+  <div class="indent"><h3>3.3 <a name="sect-idm257669656304" id="sect-idm257669656304">Pipelining</a></h3>
+    <p class="" style="">A server supporting this specification MUST allow the following initial commands to be pipelined:</p>
+    <ul class="" style="">
+      <li class="" style="">Initial client stream header</li>
+      <li class="" style="">SASL Authentication*</li>
+      <li class="" style="">Post-authentication stream header</li>
+      <li class="" style="">Bind 2.0</li>
+    </ul>
+    <p class="" style="">[ * pipelining will clearly not work for multi-stage SASL mechanisms, but the initial stage MUST be capable of being pipelined after the stream header, and the post-authentication stream header MUST be able to be pipelined after the final authentication element]</p>
+    <p class="" style="">In this way, a client is able to (if using 'xmpps' for avoiding starttls, to be defined elsewhere), on second and subsequent login cache the presence of bind 2.0 in stream features from a previous session, and pipeline the entire stream initialisation process by sending the stream header, followed by auth, followed by a stream header, followed by a bind 2.0 in a single chunk.</p>
+    <p class="" style="">Note: also enable acks? discuss on standards@</p>
+  </div>
+<h2>4.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">This specification is mostly a reworking of existing protocol/features. The additional facility provided here is to provide information on the user's archive; as this facility is provided post-authentication and is only providing the user's data to the user, it doesn't introduce new security considerations.</p>
+<h2>5.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">None.</p>
+<h2>6.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p class="" style="">The urn:xmpp:bind2:0 namespace must be registered..</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0386<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.2.0<br />
+            Last Updated: 2018-02-08<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XMPP IM, XEP-0313, XEP-0280<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: bind2<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0386.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0386.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0386.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Kevin Smith</h3><p class="indent">
+        Email:
+        <a href="mailto:kevin.smith@isode.com">kevin.smith@isode.com</a><br />
+        JabberID:
+        <a href="xmpp:kevin.smith@isode.com">kevin.smith@isode.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.2.0 (2018-02-08)</h4><div class="indent">Defer due to lack of activity. (XEP Editor (jc))
+    </div><h4>Version 0.1.0 (2017-02-08)</h4><div class="indent"><p class="" style="">First draft accepted by the XMPP Council.</p> (XEP Editor: ssw)
+    </div></div><hr /><p>END</p></body></html>
