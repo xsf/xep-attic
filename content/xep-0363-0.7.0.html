@@ -1,0 +1,236 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0363: HTTP File Upload</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="HTTP File Upload" /><meta name="DC.Creator" content="Daniel Gultsch" /><meta name="DC.Description" content="This specification defines a protocol to request permissions from another entity to upload a file to a specific path on an HTTP server and at the same time receive a URL from which that file can later be downloaded again." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2018-05-30" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0363" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0363: HTTP File Upload</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines a protocol to request permissions from another entity to upload a file to a specific path on an HTTP server and at the same time receive a URL from which that file can later be downloaded again.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Daniel Gultsch</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2017 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Proposed</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.7.0</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2018-05-30</td></tr></table><hr /><p style="color:red">NOTICE: This document is currently within Last Call or under consideration by the XMPP Council for advancement to the next stage in the XSF standards process.
+            The Last Call ends on 2018-06-14.
+            
+            Please send your feedback to the <a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a> discussion list.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#disco">Discovering Support</a><br />4.  <a href="#request">Requesting a slot</a><br />5.  <a href="#errors">Error conditions</a><br />6.  <a href="#upload">Upload</a><br />7.  <a href="#impl">Implementation Notes</a><br />8.  <a href="#security">Security Considerations</a><br />9.  <a href="#iana">IANA Considerations</a><br />10.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      10.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />11.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">XMPP protocol extensions already define methods for peer-to-peer file transfer such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0096.html">SI File Transfer (XEP-0096)</a></span>  [<a href="#nt-idm147">3</a>] or <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0234.html">Jingle File Transfer (XEP-0234)</a></span>  [<a href="#nt-idm151">4</a>] however due to their very nature of being peer-to-peer they don't work very well in scenarios where it is requeried to send a file to multiple recipients or multiple resources of the same recipient at once. They also don’t work alongside offline storage, MUC history and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-idm155">5</a>].</p>
+  <p class="" style="">Uploading files manually to an HTTP server and sharing the link has been a workaround for this for a long time now. While users have a variety of services to choose from the downside of this manual approach is that an XMPP client can not automate this process on behalf of the user since these services don’t share a common API. Furthermore using a third party service would probably require the user to enter additional credentials into their XMPP client specifically for the file upload.</p>
+  <p class="" style="">This XEP defines an approach to request permissions from another entity to upload a file to a specific path on an HTTP server and at the same time receive an URL from which that file can later be downloaded again. These tuples consisting of a PUT and a GET-URL are called slots.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <ul class="" style="">
+    <li class="" style="">Be as easy to implement as possible. This is grounded on the idea that most programming languages already have HTTP libraries available.</li>
+    <li class="" style="">Be agnostic toward the distribution of the actual URL. Users can choose to send the URL in the body of a message stanza, utilize <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0066.html">Out-of-Band Data (XEP-0066)</a></span>  [<a href="#nt-idm165">6</a>], <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0370.html">Jingle HTTP Transport Method (XEP-0370)</a></span>  [<a href="#nt-idm169">7</a>], or even use it as their avatar in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0084.html">User Avatar (XEP-0084)</a></span>  [<a href="#nt-idm173">8</a>]</li>
+    <li class="" style="">Do not provide any kind of access control or security for file retrieval beyond Transport Layer Security in form of HTTPS and long random paths that are impossible to guess. That means everyone who knows the URL SHOULD be able to access it.</li>
+  </ul>
+<h2>3.
+       <a name="disco" id="disco">Discovering Support</a></h2>
+  <p class="" style="">An entity advertises support for this protocol by including the "urn:xmpp:http:upload:0" in its service discovery information features as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm180">9</a>] or section 6.3 of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm184">10</a>]. To avoid unnecessary round trips an entity SHOULD also include the maximum file size as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions (XEP-0128)</a></span>  [<a href="#nt-idm117">2</a>] if such a limitation exists. The field name MUST be "max-file-size" and the value MUST be in bytes.</p>
+  <p class="" style="">A user’s server SHOULD include any known entities that provide such services into its service discovery items.</p>
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Client sends service discovery request to server</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.tld/garden'
+    id='step_01'
+    to='montague.tld'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#items'/&gt;
+&lt;/iq&gt;</pre></div>
+  <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Server replies to service discovery request</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='montague.tld'
+    id='step_01'
+    to='romeo@montague.tld/garden'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#items'&gt;
+    &lt;item jid='upload.montague.tld' name='HTTP File Upload' /&gt;
+    &lt;item jid='conference.montague.tld' name='Chatroom Service' /&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></div>
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Client sends service discovery request to upload service</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.tld/garden'
+    id='step_02'
+    to='upload.montague.tld'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;</pre></div>
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Upload service replies to service discovery request and reports a maximum file size of 5MiB</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='upload.montague.tld'
+    id='step_02'
+    to='romeo@montague.tld/garden'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity category='store'
+              type='file'
+              name='HTTP File Upload' /&gt;
+    &lt;feature var='urn:xmpp:http:upload:0' /&gt;
+    &lt;x type='result' xmlns='jabber:x:data'&gt;
+      &lt;field var='FORM_TYPE' type='hidden'&gt;
+        &lt;value&gt;urn:xmpp:http:upload:0&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='max-file-size'&gt;
+        &lt;value&gt;5242880&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></div>
+<h2>4.
+       <a name="request" id="request">Requesting a slot</a></h2>
+  <p class="" style="">A client requests a new upload slot by sending an IQ-get to the upload service containing a &lt;request&gt; child element qualified by the urn:xmpp:http:upload:0 namespace. This element MUST include the attributes filename and size containing the file name and size respectively.</p>
+  <p class="" style="">An additional attribute content-type containing the Content-Type is OPTIONAL.</p>
+  <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Client requests a slot on the upload service</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.tld/garden'
+    id='step_03'
+    to='upload.montague.tld'
+    type='get'&gt;
+  &lt;request xmlns='urn:xmpp:http:upload:0'
+    filename='très cool.jpg'
+    size='23456'
+    content-type='image/jpeg' /&gt;
+&lt;/iq&gt;</pre></div>
+  <p class="" style="">The upload service responds with both a PUT and a GET URL wrapped by a &lt;slot&gt; element. The service SHOULD keep the file name and especially the file ending intact. Using the same hostname for PUT and GET is OPTIONAL. The host MUST provide Transport Layer Security (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5246">RFC 5246</a></span>  [<a href="#nt-idm202">11</a>]). Both HTTPS URLs MUST adhere to <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3986">RFC 3986</a></span>  [<a href="#nt-idm206">12</a>]. Non ASCII characters MUST be percent-encoded.</p>
+  <p class="" style="">The &lt;put&gt; element MAY also contain a number of &lt;header&gt; elements which correspond to HTTP header fields. Each &lt;header&gt; element MUST have a name-attribute and a content with the value of the header. Only the following header names are allowed: Authorization, Cookie, Expires. Other header names MUST be ignored by the requesting entity and MUST NOT be included in the HTTP request. The requesting entity MUST strip any newline characters from the header name and value before performing the HTTP request.</p>
+  <p class="caption"><a name="example-6" id="example-6"></a>Example 6. The upload service responds with a slot</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='upload.montague.tld'
+    id='step_03'
+    to='romeo@montague.tld/garden'
+    type='result'&gt;
+  &lt;slot xmlns='urn:xmpp:http:upload:0'&gt;
+    &lt;put url='https://upload.montague.tld/4a771ac1-f0b2-4a4a-9700-f2a26fa2bb67/tr%C3%A8s%20cool.jpg'&gt;
+      &lt;header name='Authorization'&gt;Basic Base64String==&lt;/header&gt;
+      &lt;header name='Cookie'&gt;foo=bar; user=romeo&lt;/header&gt;
+    &lt;/put&gt;
+    &lt;get url='https://download.montague.tld/4a771ac1-f0b2-4a4a-9700-f2a26fa2bb67/tr%C3%A8s%20cool.jpg' /&gt;
+  &lt;/slot&gt;
+&lt;/iq&gt;</pre></div>
+<h2>5.
+       <a name="errors" id="errors">Error conditions</a></h2>
+  <p class="" style="">Instead of providing the client with a slot the service MAY respond with an error if the requested file size is too large. In addition the entity MAY inform the requester about the maximum file size.</p>
+  <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Alternative response by the upload service if the file size was too large</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='upload.montague.tld'
+    id='step_03'
+    to='romeo@montague.tld/garden'
+    type='error'&gt;
+  &lt;request xmlns='urn:xmpp:http:upload:0'
+    filename='très cool.jpg'
+    size='23456'
+    content-type='image/jpeg' /&gt;
+  &lt;error type='modify'&gt;
+    &lt;not-acceptable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas' /&gt;
+    &lt;text xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'&gt;File too large. The maximum file size is 20000 bytes&lt;/text&gt;
+    &lt;file-too-large xmlns='urn:xmpp:http:upload:0'&gt;
+      &lt;max-file-size&gt;20000&lt;/max-file-size&gt;
+    &lt;/file-too-large&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;</pre></div>
+<p class="" style="">For any other type of error the service SHOULD respond with appropriate error types to indicate temporary or permanent errors.</p>
+<p class="" style="">For temporary errors such as exceeding a personal quota the service MAY include a &lt;retry/&gt; element qualified by the urn:xmpp:http:upload:0 namespace as a child of the &lt;error/&gt; element. The retry element MUST include an attribute 'stamp' which indicates the time at which the requesting entity may try again. The format of the timestamp MUST adhere to the date-time format specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles (XEP-0082)</a></span>  [<a href="#nt-idm217">13</a>] and MUST be expressed in UTC.</p>
+  <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Alternative response by the upload service to indicate a temporary error after the client exceeded a quota</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='upload.montague.tld'
+    id='step_03'
+    to='romeo@montague.tld/garden'
+    type='error'&gt;
+  &lt;request xmlns='urn:xmpp:http:upload:0'
+    filename='très cool.jpg'
+    size='23456'
+    content-type='image/jpeg' /&gt;
+  &lt;error type='wait'&gt;
+    &lt;resource-constraint xmlns='urn:ietf:params:xml:ns:xmpp-stanzas' /&gt;
+    &lt;text xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'&gt;Quota reached. You can only upload 5 files in 5 minutes&lt;/text&gt;
+    &lt;retry xmlns='urn:xmpp:http:upload:0'
+      stamp='2017-12-03T23:42:05Z' /&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;</pre></div>
+<p class="caption"><a name="example-9" id="example-9"></a>Example 9. Alternative response by the upload service to indicate an auth error to a client that is not allowed to upload files</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='upload.montague.tld'
+    id='step_03'
+    to='romeo@montague.tld/garden'
+    type='error'&gt;
+  &lt;request xmlns='urn:xmpp:http:upload:0'
+     filename='très cool.jpg'
+     size='23456'
+     content-type='image/jpeg' /&gt;
+  &lt;error type='auth'&gt;
+    &lt;forbidden xmlns='urn:ietf:params:xml:ns:xmpp-stanzas' /&gt;
+    &lt;text xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'&gt;Only premium members are allowed to upload files&lt;/text&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;</pre></div>
+<h2>6.
+       <a name="upload" id="upload">Upload</a></h2>
+  <p class="" style="">The actual upload of the file happens via HTTP-PUT and is out of scope of this document. The upload service MUST reject the file upload if the Content-Length does not match the size of the slot request. The service SHOULD reject the file if the Content-Type has been specified beforehand and does not match. The service MAY assume application/octet-stream as a Content-Type if it the client did not specify a Content-Type at all.</p>
+  <p class="" style="">In addition to the Content-Length and Content-Type header the client MUST include all allowed headers that came with the slot assignment.</p>
+  <p class="" style="">There is no further XMPP communication required between the upload service and the client. A HTTP status Code of 201 means that the server is now ready to serve the file via the provided GET URL. If the upload fails for whatever reasons the client MAY request a new slot.</p>
+<h2>7.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <p class="" style="">The upload service SHOULD choose an appropriate timeout for the validity of the PUT URL. Since there is no reason for a client to wait between requesting the slot and starting the upload, relatively low timeout values of around 60s are RECOMMENDED.</p>
+<h2>8.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <ul class="" style="">
+  <li class="" style="">Implementors should keep in mind, that without additional end-to-end-encryption, files uploaded to a service described in this document may be stored in plain text. Client implementors are advised to either use this only for semi public files (for example files shared in a public MUC or a PEP Avatar) or implement appropriate end-to-end encryption.</li>
+  <li class="" style="">Requesting entities MUST strip any newline characters from the HTTP header names and values before making the PUT request.</li>
+  <li class="" style="">Requesting entities MUST ensure that only the headers that are explicitly allowed by this XEP (Authorization, Cookie, Expires) are copied from the slot response to the HTTP request.</li>
+  <li class="" style="">Service implementors SHOULD use long randomized parts in their URLs making it impossible to guess the location of arbitrary files</li>
+  </ul>
+<h2>9.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the Internet Assigned Numbers Authority (IANA).</p>
+<h2>10.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>10.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:http:upload:0</li>
+    </ul>
+    <p class="" style="">Upon advancement of this specification from a status of Experimental to a status of Draft, the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm243">14</a>] shall add the foregoing namespace to the registry located at &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idm248">15</a>].</p>
+  </div>
+<h2>11.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="" style="">tbd</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0363<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Proposed">Proposed</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.7.0<br />
+            Last Updated: 2018-05-30<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0030, XEP-0128<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0363.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0363.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0363.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Daniel Gultsch</h3><p class="indent">
+        Email:
+        <a href="mailto:daniel@gultsch.de">daniel@gultsch.de</a><br />
+        JabberID:
+        <a href="xmpp:daniel@gultsch.de">daniel@gultsch.de</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm41" id="nt-idm41">1</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm117" id="nt-idm117">2</a>. XEP-0128: Service Discovery Extensions &lt;<a href="https://xmpp.org/extensions/xep-0128.html">https://xmpp.org/extensions/xep-0128.html</a>&gt;.</p><p><a name="nt-idm147" id="nt-idm147">3</a>. XEP-0096: SI File Transfer &lt;<a href="https://xmpp.org/extensions/xep-0096.html">https://xmpp.org/extensions/xep-0096.html</a>&gt;.</p><p><a name="nt-idm151" id="nt-idm151">4</a>. XEP-0234: Jingle File Transfer &lt;<a href="https://xmpp.org/extensions/xep-0234.html">https://xmpp.org/extensions/xep-0234.html</a>&gt;.</p><p><a name="nt-idm155" id="nt-idm155">5</a>. XEP-0313: Message Archive Management &lt;<a href="https://xmpp.org/extensions/xep-0313.html">https://xmpp.org/extensions/xep-0313.html</a>&gt;.</p><p><a name="nt-idm165" id="nt-idm165">6</a>. XEP-0066: Out of Band Data &lt;<a href="https://xmpp.org/extensions/xep-0066.html">https://xmpp.org/extensions/xep-0066.html</a>&gt;.</p><p><a name="nt-idm169" id="nt-idm169">7</a>. XEP-0370: Jingle HTTP Transport Method &lt;<a href="https://xmpp.org/extensions/xep-0370.html">https://xmpp.org/extensions/xep-0370.html</a>&gt;.</p><p><a name="nt-idm173" id="nt-idm173">8</a>. XEP-0084: User Avatar &lt;<a href="https://xmpp.org/extensions/xep-0084.html">https://xmpp.org/extensions/xep-0084.html</a>&gt;.</p><p><a name="nt-idm180" id="nt-idm180">9</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm184" id="nt-idm184">10</a>. XEP-0115: Entity Capabilities &lt;<a href="https://xmpp.org/extensions/xep-0115.html">https://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-idm202" id="nt-idm202">11</a>. RFC 5246: The Transport Layer Security (TLS) Protocol Version 1.2 &lt;<a href="http://tools.ietf.org/html/rfc5246">http://tools.ietf.org/html/rfc5246</a>&gt;.</p><p><a name="nt-idm206" id="nt-idm206">12</a>. RFC 3986: Uniform Resource Identifiers (URI): Generic Syntax &lt;<a href="http://tools.ietf.org/html/rfc3986">http://tools.ietf.org/html/rfc3986</a>&gt;.</p><p><a name="nt-idm217" id="nt-idm217">13</a>. XEP-0082: XMPP Date and Time Profiles &lt;<a href="https://xmpp.org/extensions/xep-0082.html">https://xmpp.org/extensions/xep-0082.html</a>&gt;.</p><p><a name="nt-idm243" id="nt-idm243">14</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idm248" id="nt-idm248">15</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.7.0 (2018-05-30)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Changed not-allowed error to forbidden as this is more appropriate according to <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm41">1</a>]</li>
+      </ul>
+     (dg)
+    </div><h4>Version 0.6.0 (2018-04-21)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Handling of non ASCII characters in URL</li>
+        <li class="" style="">Removed normative language from first paragraph of the security considerations.</li>
+      </ul>
+     (dg)
+    </div><h4>Version 0.5.0 (2018-02-15)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Allow only a specific set of HTTP headers to be included in the request</li>
+        <li class="" style="">Removed some inappropriate use of normative language</li>
+      </ul>
+     (dg)
+    </div><h4>Version 0.4.0 (2017-12-03)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Added &lt;retry/&gt; element to error response</li>
+        <li class="" style="">Extend Security Considerations</li>
+      </ul>
+     (dg)
+    </div><h4>Version 0.3.1 (2017-04-21)</h4><div class="indent"><p class="" style="">Fixed example</p> (dg)
+    </div><h4>Version 0.3.0 (2017-02-01)</h4><div class="indent"><p class="" style="">Slight syntax changes and added ability to provide additional HTTP header fields on slot assignment.</p> (dg)
+    </div><h4>Version 0.2.5 (2017-01-08)</h4><div class="indent"><p class="" style="">Merge typo fixes suggested by an unnamed user.</p> (XEP Editor: ssw)
+    </div><h4>Version 0.2.4 (2016-10-28)</h4><div class="indent"><p class="" style="">Fix TLS reference</p> (dg (XEP Editor: ssw))
+    </div><h4>Version 0.2.3 (2016-07-11)</h4><div class="indent"><p class="" style="">Typo fixes</p> (wjt (XEP Editor: ssw))
+    </div><h4>Version 0.2.2 (2016-03-30)</h4><div class="indent"><p class="" style="">Typo fix</p> (ssw)
+    </div><h4>Version 0.2.1 (2016-03-16)</h4><div class="indent"><p class="" style="">Minor dependency and citation fixes (fs).</p> (XEP Editor (ssw))
+    </div><h4>Version 0.2 (2016-03-07)</h4><div class="indent"><p class="" style="">Announce maximum file size by means of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions (XEP-0128)</a></span>  [<a href="#nt-idm117">2</a>]</p> (dg)
+    </div><h4>Version 0.1.2 (2016-02-16)</h4><div class="indent"><p class="" style="">Fix typo of discovery (Philipp Hancke).</p> (XEP Editor (mam))
+    </div><h4>Version 0.1.1 (2016-01-05)</h4><div class="indent"><p class="" style="">Fix invalid XML in examples (tpa).</p> (XEP Editor (ssw))
+    </div><h4>Version 0.1 (2015-08-27)</h4><div class="indent"><p class="" style="">Initial published version approved by the XMPP Council.</p> (XEP Editor (mam))
+    </div><h4>Version 0.0.1 (2015-07-25)</h4><div class="indent"><p class="" style="">First draft.</p> (dg)
+    </div></div><hr /><p>END</p></body></html>
