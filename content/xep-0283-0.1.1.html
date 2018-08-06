@@ -1,0 +1,424 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0283: Moved</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Moved" /><meta name="DC.Creator" content="Tory Patnoe" /><meta name="DC.Description" content="This document defines an XMPP protocol extension that enables a user to inform its contacts about a change in JID." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2018-08-06" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0283" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0283: Moved</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This document defines an XMPP protocol extension that enables a user to inform its contacts about a change in JID.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Tory Patnoe</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2018 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2018-08-06</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#sect-idm100">The Move</a><br />   
+      3.1.  <a href="#unsubscribe">Unsubscribing the original JID from outbound subscriptions</a><br />   
+      3.2.  <a href="#unsubscribed">Unsubscribing the original JID from inbound subscriptions</a><br />   
+      3.3.  <a href="#subscribe">Subscribing the new JID to all your existing contacts</a><br />   
+      3.4.  <a href="#offline">Contacts Offline at the Time the Rename Occurs</a><br />   
+      3.5.  <a href="#ordering">Presence Ordering</a><br />   
+      3.6.  <a href="#grouping">Preservation of Groups</a><br />   
+      3.7.  <a href="#one-way">One-way subcriptions and full roster state</a><br />      
+      3.7.1.  <a href="#from_subs">One-way Inbound subscription</a><br />      
+      3.7.2.  <a href="#to_subs">One-way Outbound subscription</a><br />      
+      3.7.3.  <a href="#actions">Roster state and action table</a><br />4.  <a href="#security">Security Considerations</a><br />5.  <a href="#iana">IANA Considerations</a><br />6.  <a href="#reg">XMPP Registrar Considerations</a><br />   
+      6.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      6.2.  <a href="#registrar-versioning">Protocol Versioning</a><br />7.  <a href="#schema">XML Schema</a><br />8.  <a href="#ack">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">There are a variety of reasons why a user may wish to change
+  their JID. For example, a surname change because of marriage or simply
+  an easier JID to remember.
+  </p>
+
+  <p class="" style="">This XEP defines an approach for communicating that your JID has
+  moved to a new JID, extending the existing subscription protocol documented
+  in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6121">XMPP IM</a></span>  [<a href="#nt-idm90">1</a>]. The steps outlined here may be done either through a client
+  or automated by a server.
+  </p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <ul class="" style="">
+    <li class="" style="">The methods described here maintain compatibility with <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-idm97">2</a>] and <span class="ref">RFC 6121</span>.</li>
+  </ul>
+<h2>3.
+       <a name="sect-idm100" id="sect-idm100">The Move</a></h2>
+  <p class="" style="">In this scenario user@example.com moves to user2@example2.com.
+    Both the user@example.com and user2@example2.com accounts have been
+    created and still exist. The roster for user2@example2.com is empty
+    and the user wants to populate it with their entries from
+    user@example.com.</p>
+
+  <div class="indent"><dl>
+    <di>
+      <dt><strong>original JID</strong></dt>
+      <dd>user@example.com</dd>
+    </di>
+    <di>
+      <dt><strong>new JID</strong></dt>
+      <dd>user2@example2.com</dd>
+    </di>
+  </dl></div>
+
+  <div class="indent"><h3>3.1 <a name="unsubscribe" id="unsubscribe">Unsubscribing the original JID from outbound subscriptions</a></h3>
+    <p class="" style="">Because the original JID is no longer going to be used, the user SHOULD
+    unsubscribe from all the outbound subscriptions user@example.com had.
+    These can be identified as those in the 'to' or 'ask' states as
+    defined in the 'jabber:iq:roster' protocol in <span class="ref">RFC 6121</span>.</p>
+
+    <p class="" style="">To unsubscribe all outbound subscriptions for the original JID send an
+    unsubscribe &lt;presence/&gt; stanza to all the old contacts with a &lt;moved/&gt;
+    element containing the new JID.</p>
+
+    <p class="" style="">There is the potential for other users to send a malicious unsubscribe
+    containing a spoofed &lt;moved/&gt; JID. Therefore, clients SHOULD NOT
+    automatically subscribe to the JID contained in the &lt;moved/&gt; stanza when
+    receiving a subscribe &lt;presence/&gt; stanza without displaying the &lt;moved/&gt;
+    JID to the user. See the Security Considerations section for
+    details.</p>
+
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Client unsubscribes outbound subscriptions from original JID</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='user@example.com' to='contact@example.com' type='unsubscribe'&gt;
+    &lt;status&gt;I've changed JIDs from user@example.com to user2@example2.com&lt;/status&gt;
+    &lt;moved xmlns='urn:xmpp:moved:0' new='user2@example2.com'/&gt;
+&lt;/presence&gt;
+</pre></div>
+
+  </div>
+
+  <div class="indent"><h3>3.2 <a name="unsubscribed" id="unsubscribed">Unsubscribing the original JID from inbound subscriptions</a></h3>
+    <p class="" style="">Because the original JID is no longer going to be used, the user SHOULD
+    unsubscribe from all contacts the user@example.com had an inbound
+    subscription from. These can be identified as those in the 'from'
+    subscription state as defined in in the 'jabber:iq:roster' protocol
+    in <span class="ref">RFC 6121</span>.</p>
+
+    <p class="" style="">To unsubscribe all inbound subscriptions send an unsubscribed
+    &lt;presence/&gt; stanza to all the old contacts with a &lt;moved/&gt; element
+    containing the new JID.</p>
+
+    <p class="" style="">There is the potential for other users to send a malicious unsubscribed
+    containing a spoofed &lt;moved/&gt; JID. Therefore, clients SHOULD NOT
+    automatically subscribe to the JID contained in the &lt;moved/&gt; stanza
+    without displaying the &lt;moved/&gt; JID to the user. See the Security
+    Considerations section for details.</p>
+
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Client unsubscribes inbound subscriptions from original JID</p><div class="indent"><pre class="prettyprint">
+
+&lt;presence from='user@example.com' to='contact@example.com' type='unsubscribed'&gt;
+    &lt;status&gt;I've changed JIDs from user@example.com to user2@example2.com&lt;/status&gt;
+    &lt;moved xmlns='urn:xmpp:moved:0' new='user2@example2.com'/&gt;
+&lt;/presence&gt;
+
+    </pre></div>
+
+  </div>
+  <div class="indent"><h3>3.3 <a name="subscribe" id="subscribe">Subscribing the new JID to all your existing contacts</a></h3>
+
+      <p class="" style="">Once the new JID has been created on a server it is possible for the
+      new JID to subscribe to the contacts they had on the original JID's
+      roster. This is done by sending a new subscription request with a
+      &lt;moved/&gt; element containing the new JID.
+      </p>
+
+      <p class="" style="">The new subscription MUST come from the new JID's server.</p>
+
+      <p class="" style="">There is the potential for other users to send a malicious subscribe
+      request and spoof the content of the &lt;moved/&gt; element identifying an
+      original JID. Therefore, clients SHOULD NOT automatically unsubscribe
+      an existing roster entry if is listed as the target in the &lt;moved/&gt;
+      element when a subscribe is received. See the Security
+      Consideration section for details.</p>
+
+      <p class="" style="">Clients accepting the moved subscription SHOULD indicate to the
+      user that that this subscription request was the result of a move
+      operation and because of potential malicious behavior SHOULD NOT
+      auto-accept the subscription without displaying the &lt;moved/&gt; JID to the
+      user.</p>
+
+      <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Client requests subscription from new JID</p><div class="indent"><pre class="prettyprint">
+  
+  &lt;presence from='user2@example2.com' to='contact@example.com' type='subscribe'&gt;
+      &lt;status&gt;I've changed JIDs from user@example.com to user2@example2.com&lt;/status&gt;
+      &lt;moved xmlns='urn:xmpp:moved:0' old='user@example.com'/&gt;
+  &lt;/presence&gt;
+
+      </pre></div>
+
+    </div>
+
+  <div class="indent"><h3>3.4 <a name="offline" id="offline">Contacts Offline at the Time the Rename Occurs</a></h3>
+    <p class="" style=""><span class="ref">RFC 6120</span> clarifies that an incoming subscribe &lt;presence/&gt; stanza
+    MUST be preserved by the server and &lt;presence/&gt; stanzas of type
+    unsubscribe and unsubscribed are not preserved on the server.
+    Therefore, for a contact who is offline, their servers MAY have
+    automatically removed the original roster entry when seeing the
+    unsubscribe and unsubscribed stanzas. At the time of writing this XEP,
+    NOT saving and forwarding the presence stanzas will be the default
+    behavior of most servers.
+    </p>
+
+    <p class="" style="">What this means is that a contact coming online after the rename
+    outlined above MAY only see the &lt;presence/&gt; of type 'subscribe' with
+    the &lt;moved/&gt; element. Clients should be aware of this behavior.
+    </p>
+  </div>
+
+  <div class="indent"><h3>3.5 <a name="ordering" id="ordering">Presence Ordering</a></h3>
+  <p class="" style="">In following the principle of least surprise, it is considered good
+  practice to send the subscribe stanza after the unsubscribe and unsubscribed
+  stanzas.
+  </p>
+  </div>
+
+  <div class="indent"><h3>3.6 <a name="grouping" id="grouping">Preservation of Groups</a></h3>
+    <p class="" style="">One of the side effects of this scheme is the potential for a contact
+    to lose the groups to which it had organized the original JID. Clients
+    aware of the &lt;moved/&gt; element can mitigate this with the following rules.
+    </p>
+
+    <ul class="" style="">
+    <li class="" style="">If the contacts client receives an unsubscribed with a &lt;moved/&gt;
+    element, remove the subscription but initiate a roster push for the
+    original JID with the subscription set to 'none'. When the new
+    subscription is received the new JID MAY be placed into the roster
+    in the same groups as the original JID and the original JID can then be
+    removed from the roster.
+    </li>
+
+    <li class="" style="">If a subscribe is received with a &lt;moved/&gt; element, the client MAY
+    automatically place the new JID into the same groups as the original JID.
+    </li>
+    </ul>
+
+   <p class="" style="">As discussed in 'Contacts Offline at the Time the Rename Occurs', a
+   server MAY automatically handle the unsubscribe and unsubscribed stanzas.
+   If this occurs it will be impossible to preserve the original groups.
+   </p>
+
+  </div>
+
+  <div class="indent"><h3>3.7 <a name="one-way" id="one-way">One-way subcriptions and full roster state</a></h3>
+  <div class="indent"><h3>3.7.1 <a name="from_subs" id="from_subs">One-way Inbound subscription</a></h3>
+    <p class="" style="">If the original JID, user@example.com, had only an inbound subscription
+    (from or pending in), then the contact will only receive an
+    unsubscribed &lt;presence/&gt; stanza. The contact's client, knowing the
+    state of the subscription (which is 'to' or 'none' with 'ask='subscribe'
+    from the contact's perspective), at that point MAY choose to prompt the
+    user to subscribe to the new JID listed in the &lt;moved/&gt; element.</p>
+
+  <p class="" style="">Because of the ability to spoof the &lt;moved/&gt; element, the client SHOULD
+     NOT automatically subscribe to the &lt;moved/&gt; element target, but SHOULD
+     present the new JID to the contact before sending out a subscription
+     request.</p>
+  </div>
+
+  <div class="indent"><h3>3.7.2 <a name="to_subs" id="to_subs">One-way Outbound subscription</a></h3>
+    <p class="" style="">If the original JID, user@example.com, had only an outbound
+    subscription (to or ask), then the contact SHOULD only receive an
+    unsubscribe &lt;presence/&gt; stanza. The contact's client, knowing the
+    state of the subscription (which is 'from' from the contact's perspective),
+    at that point MAY choose to prompt
+    the user to subscribe to the new JID listed in the &lt;moved/&gt; element.</p>
+
+  <p class="" style="">Because of the ability to spoof the &lt;moved/&gt; element, the client SHOULD
+     NOT automatically subscribe to the &lt;moved/&gt; element target.</p>
+  </div>
+
+  <div class="indent"><h3>3.7.3 <a name="actions" id="actions">Roster state and action table</a></h3>
+    <div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: Roster states and actios from the renamed user's perspective</p><table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <td align="" colspan="" rowspan="">Server state</td>
+        <td align="" colspan="" rowspan="">Client state (jabber:iq:roster)</td>
+        <td align="" colspan="" rowspan="">Send unsubscribe from original JID</td>
+        <td align="" colspan="" rowspan="">Send unsubscribed from original JID</td>
+        <td align="" colspan="" rowspan="">Send subscribe from new JID</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">none</td>
+        <td align="" colspan="" rowspan="">none</td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan=""></td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">none + pending out</td>
+        <td align="" colspan="" rowspan="">none + ask='subscribe'</td>
+        <td align="" colspan="" rowspan="">yes</td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan="">yes</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">none + pending in</td>
+        <td align="" colspan="" rowspan="">n/a</td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan="">yes - server only</td>
+        <td align="" colspan="" rowspan=""></td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">none + pending in/out</td>
+        <td align="" colspan="" rowspan="">none + ask='subscribe'</td>
+        <td align="" colspan="" rowspan="">yes</td>
+        <td align="" colspan="" rowspan="">yes - server only</td>
+        <td align="" colspan="" rowspan="">yes</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">to</td>
+        <td align="" colspan="" rowspan="">to</td>
+        <td align="" colspan="" rowspan="">yes</td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan="">yes</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">to + pending in</td>
+        <td align="" colspan="" rowspan="">to</td>
+        <td align="" colspan="" rowspan="">yes</td>
+        <td align="" colspan="" rowspan="">yes - server only</td>
+        <td align="" colspan="" rowspan="">yes</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">from</td>
+        <td align="" colspan="" rowspan="">from</td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan="">yes</td>
+        <td align="" colspan="" rowspan=""></td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">from + pending out</td>
+        <td align="" colspan="" rowspan="">from/none + ask='subscribe'</td>
+        <td align="" colspan="" rowspan="">yes</td>
+        <td align="" colspan="" rowspan="">yes</td>
+        <td align="" colspan="" rowspan="">yes</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">both</td>
+        <td align="" colspan="" rowspan="">both</td>
+        <td align="" colspan="" rowspan="">yes</td>
+        <td align="" colspan="" rowspan="">yes</td>
+        <td align="" colspan="" rowspan="">yes</td>
+      </tr>
+     </table></div>
+  </div>
+  </div>
+<h2>4.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">It is not intended for servers to strip any &lt;moved/&gt; elements from
+  &lt;presence/&gt; stanzas sent in from a client. This allows clients as well as
+  servers to implement these same procedures.</p>
+
+  <p class="" style="">In order to prevent other users from maliciously altering contacts
+  the client SHOULD NOT automatically subscribe to a &lt;moved/&gt; JID when it
+  receives an unsubscribe and SHOULD NOT automatically unsubscribe to
+  a &lt;moved/&gt; JID when it receives a subscribe.</p>
+
+  <p class="" style="">The following illustrates an example malicious attack.</p>
+
+  <ol start="" class="" style="">
+  <li class="" style="">userA@example.com subscribes to userB@example.com</li>
+  <li class="" style="">The userB@example.com automatically accepts the subscription from
+      userA@example.com. (Automatically done by the client using a simple
+      domain trust).</li>
+  <li class="" style="">userA@example.com unsubscribes with the &lt;moved/&gt; 'new' JID set to
+      companyCEO@example.com.</li>
+  <li class="" style="">The previous steps can be repeated and have userB@example.com subscribe
+      to a large number of people.</li>
+  </ol>
+
+ <p class="" style="">A similar attack can be done with a new subscribe request causing users
+  by guessing which users are subscribed to a contact.</p>
+
+  <ol start="" class="" style="">
+  <li class="" style="">hacker@example.com subscribes to userB@example.com guessing that
+      userA@example.com is on userB's roster.
+
+&lt;presence from='hacker@example.com' to='userB@example.com' type='subscribe'&gt;
+  &lt;status&gt;Subscribe to me!&lt;/status&gt;
+  &lt;moved xmlns='urn:xmpp:moved:0' old='userA@example.com'/&gt;
+&lt;/presence&gt;
+
+  </li>
+  <li class="" style="">If userB's client automatically accepted the subscription without
+  displaying at prompt to userB showing the new JID to be hacker@example.com,
+  then the user has no idea that hacker@example.com was just added to
+  the roster.
+  </li>
+  </ol>
+
+<h2>5.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm225">3</a>].</p>
+<h2>6.
+       <a name="reg" id="reg">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>6.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:moved:0</li>
+    </ul>
+    <p class="" style="">Upon advancement of this specification from a status of Experimental
+    to a status of Draft, the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm235">4</a>] shall add the foregoing namespace
+    to the registry located at &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of
+    <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idm240">5</a>].
+    </p>
+  </div>
+  <div class="indent"><h3>6.2 <a name="registrar-versioning" id="registrar-versioning">Protocol Versioning</a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+<h2>7.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:moved:0'
+    xmlns='urn:xmpp:moved:0'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='moved'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='xs:string'&gt;
+          &lt;xs:attribute name='new' type='xs:string' use='optional'/&gt;
+          &lt;xs:attribute name='old' type='xs:string' use='optional'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+&lt;/xs:schema&gt;
+</pre></div>
+<h2>8.
+       <a name="ack" id="ack">Acknowledgements</a></h2>
+  <p class="" style="">The author wishes to thank Doug Abbink, Mikhail Belov, Peter Saint-Andre, and Peter Sheu for their feedback.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0283<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1.1<br />
+            Last Updated: 2018-08-06<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: moved<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0283.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0283.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0283.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Tory Patnoe</h3><p class="indent">
+        Email:
+        <a href="mailto:tpatnoe@cisco.com">tpatnoe@cisco.com</a><br />
+        JabberID:
+        <a href="xmpp:tpatnoe@cisco.com">tpatnoe@cisco.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm90" id="nt-idm90">1</a>. RFC 6121: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc6121">http://tools.ietf.org/html/rfc6121</a>&gt;.</p><p><a name="nt-idm97" id="nt-idm97">2</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm225" id="nt-idm225">3</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm235" id="nt-idm235">4</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idm240" id="nt-idm240">5</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1.1 (2018-08-06)</h4><div class="indent"><p class="" style="">Fix trivial typo</p> (pep)
+    </div><h4>Version 0.1 (2010-06-16)</h4><div class="indent"><p class="" style="">Initial published version.</p> (psa)
+    </div><h4>Version 0.0.7 (2010-06-09)</h4><div class="indent">
+      <p class="" style="">Modified syntax to use 'old' and 'new' attributes.</p>
+     (tp)
+    </div><h4>Version 0.0.6 (2010-06-07)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Update ordering so that it recommends sending the unsubscribe/unsubscribed, before, sending the subscribe</li>
+        <li class="" style="">Add section documenting what happens when a contact is offline when the unsubscribe/unsubscribed/subscribe stanzas are sent.</li>
+        <li class="" style="">Added an example about a hacker sending an unsolicited subscribe by guessing a roster entry.</li>
+      </ul>
+     (tp)
+    </div><h4>Version 0.0.5 (2010-06-02)</h4><div class="indent">
+      <p class="" style="">Added one-way subscription section</p>
+     (tp)
+    </div><h4>Version 0.0.4 (2010-05-30)</h4><div class="indent">
+      <p class="" style="">Change MUST NOT to SHOULD NOT for clients auto-subscribing back; differentiate between inbound and outbound subscriptions.</p>
+     (tp)
+    </div><h4>Version 0.0.3 (2010-06-02)</h4><div class="indent"><p class="" style="">Add one-way subscription comments.</p> (tp)
+    </div><h4>Version 0.0.2 (2010-05-25)</h4><div class="indent"><p class="" style="">Minor tweaks.</p> (tp)
+    </div><h4>Version 0.0.1 (2010-05-22)</h4><div class="indent"><p class="" style="">First draft.</p> (tp)
+    </div></div><hr /><p>END</p></body></html>
