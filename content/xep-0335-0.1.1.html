@@ -1,0 +1,109 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0335: JSON Containers</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="JSON Containers" /><meta name="DC.Creator" content="Matthew Wild" /><meta name="DC.Description" content="This specification defines an element to be used for encapsulating JSON data in XMPP." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2018-09-26" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0335" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0335: JSON Containers</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines an element to be used for encapsulating JSON data in XMPP.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Matthew Wild</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2018 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2018-09-26</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#usecases">Use Cases</a><br />4.  <a href="#rules">Business Rules</a><br />5.  <a href="#notes">Implementation Notes</a><br />6.  <a href="#security">Security Considerations</a><br />7.  <a href="#iana">IANA Considerations</a><br />8.  <a href="#registrar">XMPP Registrar Considerations</a><br />9.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style=""><a href="http://json.org/">JSON</a> is an increasingly popular format for data representation. While investigation has shown us that it cannot feasibly replace XML in all its uses (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0295.html">JSON Encodings for XMPP (XEP-0295)</a></span>  [<a href="#nt-idm58">1</a>]) sometimes existing data is already in JSON or it is necessary to integrate with systems that use JSON while avoiding the overhead of marshalling that data to or from XML.</p>
+  <p class="" style="">Traditional approaches have ranged from simply placing the XML into existing freeform text containers in XMPP (such as the message &lt;body&gt; tag or the presence &lt;status&gt; tag) to creating dedicated containers in a custom namespace. Neither of these approaches are ideal for preserving the extensibility or interoperability that XMPP provides.</p>
+  <p class="" style="">This document aims to solve the problem by defining a standard way to embed JSON into any XMPP stanza, and even allowing its use with existing XMPP protocols where possible.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p class="" style="">This specification should:</p>
+  <ul class="" style="">
+    <li class="" style="">Allow stanza generators to unambiguously embed JSON within their stanzas.</li>
+    <li class="" style="">Allow stanza recipients a way to identify JSON content, and thus also validation.</li>
+  </ul>
+<h2>3.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <p class="" style="">Since JSON generally isn't designed for end-user presentation, most use-cases centre around JSON as part of machine-to-machine communication, or as part of a higher protocol, such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm71">2</a>].</p>
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. JSON as a pubsub item payload</p><div class="indent"><pre class="prettyprint">
+    &lt;message from='pubsub.shakespeare.lit' to='francisco@denmark.lit' id='foo'&gt;
+     &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+       &lt;items node='princely_musings'&gt;
+         &lt;item id='ae890ac52d0df67ed7cfdf51b644e901'&gt;
+           &lt;json xmlns="urn:xmpp:json:0"&gt;
+           { "name": "romeo", "age": "421", "status": "single" }
+           &lt;/json&gt;
+         &lt;/item&gt;
+       &lt;/items&gt;
+     &lt;/event&gt;
+   &lt;/message&gt;
+</pre></div>
+
+  <p class="caption"><a name="example-2" id="example-2"></a>Example 2. JSON as part of a custom protocol</p><div class="indent"><pre class="prettyprint">
+    &lt;iq to="recipient.example.com" type="get" id="q1"&gt;
+      &lt;query xmlns="http://example.com/user-queries"&gt;
+        &lt;json xmlns="urn:xmpp:json:0"&gt;
+          { "name": "romeo" }
+        &lt;/json&gt;
+      &lt;/query&gt;
+    &lt;/iq&gt;
+</pre></div>
+
+<h2>4.
+       <a name="rules" id="rules">Business Rules</a></h2>
+  <p class="" style="">The &lt;json&gt; element MUST only contain character data, and the data MUST conform to <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4627">RFC 4627</a></span>  [<a href="#nt-idm79">3</a>]. Specifically, the element MUST NOT be empty, as the empty string is not valid JSON. The data MUST be encoded as UTF-8 (though officially unspecified, this is the de facto encoding for JSON today).</p>
+  <p class="" style="">Implementations SHOULD validate JSON they receive and intend to use, and be prepared to handle invalid data appropriately (such as by responding to the sender with the applicable XMPP error reply for the stanza type).</p>
+  <p class="" style="">As the &lt;json&gt; element alone provides no context to the recipient about the kind of data it contains, only the format, it SHOULD always be encapsulated within another element that provides a context and SHOULD NOT be added as a direct child of a stanza.</p>
+<h2>5.
+       <a name="notes" id="notes">Implementation Notes</a></h2>
+  <p class="" style="">The JSON container element is intended for communicating small pieces of generic JSON data within a particular context. XMPP entities MUST NOT attempt to interpret unexpected JSON data they receive, and servers SHOULD NOT inspect JSON data inside stanzas they are routing, other than for OPTIONAL validation.</p>
+  <p class="" style="">When generating stanzas containing JSON payloads, implementations should be aware of the maximum stanza size considerations laid down in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-idm88">4</a>].</p>
+  <p class="" style="">Embedding JSON is not intended as a substitute for the use of XML in XMPP, and no attempt should be made by protocol designers to use it as such. XMPP implementations are optimised for XML processing, and introducing mixed-format protocols on top of existing XMPP constructs could lead to performance and security considerations beyond the scope of this document.</p>
+<h2>6.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">JSON is a very common format for data interchange today, and has many popular implementations available in browsers and standalone libraries that can be assumed relatively well-tested. However an implementation receiving JSON data from an untrusted entity should take precautions and MUST NOT attempt to use invalid JSON data it receives in any way, nor must it accept data in any encoding other than UTF-8 to avoid potential encoding mismatch attacks.</p>
+<h2>7.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">N/A.</p>
+<h2>8.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p class="" style="">TBD.</p>
+<h2>9.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="" style="">This schema is descriptive, not normative.</p>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:json:0'
+    xmlns='urn:xmpp:json:0'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-0335: http://www.xmpp.org/extensions/xep-0335.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name='json' type='xs:string' minOccurs='0' maxOccurs='unbounded'/&gt;
+&lt;/xs:schema&gt;
+</pre></div>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0335<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1.1<br />
+            Last Updated: 2018-09-26<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, RFC 4627<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0335.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0335.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0335.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Matthew Wild</h3><p class="indent">
+        Email:
+        <a href="mailto:mwild1@gmail.com">mwild1@gmail.com</a><br />
+        JabberID:
+        <a href="xmpp:me@matthewwild.co.uk">me@matthewwild.co.uk</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="http://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm58" id="nt-idm58">1</a>. XEP-0295: JSON Encodings for XMPP &lt;<a href="https://xmpp.org/extensions/xep-0295.html">https://xmpp.org/extensions/xep-0295.html</a>&gt;.</p><p><a name="nt-idm71" id="nt-idm71">2</a>. XEP-0060: Publish-Subscribe &lt;<a href="https://xmpp.org/extensions/xep-0060.html">https://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-idm79" id="nt-idm79">3</a>. RFC 4627: The application/json Media Type for JavaScript Object Notation (JSON) &lt;<a href="http://tools.ietf.org/html/rfc4627">http://tools.ietf.org/html/rfc4627</a>&gt;.</p><p><a name="nt-idm88" id="nt-idm88">4</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1.1 (2018-09-26)</h4><div class="indent"><p class="" style="">Fix XEP number in schema description</p> (pep)
+    </div><h4>Version 0.1 (2013-10-25)</h4><div class="indent"><p class="" style="">Initial published version approved by the XMPP Council.</p> (psa)
+    </div><h4>Version 0.0.2 (2013-10-09)</h4><div class="indent"><p class="" style="">Update namespace to urn:xmpp:json:0, add requirement for encapsulation within other protocols, and require conformance to RFC 4627.</p> (mw)
+    </div><h4>Version 0.0.1 (2012-11-15)</h4><div class="indent"><p class="" style="">First draft.</p> (mw)
+    </div></div><hr /><p>END</p></body></html>
