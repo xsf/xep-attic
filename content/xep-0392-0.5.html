@@ -1,0 +1,344 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0392: Consistent Color Generation</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Consistent Color Generation" /><meta name="DC.Creator" content="Jonas Sch&#xE4;fer" /><meta name="DC.Description" content="This specification provides a set of algorithms to consistently generate colors given a string. The string can be a nickname, a JID or any other piece of information. All entities adhering to this specification generate the same color for the same string, which provides a consistent user experience across platforms." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2018-10-01" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0392" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0392: Consistent Color Generation</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification provides a set of algorithms to consistently generate colors given a string. The string can be a nickname, a JID or any other piece of information. All entities adhering to this specification generate the same color for the same string, which provides a consistent user experience across platforms.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Jonas Schäfer</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2018 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.5</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2018-10-01</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#usecases">Use Cases</a><br />   
+      3.1.  <a href="#usecase-textcolor">Generating a color</a><br />   
+      3.2.  <a href="#usecase-nickcolor">Adding colors to participants of a conversation</a><br />   
+      3.3.  <a href="#usecase-avatar">Auto-Generating Avatars</a><br />4.  <a href="#rules">Business Rules</a><br />5.  <a href="#algorithm">Algorithms</a><br />   
+      5.1.  <a href="#algorithm-angle">Angle generation</a><br />   
+      5.2.  <a href="#algorithm-cvd">Corrections for Color Vision Deficiencies</a><br />      
+      5.2.1.  <a href="#algorithm-cvd-rg">Red/Green-blindness</a><br />      
+      5.2.2.  <a href="#algorithm-cvd-b">Blue-blindness</a><br />   
+      5.3.  <a href="#algorithm-bg">Adapting the Color for specific Background Colors</a><br />   
+      5.4.  <a href="#algorithm-rgb">RGB generation</a><br />   
+      5.5.  <a href="#algorithm-genpalette">Conversion of an RGB color palette to a Hue palette</a><br />   
+      5.6.  <a href="#algorithm-mappalette">Mapping of a Hue angle to closest palette color</a><br />6.  <a href="#impl">Implementation Notes</a><br />   
+      6.1.  <a href="#impl-gamma">Gamma Correction</a><br />   
+      6.2.  <a href="#impl-bgcolor">Background Color Correction</a><br />   
+      6.3.  <a href="#impl-norm">Normalization</a><br />7.  <a href="#access">Accessibility Considerations</a><br />8.  <a href="#security">Security Considerations</a><br />9.  <a href="#design">Design Considerations</a><br />   
+      9.1.  <a href="#design-ycbcr">The YCbCr color space</a><br />   
+      9.2.  <a href="#design-hsv">Hue-Saturation-Value/Lightness color space</a><br />   
+      9.3.  <a href="#design-context">Palette-based and context-aware coloring</a><br />   
+      9.4.  <a href="#design-mixing">Choice of mixing function in angle generation</a><br />   
+      9.5.  <a href="#design-palette-mapping">Palette-mapping function</a><br />   
+      9.6.  <a href="#design-muc-input">Input for color generation in a Multi-User Chat (XEP-0045) context</a><br />10.  <a href="#iana">IANA Considerations</a><br />11.  <a href="#registrar">XMPP Registrar Considerations</a><br />12.  <a href="#acknowledgements">Acknowledgements</a><br />13.  <a href="#vectors">Test Vectors</a><br />   
+      13.1.  <a href="#testvectors-fullrange">Test Vectors</a><br />      
+      13.1.1.  <a href="#testvectors-fullrange-no-cvd">No Color Vision Deficiency correction</a><br />      
+      13.1.2.  <a href="#testvectors-fullrange-cvd-redgreen">With Red/Green-blindness correction</a><br />      
+      13.1.3.  <a href="#testvectors-fullrange-cvd-blue">With Blue-blindness correction</a><br />   
+      13.2.  <a href="#testvectors-palette">Test Vectors for mapping to 216 color palette</a><br />      
+      13.2.1.  <a href="#testvectors-palette-no-cvd">No Color Vision Deficiency correction</a><br />      
+      13.2.2.  <a href="#testvectors-palette-cvd-redgreen">With Red/Green-blindness correction</a><br />      
+      13.2.3.  <a href="#testvectors-palette-cvd-blue">With Blue-blindness correction</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">Colors provide a valuable visual cue to recognize shapes. Recognition of colors works much faster than recognition of text. Together with the length and overall shape of a piece of text (such as a nickname),  a color provides a decent amount of entropy to distinguish a reasonable amount of entities, without having to actually read the text.</p>
+  <p class="" style="">Clients have been using randomly or deterministically chosen colors for users in multi-user situations for a long time already. However, since there has been no standard for how this is implemented, the experience differs across platforms. The goal of this XEP is to provide a uniform, platform-independent, stateless and easy-to-implement way to map arbitrary bytestrings to colors, as well as give recommendations how this is applied to color names of participants in conversations, roster entries and other pieces of text.</p>
+  <p class="" style="">To allow cross-client use, it is important that the color scheme can be adapted to different environments. This specification provides means to adapt colors to different background colors as well as Color Vision Deficiencies.</p>
+  <p class="" style="">In no way is the system presented in this specification a replacement for names. It only serves as an additional visual aid.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p class="" style="">The color generation mechanism should provide the following features:</p>
+  <ul class="" style="">
+    <li class="" style="">Consistent generation of color across all platforms depending solely on the identifier used as input for the algorithm.</li>
+    <li class="" style="">The system should be reasonably fast; it must be possible to, for example, apply it to all roster entries even of very large rosters in reasonable amount of time.</li>
+    <li class="" style="">It must be able to provide decent contrast on any background.</li>
+    <li class="" style="">The implementation should be stateless and not be complex.</li>
+    <li class="" style="">A fallback path for users with common types of Color Vision Deficiencies must be provided.</li>
+    <li class="" style="">A fallback path for systems which can only use colors from a restricted palette must be provided.</li>
+  </ul>
+<h2>3.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <div class="indent"><h3>3.1 <a name="usecase-textcolor" id="usecase-textcolor">Generating a color</a></h3>
+    <p class="" style="">To generate a color from a string of text, the follownig algorithms are applied in order:</p>
+    <ol start="" class="" style="">
+      <li class="" style=""><a href="#algorithm-angle">Generate a Hue value from the text</a>.</li>
+      <li class="" style="">If enabled, <a href="#algorithm-cvd">apply configured corrections for Color Vision Deficiencies</a>.</li>
+      <li class="" style="">If the output device only supports a small palette of colors, <a href="#algorithm-mappalette">map the angle to the closest palette color</a>.</li>
+      <li class="" style="">If the output device supports RGB output, <a href="#algorithm-rgb">Convert the angle to a RGB</a>.</li>
+    </ol>
+  </div>
+  <div class="indent"><h3>3.2 <a name="usecase-nickcolor" id="usecase-nickcolor">Adding colors to participants of a conversation</a></h3>
+    <p class="" style="">Implementations may colorize the participants of a conversation with an individual color to make them easier to distinguish.</p>
+    <p class="" style="">In such cases, the color SHOULD be generated as described in the <a href="#usecase-textcolor">Generating a color</a> section. The input used SHOULD be, in descending order of preference, (a) the bare JID of the user (not the room), (b) the nickname as chosen by the user in the room.</p>
+  </div>
+  <div class="indent"><h3>3.3 <a name="usecase-avatar" id="usecase-avatar">Auto-Generating Avatars</a></h3>
+    <p class="" style="">Implementations may want to show a picture in connection with a contact even if the contact does not have an avatar defined (e.g. via <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0084.html">User Avatar (XEP-0084)</a></span>  [<a href="#nt-idm109">1</a>]).</p>
+    <p class="" style="">In such cases, auto-generating an avatar SHOULD happen as follows:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">Obtain a name for the contact, in descending order of preference, (a) the nickname from the conversation, (b) the bare JID of the contact (<span class="em">not</span> the bare JID of the conference in case of a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm117">2</a>] room).</li>
+      <li class="" style="">Generate a color as described in the <a href="#usecase-textcolor">Generating a color</a> section.</li>
+      <li class="" style="">Fill an implementation-defined background shape with that color.</li>
+      <li class="" style="">Render the first character of the name in white or black centered on the shape.</li>
+    </ol>
+  </div>
+<h2>4.
+       <a name="rules" id="rules">Business Rules</a></h2>
+  <ul class="" style="">
+    <li class="" style="">Implementations SHOULD allow the user to turn off any colorization completely.</li>
+    <li class="" style="">Implementations SHOULD implement the Color Vision Deficiency profiles and SHOULD allow the user to choose any of these profiles or to disable the correction.</li>
+    <li class="" style="">Implementations MUST NOT share the Color Vision Deficiency correction settings with other entities.</li>
+  </ul>
+<h2>5.
+       <a name="algorithm" id="algorithm">Algorithms</a></h2>
+  <p class="" style="">The algorithms in this document use the <span class="ref" style=""><a href="http://www.hsluv.org/">HSLuv</a></span>  [<a href="#nt-idm132">3</a>]⎄ color space. It provides consistent brightness (for a given luminosity) across its entire definition space. There is also widespread library support.</p>
+  <div class="indent"><h3>5.1 <a name="algorithm-angle" id="algorithm-angle">Angle generation</a></h3>
+    <p class="" style="">Input: An identifier, encoded as octets of UTF-8 (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3269">RFC 3269</a></span>  [<a href="#nt-idm138">4</a>]).</p>
+    <p class="" style="">Output: Hue angle.</p>
+    <p class="" style="">Note: The goal of this algorithm is to convert arbitrary text into a scalar value which can then be used to calculate a color.</p>
+    <ol start="" class="" style="">
+      <li class="" style="">Run the input through SHA-1 (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3174">RFC 3174</a></span>  [<a href="#nt-idm146">5</a>]).</li>
+      <li class="" style="">Treat the output as little endian and extract the least-significant 16 bits. (These are the first two bytes of the output, with the second byte being the most significant one.)</li>
+      <li class="" style="">Divide the value by 65536 (use float division) and multiply it by 360 (to map it to degrees in a full circle).</li>
+    </ol>
+  </div>
+  <div class="indent"><h3>5.2 <a name="algorithm-cvd" id="algorithm-cvd">Corrections for Color Vision Deficiencies</a></h3>
+    <p class="" style="">Input: Hue angle.</p>
+    <p class="" style="">Output: Hue angle.</p>
+    <p class="" style="">Note: This algorithm will re-map the angle to map it away from ranges which can not be distinguished by people with the respective Color Vision Deficiencies.</p>
+    <div class="indent"><h3>5.2.1 <a name="algorithm-cvd-rg" id="algorithm-cvd-rg">Red/Green-blindness</a></h3>
+      <p class="" style="">Take the angle modulo 180 and subtract 90.</p>
+      <p class="" style="">Note: the same effect can be achieved by forcing the two most-significant bits of the angle to be equal to the second-most-significant bit before converting to a float in <a href="#algorithm-angle">Angle generation</a>. This avoids having to perform a floating-point modulo operation.</p>
+    </div>
+    <div class="indent"><h3>5.2.2 <a name="algorithm-cvd-b" id="algorithm-cvd-b">Blue-blindness</a></h3>
+      <p class="" style="">Subtract 90 from the angle, take the result modulo 180.</p>
+      <p class="" style="">Note: the same effect can be achieved by setting the second-most-significant bit of the angle to the inverse of the most-significant bit and then setting the most-significant bit to zero before conversion to floating point in <a href="#algorithm-angle">Angle generation</a>. This avoids having to perform a floating-point modulo operation.</p>
+    </div>
+  </div>
+  <div class="indent"><h3>5.3 <a name="algorithm-bg" id="algorithm-bg">Adapting the Color for specific Background Colors</a></h3>
+    <p class="" style="">Input: RGB values for the color to adapt (Ri, Gi, Bi) and for the background color to adapt to (Rb, Gb, Bb), in the range from 0 to 1 each.</p>
+    <p class="" style="">Output: Values for Red (Rc), Green (Gc) and Blue (Bc) in the RGB color space in the range from 0 to 1.</p>
+    <ol start="" class="" style="">
+      <li class="" style="">Invert the background color by subtracting the individual channels from 1 each:
+        <p class="caption"></p><div class="indent"><pre class="prettyprint">
+rb_inv = 1-rb;
+gb_inv = 1-gb;
+bb_inv = 1-bb;</pre></div></li>
+      <li class="" style="">Mix the inverted background with the color to adapt, using a mixing factor of 0.2:
+        <p class="caption"></p><div class="indent"><pre class="prettyprint">
+rc = 0.2*rb_inv + 0.8*ri;
+gc = 0.2*gb_inv + 0.8*gi;
+bc = 0.2*bb_inv + 0.8*bi;</pre></div></li>
+    </ol>
+  </div>
+  <div class="indent"><h3>5.4 <a name="algorithm-rgb" id="algorithm-rgb">RGB generation</a></h3>
+    <p class="" style="">Use the HSLuv operation <tt>hsluvToRgb</tt> to convert the Hue angle to a color. For this, saturation SHOULD be set to 100 and lightness SHOULD be set to 50.</p>
+  </div>
+  <div class="indent"><h3>5.5 <a name="algorithm-genpalette" id="algorithm-genpalette">Conversion of an RGB color palette to a Hue palette</a></h3>
+    <p class="" style="">Input: A set of RGB colors (each component from 0 to 1).</p>
+    <p class="" style="">Output: A mapping from angles (integer, from 0 to 360) to RGB colors.</p>
+    <p class="" style="">Note: when the algorithm finishes, the mapping maps angles (rounded to two decimal places) to the R, G, B triples which come closest to the desired color and lightness.</p>
+    <ol start="" class="" style="">
+      <li class="" style="">Create an empty mapping M which maps from Hue angles to quadruples of L, R, G and B.</li>
+      <li class="" style="">For each color R, G, B from the input palette:
+        <ol start="" class="" style="">
+          <li class="" style="">If the R, G and B values are equal, skip the color and continue with the next. (Grayscale does not work well, since its saturation and hue are undefined.)</li>
+          <li class="" style="">Calculate H, S and L from R, G, B using HSLuv.</li>
+          <li class="" style="">Round the angle to the next integer value.</li>
+          <li class="" style="">If the angle is not in the mapping M yet, or if the L value of the existing entry is farther away from 73.2 than the new L value, put the L, R, G, and B values as value for the angle into the mapping.</li>
+        </ol>
+      </li>
+      <li class="" style="">Strip the L values from the values of mapping M.</li>
+      <li class="" style="">Return M as the result of the algorithm.</li>
+    </ol>
+    <p class="" style="">Implementations are free to choose a representation for palette colors different from R, G, B triplets. The exact representation does not matter, as long as it can be converted to a Hue angle accordingly.</p>
+  </div>
+  <div class="indent"><h3>5.6 <a name="algorithm-mappalette" id="algorithm-mappalette">Mapping of a Hue angle to closest palette color</a></h3>
+    <p class="" style="">Input: (a) A mapping which maps angles to R, G, B triplets and (b) a color to map to the closest palette color as angle alpha.</p>
+    <p class="" style="">Output: A palette color as R, G, B triplet.</p>
+    <p class="" style="">Note: See <a href="#algorithm-genpalette">Conversion of an RGB color palette to a Hue palette</a> on how to convert an R, G, B triplet to an angle.</p>
+    <ol start="" class="" style="">
+      <li class="" style="">First, check if alpha rounded to an integer. If so, return that match immediately.</li>
+      <li class="" style="">For each angle beta in the palette, calculate the distance metric: <p class="caption"></p><div class="indent"><pre class="prettyprint">D = min((alpha - beta) % 360, (beta - alpha) % 360)</pre></div>.</li>
+      <li class="" style="">Return the R, G, B triplet associated with the angle with the smallest distance metric D.</li>
+    </ol>
+    <p class="" style="">Implementations are free to choose a representation for palette colors different from R, G, B triplets. The exact representation does not matter, as long as it can be converted to a Hue angle accordingly.</p>
+  </div>
+<h2>6.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <div class="indent"><h3>6.1 <a name="impl-gamma" id="impl-gamma">Gamma Correction</a></h3>
+    <p class="" style="">Implementations should be aware of Gamma correction and apply it as needed.</p>
+  </div>
+  <div class="indent"><h3>6.2 <a name="impl-bgcolor" id="impl-bgcolor">Background Color Correction</a></h3>
+    <p class="" style="">An implementation which shows the generated colors on a colored background SHOULD apply <a href="#algorithm-bg">Adapting the Color for specific Background Colors</a>. If the background is not uniformly colored, it is up to the implementation to determine an appropriate surrogate background color to correct against.</p>
+    <p class="" style="">If an implementation shows the generated colors on a grayscale (including white and black) background, it MAY apply the background color correction algorithm. It is RECOMMENDED to always apply the algorithm if the background color is changed dynamically, to avoid discontinuities between grayscale and colored backgrounds.</p>
+    <p class="" style="">Implementations SHOULD use the same background color for all generated colors. If this is not feasible, implementations SHOULD use the same background color for all generated colors within the same GUI control (for example, within a conversation and within the roster).</p>
+  </div>
+  <div class="indent"><h3>6.3 <a name="impl-norm" id="impl-norm">Normalization</a></h3>
+    <p class="" style="">When processing JIDs as text input, implementations MUST prepare the JID as it would for comparing it to another JID with a case-sensitive comparison function.</p>
+  </div>
+<h2>7.
+       <a name="access" id="access">Accessibility Considerations</a></h2>
+  <p class="" style="">As outlined above, implementations SHOULD offer the <span class="em">Red/Green-Blindness</span> and <span class="em">Blue-Blindness</span> corrections as defined in the <a href="#algorithm-cvd">Corrections for Color Vision Deficiencies</a> section. Users SHOULD be allowed to choose between:</p>
+  <ul class="" style="">
+    <li class="" style="">disabling all corrections (skip the Corrections for Color Vision Deficiencies step entirely),</li>
+    <li class="" style="">applying one of the Color Vision Deficiency correction profiles and</li>
+    <li class="" style="">disabling colorization altogether.</li>
+  </ul>
+  <p class="" style="">The last option is useful for users with monochromatic view or who find colors distracting.</p>
+  <p class="" style="">Some sources on the internet indicate that people with Color Vision Deficiencies may profit from having larger areas of color to be able to recognize them. This should be taken into consideration when selecting font weights and line widths for colored parts.</p>
+<h2>8.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">This specification extracts a bit more information from an entity and shows it alongside the existing information to the user. As the algorithm is likely to produce different colors for look-alikes (see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0165.html">Best Practices to Prevent JID Mimicking (XEP-0165)</a></span>  [<a href="#nt-idm224">6</a>] for examples) in JIDs, it may add additional protection against attacks based on those.</p>
+  <p class="" style="">Due to the limited set of distinguishable colors and only extracting 16 bits of the hash function output, possible Color Vision Deficiencies and/or use of palettes, entities MUST NOT rely on colors being unique in any context.</p>
+<h2>9.
+       <a name="design" id="design">Design Considerations</a></h2>
+  <p class="" style="">This section provides an overview of design considerations made while writing this specification. It shows alternatives which have been considered, and eventually rejected.</p>
+  <div class="indent"><h3>9.1 <a name="design-ycbcr" id="design-ycbcr">The YCbCr color space</a></h3>
+    <p class="" style="">The versions up to 0.5 of this document used a variant of the YCbCr color space (namely <span class="ref" style=""><a href="https://www.itu.int/rec/R-REC-BT.601-7-201103-I/en">BT.601</a></span>  [<a href="#nt-idm233">7</a>]) along with a custom algorithm to convert from angles to CbCr and from there to RGB. The HSLuv color space provides extremely consistent apparent brightness of the colors which cannot be achieved with simple application of YCbCr. In addition, HSLuv has widespread library support.</p>
+  </div>
+  <div class="indent"><h3>9.2 <a name="design-hsv" id="design-hsv">Hue-Saturation-Value/Lightness color space</a></h3>
+    <p class="" style="">The HSV and HSL color spaces fail to provide uniform luminosity with fixed value/lightness and saturation parameters. Adapting those parameters for uniform luminosity across the hue range would have complicated the algorithm with litte to no gain.</p>
+  </div>
+  <div class="indent"><h3>9.3 <a name="design-context" id="design-context">Palette-based and context-aware coloring</a></h3>
+    <p class="" style="">Given a fixed-size and finite palette of colors, it would be possible to ensure that, until the number of entities to color exceeds the number of colors, no color collisions happen.</p>
+    <p class="" style="">There are issues with this approach when the set of entities is dynamic. In such cases, it is possible that an entity changes its associated color (for example by re-joining a colored group chat), which defeats the original purpose.</p>
+    <p class="" style="">In addition, more state needs to be taken into account, increasing the complexity of choosing a color.</p>
+  </div>
+  <div class="indent"><h3>9.4 <a name="design-mixing" id="design-mixing">Choice of mixing function in angle generation</a></h3>
+    <p class="" style="">This specification needs to collapse an arbitrarily long string into just a few bits (the angle in the CbCr plane). To do so, SHA-1 (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3174">RFC 3174</a></span>  [<a href="#nt-idm146">5</a>]) is used.</p>
+    <p class="" style="">CRC32 and Adler32 have been considered as faster alternatives. Downsides of these functions:</p>
+    <ul class="" style="">
+      <li class="" style="">Bad mixing without additional entropy.</li>
+      <li class="" style="">Adler32 is rarely available in standard libraries.</li>
+      <li class="" style="">CRC32 is ambiguous: there are multiple polynomials in widespread use (e.g. the Ethernet and the zlib polynomials). Often it is not clear which polynomial is used by a library.</li>
+    </ul>
+    <p class="" style="">SHA-1 is widely available. From a security point of view, the exact choice of hash function does not matter here, since it is truncated to 16 bits. At this length, any cryptographic hash function is weak.</p>
+  </div>
+  <div class="indent"><h3>9.5 <a name="design-palette-mapping" id="design-palette-mapping">Palette-mapping function</a></h3>
+    <p class="" style="">The palette-mapping algorithm operates on angles only and disregards the Y value except if the angles match. This has the downside that the brightness is not equal over the range of the palette mapped colors.</p>
+    <p class="" style="">The alternative would be to require Y to be close to the target Y. This has several issues:</p>
+    <ul class="" style="">
+      <li class="" style="">We cannot know if a palette can satisfy the given Y at all.</li>
+      <li class="" style="">Many colors from e.g. the "Web Safe" palette (used in 256 color terminals and the test vectors) will not satisfy any given Y, reducing the size of the effective palette drastically.</li>
+    </ul>
+    <p class="" style="">For the sake of having more colors available, the given algorithm was chosen which prefers many colors with hue conformance over fewer colors with hue and lightness conformance.</p>
+  </div>
+  <div class="indent"><h3>9.6 <a name="design-muc-input" id="design-muc-input">Input for color generation in a Multi-User Chat (XEP-0045) context</a></h3>
+    <p class="" style="">In <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm117">2</a>] conversations (MUCs), there are two viable choices for the hash function input when generating a color for a participant: the nickname as chosen by the participant (or their full JID) and the participants real bare JID. Both options have advantages and disadvantages. The advantages of using the nickname are:</p>
+    <ul class="" style="">
+      <li class="" style="">Yields the same output even in anonymous MUCs if the same nickname is used.</li>
+      <li class="" style="">Is guaranteed to work for transports implementing <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm117">2</a>].</li>
+    </ul>
+    <p class="" style="">The advantages of using the bare JID are:</p>
+    <ul class="" style="">
+      <li class="" style="">Allows to use the same color in 1:1 communications with that entity as in group chats, helping with recognizability.</li>
+      <li class="" style="">Stays constant even across changes of ephemeral information like nicknames.</li>
+    </ul>
+    <p class="" style="">There is no obvious correct choice to make here; both choices break in different use-cases. Specifically, the "nickname" choice breaks when the same entity has different nicknames in different rooms, as well as when two different entities have the same nickname in different rooms. The "bare JID" choice breaks when (semi-)anonymous MUCs are involved.</p>
+    <p class="" style="">The choice "bare JID" has the conceptual advantage that it ties as closely as possible to the identity of the entity. It is also forward-compatible with future protocols where nicknames might not be available or work differently.</p>
+  </div>
+<h2>10.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm283">8</a>]. </p>
+<h2>11.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm289">9</a>]. </p>
+<h2>12.
+       <a name="acknowledgements" id="acknowledgements">Acknowledgements</a></h2>
+  <p class="" style="">Thanks to Klaus Herberth, Daniel Gultsch, Georg Lukas, Tobias Markmann, Christian Schudt, and Marcus Waldvogel for their input and feedback on this document.</p>
+<h2>13.
+       <a name="vectors" id="vectors">Test Vectors</a></h2>
+  <div class="indent"><h3>13.1 <a name="testvectors-fullrange" id="testvectors-fullrange">Test Vectors</a></h3>
+    <p class="" style="">This section holds test vectors for the different configurations. The test vectors are provided as Comma Separated Values. Strings are enclosed by single quotes ('). The first line contains a header. Each row contains, in that order, the original text, the text encoded as UTF-8 as hexadecimal octets, the angle in degrees, the calculated hue in degrees (differs from angle only for CVD-corrected rows), and the Red, Green, and Blue values.</p>
+    <div class="indent"><h3>13.1.1 <a name="testvectors-fullrange-no-cvd" id="testvectors-fullrange-no-cvd">No Color Vision Deficiency correction</a></h3>
+      <p class="caption"></p><div class="indent"><pre class="prettyprint">text,hextext,angle,hue,r,g,b
+'Romeo','526f6d656f',237.255249,237.255249,0.000,0.498,0.698
+'juliet@capulet.lit','6a756c69657440636170756c65742e6c6974',119.410400,119.410400,0.254,0.529,0.000
+'😺','f09f98ba',241.199341,241.199341,0.000,0.494,0.727
+'council','636f756e63696c',269.994507,269.994507,0.473,0.350,1.000
+'Board','426f617264',81.430664,81.430664,0.501,0.477,0.000</pre></div>
+    </div>
+    <div class="indent"><h3>13.1.2 <a name="testvectors-fullrange-cvd-redgreen" id="testvectors-fullrange-cvd-redgreen">With Red/Green-blindness correction</a></h3>
+      <p class="caption"></p><div class="indent"><pre class="prettyprint">text,hextext,angle,hue,r,g,b
+'Romeo','526f6d656f',237.255249,57.255249,0.596,0.442,0.000
+'juliet@capulet.lit','6a756c69657440636170756c65742e6c6974',119.410400,119.410400,0.254,0.529,0.000
+'😺','f09f98ba',241.199341,61.199341,0.580,0.449,0.000
+'council','636f756e63696c',269.994507,89.994507,0.465,0.488,0.000
+'Board','426f617264',81.430664,81.430664,0.501,0.477,0.000</pre></div>
+    </div>
+    <div class="indent"><h3>13.1.3 <a name="testvectors-fullrange-cvd-blue" id="testvectors-fullrange-cvd-blue">With Blue-blindness correction</a></h3>
+      <p class="caption"></p><div class="indent"><pre class="prettyprint">text,hextext,angle,hue,r,g,b
+'Romeo','526f6d656f',237.255249,237.255249,0.000,0.498,0.698
+'juliet@capulet.lit','6a756c69657440636170756c65742e6c6974',119.410400,119.410400,0.254,0.529,0.000
+'😺','f09f98ba',241.199341,241.199341,0.000,0.494,0.727
+'council','636f756e63696c',269.994507,269.994507,0.473,0.350,1.000
+'Board','426f617264',81.430664,261.430664,0.239,0.414,1.000</pre></div>
+    </div>
+  </div>
+  <div class="indent"><h3>13.2 <a name="testvectors-palette" id="testvectors-palette">Test Vectors for mapping to 216 color palette</a></h3>
+    <p class="" style="">The used palette can be generated by sampling the RGB cube evenly with six samples on each axis (resulting in 210 colors (grayscales are excluded)). The resulting palette is commonly known as the palette of so-called "Web Safe" colors.</p>
+    <div class="indent"><h3>13.2.1 <a name="testvectors-palette-no-cvd" id="testvectors-palette-no-cvd">No Color Vision Deficiency correction</a></h3>
+      <p class="caption"></p><div class="indent"><pre class="prettyprint">text,hextext,hue,best_hue,r,g,b
+'Romeo','526f6d656f',204.510498,192,0.000,0.800,0.800
+'juliet@capulet.lit','6a756c69657440636170756c65742e6c6974',328.820801,328,1.000,0.200,0.800
+'😺','f09f98ba',212.398682,226,0.000,0.800,1.000
+'council','636f756e63696c',269.989014,270,0.400,0.200,1.000
+'Board','426f617264',252.861328,253,0.000,0.200,0.400</pre></div>
+    </div>
+    <div class="indent"><h3>13.2.2 <a name="testvectors-palette-cvd-redgreen" id="testvectors-palette-cvd-redgreen">With Red/Green-blindness correction</a></h3>
+      <p class="caption"></p><div class="indent"><pre class="prettyprint">text,hextext,hue,best_hue,r,g,b
+'Romeo','526f6d656f',24.510498,26,0.800,0.400,0.200
+'juliet@capulet.lit','6a756c69657440636170756c65742e6c6974',148.820801,148,0.000,0.600,0.400
+'😺','f09f98ba',32.398682,33,0.400,0.200,0.000
+'council','636f756e63696c',89.989014,86,0.800,0.800,0.000
+'Board','426f617264',72.861328,64,1.000,0.800,0.000</pre></div>
+    </div>
+    <div class="indent"><h3>13.2.3 <a name="testvectors-palette-cvd-blue" id="testvectors-palette-cvd-blue">With Blue-blindness correction</a></h3>
+      <p class="caption"></p><div class="indent"><pre class="prettyprint">text,hextext,hue,best_hue,r,g,b
+'Romeo','526f6d656f',204.510498,192,0.000,0.800,0.800
+'juliet@capulet.lit','6a756c69657440636170756c65742e6c6974',148.820801,148,0.000,0.600,0.400
+'😺','f09f98ba',212.398682,226,0.000,0.800,1.000
+'council','636f756e63696c',269.989014,270,0.400,0.200,1.000
+'Board','426f617264',252.861328,253,0.000,0.200,0.400</pre></div>
+    </div>
+  </div>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0392<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.5<br />
+            Last Updated: 2018-10-01<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />
+                Dependencies: None<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: colors<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0392.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0392.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0392.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Jonas Schäfer</h3><p class="indent">
+        Email:
+        <a href="mailto:jonas@wielicki.name">jonas@wielicki.name</a><br />
+        JabberID:
+        <a href="xmpp:jonas@wielicki.name">jonas@wielicki.name</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm109" id="nt-idm109">1</a>. XEP-0084: User Avatar &lt;<a href="https://xmpp.org/extensions/xep-0084.html">https://xmpp.org/extensions/xep-0084.html</a>&gt;.</p><p><a name="nt-idm117" id="nt-idm117">2</a>. XEP-0045: Multi-User Chat &lt;<a href="https://xmpp.org/extensions/xep-0045.html">https://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-idm132" id="nt-idm132">3</a>. HSLuv &lt;<a href="http://www.hsluv.org/">http://www.hsluv.org/</a>&gt;.</p><p><a name="nt-idm138" id="nt-idm138">4</a>. RFC 3269: UTF-8, a transformation format of ISO 10646 &lt;<a href="http://tools.ietf.org/html/rfc3269">http://tools.ietf.org/html/rfc3269</a>&gt;.</p><p><a name="nt-idm146" id="nt-idm146">5</a>. RFC 3174: US Secure Hash Algorithm 1 (SHA1) &lt;<a href="http://tools.ietf.org/html/rfc3174">http://tools.ietf.org/html/rfc3174</a>&gt;.</p><p><a name="nt-idm224" id="nt-idm224">6</a>. XEP-0165: Best Practices to Prevent JID Mimicking &lt;<a href="https://xmpp.org/extensions/xep-0165.html">https://xmpp.org/extensions/xep-0165.html</a>&gt;.</p><p><a name="nt-idm233" id="nt-idm233">7</a>. BT.601: Studio encoding parameters of digital television for standard 4:3 and wide screen 16:9 aspect ratios &lt;<a href="https://www.itu.int/rec/R-REC-BT.601-7-201103-I/en">https://www.itu.int/rec/R-REC-BT.601-7-201103-I/en</a>&gt;</p><p><a name="nt-idm283" id="nt-idm283">8</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm289" id="nt-idm289">9</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.5 (2018-10-01)</h4><div class="indent">
+      <p class="" style="">Switch from custom YCbCr-based algorithm to HSLuv.</p>
+      <p class="" style="">Prioritize bare JIDs over nicknames.</p>
+      <p class="" style="">Write down normalization rules.</p>
+     (jsc)
+    </div><h4>Version 0.4.1 (2018-07-28)</h4><div class="indent">
+      <p class="" style="">Fix a typo. (thanks zinid)</p>
+     (egp)
+    </div><h4>Version 0.4 (2017-11-29)</h4><div class="indent">
+      <p class="" style="">Use different formulas for Color Vision Deficiency correction, as suggested by Marcus Waldvogel.</p>
+      <p class="" style="">Update test vectors.</p>
+      <p class="" style="">Clarify generation of the angle.</p>
+      <p class="" style="">Prioritize nicknames over bare JIDs.</p>
+      <p class="" style="">Add rationale for new palette mapping algorithm introduced in 0.3.</p>
+     (jwi)
+    </div><h4>Version 0.3 (2017-11-13)</h4><div class="indent"><p class="" style="">
+      Fix wording in angle generation section which did still use CRC32.
+      Rework palette mapping after with implementation experience.
+    </p> (jwi)
+    </div><h4>Version 0.2 (2017-10-04)</h4><div class="indent"><p class="" style="">
+        Move to SHA-1 as mixing function;
+        Properly reference BT.601 and include constants in text;
+        Prefer bare JID over roster name when selecting the hash function input;
+        Editing.
+    </p> (jwi)
+    </div><h4>Version 0.1 (2017-09-27)</h4><div class="indent"><p class="" style="">Accepted as Experimental by Council.</p> (XEP Editor: jwi)
+    </div><h4>Version 0.0.1 (2017-09-14)</h4><div class="indent"><p class="" style="">First draft.</p> (jwi)
+    </div></div><hr /><p>END</p></body></html>
