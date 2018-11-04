@@ -1,0 +1,550 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0214: File Repository and Sharing</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="File Repository and Sharing" /><meta name="DC.Creator" content="Nicholas Parker" /><meta name="DC.Description" content="While a protocol has been described for initiating a file transfer from one user to another, there is not yet a defined way for users to designate a set of files as available for retrieval by other users of their choosing. This extension defines a common syntax for this purpose which is based on PubSub Collections." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2018-11-03" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0214" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0214: File Repository and Sharing</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>While a protocol has been described for initiating a file transfer from one user to another, there is not yet a defined way for users to designate a set of files as available for retrieval by other users of their choosing. This extension defines a common syntax for this purpose which is based on PubSub Collections.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Nicholas Parker</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2018 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Deferred</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.2.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2018-11-03</td></tr></table><hr /><p style="color:red">WARNING: This document has been automatically Deferred after 12 months of inactivity in its previous Experimental state. Implementation of the protocol described herein is not recommended for production systems. However, exploratory implementations are encouraged to resume the standards process.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#glossary">Glossary</a><br />4.  <a href="#usecases">Use Cases</a><br />   
+      4.1.  <a href="#list">File Listing</a><br />      
+      4.1.1.  <a href="#list-publication">Publication</a><br />      
+      4.1.2.  <a href="#list-subscription">Subscription</a><br />      
+      4.1.3.  <a href="#list-addition">Addition</a><br />      
+      4.1.4.  <a href="#list-newrevisions">New Revisions</a><br />      
+      4.1.5.  <a href="#list-deletion">Modification/Deletion</a><br />   
+      4.2.  <a href="#file-requests">File Requests</a><br />5.  <a href="#impl">Implementation Notes</a><br />6.  <a href="#security">Security Considerations</a><br />7.  <a href="#iana">IANA Considerations</a><br />8.  <a href="#registrar">Jabber Registrar Considerations</a><br />9.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">This document defines a common format which allows a Jabber user to submit, find, and retrieve files within XMPP. The file listing itself is stored on a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm72">1</a>] server, allowing multiple users to manage the same listing. Other features specified by this extension include file metadata, revisions, and download mirrors.</p>
+  <p class="" style="">Retrieval of files provided in a listing MAY be performed through any relevant protocol for transferring data (http, ftp, etc). This protocol standardizes the use of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0137.html">Publishing Stream Initiation Requests (XEP-0137)</a></span>  [<a href="#nt-idm77">2</a>] to establish the file transfer, but also allows for usage of outside protocols such as http or ftp.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p class="" style="">The protocol defined herein provides the following functionality:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">Publication of a list of available files to a PubSub server, with support for hierarchical listings, file metadata, user privileges, and file versioning.</li>
+    <li class="" style="">Request that a file be sent from a Jabber contact directly to oneself using Stream Initiation.</li>
+  </ol>
+<h2>3.
+       <a name="glossary" id="glossary">Glossary</a></h2>
+  <div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: File Sharing Terms</p><table border="1" cellpadding="3" cellspacing="0">
+    <tr class="body">
+      <th colspan="" rowspan="">File Listing</th>
+      <td align="" colspan="" rowspan="">A Root-level Pubsub Collection Node, containing information about files and/or subsections which a user or group of users have published.</td>
+    </tr>
+    <tr class="body">
+      <th colspan="" rowspan="">Subsection</th>
+      <td align="" colspan="" rowspan="">A Non-Root Collection Node which contains files and/or other subsections.</td>
+    </tr>
+    <tr class="body">
+      <th colspan="" rowspan="">File</th>
+      <td align="" colspan="" rowspan="">A Pubsub Node, stored within a File Listing, which describes all revisions of a given file. The filename and (optional) description are provided here.</td>
+    </tr>
+    <tr class="body">
+      <th colspan="" rowspan="">Revision</th>
+      <td align="" colspan="" rowspan="">A Pubsub Item which describes a given file revision. Other metadata which can vary between revisions, such as filesize, checksum, or available mirrors, is provided here.</td>
+    </tr>
+    <tr class="body">
+      <th colspan="" rowspan="">Mirror</th>
+      <td align="" colspan="" rowspan="">A location which has a given Revision available for download. Additional information about a Mirror MAY be specified in instances where the protocol requires it. A list of example file transfer protocols is provided below, but others may also be deployed.</td>
+    </tr>
+  </table></div>
+<h2>4.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+    <p class="" style="">The following use cases describe tasks which are already covered by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm72">1</a>] in a more generic context. These tasks are again being provided here in order to demonstrate the functionality provided by this protocol and convey the structure and syntax of the file listing. As a result of this close relationship, many details of PubSub are omitted here for brevity. Consult <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm72">1</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0248.html">PubSub Collection Nodes (XEP-0248)</a></span>  [<a href="#nt-idm113">3</a>] for the full specification of node and user management commands as well as their server responses.</p>
+  <div class="indent"><h3>4.1 <a name="list" id="list">File Listing</a></h3>
+    <div class="indent"><h3>4.1.1 <a name="list-publication" id="list-publication">Publication</a></h3>
+      <p class="" style="">Juliet wishes to make her sonnets available for retrieval by the public. She creates a Root Pubsub Collection Node which will contain her file listing:</p>
+      <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Creating a New File Listing</p><div class="indent"><pre class="prettyprint">&lt;iq type='set'
+    from='juliet@capulet.com/balcony'
+    to='pubsub.shakespeare.lit'
+    id='create3'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;create node='juliets_sonnets'/&gt;
+    &lt;configure&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#node_type'&gt;&lt;value&gt;collection&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+
+&lt;iq type='set'
+    from='juliet@capulet.com/balcony'
+    to='pubsub.shakespeare.lit'
+    id='config2'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#owner'&gt;
+    &lt;configure node='juliets_sonnets'/&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#metadata&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#title'&gt;&lt;value&gt;Juliet's Sonnets&lt;/value&gt;&lt;/field&gt;
+        &lt;field var='pubsub#description'&gt;&lt;value&gt;Optional Description&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></div>
+      <p class="" style="">Juliet also wishes to add a subsection for her sonnets about Romeo. She creates another PubSub Collection Node under the Root Node:</p>
+      <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Adding a Subsection to the Listing</p><div class="indent"><pre class="prettyprint">&lt;iq type='set'
+    from='juliet@capulet.com/balcony'
+    to='pubsub.shakespeare.lit'
+    id='create3'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;create node='35227eec194a4f3971a5f3771e9c2271'/&gt;
+    &lt;configure&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#collection'&gt;&lt;value&gt;juliets_sonnets&lt;/value&gt;&lt;/field&gt;
+        &lt;field var='pubsub#node_type'&gt;&lt;value&gt;collection&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+
+&lt;iq type='set'
+    from='juliet@capulet.com/balcony'
+    to='pubsub.shakespeare.lit'
+    id='config2'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;configure node='35227eec194a4f3971a5f3771e9c2271'/&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#metadata&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#title'&gt;&lt;value&gt;Sonnets About Romeo&lt;/value&gt;&lt;/field&gt;
+        &lt;field var='pubsub#description'&gt;&lt;value&gt;Optional Description&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></div>
+    </div>
+    <div class="indent"><h3>4.1.2 <a name="list-subscription" id="list-subscription">Subscription</a></h3>
+      <p class="" style="">Romeo wishes to view all of Juliet's shared sonnets. To do this, Romeo subscribes to the Root Collection Node:</p>
+      <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Subscription to entire File Listing</p><div class="indent"><pre class="prettyprint">&lt;iq type='set'
+    from='romeo@montague.net/orchard'
+    to='pubsub.shakespeare.lit'
+    id='collsub2'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;subscribe jid='romeo@montague.net' node='juliets_sonnets'/&gt;
+    &lt;options&gt;
+      &lt;x xmlns='jabber:x:data'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#subscribe_options&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#subscription_type'&gt;&lt;value&gt;items&lt;/value&gt;&lt;/field&gt;
+        &lt;field var='pubsub#subscription_depth'&gt;&lt;value&gt;all&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/options&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></div>
+    </div>
+    <div class="indent"><h3>4.1.3 <a name="list-addition" id="list-addition">Addition</a></h3>
+      <p class="" style="">Juliet has just finished a new sonnet and wishes to announce its availability on her File Listing. She adds the sonnet as a new PubSub Node stored in her Collection Node, then inserts a first revision of her sonnet as an Item within that Node:</p>
+      <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Adding a new File</p><div class="indent"><pre class="prettyprint">&lt;iq type='set'
+    from='juliet@capulet.com/balcony'
+    to='pubsub.shakespeare.lit'
+    id='create4'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#node_config'&gt;
+    &lt;create node='a6190c5d38e22452041d1c5798eff3f5'/&gt;
+    &lt;configure&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='pubsub#collection'&gt;&lt;value&gt;juliets_sonnets&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+
+&lt;iq type='set'
+    from='juliet@capulet.com/balcony'
+    to='pubsub.shakespeare.lit'
+    id='config2'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;configure node='a6190c5d38e22452041d1c5798eff3f5'&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#metadata&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#title'&gt;&lt;value&gt;sonnet.txt&lt;/value&gt;&lt;/field&gt;
+        &lt;field var='pubsub#description'&gt;&lt;value&gt;Sonnet 42&lt;/value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configure&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+
+&lt;iq type='set'
+    from='juliet@capulet.com/balcony'
+    to='pubsub.shakespeare.lit'
+    id='publish1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='a6190c5d38e22452041d1c5798eff3f5'&gt;
+      &lt;item id='1'&gt;
+        &lt;entry xmlns='http://jabber.org/protocol/fileshare#item_metadata'&gt;
+          &lt;size&gt;5623&lt;/size&gt;
+          &lt;modified&gt;2006-12-13T18:30:02Z&lt;/modified&gt;
+          &lt;checksum type="sha1"&gt;59282c5db190bdc3b152c5b38363442bfda8ebdd&lt;/checksum&gt;
+          &lt;mime&gt;text/plain&lt;/mime&gt;
+          &lt;description&gt;My Latest Sonnet!&lt;/description&gt;
+          &lt;mirrors&gt;
+            &lt;mirror type='sipub' description='File Transfer via capulet.com fileserver'&gt;
+              &lt;sipub xmlns='http://jabber.org/protocol/si-pub'
+                     from='fileserver@capulet.com'
+                     id='publish-sonnet.txt'
+                     mime-type='text/plain'
+                     profile='http://jabber.org/protocol/si/profile/file-transfer'&gt;
+                &lt;file xmlns='http://jabber.org/protocol/si/profile/file-transfer'
+                      name='sonnet.txt'
+                      size='5623'/&gt;
+              &lt;/sipub&gt;
+            &lt;/mirror&gt;
+            &lt;mirror type='sipub' description='Jingle HTTP File Transfer via capulet.com fileserver'&gt;
+              &lt;sipub xmlns='http://jabber.org/protocol/si-pub'
+                     from='fileserver-httpft@capulet.com'
+                     id='publish-sonnet.txt'
+                     mime-type='text/plain'
+                     profile='http://jabber.org/protocol/si/profile/jingle-httpft'&gt;
+                &lt;description xmlns='http://www.xmpp.org/extensions/xep-XXXX.html#ns'&gt;
+                  &lt;manifest&gt;
+                    &lt;file&gt;
+                      &lt;name&gt;sonnet.txt&lt;/name&gt;
+                    &lt;/file&gt;
+                  &lt;/manifest&gt;
+                  &lt;http&gt;
+                    &lt;url name='source-path'&gt;/source/23A53F01/&lt;/url&gt;
+                    &lt;url name='preview-path'&gt;/preview/90266EA1/&lt;/url&gt;
+                  &lt;/http&gt;
+                &lt;/description&gt;
+              &lt;/sipub&gt;
+            &lt;/mirror&gt;
+            &lt;mirror type='http' description='Shakespeare.lit Torrent'
+                    address='www.shakespeare.lit'
+                    ref='torrents/sonnet.torrent'/&gt;
+            &lt;mirror type='http' description='Shakespeare.lit Website'
+                    address='www.shakespeare.lit'
+                    ref='~juliet/sonnet.txt'/&gt;
+            &lt;mirror type='https' description='Shakespeare.lit Website (SSL)'
+                    address='ssl.shakespeare.lit'
+                    ref='~juliet/sonnet.txt'/&gt;
+            &lt;mirror type='ftp' description='Shakespeare.lit FTP'
+                    user='guest' pass='guest'
+                    address='files.shakespeare.lit' port='21'
+                    ref='public/sonnet.txt'/&gt;
+            &lt;mirror type='sftp' description='Shakespeare.lit SFTP'
+                    user='guest' pass='guest'
+                    address='ssh.shakespeare.lit' port='22'
+                    ref='public/sonnet.txt'/&gt;
+            &lt;mirror type='smb' description='Capulet Intranet SMB Share'
+                    user='guest' pass='guest'
+                    address='smbfiles.capulet.com'
+                    ref='juliet/mysonnets/sonnet.txt'/&gt;
+          &lt;/mirrors&gt;
+        &lt;/entry&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></div>
+      <p class="" style="">The Item ID is set to 1, signifying the first revision for this file. Subsequent revisions/items will have incremented ID values, like one would see in a versioning system such as CVS or SVN. Implementations MAY follow this convention, but are not required to do so. For example, a given implementation may instead mark revisions using version numbers ("Beta 1", "6.2", etc) or use other arbitrary strings. However, no two revisions of a given file may share the same ID.</p>
+      <p class="" style="">Node IDs MAY take the form of "path/to/file.ext", rather than the randomized string "a6190c5d38e22452041d1c5798eff3f5" provided in the above use case. For example, Juliet's sonnet MAY instead use a Node ID of "juliets_sonnets/sonnet.txt", as long as this ID is unique within the PubSub server. Randomized strings are used in this document to illustrate that Node IDs SHOULD NOT be used for providing information about files.</p>
+      <p class="" style="">Here is a listing of the possible metadata in a file revision (Item), each field is OPTIONAL:</p>
+
+      <div class="indent"><p class="caption"><a name="table-2" id="table-2"></a>Table 2: Revision Metadata</p><table border="1" cellpadding="3" cellspacing="0">
+        <tr class="body"><th colspan="" rowspan="">Size</th><td align="" colspan="" rowspan="">The size, in bytes, of the file.</td></tr>
+        <tr class="body"><th colspan="" rowspan="">Modified</th><td align="" colspan="" rowspan="">The last modified time of the revision. Follows the format described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles (XEP-0082)</a></span>  [<a href="#nt-idm139">4</a>]. If a publisher prefers to only make a single revision available to clients, the publisher MAY instead update this value (and others, such as size and/or checksum) to announce that a new version of the file is available.</td></tr>
+        <tr class="body"><th colspan="" rowspan="">Checksum</th><td align="" colspan="" rowspan="">A checksum of the revision, using the specified hash algorithm. Acceptable types are "sha512", "sha1", "md5", and "crc32".</td></tr>
+        <tr class="body"><th colspan="" rowspan="">Mime</th><td align="" colspan="" rowspan="">The file's MIME type.</td></tr>
+        <tr class="body"><th colspan="" rowspan="">Description</th><td align="" colspan="" rowspan="">Description text for the revision. As an example, could contain release notes.</td></tr>
+        <tr class="body"><th colspan="" rowspan="">Mirrors</th><td align="" colspan="" rowspan="">A list of mirrors; their properties are defined below. If no downloads are available, MAY be left empty or removed entirely.</td></tr>
+      </table></div>
+      <p class="" style="">Because Romeo is now subscribed, he receives notice of Juliet's addition:</p>
+      <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Notification of Addition</p><div class="indent"><pre class="prettyprint">&lt;message from='pubsub.shakespeare.lit' to='romeo@montague.net' id='create4'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;collection&gt;
+      &lt;node id='a6190c5d38e22452041d1c5798eff3f5'&gt;
+        &lt;x xmlns='jabber:x:data' type='result'&gt;
+          &lt;field var='FORM_TYPE' type='hidden'&gt;
+            &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field var='pubsub#collection'&gt;&lt;value&gt;juliets_sonnets&lt;/value&gt;&lt;/field&gt;
+        &lt;/x&gt;
+      &lt;/node&gt;
+    &lt;/collection&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+
+&lt;message from='pubsub.shakespeare.lit' to='romeo@montague.net' id='config2'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;configuration node='a6190c5d38e22452041d1c5798eff3f5'&gt;
+      &lt;x xmlns='jabber:x:data' type='result'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;http://jabber.org/protocol/pubsub#metadata&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='pubsub#description'&gt;&lt;var&gt;Sonnet 42&lt;/var&gt;&lt;/field&gt;
+        &lt;field var='pubsub#title'&gt;&lt;var&gt;sonnet.txt&lt;/var&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/configuration&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+
+&lt;message from='pubsub.shakespeare.lit' to='romeo@montague.net' id='foo'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='a6190c5d38e22452041d1c5798eff3f5'&gt;
+      &lt;item id='1'&gt;
+        &lt;entry xmlns='http://jabber.org/protocol/fileshare#item_config'&gt;
+          &lt;size&gt;5623&lt;/size&gt;
+          &lt;modified&gt;2006-12-13T18:30:02Z&lt;/modified&gt;
+          &lt;checksum type="sha1"&gt;59282c5db190bdc3b152c5b38363442bfda8ebdd&lt;/checksum&gt;
+          &lt;mime&gt;text/plain&lt;/mime&gt;
+          &lt;description&gt;My Latest Sonnet!&lt;/description&gt;
+          &lt;mirrors&gt;
+            ... MIRRORS ...
+          &lt;/mirrors&gt;
+        &lt;/entry&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+</pre></div>
+      <p class="" style="">The above examples give a listing of several possible file transfer protocols in example configurations. Only the sipub mirror type is REQUIRED; the other types are OPTIONAL. Here is a full listing of those protocols and their available settings:</p>
+      <div class="indent"><p class="caption"><a name="table-3" id="table-3"></a>Table 3: Mirror Types And Their Settings</p><table border="1" cellpadding="3" cellspacing="0">
+        <tr class="body"><th colspan="" rowspan="">Protocol</th>
+          <th colspan="" rowspan="">Description</th><th colspan="" rowspan="">Ref</th>
+          <th colspan="" rowspan="">Address</th><th colspan="" rowspan="">Port (default)</th>
+          <th colspan="" rowspan="">User</th><th colspan="" rowspan="">Pass</th></tr>
+        <tr class="body"><th colspan="" rowspan="">sipub (REQUIRED)</th>
+          <td align="" colspan="" rowspan="">OPTIONAL</td><td align="" colspan="" rowspan="">N/A</td>
+          <td align="" colspan="" rowspan="">N/A</td><td align="" colspan="" rowspan="">N/A</td>
+          <td align="" colspan="" rowspan="">N/A</td><td align="" colspan="" rowspan="">N/A</td></tr>
+        <tr class="body"><th colspan="" rowspan="">http (OPTIONAL)</th>
+          <td align="" colspan="" rowspan="">OPTIONAL</td><td align="" colspan="" rowspan="">REQUIRED</td>
+          <td align="" colspan="" rowspan="">REQUIRED</td><td align="" colspan="" rowspan="">OPTIONAL (80)</td>
+          <td align="" colspan="" rowspan="">OPTIONAL</td><td align="" colspan="" rowspan="">OPTIONAL</td></tr>
+        <tr class="body"><th colspan="" rowspan="">https (OPTIONAL)</th>
+          <td align="" colspan="" rowspan="">OPTIONAL</td><td align="" colspan="" rowspan="">REQUIRED</td>
+          <td align="" colspan="" rowspan="">REQUIRED</td><td align="" colspan="" rowspan="">OPTIONAL (443)</td>
+          <td align="" colspan="" rowspan="">OPTIONAL</td><td align="" colspan="" rowspan="">OPTIONAL</td></tr>
+        <tr class="body"><th colspan="" rowspan="">ftp (OPTIONAL)</th>
+          <td align="" colspan="" rowspan="">OPTIONAL</td><td align="" colspan="" rowspan="">REQUIRED</td>
+          <td align="" colspan="" rowspan="">REQUIRED</td><td align="" colspan="" rowspan="">OPTIONAL (21)</td>
+          <td align="" colspan="" rowspan="">OPTIONAL</td><td align="" colspan="" rowspan="">OPTIONAL</td></tr>
+        <tr class="body"><th colspan="" rowspan="">sftp (OPTIONAL)</th>
+          <td align="" colspan="" rowspan="">OPTIONAL</td><td align="" colspan="" rowspan="">REQUIRED</td>
+          <td align="" colspan="" rowspan="">REQUIRED</td><td align="" colspan="" rowspan="">OPTIONAL (22)</td>
+          <td align="" colspan="" rowspan="">OPTIONAL</td><td align="" colspan="" rowspan="">OPTIONAL</td></tr>
+        <tr class="body"><th colspan="" rowspan="">smb (OPTIONAL)</th>
+          <td align="" colspan="" rowspan="">OPTIONAL</td><td align="" colspan="" rowspan="">REQUIRED</td>
+          <td align="" colspan="" rowspan="">REQUIRED</td><td align="" colspan="" rowspan="">OPTIONAL (445)</td>
+          <td align="" colspan="" rowspan="">OPTIONAL</td><td align="" colspan="" rowspan="">OPTIONAL</td></tr>
+      </table></div>
+
+      <p class="" style="">The Description field is where an arbitrary description of the mirror MAY be placed. For example, if a File Listing is advertising mirrors which are located in different geographic locations, then this field may be used to specify those locations.</p>
+      <p class="" style="">The Ref field is a unique address or identifier for retrieving the file from the mirror server. In the above examples, it is used as a path to the file.</p>
+      <p class="" style="">The address and port fields describe the server where the file may be retrieved using the specified protocol. If a port is not provided, the default value (specified in parentheses) MAY be assumed.</p>
+      <p class="" style="">The User and Pass fields are for providing credentials which, if given by the File Listing, SHOULD be used when requesting the file. For example, an sftp mirror MAY require that the user log in using specified credentials before the file may be retrieved.</p>
+
+    </div>
+    <div class="indent"><h3>4.1.4 <a name="list-newrevisions" id="list-newrevisions">New Revisions</a></h3>
+
+      <p class="" style="">Juliet has revised her sonnet and wishes to publish the new version, while still leaving the original copy available for retrieval. To do this, she inserts a new Item, representing her new revision, into the file's Node:</p>
+
+      <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Adding a new Revision</p><div class="indent"><pre class="prettyprint">&lt;iq type='set'
+    from='juliet@capulet.com/balcony'
+    to='pubsub.shakespeare.lit'
+    id='publish1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='a6190c5d38e22452041d1c5798eff3f5'&gt;
+      &lt;item id='2'&gt;
+        &lt;entry xmlns='http://jabber.org/protocol/fileshare#item_config'&gt;
+          &lt;size&gt;6102&lt;/size&gt;
+          &lt;modified&gt;2007-01-13T18:30:02Z&lt;/modified&gt;
+          &lt;checksum type="md5"&gt;6aaa20212a99548765b3b15f24f19aaa&lt;/checksum&gt;
+          &lt;checksum type="sha1"&gt;97cbc0e445435af94db5cc2133b94ab5faf1399a&lt;/checksum&gt;
+          &lt;mime&gt;text/plain&lt;/mime&gt;
+          &lt;description&gt;A revised copy, fixed some spelling errors.&lt;/description&gt;
+          &lt;mirrors&gt;
+            &lt;mirror type='ftp' description='Shakespeare.lit FTP'
+                    user='guest' pass='guest'
+                    address='files.shakespeare.lit' port='21'
+                    ref='public/juliet/sonnet2.txt'/&gt;
+            &lt;mirror type='http' description='Shakespeare.lit Website'
+                    address='www.shakespeare.lit'
+                    ref='~juliet/sonnet2.txt'/&gt;
+            &lt;mirror type='sipub' description='File Transfer via capulet.com fileserver'&gt;
+              &lt;sipub xmlns='http://jabber.org/protocol/si-pub'
+                     from='fileserver@capulet.com'
+                     id='publish-sonnet2.txt'
+                     mime-type='text/plain'
+                     profile='http://jabber.org/protocol/si/profile/file-transfer'&gt;
+                &lt;file xmlns='http://jabber.org/protocol/si/profile/file-transfer'
+                      name='sonnet2.txt'
+                      size='6102'/&gt;
+              &lt;/sipub&gt;
+            &lt;/mirror&gt;
+          &lt;/mirrors&gt;
+        &lt;/entry&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></div>
+    </div>
+    <div class="indent"><h3>4.1.5 <a name="list-deletion" id="list-deletion">Modification/Deletion</a></h3>
+      <p class="" style="">Juliet has uploaded a copy of her revised sonnet to a new mirror, and wishes to let her subscribers know about this secondary source. She is able to do this by modifying the revision in question to include a reference to her website, overwriting the existing mirrors in the Item with an updated list:</p>
+      <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Modifying a Revision</p><div class="indent"><pre class="prettyprint">&lt;iq type='set'
+    from='juliet@capulet.com/balcony'
+    to='pubsub.shakespeare.lit'
+    id='publish1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='a6190c5d38e22452041d1c5798eff3f5'&gt;
+      &lt;item id='2'&gt;
+        &lt;entry xmlns='http://jabber.org/protocol/fileshare#item_config'&gt;
+          &lt;mirrors&gt;
+            &lt;mirror type='ftp' description='Shakespeare.lit FTP'
+                    user='guest' pass='guest'
+                    address='files.shakespeare.lit' port='21'
+                    ref='public/juliet/sonnet2.txt'/&gt;
+            &lt;mirror type='http' description='Shakespeare.lit Website'
+                    address='www.shakespeare.lit'
+                    ref='~juliet/sonnet2.txt'/&gt;
+            &lt;mirror type='sipub' description='File Transfer via capulet.com fileserver'&gt;
+              &lt;sipub xmlns='http://jabber.org/protocol/si-pub'
+                     from='fileserver@capulet.com'
+                     id='publish-sonnet2.txt'
+                     mime-type='text/plain'
+                     profile='http://jabber.org/protocol/si/profile/file-transfer'&gt;
+                &lt;file xmlns='http://jabber.org/protocol/si/profile/file-transfer'
+                      name='sonnet2.txt'
+                      size='6102'/&gt;
+              &lt;/sipub&gt;
+            &lt;/mirror&gt;
+            &lt;mirror type='http' description='Shakespeare.lit Boston Mirror'
+                    address='www.capulet.com'
+                    ref='~juliet/sonnet2.txt'/&gt;
+          &lt;/mirrors&gt;
+        &lt;/entry&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></div>
+
+      <p class="" style="">Juliet now wishes to allow others to contribute to her sonnet collection. She gives owner access for the entire Listing to Romeo, and publisher access to her nurse:</p>
+      <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Modifying Users</p><div class="indent"><pre class="prettyprint">&lt;iq type='set'
+    from='juliet@capulet.com/balcony'
+    to='pubsub.shakespeare.lit'
+    id='ent3'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#owner'&gt;
+    &lt;affiliations node='juliets_sonnets'&gt;
+      &lt;affiliation jid='nurse@capulet.com' affiliation='publisher'/&gt;
+      &lt;affiliation jid='romeo@montague.net' affiliation='owner'/&gt;
+    &lt;/affiliations&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></div>
+
+      <p class="" style="">Romeo uses his owner access to remove the older revision of Juliet's sonnet:</p>
+
+      <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Deleting a Revision</p><div class="indent"><pre class="prettyprint">&lt;iq type='set'
+    from='romeo@montague.net/orchard'
+    to='pubsub.shakespeare.lit'
+    id='retract1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;retract node='a6190c5d38e22452041d1c5798eff3f5'&gt;
+      &lt;item id='1'/&gt;
+    &lt;/retract&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></div>
+
+      <p class="" style="">Other deletion, modification, and user management operations are available as described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm72">1</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0248.html">PubSub Collection Nodes (XEP-0248)</a></span>  [<a href="#nt-idm113">3</a>].</p>
+
+    </div>
+  </div>
+  <div class="indent"><h3>4.2 <a name="file-requests" id="file-requests">File Requests</a></h3>
+
+    <p class="" style="">Romeo is interested in seeing what files Juliet has made available. To do this, Romeo sends a request to Juliet for repositories which she is associated with:</p>
+
+    <p class="caption"><a name="example-10" id="example-10"></a>Example 10. Request for File Repository listing</p><div class="indent"><pre class="prettyprint">&lt;iq type='get'
+    from='romeo@montague.net/orchard'
+    to='juliet@capulet.com'
+    id='repolistreq'&gt;
+  &lt;fileshare xmlns='http://jabber.org/protocol/si/profile/fileshare'&gt;
+    &lt;list/&gt;
+  &lt;/fileshare&gt;
+&lt;/iq&gt;
+</pre></div>
+
+    <p class="" style="">Juliet responds with a list of PubSub nodes where she has published files or which she believes would be interesting to Romeo. If no such locations exist, Juliet SHOULD respond with an empty list.</p>
+
+    <p class="caption"><a name="example-11" id="example-11"></a>Example 11. File Repository listing</p><div class="indent"><pre class="prettyprint">&lt;iq type='get'
+    from='romeo@montague.net/orchard'
+    to='juliet@capulet.com'
+    id='repolist'&gt;
+  &lt;fileshare xmlns='http://jabber.org/protocol/si/profile/fileshare'&gt;
+    &lt;list&gt;
+      &lt;repo address='pubsub.shakespeare.lit'
+            node='juliets_sonnets' description='My Sonnets'/&gt;
+    &lt;/list&gt;
+  &lt;/fileshare&gt;
+&lt;/iq&gt;
+</pre></div>
+
+    <p class="" style="">After browsing Juliet's repository, Romeo has chosen to download her sonnet. The most recent revision of this file contains a listing of available mirrors, and Romeo sees that one of them is an SI stream. Romeo sends an SI request to that mirror:</p>
+    <p class="caption"><a name="example-12" id="example-12"></a>Example 12. Request that a file be sent</p><div class="indent"><pre class="prettyprint">&lt;iq type='get'
+    id='sipub-request-0'
+    from='romeo@montague.net/orchard'
+    to='fileserver@capulet.com'&gt;
+  &lt;start xmlns='http://jabber.org/protocol/sipub'
+         id='publish-sonnet2.txt'/&gt;
+&lt;/iq&gt;
+</pre></div>
+
+    <p class="" style="">The rest of the negotiation and file transfer occurs as described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0137.html">Publishing Stream Initiation Requests (XEP-0137)</a></span>  [<a href="#nt-idm77">2</a>].</p>
+  </div>
+<h2>5.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <p class="" style="">Since PubSub is used for the File Listing, the access models described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm72">1</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0248.html">PubSub Collection Nodes (XEP-0248)</a></span>  [<a href="#nt-idm113">3</a>] MUST be followed. Users MUST NOT be able to view or control information in the File Listing to which they do not have access.</p>
+
+  <p class="" style="">If user access to files is restricted, the Mirror servers and the PubSub server MUST be able to synchronize these restrictions between them. See <a href="#security">Security Considerations</a>.</p>
+<h2>6.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">When restricted files are being distributed, mirrors need to know which users have sufficient privileges to access which files. If mirrors are not kept up to date on user privileges, unauthorized users could access files directly from those mirrors, thus bypassing any restrictions being set on the PubSub server.</p>
+<h2>7.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">No interaction with the Internet Assigned Numbers Authority (IANA) is required as a result of this XEP.</p>
+<h2>8.
+       <a name="registrar" id="registrar">Jabber Registrar Considerations</a></h2>
+  <p class="" style="">TODO</p>
+<h2>9.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="" style="">TODO</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0214<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.2.1<br />
+            Last Updated: 2018-11-03<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0001, XEP-0060, XEP-0082, XEP-0137, XEP-0248<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0214.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0214.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0214.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Nicholas Parker</h3><p class="indent">
+        Email:
+        <a href="mailto:nickbp@gmail.com">nickbp@gmail.com</a><br />
+        JabberID:
+        <a href="xmpp:nickp@jabber.org">nickp@jabber.org</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm72" id="nt-idm72">1</a>. XEP-0060: Publish-Subscribe &lt;<a href="https://xmpp.org/extensions/xep-0060.html">https://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-idm77" id="nt-idm77">2</a>. XEP-0137: Publishing Stream Initiation Requests &lt;<a href="https://xmpp.org/extensions/xep-0137.html">https://xmpp.org/extensions/xep-0137.html</a>&gt;.</p><p><a name="nt-idm113" id="nt-idm113">3</a>. XEP-0248: PubSub Collection Nodes &lt;<a href="https://xmpp.org/extensions/xep-0248.html">https://xmpp.org/extensions/xep-0248.html</a>&gt;.</p><p><a name="nt-idm139" id="nt-idm139">4</a>. XEP-0082: XMPP Date and Time Profiles &lt;<a href="https://xmpp.org/extensions/xep-0082.html">https://xmpp.org/extensions/xep-0082.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.2.1 (2018-11-03)</h4><div class="indent">Fix a bunch of typos, batch-style. (pep)
+    </div><h4>Version 0.2 (2009-01-05)</h4><div class="indent"><p class="" style="">Non-functional rewording and refactoring. Now reflects the move of PubSub Collections into a separate extension.</p> (nbp)
+    </div><h4>Version 0.1 (2007-04-20)</h4><div class="indent"><p class="" style="">Initial published version.</p> (psa)
+    </div><h4>Version 0.0.3 (2007-03-18)</h4><div class="indent"><p class="" style="">Added support for Stream Initiation Requests. Clarified purpose of additional mirror types.</p> (nbp)
+    </div><h4>Version 0.0.2 (2007-01-26)</h4><div class="indent"><p class="" style="">Rewritten to use Pubsub.</p> (nbp)
+    </div><h4>Version 0.0.1 (2006-09-01)</h4><div class="indent"><p class="" style="">First draft.</p> (nbp)
+    </div></div><hr /><p>END</p></body></html>

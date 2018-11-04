@@ -1,0 +1,644 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0355: Namespace Delegation</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Namespace Delegation" /><meta name="DC.Creator" content="J&#xE9;r&#xF4;me Poisson" /><meta name="DC.Description" content="This specification provides a way for XMPP server to delegate treatments for a namespace to an other entity" /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2018-11-03" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0355" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0355: Namespace Delegation</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification provides a way for XMPP server to delegate treatments for a namespace to an other entity</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Jérôme Poisson</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2018 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Deferred</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.4.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2018-11-03</td></tr></table><hr /><p style="color:red">WARNING: This document has been automatically Deferred after 12 months of inactivity in its previous Experimental state. Implementation of the protocol described herein is not recommended for production systems. However, exploratory implementations are encouraged to resume the standards process.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#glossary">Glossary</a><br />4.  <a href="#admin_usecases">Admin Mode Use Cases</a><br />   
+      4.1.  <a href="#server_config">Server Allows Namespaces Delegations</a><br />   
+      4.2.  <a href="#admin_perm">Delegation Request Use Case</a><br />   
+      4.3.  <a href="#stanza_forward">Server Forwards Delegated &lt;iq/&gt; Stanza</a><br />      
+      4.3.1.  <a href="#managing_entity_stanzas">Stanzas from managing entity</a><br />5.  <a href="#client_usecases">Client Mode Use Cases</a><br />   
+      5.1.  <a href="#client_delegation">Client Delegation Request Use Case</a><br />   
+      5.2.  <a href="#client_forward">Server Forward Stanza</a><br />6.  <a href="#configuration">Configuration</a><br />7.  <a href="#disco">Discovering Support</a><br />   
+      7.1.  <a href="#disco_announce">Announce</a><br />   
+      7.2.  <a href="#disco_nesting">Nesting</a><br />      
+      7.2.1.  <a href="#sect-idm266">General Case</a><br />      
+      7.2.2.  <a href="#sect-idm292">Rediction Of Bare JID Disco Info</a><br />      
+      7.2.3.  <a href="#sect-idm308">Service Discovery Extensions</a><br />8.  <a href="#rules">Business Rules</a><br />9.  <a href="#impl">Implementation Notes</a><br />10.  <a href="#security">Security Considerations</a><br />11.  <a href="#iana">IANA Considerations</a><br />12.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      12.1.  <a href="#ns">Protocol Namespaces</a><br />   
+      12.2.  <a href="#registrar-versioning">Protocol Versioning</a><br />13.  <a href="#schema">XML Schema</a><br />14.  <a href="#acks">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+    <p class="" style="">Some XMPP features must be offered by the server itself, or can't be available, that's the case of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0163.html">Personal Eventing Protocol (XEP-0163)</a></span>  [<a href="#nt-idm98">2</a>] which is used in several places (e.g. bookmarks storage). But it can be desirable to use an external entity to manage some of these features, because it implements things that the server don't, or because it uses a special implementation useful in a particular case. Some people may also want to decentralize a feature on an entity under their control. This XEP try to solve these cases.<br />Additionaly, a method to do generic treatments (independent of server) on stanza is also provided.</p>
+    <p class="" style="">This XEP is complementary to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0356.html">Privileged Entity (XEP-0356)</a></span>  [<a href="#nt-idm104">3</a>] (and works in a similar way), although they can be used together or separately.</p>
+    <p class="" style="">Here are some use cases of namespace delegation:</p>
+        <ul class="" style="">
+            <li class="" style="">use an external component for a PEP service because the server doesn't implement it or lacks some features</li>
+            <li class="" style="">decentralize a server feature to an entity under client control</li>
+            <li class="" style="">make a component which react on new user registration, independent of server implementation</li>
+            <li class="" style="">server agnostic roster filtering</li>
+        </ul>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+    <p class="" style="">Namespace delegation can be used in two modes:</p>
+        <ul class="" style="">
+            <li class="" style=""><span class="strong">admin</span> mode, where delegation is specified by the server administrator.</li>
+            <li class="" style=""><span class="strong">client</span> mode, where it can be requested by any user.</li>
+        </ul>
+    <p class="" style="">In <span class="em">admin</span> mode, the managing entity manages stanza of the delegated namespace for all users registered on the server. The namespace delegation MUST be totally transparent for the managed entities.</p>
+    <p class="" style="">In <span class="em">client</span> mode, a managing entity MUST have an explicit authorization for any namespace he wants to use. Client SHOULD be able to check and revoke granted permissions, and if it's not possible, permissions MUST be revoked after a disconnection.</p>
+<h2>3.
+       <a name="glossary" id="glossary">Glossary</a></h2>
+  <ul class="" style="">
+    <li class="" style=""><span class="strong">Delegated namespace</span> — the namespace being managed by an external entity.</li>
+    <li class="" style=""><span class="strong">Filtering attribute</span> — an attribute which must be present in first &lt;iq/&gt; child element to delegate the namespace.</li>
+    <li class="" style=""><span class="strong">Managing entity</span> — the entity which actualy manages the delegated namespace.</li>
+    <li class="" style=""><span class="strong">Delegating server</span> — the server which delegate the stanzas to the managing entity.</li>
+    <li class="" style=""><span class="strong">Managed entity</span> — an entity which wants to have a namespace of its server delegated to a managing entity.</li>
+  </ul>
+<h2>4.
+       <a name="admin_usecases" id="admin_usecases">Admin Mode Use Cases</a></h2>
+
+    <div class="indent"><h3>4.1 <a name="server_config" id="server_config">Server Allows Namespaces Delegations</a></h3>
+        <p class="" style="">Namespaces delegations are granted in the server configuration. Only &lt;iq/&gt; stanza namespaces can be delegated.</p>
+        <p class="" style="">A feature is delegated using:</p>
+        <ol start="" class="" style="">
+            <li class="" style="">its namespace: e.g. <span class="em">'urn:xmpp:mam:0'</span></li>
+            <li class="" style="">zero or more filtering attribute (attributes which must be present in the initial &lt;iq/&gt; child element): e.g. <span class="em">'node'</span></li>
+            <li class="" style="">the jid of the managing entity: e.g. <span class="em">'managing.capulet.lit'</span></li>
+        </ol>
+    </div>
+
+    <div class="indent"><h3>4.2 <a name="admin_perm" id="admin_perm">Delegation Request Use Case</a></h3>
+        <p class="" style="">Once the managing entity is authenticated and stream is started, the server send it a &lt;message/&gt; stanza with a &lt;delegation/&gt; elements which MUST have the <span class="strong">'urn:xmpp:delegation:1'</span> namespace. This element contains &lt;delegated/&gt; elements which MUST contain a 'namespace' attribute indicating the delegated namespace. If there is additional attribute filtering, the &lt;delegated/&gt; can have children &lt;attribute/&gt; elements which MUST contain a 'name' attribute with the name of the filtering attribute.</p>
+        <p class="caption"><a name="example-1" id="example-1"></a>Example 1. server advertise delegated namespaces</p><div class="indent"><pre class="prettyprint">
+&lt;message from='capulet.lit' to='pubub.capulet.lit' id='12345'&gt;
+    &lt;delegation xmlns='urn:xmpp:delegation:1'&gt;
+        &lt;delegated namespace='urn:xmpp:mam:0'&gt;
+            &lt;attribute name='node' /&gt;
+        &lt;/delegated&gt;
+        &lt;delegated namespace='http://jabber.org/protocol/pubsub'/&gt;
+    &lt;/delegation&gt;
+&lt;/message&gt;
+</pre></div>
+        <p class="" style="">Here <span class="em">pubsub.capulet.lit</span> will received all stanzas of pubsub namespace sent to <span class="em">capulet.lit</span>. It will also receive MAM stanzas, but only if the 'node' attribute is present in &lt;query/&gt;.</p>
+    </div>
+
+    <div class="indent"><h3>4.3 <a name="stanza_forward" id="stanza_forward">Server Forwards Delegated &lt;iq/&gt; Stanza</a></h3>
+        <p class="" style="">When a server receives a stanza for a delegated namespace which is either directed to him (no 'to' attribute, or 'to' attribute with its own JID), or directed to any bare jid (and only bare jid) that it manages (i.e. the <span class="em">domainpart</span> is a domain handled by the server where delegation is activated), it MUST forwards it to the managing entity:</p>
+            <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Juliet sends her mood to her server via PEP</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='pep1'
+    type='set'&gt;
+    &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+        &lt;publish node='http://jabber.org/protocol/mood'&gt;
+        &lt;item&gt;
+            &lt;mood xmlns='http://jabber.org/protocol/mood'&gt;
+                &lt;annoyed/&gt;
+                &lt;text&gt;curse my nurse!&lt;/text&gt;
+            &lt;/mood&gt;
+        &lt;/item&gt;
+        &lt;/publish&gt;
+    &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></div>
+<p class="" style="">The server gets this stanza, sees that this namespace is delegated to <span class="em">pubsub.capulet.lit</span>, so it forwards it.</p>
+<p class="" style="">To forward, an &lt;iq/&gt; stanza of type "set" is used which contain a &lt;delegation/&gt; element (with namespace <span class="em">'urn:xmpp:delegation:1'</span>) which in turn contain a &lt;forwarded/&gt; element encapsulating the initial stanza, according to  <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0297.html">Stanza Forwarding (XEP-0297)</a></span>  [<a href="#nt-idm74">1</a>]:</p>
+
+<p class="caption"><a name="example-3" id="example-3"></a>Example 3. server delegate the stanza to pubsub.capulet.lit</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='capulet.lit'
+    to='pubsub.capulet.lit'
+    id='delegate1'
+    type='set'&gt;
+    &lt;delegation xmlns='urn:xmpp:delegation:1'&gt;
+        &lt;forwarded xmlns='urn:xmpp:forward:0'&gt;
+            &lt;iq from='juliet@capulet.lit/balcony'
+                id='pep1'
+                type='set'
+                xmlns='jabber:client'&gt;
+                &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+                    &lt;publish node='http://jabber.org/protocol/mood'&gt;
+                    &lt;item&gt;
+                        &lt;mood xmlns='http://jabber.org/protocol/mood'&gt;
+                            &lt;annoyed/&gt;
+                            &lt;text&gt;curse my nurse!&lt;/text&gt;
+                        &lt;/mood&gt;
+                    &lt;/item&gt;
+                    &lt;/publish&gt;
+                &lt;/pubsub&gt;
+            &lt;/iq&gt;
+        &lt;/forwarded&gt;
+    &lt;/delegation&gt;
+&lt;/iq&gt;
+</pre></div>
+<p class="" style="">The managing entity replies to the stanza by encapsulating its &lt;iq/&gt; result in the same way:</p>
+<p class="caption"><a name="example-4" id="example-4"></a>Example 4. pubsub.capulet.lit replies to juliet</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='pubsub.capulet.lit'
+    to='capulet.lit'
+    id='delegate1'
+    type='result'&gt;
+    &lt;delegation xmlns='urn:xmpp:delegation:1'&gt;
+        &lt;forwarded xmlns='urn:xmpp:forward:0'&gt;
+            &lt;iq to='juliet@capulet.lit/balcony'
+                id='pep1'
+                type='result'
+                xmlns='jabber:client'&gt;
+                &lt;pubsub xmlns='http://jabber.org/protocol/pubsub' /&gt;
+            &lt;/iq&gt;
+        &lt;/forwarded&gt;
+    &lt;/delegation&gt;
+&lt;/iq&gt;
+</pre></div>
+
+    <p class="" style="">Then the server MUST decapsulate the &lt;iq/&gt; result, MUST insure that the 'to' and the 'from' attribute corresponds to respectively the 'from' and the 'to' attributes of the initial stanza, MUST insure that the 'id' attribute of the decapsulated stanza is the same as the initial 'id' attribute and that 'type' is "result". If everything is alright, it can send the decapsulated stanza to Juliet.</p>
+    <p class="" style="">If the forwarded result from managing entity is bad (i.e. wrong 'to', 'from', 'id' or 'result' attributes), the server MUST send an &lt;iq/&gt; error with condition &lt;service-unavailable/&gt; to managed entity, and MAY close the connexion with managing entity.</p>
+
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. capulet.lit replies to Juliet</p><div class="indent"><pre class="prettyprint">
+&lt;iq to='juliet@capulet.lit/balcony'
+    id='pep1'
+    type='result'&gt;
+    &lt;pubsub xmlns='http://jabber.org/protocol/pubsub' /&gt;
+&lt;/iq&gt;
+</pre></div>
+
+    <p class="" style="">The workflow is fully transparent for Juliet.</p>
+    <p class="" style=""><span class="strong">N.B.₁:</span> If the server encounter a delegated namespace and the managing entity is not available, it MUST return an &lt;iq/&gt; stanza of type "error" with an error condition of &lt;service-unavailable/&gt;</p>
+    <p class="" style=""><span class="strong">N.B.₂:</span> Similarly, if the managing entity return an &lt;iq/&gt; stanza of type "error", the server must return itself an &lt;iq/&gt; stanza of type "error" with an error condition of &lt;service-unavailable/&gt;</p>
+    <p class="" style=""><span class="strong">N.B.₃:</span> If the server encounter a delegated namespace but the filtering attribute does not match, it MUST follow its normal behaviour, i.e. it must follow the same behaviour it would have had if the namespace was not delegated at all</p>
+    <div class="indent"><h3>4.3.1 <a name="managing_entity_stanzas" id="managing_entity_stanzas">Stanzas from managing entity</a></h3>
+        <p class="" style="">If a stanza is sent by the managing entity on a managed namespace, the server MUST NOT forward it. This way, the managing entity can use privileged entity to do specific treatments, a kind of universal plugin (i.e. working with all servers implementing <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0355.html">Namespace Delegation (XEP-0355)</a></span>  [<a href="#nt-idm182">4</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0356.html">Privileged Entity (XEP-0356)</a></span>  [<a href="#nt-idm104">3</a>]).</p>
+        <p class="" style="">In the following examples, <span class="em">juliet@capulet.lit</span> has its "<span class="em">jabber:iq:roster</span>" namespace delegated to <span class="em">filter.capulet.lit</span>. <span class="em">filter.capulet.lit</span> is a server agnostic component which filters allowed entities (which can be added to a roster), and sort them in enforced groups.</p>
+
+        <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Juliet adds Romeo to her roster</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+          id='roster1'
+          type='set'&gt;
+    &lt;query xmlns='jabber:iq:roster'&gt;
+        &lt;item jid='romeo@montaigu.lit'
+              name='My Romeo'&gt;
+        &lt;/item&gt;
+    &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+
+        <p class="caption"><a name="example-7" id="example-7"></a>Example 7. server forwards stanza to managing entity</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='capulet.lit'
+    to='pubsub.capulet.lit'
+    id='delegate1'
+    type='set'&gt;
+    &lt;delegation xmlns='urn:xmpp:delegation:1'&gt;
+        &lt;forwarded xmlns='urn:xmpp:forward:0'&gt;
+            &lt;iq from='juliet@capulet.lit/balcony'
+                      id='roster1'
+                      type='set'
+                      xmlns='jabber:client'&gt;
+                &lt;query xmlns='jabber:iq:roster'&gt;
+                    &lt;item jid='romeo@montaigu.lit'
+                          name='My Romeo'&gt;
+                    &lt;/item&gt;
+                &lt;/query&gt;
+            &lt;/iq&gt;
+        &lt;/forwarded&gt;
+    &lt;/delegation&gt;
+&lt;/iq&gt;
+</pre></div>
+
+        <p class="" style=""><span class="em">filter.capulet.lit</span> accepts to add Romeo, but all JIDs with a <span class="em">montaigu.lit</span> must be in a "Rivals" group, so it first returns a success result (Romeo is accepted).</p>
+        <p class="caption"><a name="example-8" id="example-8"></a>Example 8. filtering component accept Romeo</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='pubsub.capulet.lit'
+    to='capulet.lit'
+    id='delegate1'
+    type='result'&gt;
+    &lt;delegation xmlns='urn:xmpp:delegation:1'&gt;
+        &lt;forwarded xmlns='urn:xmpp:forward:0'&gt;
+            &lt;iq to='juliet@capulet.lit/balcony'
+                id='roster1'
+                type='result'
+                xmlns='jabber:client' /&gt;
+        &lt;/forwarded&gt;
+    &lt;/delegation&gt;
+&lt;/iq&gt;
+</pre></div>
+        <p class="caption"><a name="example-9" id="example-9"></a>Example 9. server decapsulate and send the result with the initial id</p><div class="indent"><pre class="prettyprint">
+&lt;iq to='juliet@capulet.lit/balcony'
+    id='roster1'
+    type='result' /&gt;
+</pre></div>
+
+        <p class="" style="">At this stade, the entity is accepted, but not added to the roster. <span class="em">filter.capulet.lit</span> is also a privileged entity which can manage "<span class="em">jabber:iq:roster</span>", so it uses this ability to add Romeo in the enforced group:</p>
+        <p class="caption"><a name="example-10" id="example-10"></a>Example 10. filter.capulet.lit uses privileged entity to add Romeo</p><div class="indent"><pre class="prettyprint">
+&lt;iq to='juliet@capulet.lit'
+    from='filter.capulet.lit'
+    id='roster2'
+    type='set'&gt;
+    &lt;query xmlns='jabber:iq:roster'&gt;
+        &lt;item jid='romeo@montaigu.lit'
+              name='My Romeo'&gt;
+            &lt;group&gt;Rivals&lt;/group&gt;
+        &lt;/item&gt;
+    &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+        <p class="" style="">The namespace is delegated, but as the stanza is from the managing entity, the server manages it normally. The entity is also privileged, so it can change the stanza of Juliet, the server accepts:</p>
+
+        <p class="caption"><a name="example-11" id="example-11"></a>Example 11. server accept new entity in roster</p><div class="indent"><pre class="prettyprint">
+&lt;iq to='filter.capulet.lit'
+    from='juliet@capulet.lit'
+    id='roster2'
+    type='result'/&gt;
+</pre></div>
+
+        <p class="" style="">The server will then send the roster pushes (with the enforced group) normally.</p>
+
+        </div>
+
+    </div>
+
+
+<h2>5.
+       <a name="client_usecases" id="client_usecases">Client Mode Use Cases</a></h2>
+    <div class="indent"><h3>5.1 <a name="client_delegation" id="client_delegation">Client Delegation Request Use Case</a></h3>
+        <p class="" style="">In <span class="em">client</span> mode, the managing entity is not certified by the server administrator, so the delegation MUST be <span class="strong">explicitly</span> allowed by the managed entity. This is initiated by the managing entity (it can be after an interaction with a managed entity, like a subscription).</p>
+        <p class="" style="">To request delegation for a particular entity, the managing entity MUST have an &lt;iq/&gt; stanza with <span class="em">'urn:xmpp:delegation:1'</span> namespace. The &lt;query/&gt; element MUST have a 'to' attribute which specify the entity it wants to manage.</p>
+        <p class="" style="">Namespace delegations are asked with a &lt;delegate/&gt; element, which MUST contain a 'namespace' attribute set to the requested namespace.</p>
+
+        <p class="" style="">If an entity want to manage PEP service for Juliet, it can ask the delegation like this:
+        </p>
+        <p class="caption"><a name="example-12" id="example-12"></a>Example 12. managing entity asks for namespace delegation for one particular entity</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='pubsub.montaigu.lit' to='capulet.lit' type='get' id='delegation1'&gt;
+    &lt;query xmlns='urn:xmpp:delegation:1'
+           to='juliet@capulet.lit'&gt;
+        &lt;delegate namespace='http://jabber.org/protocol/pubsub'/&gt;
+    &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+        <p class="" style="">Once received the delegation request, the server ask to the client if it grants access to the requested namespace using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0004.html">Data Forms (XEP-0004)</a></span>  [<a href="#nt-idm220">5</a>]. The server use a challenge which it MUST have generated itself.
+        </p>
+        <p class="caption"><a name="example-13" id="example-13"></a>Example 13. server asks user for the namespace delegation</p><div class="indent"><pre class="prettyprint">
+&lt;message from='capulet.lit' to='juliet@capulet.lit/balcony'&gt;
+    &lt;body&gt;
+        pubsub.montaigu.lit wants to manage a feature normally managed by the server.
+        Do you allow it to manage the following features?
+
+        Be careful! According management to an entity is a serious thing,
+        think twice that you can trust the entity before doing this.
+    &lt;/body&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+        &lt;title&gt;Delegation request&lt;/title&gt;
+        &lt;instructions&gt;pubsub.montaigu.lit wants to manage the following features:
+            Do you allow it?&lt;/instructions&gt;
+        &lt;field type='hidden' var='challenge'&gt;&lt;value&gt;5439123&lt;/value&gt;&lt;/field&gt;
+        &lt;field type='hidden' var='FORM_TYPE'&gt;
+            &lt;value&gt;urn:xmpp:delegation:1&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field type='list-single'
+            label='Manage PubSub (http://jabber.org/protocol/pubsub)'
+            var='http://jabber.org/protocol/pubsub'&gt;
+            &lt;value&gt;0&lt;/value&gt;
+            &lt;option label='No'&gt;&lt;value&gt;0&lt;/value&gt;&lt;/option&gt;
+            &lt;option label='Yes'&gt;&lt;value&gt;1&lt;/value&gt;&lt;/option&gt;
+        &lt;/field&gt;
+    &lt;/x&gt;
+&lt;/message&gt;
+</pre></div>
+        <p class="" style="">The server SHOULD include a warning message, SHOULD translate the namespace to human friendly names (and MAY keep the original namespace in addition) and MUST set the default value to '<span class="strong">0</span>' (permission refused). The server MUST use namespaces as field var, so a client can use them to have a customized display.</p>
+        <p class="" style="">The client can then answer to the form:</p>
+        <p class="caption"><a name="example-14" id="example-14"></a>Example 14. client answer to the form</p><div class="indent"><pre class="prettyprint">
+&lt;message from='juliet@capulet.lit/balcony' to='capulet.lit'&gt;
+  &lt;x xmlns='jabber:x:data' type='submit'&gt;
+    &lt;field var='FORM_TYPE'&gt;
+      &lt;value&gt;&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;field var='challenge'&gt;&lt;value&gt;5439123&lt;/value&gt;&lt;/field&gt;
+    &lt;field var='http://jabber.org/protocol/pubsub'&gt;&lt;value&gt;1&lt;/value&gt;&lt;/field&gt;
+  &lt;/x&gt;
+&lt;/message&gt;
+</pre></div>
+        <p class="" style="">Here Juliet allows <span class="em">pubsub.montaigu.lit</span> to manage the PubSub (and then PEP) service.</p>
+
+
+        <p class="" style="">Finaly, the server notifies the entity of the granted delegation. It do this in the same way as for <a href="#admin_perm">admin mode</a>, except that the &lt;delegation/&gt; element has an attitional 'to' attribute set to the managed entity bare jid:</p>
+        <p class="caption"><a name="example-15" id="example-15"></a>Example 15. server advertise delegated namespaces for juliet</p><div class="indent"><pre class="prettyprint">
+&lt;message from='capulet.net' to='pubub.capulet.lit' id='6789'&gt;
+    &lt;delegation xmlns='urn:xmpp:delegation:1' to='juliet@capulet.lit'&gt;
+        &lt;delegated namespace='http://jabber.org/protocol/pubsub'/&gt;
+    &lt;/delegation&gt;
+&lt;/message&gt;
+</pre></div>
+    </div>
+    <div class="indent"><h3>5.2 <a name="client_forward" id="client_forward">Server Forward Stanza</a></h3>
+    <p class="" style="">The managing entity can now manage the namespace in a similar way as in <a href="#stanza_forward">admin mode</a> but with different rules:</p>
+        <ol start="" class="" style="">
+            <li class="" style="">if the stanza is directed to the delegating server (no 'to' attribute, or 'to' attribute with the server own JID), <span class="strong">and</span> the 'from' attribute belong to a managed entity (e.g. <span class="em">juliet@capulet.lit/balcony</span> if <span class="em">juliet@capulet.lit</span> is a managed entity) <span class="strong">and</span> the namespace of the stanza has been delegated by the managed entity, then the delegating server MUST forward it to the managing entity accepted by the managed entity, in the same way as in <a href="#stanza_forward">admin mode</a>.</li>
+            <li class="" style="">if the stanza is directed to the bare jid (and only the bare jid) of the managed entity (e.g. the 'to' attribute is set to <span class="em">juliet@capulet.lit</span> and the namespace has been delegated by the managed entity, then the server MUST forward it to the managing entity accepted by the managed entity, in the same way as in <a href="#stanza_forward">admin mode</a>, for any 'from' attribute but the jid of the managing entity.</li>
+            <li class="" style="">in all other cases, the server MUST NOT forward the stanza</li>
+        </ol>
+    </div>
+
+<h2>6.
+       <a name="configuration" id="configuration">Configuration</a></h2>
+    <p class="" style="">Server SHOULD provide a way for clients to check already delegated namespaces, and revoke them by using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0050.html">Ad-Hoc Commands (XEP-0050)</a></span>  [<a href="#nt-idm250">6</a>] on the well-defined command node <span class="strong">'urn:xmpp:delegation:1#configure'</span>.</p>
+    <p class="" style="">If present, the configuration commands MUST allow at least to check delegations granted to a managing entity, and to revoke them. A server MAY offer an option to keep delegations from one session to an other (see <a href="#rules">business rules</a>).</p>
+<h2>7.
+       <a name="disco" id="disco">Discovering Support</a></h2>
+    <div class="indent"><h3>7.1 <a name="disco_announce" id="disco_announce">Announce</a></h3>
+        <p class="" style="">If a server or an entity supports the namespace delegation protocol, it MUST report that fact by including a service discovery feature of "<span class="em">urn:xmpp:delegation:1</span>" in response to a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm261">7</a>] information request:</p>
+        <p class="caption"><a name="example-16" id="example-16"></a>Example 16. service discovery information request</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='pubsub.capulet.lit'
+    id='disco1'
+    to='capulet.lit'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+</pre></div>
+  <p class="caption"><a name="example-17" id="example-17"></a>Example 17. service discovery information response</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='capulet.lit'
+    id='disco1'
+    to='pubsub.capulet.lit'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;feature var='urn:xmpp:delegation:1'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+    </div>
+    <div class="indent"><h3>7.2 <a name="disco_nesting" id="disco_nesting">Nesting</a></h3>
+    <div class="indent"><h3>7.2.1 <a name="sect-idm266" id="sect-idm266">General Case</a></h3>
+        <p class="" style="">When a server delegates a namespace to a managing entity, the later can have particular features which must be advertised by the former with disco protocol.</p>
+        <p class="" style="">This is done by using a disco node, which is built in the following way: if pubsub.capulet.int manages pubsub namespace, it MUST report that fact in discovery feature, and have a '<span class="strong">urn:xmpp:delegation:1::http://jabber.org/protocol/pubsub</span>' node which reports the managed features.</p><p class="" style="">The node name is obtained by concatenating this XEP namespace (<span class="strong">urn:xmpp:delegation:1</span>), a '<span class="strong">::</span>' separator, and the delegated namespace (here <span class="strong">http://jabber.org/protocol/pubsub</span>).<br />The server MUST advertise the result in its own discovery answer, and MUST ignore features of its internal component (here internal PubSub service).</p>
+<p class="" style="">In the following example, the capulet.int server delegates its internal PEP component to pubsub.capulet.int. capulet.int only supports REQUIRED PubSub features and auto-create, while pubsub.capulet.int supports REQUIRED PubSub features and publish-options, but not auto-create. <br />juliet@capulet.int asks its server what it is capable of, she is specially interested in PubSub capabilities.</p>
+<p class="caption"><a name="example-18" id="example-18"></a>Example 18. Juliet asks her server its available features</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='disco1'
+    to='capulet.lit'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+
+</pre></div>
+<p class="" style="">Server delegates its PubSub namespace to <span class="em">pubsub.capulet.lit</span>, so it asks its available features for this namespace like this:</p>
+<p class="caption"><a name="example-19" id="example-19"></a>Example 19. capulet.lit requests disco infos for pubsub namespace to pubsub.capulet.lit</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='capulet.lit'
+    id='disco2'
+    to='pubsub.capulet.lit'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'
+         node='urn:xmpp:delegation:1::http://jabber.org/protocol/pubsub'/&gt;
+&lt;/iq&gt;
+
+</pre></div>
+<p class="" style="">Note that in real situation, server has probably this information already in cache (see <a href="#impl">Implementation Notes</a>).<br />
+   <span class="em">pubsub.capulet.lit</span> returns its available features:</p>
+<p class="caption"><a name="example-20" id="example-20"></a>Example 20. pubsub.capulet.lit returns features to nest</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='pubsub.capulet.lit'
+    id='disco2'
+    to='capulet.lit'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'
+         node='urn:xmpp:delegation:1::http://jabber.org/protocol/pubsub'&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#publish'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#subscribe'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#publish-options'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+
+</pre></div>
+<p class="" style="">Server include the results in its own discovery info results:</p>
+<p class="caption"><a name="example-21" id="example-21"></a>Example 21. capulet.lit return disco info including features from pubsub.capulet.lit</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='capulet.lit'
+    id='disco1'
+    to='juliet@capulet.lit/balcony'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+        &lt;feature var='urn:xmpp:delegation:1'/&gt;
+        ...
+        &lt;feature var='http://jabber.org/protocol/pubsub'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#publish'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#subscribe'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#publish-options'/&gt;
+        ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+
+</pre></div>
+<p class="" style="">Note that '<span class="em">http://jabber.org/protocol/pubsub#auto-create</span>' is not available.</p>
+<p class="" style=""><span class="strong">N.B.:</span> In the special case of attribute filtering, the server still display managing entity's features for the whole delegated namespace instead of its own internal ones.</p>
+    </div>
+    <div class="indent"><h3>7.2.2 <a name="sect-idm292" id="sect-idm292">Rediction Of Bare JID Disco Info</a></h3>
+        <p class="" style="">As an entity may ask for discovery information on bare JID, which the server would answer, the managing entity must be able to send this kind of information.</p>
+        <p class="" style="">To do so, the mechanism is the same as for server features, but the separator is '<span class="strong">:bare:</span>' instead of '<span class="strong">::</span>':</p>
+
+<p class="caption"><a name="example-22" id="example-22"></a>Example 22. Juliet asks features for its own bare JID</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='disco3'
+    to='juliet@capulet.lit'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+
+</pre></div>
+<p class="" style="">Server delegate its PubSub namespace to <span class="em">pubsub.capulet.lit</span>, so it ask its available features for this namespace like this:</p>
+<p class="caption"><a name="example-23" id="example-23"></a>Example 23. capulet.lit requests disco infos for pubsub namespace to pubsub.capulet.lit</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='capulet.lit'
+    id='disco4'
+    to='pubsub.capulet.lit'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'
+         node='urn:xmpp:delegation:1:bare:http://jabber.org/protocol/pubsub'/&gt;
+&lt;/iq&gt;
+
+</pre></div>
+<p class="" style="">As for general case, server has probably <a href="#impl">this information already in cache</a>.<br />
+   <span class="em">pubsub.capulet.lit</span> returns its available features:</p>
+<p class="caption"><a name="example-24" id="example-24"></a>Example 24. pubsub.capulet.lit returns features to nest</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='pubsub.capulet.lit'
+    id='disco4'
+    to='capulet.lit'
+    type='result'&gt;
+    &lt;query xmlns='http://jabber.org/protocol/disco#info'
+           node='urn:xmpp:delegation:1:bare:http://jabber.org/protocol/pubsub'&gt;
+        &lt;identity category='pubsub' type='pep'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#access-presence'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#auto-create'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#auto-subscribe'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#config-node'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#create-and-configure'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#create-nodes'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#filtered-notifications'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#persistent-items'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#publish'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#retrieve-items'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#subscribe'/&gt;
+        ...
+    &lt;/query&gt;
+&lt;/iq&gt;
+
+</pre></div>
+<p class="" style="">Then the server returns the answer to Juliet, as in general case, with requested bare JID in 'from' field.</p>
+<p class="caption"><a name="example-25" id="example-25"></a>Example 25. capulet.lit returns disco info to Juliet</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit'
+    id='disco3'
+    to='juliet@capulet.lit/balcony'
+    type='result'&gt;
+    &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+        &lt;identity category='account' type='registered'/&gt;
+        &lt;identity category='pubsub' type='pep'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#access-presence'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#auto-create'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#auto-subscribe'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#config-node'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#create-and-configure'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#create-nodes'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#filtered-notifications'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#persistent-items'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#publish'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#retrieve-items'/&gt;
+        &lt;feature var='http://jabber.org/protocol/pubsub#subscribe'/&gt;
+        ...
+    &lt;/query&gt;
+&lt;/iq&gt;
+
+</pre></div>
+
+    </div>
+    <div class="indent"><h3>7.2.3 <a name="sect-idm308" id="sect-idm308">Service Discovery Extensions</a></h3>
+        <p class="" style="">Extensions of Service Discovery as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions (XEP-0128)</a></span>  [<a href="#nt-idm312">8</a>] follow the same rules: for the delegated namespace, internal extensions MUST be removed and extensions of managing entity MUST be included instead.</p>
+    </div>
+    </div>
+<h2>8.
+       <a name="rules" id="rules">Business Rules</a></h2>
+    <ol start="" class="" style="">
+        <li class="" style="">In client mode, server MAY keep delegations granted to an entity by a client from one session to an other, but if it does so, it MUST provide configuration like explained in the <a href="#configuration">suitable section</a>. If server offers this feature, it SHOULD add a field directly in configuration commands.</li>
+        <li class="" style="">If a client can't check or revoke delegations (i.e. it doesn't support <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0050.html">Ad-Hoc Commands (XEP-0050)</a></span>  [<a href="#nt-idm250">6</a>]) when granting them, the server MUST NOT keep granted delegations from one session to an other, and delegations will be asked on each new session.</li>
+        <li class="" style="">If delegations are changed during a session, server MUST notify managing entity of the new delegations, like in <a href="#client_delegation">client delegation request use case</a>.</li>
+        <li class="" style="">If delegations are kept between sessions in client mode, and the managing entity is not available or return an error, the server MUST return an &lt;iq/&gt; error with condition &lt;service-unavailable/&gt; when a delegated namespace is requested, like explained in <a href="#stanza_forward">"Server Forwards Delegated &lt;iq/&gt; Stanza" section</a>.</li>
+        <li class="" style="">The namespace of this XEP (<span class="strong">urn:xmpp:delegation:1</span>) MUST NOT be delegated. If an entity requests it, the server MUST return a &lt;forbidden/&gt; error.</li>
+    </ol>
+<h2>9.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+    <ol start="" class="" style="">
+        <li class="" style="">As admin mode is far more easy to implement than client mode, and client mode may impact performances, a server MAY choose to only implement the former.</li>
+        <li class="" style="">Because of the performance impact, a server SHOULD ask for <a href="#disco_nesting">disco features to nest</a> to managing entity when delegation is accepted, and keep them in cache.</li>
+        <li class="" style=""><span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm337">9</a>] section 10.1 require in-order processing of stanzas, which may be problematic for this extension: either the server blocks the traffic until the managing entity answer - which can lead to severe performance impact -, or the server doesn't block and may loose order. The recommended way is to not block the traffic while waiting for managing entity answer to avoid performance issues. A future version of this XEP may include an attribute to request traffic blocking. In admin mode the server implementation MAY chooses to have a blocking option (which SHOULD be per namespace, not global).
+        </li>
+    </ol>
+<h2>10.
+       <a name="security" id="security">Security Considerations</a></h2>
+    <ol start="" class="" style="">
+        <li class="" style="">Managing entity can manage sensitive data, <span class="em">admin</span> delegation should be granted carefuly, only if you absolutely trust the entity.</li>
+        <li class="" style="">A server MAY choose to filter allowed namespaces. In this case, it MUST always set the allowed type of filtered namespaces to <span class="strong">0</span>.</li>
+
+        <li class="" style="">In case of filtering, a whitelist system is more secure and SHOULD be prefered to a blacklist (idealy, configuration would allow no filtering, whitelist filtering and blacklist filtering).</li>
+    </ol>
+<h2>11.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm350">10</a>].</p>
+<h2>12.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>12.1 <a name="ns" id="ns">Protocol Namespaces</a></h3>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm357">11</a>] includes 'urn:xmpp:delegation:1' in its registry of protocol namespaces (see &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;).</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:delegation:1</li>
+    </ul>
+  </div>
+  <div class="indent"><h3>12.2 <a name="registrar-versioning" id="registrar-versioning">Protocol Versioning</a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+<h2>13.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:delegation:1'
+    xmlns='urn:xmpp:delegation:1'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:import namespace='urn:xmpp:forward:0'
+      schemaLocation='http://xmpp.org/schemas/forward.xsd'/&gt;
+
+  &lt;xs:element name='query'&gt;
+      &lt;xs:complexType&gt;
+          &lt;xs:attribute name='to' use='required' type='xs:string'/&gt;
+          &lt;/xs:attribute&gt;
+          &lt;xs:element name='delegate'
+                      maxOccurs='unbounded'&gt;
+              &lt;xs:complexType&gt;
+                  &lt;xs:attribute name='namespace' use='required' type='xs:string'/&gt;
+              &lt;/xs:complexType&gt;
+          &lt;/xs:element&gt;
+      &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='delegation'&gt;
+      &lt;xs:complexType&gt;
+          &lt;xs:element ref='urn:xmpp:forward:0' minOccurs='0' maxOccurs='1' /&gt;
+          &lt;xs:element name='delegated'
+                      minOccurs='0'
+                      maxOccurs='unbounded'&gt;
+              &lt;xs:complexType&gt;
+                  &lt;xs:attribute name='namespace' use='required' type='xs:string'/&gt;
+                  &lt;xs:element name='attribute'
+                              minOccurs='0'
+                              maxOccurs='unbounded'&gt;
+                      &lt;xs:complexType&gt;
+                          &lt;xs:attribute name='name' use='required' type='xs:string'/&gt;
+                      &lt;/xs:complexType&gt;
+                  &lt;/xs:element&gt;
+              &lt;/xs:complexType&gt;
+          &lt;/xs:element&gt;
+      &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+&lt;/xs:schema&gt;
+</pre></div>
+<h2>14.
+       <a name="acks" id="acks">Acknowledgements</a></h2>
+  <p class="" style="">This XEP is linked with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0356.html">Privileged Entity (XEP-0356)</a></span>  [<a href="#nt-idm104">3</a>] and works in a similar way.</p>
+  <p class="" style="">The client mode delegation mechanism is inspired from <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0321.html">Remote Roster Management (XEP-0321)</a></span>  [<a href="#nt-idm376">12</a>] permission request.</p>
+  <p class="" style="">Thanks to Adrien Cossa for his typos/style corrections</p>
+  <p class="" style="">Thanks to Philipp Hancke, Dave Cridland, Kurt Zeilenga, Sergey Dobrov and Анна Мухаррам for their feedbacks.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0355<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.4.1<br />
+            Last Updated: 2018-11-03<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0004, XEP-0297<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0355.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0355.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0355.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Jérôme Poisson</h3><p class="indent">
+        Email:
+        <a href="mailto:goffi@goffi.org">goffi@goffi.org</a><br />
+        JabberID:
+        <a href="xmpp:goffi@jabber.fr">goffi@jabber.fr</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm74" id="nt-idm74">1</a>. XEP-0297: Stanza Forwarding &lt;<a href="https://xmpp.org/extensions/xep-0297.html">https://xmpp.org/extensions/xep-0297.html</a>&gt;.</p><p><a name="nt-idm98" id="nt-idm98">2</a>. XEP-0163: Personal Eventing Protocol &lt;<a href="https://xmpp.org/extensions/xep-0163.html">https://xmpp.org/extensions/xep-0163.html</a>&gt;.</p><p><a name="nt-idm104" id="nt-idm104">3</a>. XEP-0356: Privileged Entity &lt;<a href="https://xmpp.org/extensions/xep-0356.html">https://xmpp.org/extensions/xep-0356.html</a>&gt;.</p><p><a name="nt-idm182" id="nt-idm182">4</a>. XEP-0355: Namespace Delegation &lt;<a href="https://xmpp.org/extensions/xep-0355.html">https://xmpp.org/extensions/xep-0355.html</a>&gt;.</p><p><a name="nt-idm220" id="nt-idm220">5</a>. XEP-0004: Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0004.html">https://xmpp.org/extensions/xep-0004.html</a>&gt;.</p><p><a name="nt-idm250" id="nt-idm250">6</a>. XEP-0050: Ad-Hoc Commands &lt;<a href="https://xmpp.org/extensions/xep-0050.html">https://xmpp.org/extensions/xep-0050.html</a>&gt;.</p><p><a name="nt-idm261" id="nt-idm261">7</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm312" id="nt-idm312">8</a>. XEP-0128: Service Discovery Extensions &lt;<a href="https://xmpp.org/extensions/xep-0128.html">https://xmpp.org/extensions/xep-0128.html</a>&gt;.</p><p><a name="nt-idm337" id="nt-idm337">9</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm350" id="nt-idm350">10</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm357" id="nt-idm357">11</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idm376" id="nt-idm376">12</a>. XEP-0321: Remote Roster Management &lt;<a href="https://xmpp.org/extensions/xep-0321.html">https://xmpp.org/extensions/xep-0321.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.4.1 (2018-11-03)</h4><div class="indent">Fix a bunch of typos, batch-style. (pep)
+    </div><h4>Version 0.4 (2017-09-11)</h4><div class="indent">Defer due to lack of activity. (XEP Editor (jwi))
+    </div><h4>Version 0.3 (2016-08-01)</h4><div class="indent">
+        <ul class="" style="">
+            <li class="" style="">added "Delegating server" in glossary</li>
+            <li class="" style="">fixed <a href="#stanza_forward">server forwarding</a> conditions</li>
+            <li class="" style="">fixed missing 'jabber:client' namespaces</li>
+            <li class="" style="">&lt;service-unavailable/&gt; on managing entity &lt;iq/&gt; error</li>
+            <li class="" style="">forwarding in client mode is now specified</li>
+            <li class="" style="">removed wrong 'node' attribute in disco nesting example</li>
+            <li class="" style="">disco extension explicitly need to be handled</li>
+            <li class="" style="">minor typos/explanation improvments</li>
+        </ul>
+     (jp)
+    </div><h4>Version 0.2.1 (2015-10-15)</h4><div class="indent"><p class="" style="">Corrected examples (Stefan Strigler).</p> (XEP Editor (mam))
+    </div><h4>Version 0.2 (2014-03-21)</h4><div class="indent"><p class="" style="">Several updates according to feedbacks:</p>
+        <ul class="" style="">
+            <li class="" style="">Added attribute filtering, mainly to manage correctly MAM</li>
+            <li class="" style="">Simplification of configuration in admin mode: no more &lt;iq/&gt; negociation</li>
+            <li class="" style="">Delegations notifications to the managing entity are now done with a &lt;message/&gt; stanza</li>
+            <li class="" style="">Forwarding now use <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0297.html">Stanza Forwarding (XEP-0297)</a></span>  [<a href="#nt-idm74">1</a>] to avoid server to parse every stanza and a to have a cleaner separation</li>
+            <li class="" style="">The behaviour when managing entity is unavailable is specified</li>
+            <li class="" style="">Use of namespace in field var for client mode negociation is now mandatory</li>
+            <li class="" style="">Behaviour when managing a delegation kept between session in client mode, when managing entity is not available, is specified</li>
+            <li class="" style="">Implementation note added for in-order processing issue (thanks to Kurt Zeilenga for pointing this)</li>
+            <li class="" style="">Added an note for discovery nesting with attribute filtering</li>
+            <li class="" style="">Updated namespace to reflect incompatible changes</li>
+        </ul>
+     (jp)
+    </div><h4>Version 0.1 (2014-12-18)</h4><div class="indent"><p class="" style="">Initial published version approved by the XMPP Council.</p> (XEP Editor (mam))
+    </div><h4>Version 0.0.1 (2014-11-13)</h4><div class="indent"><p class="" style="">First draft.</p> (jp)
+    </div></div><hr /><p>END</p></body></html>
