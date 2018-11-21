@@ -1,0 +1,417 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0397: Instant Stream Resumption</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Instant Stream Resumption" /><meta name="DC.Creator" content="Florian Schmaus" /><meta name="DC.Description" content="This specification introduces a mechanism for instant&#10;  stream resumption, based on Stream Management (XEP-0198), allowing&#10;  XMPP entities to instantaneously resume an XMPP stream." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2018-11-03" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0397" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0397: Instant Stream Resumption</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification introduces a mechanism for instant
+  stream resumption, based on Stream Management (XEP-0198), allowing
+  XMPP entities to instantaneously resume an XMPP stream.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Florian Schmaus</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2018 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2018-11-03</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#glossary">Glossary</a><br />3.  <a href="#sect-idm103">Stream Feature</a><br />4.  <a href="#obtain">Obtaining a Instant Stream Resumption Token</a><br />5.  <a href="#isr">Instant Stream Resumption</a><br />   
+      5.1.  <a href="#host">Determing the Host for Resumption</a><br />   
+      5.2.  <a href="#resume">Performing Instant Stream Resumption</a><br />      
+      5.2.1.  <a href="#isr-success">Successful Stream Resumption</a><br />      
+      5.2.2.  <a href="#isr-auth-success-resumption-failed">Successful Authentication but failed Stream Resumption</a><br />      
+      5.2.3.  <a href="#multi-step-auth-isr">Multi step authentication ISR</a><br />      
+      5.2.4.  <a href="#isr-auth-failed">Failed ISR Authentication</a><br />6.  <a href="#security">Security Considerations</a><br />7.  <a href="#iana">IANA Considerations</a><br />8.  <a href="#registrar">XMPP Registrar Considerations</a><br />9.  <a href="#schema">XML Schema</a><br />10.  <a href="#acknowledgements">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+
+  <p class="" style="">This XEP specifies an instant stream resumption mechanism based
+  on <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0198.html">Stream Management (XEP-0198)</a></span>  [<a href="#nt-idm78">1</a>], allowing XMPP entities to instantaneously resume an
+  XMPP stream. This can be seen as the complementary part to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0305.html">XMPP Quickstart (XEP-0305)</a></span>  [<a href="#nt-idm82">2</a>]
+  allowing for fast XMPP session (re-)establishment.</p>
+
+  <p class="" style="">Compared to the existing stream resumption mechanism of <a href="http://xmpp.org/extensions/xep-0198.html#resumption"><span class="ref">XEP-0198</span>
+  § 5</a>, the approach defined herein reduces the round trips
+  required to resume a stream to exactly <span class="em">one</span>. This is
+  achieved by using just a secure short-lived token to resume the
+  stream.</p>
+
+<h2>2.
+       <a name="glossary" id="glossary">Glossary</a></h2>
+
+  <div class="indent"><dl>
+  <di>
+    <dt><strong>ISR</strong></dt>
+    <dd>Instant Stream Resumption.</dd>
+  </di>
+  <di>
+    <dt><strong>Instant Stream Resumption Token (ISR Token)</strong></dt>
+    <dd>A shared secret that is exclusively ephemeral and represented as string.</dd>
+  </di>
+  <di>
+    <dt><strong>TLS</strong></dt>
+    <dd>Transport Layer Security (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5246">RFC 5246</a></span>  [<a href="#nt-idm101">3</a>]).</dd>
+  </di>
+  </dl></div>
+
+<h2>3.
+       <a name="sect-idm103" id="sect-idm103">Stream Feature</a></h2>
+
+  <p class="" style="">XMPP entities providing Instant Stream Resumption MUST announce
+  that functionality as stream feature, but only if an instant stream
+  resumption is possible at this stage. The ISR stream future consists
+  of an &lt;isr/&gt; element qualified by the 'htpps://xmpp.org/extensions/isr/0'
+  namespace. And since ISR requires TLS, this means that the
+  &lt;isr/&gt; stream feature only appears on TLS secured
+  connections.</p>
+
+  <p class="" style="">The ISR stream feature element MUST contain a &lt;mechanisms/&gt;
+  element as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm108">4</a>]. This element contains the SASL
+  mechanism which are available to be used for instant stream
+  resumption.</p>
+
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Server announces the Instant Stream Resumption Stream Feature</p><div class="indent"><pre class="prettyprint">
+&lt;stream:stream
+  from='example.com'
+  xmlns='jabber:client'
+  xmlns:stream='http://etherx.jabber.org/stream'
+  version='1.0'&gt;
+
+&lt;stream:features&gt;
+  &lt;bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'/&gt;
+  &lt;sm xmlns='urn:xmpp:sm:3'/&gt;
+  &lt;isr xmlns='https://xmpp.org/extensions/isr/0'&gt;
+    &lt;mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'&gt;
+      &lt;mechanism&gt;HT-SHA-256-ENDP&lt;/mechanism&gt;
+    &lt;/mechanisms&gt;
+  &lt;/isr&gt;
+&lt;/stream:features&gt;
+</pre></div>
+
+  <p class="" style="">Every ISR enabled entity SHOULD support the HT-SHA-256-ENDP
+  mechanism, support for HT-SHA-256-UNIQ is RECOMMENDED. The family
+  of <span class="ref">HT SASL</span> mechanisms is specified in <span class="ref" style=""><a href="https://tools.ietf.org/html/draft-schmaus-kitten-sasl-ht-03">draft-schmaus-sasl-ht-03</a></span> [<a href="#nt-idm115">5</a>].</p>
+
+<h2>4.
+       <a name="obtain" id="obtain">Obtaining a Instant Stream Resumption Token</a></h2>
+
+  <p class="" style="">In order to obtain an ISR token, the requesting entity must add an
+  'isr-enable' element qualified by the 'htpps://xmpp.org/extensions/isr/0' namespace to the
+  &lt;enable/&gt; element as defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0198.html">Stream Management (XEP-0198)</a></span>  [<a href="#nt-idm78">1</a>] when attempting to
+  enable Stream Management. This &lt;isr-enable/&gt; element MUST contain a
+  'mechanism' attribute containing the name of the SASL mechanism the
+  requesting entity will use when performing ISR with the returned
+  token. The entities involved in ISR MUST only use or allow this
+  mechanism when performing ISR with the according token. This
+  effectively pins the SASL mechanism  [<a href="#nt-idm123">6</a>].</p>
+
+  <p class="caption"><a name="example-2" id="example-2"></a>Example 2. An &lt;enable/&gt; Nonza with the ISR 'mechanism' element</p><div class="indent"><pre class="prettyprint">
+&lt;enable xmlns='urn:xmpp:sm:3'&gt;
+  &lt;isr-enable xmlns='https://xmpp.org/extensions/isr/0' mechanism='HT-SHA-256-ENDP'/&gt;
+&lt;/enable&gt;
+</pre></div>
+
+  <p class="" style="">Next, the &lt;enabled/&gt; Nonza (see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0360.html">Nonzas (are not Stanzas) (XEP-0360)</a></span>  [<a href="#nt-idm128">7</a>]) which is sent as
+  positive reply upon a request to enable Stream Management, MUST
+  contain an 'isr-enabled' element qualified by the 'https://xmpp.org/extensions/isr/0'
+  namespace containing a ISR token as value of its 'token' attribute. The
+  token MUST be newly generated by a cryptographically secure random
+  number generator and MUST contain at least 128 bit of entropy. The
+  &lt;isr-enabled/&gt; element can optionally also contain a
+  'location' attribute
+  which specifies the preferred IP address or hostname, and a TCP port
+  number of the host which should be used for instant stream
+  resumption.</p>
+
+  <p class="caption"><a name="example-3" id="example-3"></a>Example 3. An &lt;enabled/&gt; Nonza with a ISR token</p><div class="indent"><pre class="prettyprint">
+&lt;enabled xmlns='urn:xmpp:sm:3'&gt;
+  &lt;isr-enabled xmlns='https://xmpp.org/extensions/isr/0' token='a0b9162d-0981-4c7d-9174-1f55aedd1f52'/&gt;
+&lt;/enabled&gt;</pre></div>
+
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. An &lt;enabled/&gt; Nonza with a ISR token and location</p><div class="indent"><pre class="prettyprint">
+&lt;enabled xmlns='urn:xmpp:sm:3'&gt;
+  &lt;isr-enabled xmlns='https://xmpp.org/extensions/isr/0'
+               token='a0b9162d-0981-4c7d-9174-1f55aedd1f52'
+               location='isr.example.org:5222'/&gt;
+&lt;/enabled&gt;</pre></div>
+
+  <p class="" style="">The &lt;enabled/&gt; Nonza containing an ISR token MUST only be
+  sent over TLS secured connections.</p>
+
+<h2>5.
+       <a name="isr" id="isr">Instant Stream Resumption</a></h2>
+
+  <p class="" style="">In order to instantaneously resume an XMPP stream the initiating
+  entity, which is either an XMPP client or server, must posses a
+  valid ISR token. After it has obtained the ISR token, using the process
+  described in the previous section, it first determines the host for
+  resumption, and after that, tries to perform the instant stream
+  resumption.</p>
+
+  <div class="indent"><h3>5.1 <a name="host" id="host">Determing the Host for Resumption</a></h3>
+
+  <p class="" style="">The lookup mechanism order to determine host candidates for ISR
+  resumption is as follows:</p>
+
+  <ol start="" class="" style="">
+    <li class="" style="">The host provided in the optional 'location' attribute
+    qualified by the 'https://xmpp.org/extensions/isr/0' namespace found in the
+    &lt;enabled/&gt; element of <span class="ref">XEP-0198</span> (the
+    "isr:location").
+    </li>
+    <li class="" style="">The hosts determined by means of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0368.html">SRV records for XMPP over TLS (XEP-0368)</a></span>  [<a href="#nt-idm143">8</a>].</li>
+    <li class="" style="">The host announced in the 'location' attribute of the
+    &lt;enabled/&gt; Nonza defined in <span class="ref">XEP-0198</span>.</li>
+    <li class="" style="">Standard host lookup mechanisms.</li>
+  </ol>
+
+  <p class="" style="">The host candidates retrieved by those mechanisms SHOULD be
+  tried by the initiating entity in this order.</p>
+
+  <p class="" style="">Note that the hosts announced by the 'location' attribute
+  qualified by the 'https://xmpp.org/extensions/isr/0' namespace MUST be connected to
+  using TLS from the beginning, i.e. &lt;starttls/&gt; MUST NOT be
+  used, instead the TLS handshake is performed right after
+  establishing the connection.</p>
+
+  <p class="" style="">This order prefers hosts which allow connections where TLS is
+  enabled from the beginning. This is desirable to reduce the
+  required round trips by skipping the &lt;starttls/&gt; step.</p>
+
+  </div>
+
+  <div class="indent"><h3>5.2 <a name="resume" id="resume">Performing Instant Stream Resumption</a></h3>
+
+  <p class="" style="">After the remote host on which the instant stream resumption
+  should be performed was determined, the initiating entity connects
+  to the host, and establishes TLS by either</p>
+
+  <ol start="" class="" style="">
+    <li class="" style="">establishing a TLS session right away, or</li>
+    <li class="" style="">performing STARTTLS (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm108">4</a>] § 5).</li>
+  </ol>
+
+  <p class="" style="">Now the initiating entity sends an XMPP &lt;stream&gt; open
+  element followed by a &lt;authenticate/&gt; Nonza as specified in
+  the <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-idm163">9</a>]. The initiating entity must also provide a
+  &lt;inst-resume/&gt; element qualified by the 'https://xmpp.org/extensions/isr/0'
+  namespace, which must contain a &lt;resume/&gt; element as defined
+  in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0198.html">Stream Management (XEP-0198)</a></span>  [<a href="#nt-idm78">1</a>].</p>
+
+  <p class="" style="">The only defined attributed of the &lt;inst-resume/&gt; element is the 'with-isr-token'
+  attribute, whose value, if omitted, defaults to 'true'. If is set to 'false', then the
+  SASL mechanism is performed as when traditionally authenticating
+  the XMPP session. If the value of the attribute is 'true' then the "password" given to
+  the SASL mechanism is the ISR token. Note that this implies that only
+  SASL mechanisms which take a password/token can be used this
+  way.</p>
+
+  <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Initiating entity requests instant stream resumption via the Extensible SASL Profile (XEP-0388)</p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0'?&gt;
+&lt;stream:stream
+    from='juliet@im.example.com'
+    to='im.example.com'
+    version='1.0'
+    xml:lang='en'
+    xmlns='jabber:client'
+    xmlns:stream='http://etherx.jabber.org/streams'&gt;
+
+&lt;authenticate xmlns='urn:xmpp:sasl:1' mechanism='HT-SHA-256-ENDP'&gt;
+  &lt;initial-response&gt;[base64 encoded SASL data]&lt;/initial-response&gt;
+  &lt;inst-resume xmlns='https://xmpp.org/extensions/isr/0' with-isr-token='true'/&gt;
+    &lt;resume xmlns='urn:xmpp:sm:3'
+            h='some-sequence-number'
+            previd='some-long-sm-id'/&gt;
+  &lt;/inst-resume&gt;
+&lt;/authenticate&gt;
+</pre></div>
+
+    <p class="" style="">Note that the initiating entity SHOULD pipeline the instant
+  stream resumption request together with then initial
+  &lt;stream&gt; open element. The initiating entity is able to do
+  so since it already knows that the service supports ISR because it
+  announced an ISR token.</p>
+
+  <p class="" style="">Servers MUST destroy the ISR token of a stream after an instant
+  stream resumption was attempted for that stream with an invalid ISR
+  token. Server implementations MUST implement the ISR token comparision in
+  linear runtime.</p>
+
+  <div class="indent"><h3>5.2.1 <a name="isr-success" id="isr-success">Successful Stream Resumption</a></h3>
+
+  <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Successful Instant Stream Resumption</p><div class="indent"><pre class="prettyprint">
+&lt;success xmlns='urn:xmpp:sasl:1'&gt;z
+  &lt;additional-data&gt;&lt;/additional-data&gt;
+  &lt;inst-resumed xmlns='https://xmpp.org/extensions/isr/0'
+                token='006b1a29-c549-41c7-a12c-2a931822f8c0'&gt;
+    &lt;resumed xmlns='urn:xmpp:sm:3' h='354' previd='123'/&gt;
+  &lt;/inst-resumed&gt;
+&lt;/success&gt;
+</pre></div>
+
+  <p class="" style="">On success the server replies with a &lt;success/&gt; nonza as
+  specified in the <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-idm163">9</a>], which must include a
+  &lt;inst-resumed/&gt; element qualified by the 'https://xmpp.org/extensions/isr/0'
+  namespace. This element MUST contain a <span class="em">new</span> ISR Token found in
+  the 'token' attribute. It also MUST include a &lt;resumed/&gt; as
+  specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0198.html">Stream Management (XEP-0198)</a></span>  [<a href="#nt-idm78">1</a>] containing the sequence number of the last by
+  Stream Management handled stanza in the 'h' attribute and the
+  'previd' attribute.</p>
+
+  <p class="" style="">In case of an successful Instant Stream Resumption authenticated
+  by an ISR token, the server MUST immediately destroy the ISR token after
+  authentication, i.e., it MUST no longer be possible to perform an
+  ISR using that ISR token and Stream Management ID (SM-ID, see
+  <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0198.html">Stream Management (XEP-0198)</a></span>  [<a href="#nt-idm78">1</a>]) tuple.</p>
+
+  <p class="" style="">After the &lt;inst-resumed/&gt; was received and has been
+  verified both entities MUST consider the resumed stream to be
+  re-established. This includes all previously negotiated stream
+  features like <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0138.html">Stream Compression (XEP-0138)</a></span>  [<a href="#nt-idm193">10</a>]. It does however not include the specific
+  state of the features: For example in case of Stream Compression,
+  the dictionary used by the compression mechanism of the resumed
+  stream MUST NOT be considered to be restored after instant stream
+  resumption.</p>
+
+  <p class="box" style="">Note that this behavior is different from <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0198.html">Stream Management (XEP-0198)</a></span>  [<a href="#nt-idm78">1</a>]
+  stream resumption, where "outer stream" features like compression
+  are not restored. Since such a behavior would be counterproductive
+  towards the goal of this XEP, it specifies that the negotiation
+  state of such "outer stream" features is also restored (besides the
+  features which where already negotiated at ISR-time, i.e. TLS).</p>
+
+  </div>
+
+    <div class="indent"><h3>5.2.2 <a name="isr-auth-success-resumption-failed" id="isr-auth-success-resumption-failed">Successful Authentication but failed Stream Resumption</a></h3>
+
+    <p class="" style="">If the server was able to authenticate the initiating entity
+    but is unable to resume the stream instantly it MUST reply with a
+    &lt;success/&gt; Nonza as defined in the <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-idm163">9</a>] containing
+    a &lt;inst-resume-failed/&gt; element qualified by the
+    'https://xmpp.org/extensions/isr/0' namespace. This
+    &lt;inst-resume-failed/&gt; MUST contain a &lt;failed/&gt;
+    element as defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0198.html">Stream Management (XEP-0198)</a></span>  [<a href="#nt-idm78">1</a>].</p>
+
+    <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Server indicates instant stream resumption failure</p><div class="indent"><pre class="prettyprint">
+&lt;success xmlns='urn:xmpp:sasl:1'&gt;
+  &lt;inst-resume-failed xmlns='https://xmpp.org/extensions/isr/0'&gt;
+    &lt;failed xmlns='urn:xmpp:sm:3'
+            h='another-sequence-number'&gt;
+      &lt;item-not-found xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+    &lt;/failed&gt;
+  &lt;/inst-resume-failed&gt;
+&lt;/sucess&gt;
+</pre></div>
+
+    <p class="" style="">Instant stream resumption errors SHOULD be considered
+    recoverable, the initiating entity MAY continue with normal
+    session establishment; however, misuse of stream management MAY
+    result in termination of the stream. Since the initiating entity is
+    authenticated, it could continue with resource binding by using
+    <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm108">4</a>] § 7. or <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0386.html">Bind 2.0 (XEP-0386)</a></span>  [<a href="#nt-idm218">11</a>].</p>
+
+  </div>
+
+  <div class="indent"><h3>5.2.3 <a name="multi-step-auth-isr" id="multi-step-auth-isr">Multi step authentication ISR</a></h3>
+
+    <p class="" style="">As specified in the <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-idm163">9</a>] § 2.6.3, sole SASL authentication
+    may not be sufficient for authentication. In this case, the remote
+    entity sends a &lt;continue/&gt; element as defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-idm163">9</a>]
+    to request the local entity to perform another
+    task.</p>
+
+    <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Server requires Multi SASL Mechanism ISR</p><div class="indent"><pre class="prettyprint">
+&lt;continue xmlns='urn:xmpp:sasl:1'&gt;
+  &lt;additional-data&gt;
+   T3B0aW9uYWwgQmFzZSA2NCBlbmNvZGVkIFNBU0wgc3VjY2VzcyBkYXRh
+  &lt;/additional-data&gt;
+  &lt;tasks&gt;
+    &lt;task&gt;HOTP-EXAMPLE&lt;/task&gt;
+    &lt;task&gt;TOTP-EXAMPLE&lt;/task&gt;
+  &lt;tasks&gt;
+&lt;/continue&gt;
+</pre></div>
+
+  </div>
+
+    <div class="indent"><h3>5.2.4 <a name="isr-auth-failed" id="isr-auth-failed">Failed ISR Authentication</a></h3>
+
+    <p class="" style="">If the server is unable to authenticate the initiating entity
+    it replies with a &lt;failure/&gt; Nonza as defined in
+    <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-idm163">9</a>]. The server MUST delete any state of the stream which
+    was attempted to resume in case the SM-ID was correct but the
+    authentication failed. [<a href="#nt-idm237">12</a>]</p>
+
+    <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Server indicates instant stream resumption failure</p><div class="indent"><pre class="prettyprint">
+&lt;failure xmlns='urn:xmpp:sasl:1'&gt;
+    &lt;not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/&gt;
+&lt;/failure&gt;
+</pre></div>
+
+    <p class="" style="">After the ISR authentication has failed, the initiating entity
+    could continue with normal authentication (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-idm163">9</a>],
+    …).</p>
+
+  </div>
+
+  </div>
+
+<h2>6.
+       <a name="security" id="security">Security Considerations</a></h2>
+
+  <p class="" style="">Any ISR data SHALL NOT be part of <span class="ref">TLS 1.3</span> 0-RTT
+  early data. (TODO: Shall we weaken this requirement to allow early
+  data?. It would be technically possible if the sender does not add
+  additional data, for example Stanzas, after the ISR/XEP-0388 data at
+  the end of the early data. And if the receiver does ensure that the
+  existence of such additional data is causing an ISR failure.)</p>
+
+  <p class="" style="">It is of vital importance that the Instant Stream Resumption
+  Token is generated by a cryptographically secure random
+  generator. See <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4086">RFC 4086</a></span>  [<a href="#nt-idm250">13</a>] for more information about Randomness
+  Requirements for Security.</p>
+
+<h2>7.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm256">14</a>].</p>
+
+<h2>8.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+
+  <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm262">15</a>] includes 'https://xmpp.org/extensions/isr/0' in its registry of protocol namespaces (see &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;).</p>
+
+<h2>9.
+       <a name="schema" id="schema">XML Schema</a></h2>
+
+  <p class="" style="">TODO: Add after the XEP leaves the 'experimental' state.</p>
+
+<h2>10.
+       <a name="acknowledgements" id="acknowledgements">Acknowledgements</a></h2>
+
+  <p class="" style="">Thanks to Jonas Wielicki, Thijs Alkemade, Dave Cridland, Maxime
+  Buquet, Alexander Würstlein, Sam Whited and Ivan Vučica for their feedback.</p>
+
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0397<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1.1<br />
+            Last Updated: 2018-11-03<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0198, XEP-0388<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: isr<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0397.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0397.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0397.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Florian Schmaus</h3><p class="indent">
+        Email:
+        <a href="mailto:flo@geekplace.eu">flo@geekplace.eu</a><br />
+        JabberID:
+        <a href="xmpp:flo@geekplace.eu">flo@geekplace.eu</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm78" id="nt-idm78">1</a>. XEP-0198: Stream Management &lt;<a href="https://xmpp.org/extensions/xep-0198.html">https://xmpp.org/extensions/xep-0198.html</a>&gt;.</p><p><a name="nt-idm82" id="nt-idm82">2</a>. XEP-0305: XMPP Quickstart &lt;<a href="https://xmpp.org/extensions/xep-0305.html">https://xmpp.org/extensions/xep-0305.html</a>&gt;.</p><p><a name="nt-idm101" id="nt-idm101">3</a>. RFC 5246: The Transport Layer Security (TLS) Protocol Version 1.2 &lt;<a href="http://tools.ietf.org/html/rfc5246">http://tools.ietf.org/html/rfc5246</a>&gt;.</p><p><a name="nt-idm108" id="nt-idm108">4</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm115" id="nt-idm115">5</a>. draft-schmaus-sasl-ht-03: The Hashed Token SASL Mechanism &lt;<a href="https://tools.ietf.org/html/draft-schmaus-kitten-sasl-ht-03">https://tools.ietf.org/html/draft-schmaus-kitten-sasl-ht-03</a>&gt;.</p><p><a name="nt-idm123" id="nt-idm123">6</a>. Pinning the SASL mechanism
+  is believed to increase the security</p><p><a name="nt-idm128" id="nt-idm128">7</a>. XEP-0360: Nonzas (are not Stanzas) &lt;<a href="https://xmpp.org/extensions/xep-0360.html">https://xmpp.org/extensions/xep-0360.html</a>&gt;.</p><p><a name="nt-idm143" id="nt-idm143">8</a>. XEP-0368: SRV records for XMPP over TLS &lt;<a href="https://xmpp.org/extensions/xep-0368.html">https://xmpp.org/extensions/xep-0368.html</a>&gt;.</p><p><a name="nt-idm163" id="nt-idm163">9</a>. XEP-0388: Extensible SASL Profile &lt;<a href="https://xmpp.org/extensions/xep-0388.html">https://xmpp.org/extensions/xep-0388.html</a>&gt;.</p><p><a name="nt-idm193" id="nt-idm193">10</a>. XEP-0138: Stream Compression &lt;<a href="https://xmpp.org/extensions/xep-0138.html">https://xmpp.org/extensions/xep-0138.html</a>&gt;.</p><p><a name="nt-idm218" id="nt-idm218">11</a>. XEP-0386: Bind 2.0 &lt;<a href="https://xmpp.org/extensions/xep-0386.html">https://xmpp.org/extensions/xep-0386.html</a>&gt;.</p><p><a name="nt-idm237" id="nt-idm237">12</a>. This is to prevent brute force
+    attacks.</p><p><a name="nt-idm250" id="nt-idm250">13</a>. RFC 4086: Randomness Requirements for Security &lt;<a href="http://tools.ietf.org/html/rfc4086">http://tools.ietf.org/html/rfc4086</a>&gt;.</p><p><a name="nt-idm256" id="nt-idm256">14</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm262" id="nt-idm262">15</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1.1 (2018-11-03)</h4><div class="indent"><p class="" style="">Minor fixes and clarifications</p> (fs)
+    </div><h4>Version 0.1.0 (2018-01-22)</h4><div class="indent"><p class="" style="">Accepted by council vote from 2017-12-13.</p> (XEP Editor (jwi))
+    </div><h4>Version 0.0.5 (2017-11-30)</h4><div class="indent"><p class="" style="">Minor changes</p> (fs)
+    </div><h4>Version 0.0.4 (2017-10-15)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Bump SASL2 namespace to urn:xmpp:sasl:1, and as result:</li>
+        <li class="" style="">Rename 'key' to 'token'</li>
+      </ul>
+     (fs)
+    </div><h4>Version 0.0.3 (2017-03-17)</h4><div class="indent"><p class="" style="">Based ISR on SASL2.</p> (fs)
+    </div><h4>Version 0.0.2 (2016-03-11)</h4><div class="indent"><p class="" style="">Second draft.</p> (fs)
+    </div><h4>Version 0.0.1 (2016-02-12)</h4><div class="indent"><p class="" style="">First draft.</p> (fs)
+    </div></div><hr /><p>END</p></body></html>
