@@ -1,0 +1,241 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0413: Order-By</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Order-By" /><meta name="DC.Creator" content="J&#xE9;r&#xF4;me Poisson" /><meta name="DC.Description" content="This specification allows to change order of items retrieval in a Pubsub or MAM query" /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2019-02-04" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0413" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0413: Order-By</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification allows to change order of items retrieval in a Pubsub or MAM query</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Jérôme Poisson</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2018 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1.0</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2019-02-04</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#glossary">Glossary</a><br />4.  <a href="#usecases">Use Cases</a><br />   
+      4.1.  <a href="#creation">Retrieve Items By Date of Creation</a><br />   
+      4.2.  <a href="#modification">Retrieve Items By Date of Modification</a><br />   
+      4.3.  <a href="#MAM">Use with MAM</a><br />   
+      4.4.  <a href="#reverse">Reversing the Order</a><br />   
+      4.5.  <a href="#extending">Extending this Specification</a><br />5.  <a href="#disco">Discovering Support</a><br />6.  <a href="#rules">Business Rules</a><br />7.  <a href="#impl">Implementation Notes</a><br />8.  <a href="#security">Security Considerations</a><br />9.  <a href="#iana">IANA Considerations</a><br />10.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      10.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />   
+      10.2.  <a href="#registrar-versioning">Protocol Versioning</a><br />11.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm45">1</a>] §6.5.7 allows to retrieve the "most recent items" and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-idm49">2</a>] state in §3.1 that archives are ordered in "chrnological order". While this order is straighforward in general use cases, it is sometimes desirable to use a different order, for instance while using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0277.html">Microblogging Over XMPP (XEP-0277)</a></span>  [<a href="#nt-idm53">3</a>]: a spell mistake correction should not bring an old blog post to the top of retrieved items.</p>
+  <p class="" style="">This specification allows to explicitly change business logic to retrieve the items in a different order, in a similar way as the "ORDER BY" clause in SQL.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <ul class="" style="">
+      <li class="" style="">an entity should be able to retrieve items by date of creation or by date of last modification (see below for definitions)</li>
+      <li class="" style="">the specification should be extensible to allow new ordering</li>
+      <li class="" style="">in case of conflict, a 2nd, 3rd, etc. level of ordering should be possible</li>
+  </ul>
+<h2>3.
+       <a name="glossary" id="glossary">Glossary</a></h2>
+  <p class="" style="">In XEP-0060, there is no such thing as "updated item". This XEP changes the business logic as follow:</p>
+  <ul class="" style="">
+    <li class="" style=""><span class="strong">Date of creation</span> — date when the item has been published <span class="strong">ONLY if the item has a new id</span> (i.e. an id which was not already present in the node at the time of publication). If an item re-use an existing id, it overwrites the original item <span class="strong">and the date of creation stay the date of creation of the original item</span></li>
+    <li class="" style=""><span class="strong">Date of modification</span> — date when the item has been overwritten by a new item of the same id. If the item has never been overwritten, it is equal to the date of creation defined above.</li>
+  </ul>
+<h2>4.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+  <div class="indent"><h3>4.1 <a name="creation" id="creation">Retrieve Items By Date of Creation</a></h3>
+    <p class="" style="">Juliet wants to retrieve plays of his favorite writer, William Shakespeare. She wants to retrieve the 3 most recent ones by date of creation.</p>
+    <p class="" style="">To do so, her client do a regular Pubsub request, but add the &lt;order&gt; element as a children of the &lt;pubsub&gt; element with a namespace of <span class="em">"urn:xmpp:order-by:0"</span> and with a 'by' attribute equal to "creation".</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Retrieving items ordered by date of creation</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='get'
+    from='juliet@capulet.lit/balcony'
+    to='pubsub.shakespeare.lit'
+    id=''&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='plays' max_items='3'/&gt;
+    &lt;order xmlns='urn:xmpp:order-by:0' by='creation'/&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+  </pre></div>
+    <p class="" style="">Pubsub service then returns the 3 plays created the most recently, first one being the most recent</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Service returns all items</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result'
+    from='pubsub.shakespeare.lit'
+    to='juliet@capulet.lit/balcony'
+    id=''&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='plays'&gt;
+      &lt;item id='153214214'&gt;
+        &lt;entry xmlns='http://www.w3.org/2005/Atom'&gt;
+          &lt;title&gt;Henry VIII&lt;/title&gt;
+        &lt;/entry&gt;
+      &lt;/item&gt;
+      &lt;item id='623423544'&gt;
+        &lt;entry xmlns='http://www.w3.org/2005/Atom'&gt;
+          &lt;title&gt;Tempest&lt;/title&gt;
+        &lt;/entry&gt;
+      &lt;/item&gt;
+      &lt;item id='452432423'&gt;
+        &lt;entry xmlns='http://www.w3.org/2005/Atom'&gt;
+          &lt;title&gt;Wintter's Tale&lt;/title&gt;
+        &lt;/entry&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>4.2 <a name="modification" id="modification">Retrieve Items By Date of Modification</a></h3>
+    <p class="" style="">Juliet realize that there is a spelling mistake, it's "Winter's Tale" and not "Wintter's Tale". She fixes it by overwritting the item:</p>
+      <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Juliet Overwritte the Item to Fix It</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    from='juliet@capulet.lit/balcony'
+    to='pubsub.shakespeare.lit'
+    id='orderby2'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='plays'&gt;
+      &lt;item id='452432423'&gt;
+        &lt;entry xmlns='http://www.w3.org/2005/Atom'&gt;
+          &lt;title&gt;Winter's Tale&lt;/title&gt;
+        &lt;/entry&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">To check that everything is alright, she request again the last 3 items, but this time by date of modification. To do so, he client proceed the same way as for date of creation, except that it uses the value "modification" for the 'by' attribute</p>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Retrieving items ordered by date of modification</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='get'
+    from='juliet@capulet.lit/balcony'
+    to='pubsub.shakespeare.lit'
+    id='orderby3'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='plays' max_items='3'/&gt;
+    &lt;order xmlns='urn:xmpp:order-by:0' by='modification'/&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+  </pre></div>
+    <p class="" style="">Pubsub service returns again the 3 plays but the "Winter Tales" item has been overwritten recently, while the 2 others have never been overwritten, so it returns the items in the following order, with most recently modified item on top:</p>
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Service returns all items</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result'
+    from='pubsub.shakespeare.lit'
+    to='juliet@capulet.lit/balcony'
+    id='orderby3'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='plays'&gt;
+      &lt;item id='452432423'&gt;
+        &lt;entry xmlns='http://www.w3.org/2005/Atom'&gt;
+          &lt;title&gt;Winter's Tale&lt;/title&gt;
+        &lt;/entry&gt;
+      &lt;/item&gt;
+      &lt;item id='153214214'&gt;
+        &lt;entry xmlns='http://www.w3.org/2005/Atom'&gt;
+          &lt;title&gt;Henry VIII&lt;/title&gt;
+        &lt;/entry&gt;
+      &lt;/item&gt;
+      &lt;item id='623423544'&gt;
+        &lt;entry xmlns='http://www.w3.org/2005/Atom'&gt;
+          &lt;title&gt;Tempest&lt;/title&gt;
+        &lt;/entry&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>4.3 <a name="MAM" id="MAM">Use with MAM</a></h3>
+    <p class="" style="">With <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-idm49">2</a>] the logic is the same, but the &lt;order&gt; element is added as a child of the &lt;query&gt; element:</p>
+      <p class="caption"><a name="example-6" id="example-6"></a>Example 6. MAM Pubsub Query with Ordering</p><div class="indent"><pre class="prettyprint">
+&lt;iq to='pubsub.shakespeare.lit' type='set' id='orderby4'&gt;
+  &lt;query xmlns='urn:xmpp:mam:2' queryid='123' node='plays'&gt;
+    &lt;order xmlns='urn:xmpp:order-by:0' by='creation'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">This way, filters can be used with specific ordering</p>
+  </div>
+  <div class="indent"><h3>4.4 <a name="reverse" id="reverse">Reversing the Order</a></h3>
+    <p class="" style="">The ordering can be reversed by using the mechanisms already provided by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0059.html">Result Set Management (XEP-0059)</a></span>  [<a href="#nt-idm97">4</a>]</p>
+  </div>
+  <div class="indent"><h3>4.5 <a name="extending" id="extending">Extending this Specification</a></h3>
+    <p class="" style="">This specification can be extended by further XEPs, proposing other kind of ordering in the 'by' attribute (e.g. ordering by filename for a file sharing service). But this is beyond the scope of this XEPs, and a client should not assume that other ordering than "creation" and "modification" are available without negociation.</p>
+    <p class="" style="">In a similar way, the semantic described here could be re-used in other use cases as for Pubsub or MAM, but this would need to be detailed in a separate specification.</p>
+  </div>
+<h2>5.
+       <a name="disco" id="disco">Discovering Support</a></h2>
+  <p class="" style="">If a server supports the "order by" protocol, it MUST report that fact by including a service discovery feature of "urn:xmpp:order-by:0" (see <a href="#ns">Protocol Namespaces</a> regarding issuance of one or more permanent namespaces) in response to a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm107">5</a>] information request:</p>
+  <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Service Discovery information request</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='example.org'
+    id='disco1'
+    to='example.com'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+</pre></div>
+  <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Service Discovery information response</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='example.com'
+    id='disco1'
+    to='example.org'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;feature var='urn:xmpp:order-by:0'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+<h2>6.
+       <a name="rules" id="rules">Business Rules</a></h2>
+  <p class="" style="">Several ordering elements may be used, this allow to solve next levels of ordering in case of conflicts. In this case, the first ordering (i.e. the top most &lt;order&gt; element) is the main one, the the second &lt;order&gt; element is used in case of conflict, then the next one if a new conflict happen and so on.</p>
+  <p class="" style="">In case of conflict, if no new &lt;order&gt; element is specified, the item order is not guarented and is up to the implementation</p>
+<h2>7.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <p class="" style="">For implementations based on SQL databases, the "ORDER BY" clause can be used to easily implement this specification. Other kind of databases should have similar mechanisms</p>
+<h2>8.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">
+    This document introduces no additional security considerations above and
+    beyond those defined in the documents on which it depends.
+  </p>
+<h2>9.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm122">6</a>].</p>
+<h2>10.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>10.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">'urn:xmpp:order-by:0'</li>
+    </ul>
+  </div>
+  <div class="indent"><h3>10.2 <a name="registrar-versioning" id="registrar-versioning">Protocol Versioning</a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+<h2>11.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:order-by:0'
+    xmlns='urn:xmpp:order-by:0'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='order' maxOccurs='unbounded'&gt;
+      &lt;xs:complexType&gt;
+          &lt;xs:attribute name='by' type='xs:string' use='required'/&gt;
+      &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+&lt;/xs:schema&gt;
+</pre></div>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0413<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1.0<br />
+            Last Updated: 2019-02-04<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0060, XEP-0313<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0413.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0413.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0413.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Jérôme Poisson</h3><p class="indent">
+        Email:
+        <a href="mailto:goffi@goffi.org">goffi@goffi.org</a><br />
+        JabberID:
+        <a href="xmpp:goffi@jabber.fr">goffi@jabber.fr</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm45" id="nt-idm45">1</a>. XEP-0060: Publish-Subscribe &lt;<a href="https://xmpp.org/extensions/xep-0060.html">https://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-idm49" id="nt-idm49">2</a>. XEP-0313: Message Archive Management &lt;<a href="https://xmpp.org/extensions/xep-0313.html">https://xmpp.org/extensions/xep-0313.html</a>&gt;.</p><p><a name="nt-idm53" id="nt-idm53">3</a>. XEP-0277: Microblogging over XMPP &lt;<a href="https://xmpp.org/extensions/xep-0277.html">https://xmpp.org/extensions/xep-0277.html</a>&gt;.</p><p><a name="nt-idm97" id="nt-idm97">4</a>. XEP-0059: Result Set Management &lt;<a href="https://xmpp.org/extensions/xep-0059.html">https://xmpp.org/extensions/xep-0059.html</a>&gt;.</p><p><a name="nt-idm107" id="nt-idm107">5</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm122" id="nt-idm122">6</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1.0 (2019-02-04)</h4><div class="indent">Accepted by vote of Council on 2018-01-09. (XEP Editor (jsc))
+    </div><h4>Version 0.0.1 (2019-01-05)</h4><div class="indent"><p class="" style="">First draft.</p> (jp)
+    </div></div><hr /><p>END</p></body></html>
