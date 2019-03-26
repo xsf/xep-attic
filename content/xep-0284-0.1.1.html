@@ -1,0 +1,995 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0284: Shared XML Editing</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="Shared XML Editing" /><meta name="DC.Creator" content="Joonas Govenius" /><meta name="DC.Creator" content="Peter Saint-Andre" /><meta name="DC.Creator" content="Tom Pusateri" /><meta name="DC.Description" content="This specification defines a protocol that enables two or more endpoints to collaboratively edit an XML object. The protocol is intended for use mainly over the Extensible Messaging and Presence Protocol (XMPP), either by existing instant messaging clients or by specialized editing clients. However, the protocol could also be used over a direct TCP connection rather than over XMPP." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2019-02-20" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0284" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0284: Shared XML Editing</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines a protocol that enables two or more endpoints to collaboratively edit an XML object. The protocol is intended for use mainly over the Extensible Messaging and Presence Protocol (XMPP), either by existing instant messaging clients or by specialized editing clients. However, the protocol could also be used over a direct TCP connection rather than over XMPP.</td></tr><tr valign="top"><td><strong>Authors:</strong></td><td>Joonas Govenius, Peter Saint-Andre, Tom Pusateri</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2018 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Deferred</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1.1</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2019-02-20</td></tr></table><hr /><p style="color:red">WARNING: This document has been automatically Deferred after 12 months of inactivity in its previous Experimental state. Implementation of the protocol described herein is not recommended for production systems. However, exploratory implementations are encouraged to resume the standards process.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#glossary">Glossary</a><br />4.  <a href="#jingle">Session Management</a><br />   
+      4.1.  <a href="#jingle-initiate">Initiation</a><br />   
+      4.2.  <a href="#jingle-accept">Session Acceptance</a><br />   
+      4.3.  <a href="#jingle-decline">Session Refusal</a><br />5.  <a href="#host">Determining the features of the Host</a><br />6.  <a href="#advertise">Advertising a Session</a><br />7.  <a href="#connect">Connecting to a Session</a><br />8.  <a href="#sect-idm214">Initial State Synchronization</a><br />   
+      8.1.  <a href="#sect-idm215">Making a State Offer</a><br />   
+      8.2.  <a href="#sect-idm222">Accepting a State Offer</a><br />   
+      8.3.  <a href="#sect-idm226">Refusing a State Offer</a><br />   
+      8.4.  <a href="#sect-idm229">Sending the State of the Document</a><br />9.  <a href="#sect-idm240">Subsequent State Changes</a><br />10.  <a href="#def">Formal Definition</a><br />   
+      10.1.  <a href="#def-sxe">SXE Element</a><br />   
+      10.2.  <a href="#sect-idm263">XML Document Requirements</a><br />   
+      10.3.  <a href="#sect-idm266">Mapping the Records to the DOM Document</a><br />   
+      10.4.  <a href="#sect-idm437">Commutative and Non-commutative Edits</a><br />      
+      10.4.1.  <a href="#serverrequirements">Requirements for the Server Component</a><br />   
+      10.5.  <a href="#commutativeedits">Commutative Edits</a><br />      
+      10.5.1.  <a href="#newnode">Creating New Nodes</a><br />      
+      10.5.2.  <a href="#editelement">Removing Nodes</a><br />   
+      10.6.  <a href="#noncommutativeedits">Non-commutative Edits</a><br />      
+      10.6.1.  <a href="#sect-idm519">The set Element</a><br />      
+      10.6.2.  <a href="#sect-idm559">Processing a set Element</a><br />11.  <a href="#impl">Implementation Notes</a><br />   
+      11.1.  <a href="#mucroles">MUC Roles</a><br />12.  <a href="#security">Security Considerations</a><br />13.  <a href="#iana">IANA Considerations</a><br />14.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      14.1.  <a href="#ns">Protocol Namespaces</a><br />   
+      14.2.  <a href="#registrar-identity">Service Discovery Identities</a><br />   
+      14.3.  <a href="#registrar-transports">Jingle Transport Methods</a><br />15.  <a href="#schema">XML Schema</a><br />16.  <a href="#acknowledgements">Acknowledgements</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">This specification defines a protocol for collaboratively editing XML data. Essentially, this protocol provides a simple way of synchronizing an unordered set of records across several endpoints. Additionally, this protocol defines a mapping between such a set of records and the Document Object Model (DOM).</p>
+  <p class="" style="">A special feature of this protocol compared to most other collaborative editing tools is that no master or server entity is required. A <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm148">1</a>] component or specialized editing component can be used for sessions that have a large number of participants, that need to be persistent, or that require more granular access control. However, the client implementation is minimally different whether such a specialized component is used or whether the session is one-to-one or multi-user.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p class="" style="">Requirements for shared editing are provided in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0228.html">Requirements for Shared Editing (XEP-0228)</a></span>  [<a href="#nt-idm154">2</a>].</p>
+<h2>3.
+       <a name="glossary" id="glossary">Glossary</a></h2>
+  <p class="" style="">GUID: a Globally Unique Indentifier, used as the identifier for a shared editing session.</p>
+  <p class="" style="">Host: The JID to which the SXE messages are sent for relaying to other members of the session; this can be the initiator of the session (e.g., in a one-to-one session or small multi-user session) or a multi-user chat room or specialized shared editing component.</p>
+  <p class="" style="">RID: the Record ID given to a record when it is created.</p>
+  <p class="" style="">State: In the context of a new user joining, the state refers to the set of records that describes the edited object, including all previous versions of each record. All entities involved in the session are REQUIRED to keep this state unless a specialized component handles user joins.</p>
+  <p class="" style="">Weight: Primarily, the weight of a node is represented by the 'primary-weight' field of the corresponding record. Secondarily, if the values of the 'primary-weight' of two records are equal, the first differing characters of the rids are compared by their Unicode values. The higher the character the higher the weight of the node is.</p>
+<h2>4.
+       <a name="jingle" id="jingle">Session Management</a></h2>
+  <p class="" style="">When used in the context of XMPP, Shared XML Editing relies on <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0166.html">Jingle (XEP-0166)</a></span>  [<a href="#nt-idm166">3</a>] for overall session management. In Jingle terms, SXE defines a "transport method" that can be used for multiple "application types" such as XHTML documents, SVG whiteboards, <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0204.html">Collaborative Data Objects (XEP-0204)</a></span>  [<a href="#nt-idm170">4</a>], or any other XML data format.</p>
+  <div class="indent"><h3>4.1 <a name="jingle-initiate" id="jingle-initiate">Initiation</a></h3>
+    <p class="" style="">In order to initiate a shared editing session, one party sends a Jingle session-initiate request to another party. Here the &lt;transport/&gt; element indicates support for exchanging SXE information over XMPP and the &lt;description/&gt; element indicates support for editing of XHTML documents (this application type has not been defined yet and is used here only as an example). The &lt;transport/&gt; element MUST include at least one &lt;host/&gt; element that specifies the entity that serves as the host for the session. The host can be the initiator of the session (and must be for a one-to-one session) or a multi-user chat room or specialized reflector where the session is hosted.</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Initiator sends session-initiate</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='kingclaudius@shakespeare.lit/castle'
+    id='jingle1'
+    to='laertes@shakespeare.lit/castle'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-initiate'
+          initiator='kingclaudius@shakespeare.lit/castle'
+          sid='851ba2'&gt;
+    &lt;content creator='initiator' name='this-is-the-editing-content'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:xhtml'/&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:sxe'&gt;
+        &lt;host&gt;kingclaudius@shakespeare.lit&lt;/host&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">The responder immediately acknowledges receipt of the session-initiate.</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Responder acknowledges session-initiate</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='laertes@shakespeare.lit/castle'
+    id='jingle1'
+    to='kingclaudius@shakespeare.lit/castle'
+    type='result'/&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>4.2 <a name="jingle-accept" id="jingle-accept">Session Acceptance</a></h3>
+    <p class="" style="">In order to definitively accept the session, the responder sends a session-accept to the initiator.</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Responder sends session-accept</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='laertes@shakespeare.lit/castle'
+    id='jingle2'
+    to='kingclaudius@shakespeare.lit/castle'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-accept'
+          initiator='kingclaudius@shakespeare.lit/castle'
+          sid='851ba2'&gt;
+    &lt;content creator='initiator' name='this-is-the-editing-content'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:xhtml'/&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:sxe'&gt;
+        &lt;host&gt;kingclaudius@shakespeare.lit&lt;/host&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">The initiator immediately acknowledges receipt of the session-accept.</p>
+    <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Initiator acknowledges session-accept</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='kingclaudius@shakespeare.lit/castle'
+    id='jingle2'
+    to='laertes@shakespeare.lit/castle'
+    type='result'/&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>4.3 <a name="jingle-decline" id="jingle-decline">Session Refusal</a></h3>
+    <p class="" style="">In order to decline the session, the responder sends a session-terminate to the initiator.</p>
+    <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Responder sends session-terminate</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='laertes@shakespeare.lit/castle'
+    id='jingle3'
+    to='kingclaudius@shakespeare.lit/castle'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-terminate'
+          host='chamber@conference.shakespeare.lit'
+          initiator='kingclaudius@shakespeare.lit/castle'
+          sid='851ba2'&gt;
+	&lt;reason&gt;
+	  &lt;unsupported-applications/&gt;
+	&lt;/reason&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">The responder indiciates the reason for refusing the session by including a "reason" element. The following reasons are suggested (see also <span class="ref">XEP-0166</span>):</p>
+    <ul class="" style="">
+      <li class="" style="">alternative-session -- the responder already has an active session with the initiator and wishes to use that session instead.</li>
+      <li class="" style="">decline -- the responder formally declines the session.</li>
+      <li class="" style="">unsupported-applications -- the responder supports none of the offered the application types.</li>
+    </ul>
+    <p class="" style="">The initiator immediately acknowledges receipt of the session-terminate.</p>
+    <p class="caption"><a name="example-6" id="example-6"></a>Example 6. Initiator acknowledges session-terminate</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='kingclaudius@shakespeare.lit/castle'
+    id='jingle3'
+    to='laertes@shakespeare.lit/castle'
+    type='result'/&gt;
+</pre></div>
+  </div>
+<h2>5.
+       <a name="host" id="host">Determining the features of the Host</a></h2>
+  <p class="" style="">Before connecting to a session, a party MUST determine the <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm197">5</a>] identity and supported features of the host. In many situations the party already knows this information (e.g., if the host is the initiator of the Jingle session). In other situations the party will need to send a service discovery information request to the host.</p>
+  <p class="caption"><a name="example-7" id="example-7"></a>Example 7. Service Discovery Request</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='laertes@shakespeare.lit/castle'
+    to='kingclaudius@shakespeare.lit/castle'
+    id='disco1'&gt;
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+</pre></div>
+  <p class="" style="">If the host supports Shared XML Editing over XMPP, it MUST return features of "urn:xmpp:sxe:0" and "urn:xmpp:jingle:transports:sxe" (see <a href="#ns">Protocol Namespaces</a> regarding issuance of one or more permanent namespaces):</p>
+  <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Service discovery response</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='laertes@shakespeare.lit/castle' to='kingclaudius@shakespeare.lit/castle' type='result' id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity category='client' type='pc'/&gt;
+    ...
+    &lt;feature var='urn:xmpp:sxe:0'/&gt;
+    &lt;feature var='urn:xmpp:jingle:transports:sxe'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+<h2>6.
+       <a name="advertise" id="advertise">Advertising a Session</a></h2>
+  <p class="" style="">An entity that is engaged in a session can advertise that fact by including the session id and descriptive name in its XMPP presence.</p>
+  <p class="caption"><a name="example-9" id="example-9"></a>Example 9. Advertising a session</p><div class="indent"><pre class="prettyprint">
+&lt;presence from='laertes@shakespeare.lit/castle'&gt;
+  &lt;sxe xmlns='urn:xmpp:sxe:0' session='851ba2' name='Marketing Materials'/&gt;
+&lt;/presence&gt;
+</pre></div>
+  <p class="" style="">Such presence can be broadcast or can be sent in the context of a multi-user chat room (see <span class="ref">XEP-0045</span>).</p>
+  <p class="" style="">However, presence is not sent when operating in a serverless messaging environment (see <span class="ref">XEP-0174</span>). Instead, DNS TXT records are published. Two new key-value pairs are used to advertise a session id ("sxe_id") and session name ("sxe_name") when using serverless messaging.</p>
+<h2>7.
+       <a name="connect" id="connect">Connecting to a Session</a></h2>
+  <p class="" style="">In order to synchronize its local state with the existing state of the edited object, an entity sends a connection request to the host. The identity learned through service discovery determines what kind of message the joining party sends (e.g., type='groupchat' if the host is a MUC room).</p>
+  <p class="" style="">To connect to a session, the joiner MUST send an SXE &lt;connect/&gt; element to the host.</p>
+  <p class="caption"><a name="example-10" id="example-10"></a>Example 10. Connecting to a session</p><div class="indent"><pre class="prettyprint">
+&lt;message
+   from='laertes@shakespeare.lit/castle'
+   to='kingclaudius@shakespeare.lit/castle'&gt;
+  &lt;sxe xmlns='urn:xmpp:sxe:0' id='e' session='851ba2'&gt;
+    &lt;connect/&gt;
+  &lt;/sxe&gt;
+&lt;/message&gt;
+</pre></div>
+<h2>8.
+       <a name="sect-idm214" id="sect-idm214">Initial State Synchronization</a></h2>
+  <div class="indent"><h3>8.1 <a name="sect-idm215" id="sect-idm215">Making a State Offer</a></h3>
+    <p class="" style="">When a joining user sends a connect request, the joiner must retrieve the state of the session from an existing participant. The following ruules apply:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">In a one-to-one session, the initiator MUST offer to send the state.</li>
+      <li class="" style="">In a multi-user session, both the host and the invitor (initiator) MUST offer to send the state. However, other participants MAY offer to send the state. The joiner SHOULD prefer to receive the state from the host or initiator.</li>
+    </ol>
+    <p class="" style="">The state offer MUST contain the &lt;description/&gt; element or elements that were included in the Jingle session-initiate request.</p>
+    <p class="caption"><a name="example-11" id="example-11"></a>Example 11. A state offer</p><div class="indent"><pre class="prettyprint">
+&lt;message
+  from='kingclaudius@shakespeare.lit/castle'
+  to='laertes@shakespeare.lit/castle'&gt;
+  &lt;sxe xmlns='urn:xmpp:sxe:0'
+      session='851ba2'
+      id='f'&gt;
+    &lt;state-offer&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:xhtml'/&gt;
+    &lt;/state-offer&gt;
+  &lt;/sxe&gt;
+&lt;/message&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>8.2 <a name="sect-idm222" id="sect-idm222">Accepting a State Offer</a></h3>
+    <p class="" style="">The joiner accepts a state offer by sending an &lt;accept-state/&gt; element to one of the entities that offer to send the state. The joiner MUST store all the &lt;sxe/&gt; elements it receives after the &lt;state-offer/&gt; element it decides to accept. It MUST also abort the negotiation with the other users that offered to send the state.</p>
+    <p class="" style="">Once the other entity receives the &lt;accept-state/&gt; element it MUST proceed sending the state as described in the next section.</p>
+    <p class="caption"><a name="example-12" id="example-12"></a>Example 12. Accepting a state offer</p><div class="indent"><pre class="prettyprint">
+&lt;message
+   from='laertes@shakespeare.lit/castle'
+   to='kingclaudius@shakespeare.lit/castle'&gt;
+  &lt;sxe xmlns='urn:xmpp:sxe:0'
+      session='851ba2'
+      id='g'&gt;
+    &lt;accept-state/&gt;
+  &lt;/sxe&gt;
+&lt;/message&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>8.3 <a name="sect-idm226" id="sect-idm226">Refusing a State Offer</a></h3>
+	<p class="" style="">If a multiple state offers were received, one should be accepted and the others should be refused by sending a &lt;refuse-state/&gt; element.</p>
+	<p class="caption"><a name="example-13" id="example-13"></a>Example 13. Refusing a state offer</p><div class="indent"><pre class="prettyprint">
+&lt;message
+   from='laertes@shakespeare.lit/castle'
+   to='kingclaudius@shakespeare.lit/castle'&gt;
+  &lt;sxe xmlns='urn:xmpp:sxe:0'
+      session='851ba2'
+      id='g'&gt;
+    &lt;refuse-state/&gt;
+  &lt;/sxe&gt;
+&lt;/message&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>8.4 <a name="sect-idm229" id="sect-idm229">Sending the State of the Document</a></h3>
+    <p class="" style="">The process of sending the state is following:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">The sender sends a &lt;document-begin/&gt; element and simultaneously takes a "snapshot" of the document's state. The &lt;document-begin/&gt; element SHOULD have a 'prolog' attribute. The 'prolog' attribute should contain the XML prolog of the document encoded using the data: URI scheme (RFC 2397).</li>
+      <li class="" style="">The sender sends the state as it was at the time of sending &lt;document-begin/&gt;.</li>
+      <li class="" style="">The sender sends a &lt;document-end/&gt; element.</li>
+    </ol>
+    <p class="" style="">The state can be sent in any number of &lt;sxe/&gt; elements but the user sending the state MUST NOT send any new &lt;sxe/&gt; elements between sending the &lt;document-begin/&gt; (i.e. taking the snapshot) and the &lt;document-end/&gt; element.</p>
+    <p class="" style="">The state SHOULD include a version of each element that was synchronized, and hence won't be undone, as well as all the later versions. In practice this can often be impossible to know in a session without a specialized MUC component so it may be safest to send version 0 and all the later edits to each element. Version 0 is implied if the version element is missing.</p>
+    <p class="caption"><a name="example-14" id="example-14"></a>Example 14. Sending the state of a blank document (only prolog)</p><div class="indent"><pre class="prettyprint">
+&lt;message
+  from='kingclaudius@shakespeare.lit/castle'
+  to='laertes@shakespeare.lit/castle'&gt;
+  &lt;sxe xmlns='urn:xmpp:sxe:0'
+      session='851ba2'
+      id='b'&gt;
+    &lt;state&gt;
+      &lt;document-begin
+          prolog='data:text/xml,%3C%3Fxml%20version%3D%271.\
+0%27%20standalone%3D%27no%27%3F%3E%0A%3C%21DOCTYPE%20svg%\
+20PUBLIC%20%27-%2F%2FW3C%2F%2FDTD%20SVG%201.1%2F%2FEN%27%\
+20%27http%3A%2F%2Fwww.w3.org%2FGraphics%2FSVG%2F1.1%2FDTD\
+%2Fsvg11.dtd%27%3E%0A'/&gt;
+      &lt;document-end last-sender='' last-id='' /&gt;
+    &lt;/state&gt;
+  &lt;/sxe&gt;
+&lt;/message&gt;
+</pre></div>
+    <p class="" style="">If the session is already in progress, the entity sends the snapshot.</p>
+    <p class="caption"><a name="example-15" id="example-15"></a>Example 15. Sending the state of an existing document</p><div class="indent"><pre class="prettyprint">
+&lt;message
+  from='kingclaudius@shakespeare.lit/castle'
+  to='laertes@shakespeare.lit/castle'&gt;
+  &lt;sxe xmlns='urn:xmpp:sxe:0'
+      session='851ba2'
+      id='bxyz'&gt;
+    &lt;state&gt;
+      &lt;document-begin
+        prolog='data:text/xml,%3C!DOCTYPE%20html%0D%0APUBLIC%20%22-\
+  %2F%2FW3C%2F%2FDTD%20XHTML%201.0%20Strict%2F%2FEN%22%0D%0A%22htt\
+  p%3A%2F%2Fwww.w3.org%2FTR%2Fxhtml1%2FDTD%2Fxhtml1-strict.dtd%223\
+  E%0D%0A'/&gt;
+      &lt;new type='processinginstruction'
+           pitarget='xml-stylesheet'
+           pidata='href="style.xsl" type="text/xsl"'
+           rid='GUID0'
+           primary-weight='0.4' /&gt;
+      &lt;new type='element'
+           ns='http://www.w3.org/1999/xhtml'
+           name='html'
+           rid='GUID1'
+           primary-weight='3' /&gt;
+      &lt;new type='attr'
+           ns='xml'
+           name='lang'
+           chdata='fi'
+           parent='GUID1'
+           rid='GUID2' /&gt;
+      &lt;set target='GUID2'
+           version='1'
+           chdata='en' /&gt;
+      &lt;new type='element'
+           name='head'
+           parent='GUID1'
+           rid='GUID3' /&gt;
+      &lt;new type='element'
+           name='title'
+           parent='GUID3'
+           rid='GUID4' /&gt;
+      &lt;new type='text'
+           chdata='Royal Musings'
+           rid='GUID5'
+           parent='GUID4'
+           primary-weight='0'/&gt;
+      &lt;new type='comment'
+           chdata='The title of the document goes here.'
+           rid='GUID6'
+           parent='GUID4'
+           primary-weight='-2.43'/&gt;
+      &lt;new type='element'
+           name='title'
+           parent='GUID3'
+           rid='GUID4' /&gt;
+      &lt;new type='element'
+           name='body'
+           parent='GUID1'
+           rid='GUID7'
+           primary-weight='23' /&gt;
+      &lt;document-end
+          last-sender='jid3'
+          last-id='abc'/&gt;
+    &lt;/state&gt;
+  &lt;/sxe&gt;
+&lt;/message&gt;
+</pre></div>
+  </div>
+<h2>9.
+       <a name="sect-idm240" id="sect-idm240">Subsequent State Changes</a></h2>
+  <p class="" style="">Once a participant has received initial state, he can participate in the editing session.</p>
+  <p class="caption"><a name="example-16" id="example-16"></a>Example 16. An edit</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    to='laertes@shakespeare.lit/castle'
+    from='kingclaudius@shakespeare.lit/castle'&gt;
+  &lt;sxe xmlns='urn:xmpp:sxe:0'
+       session='851ba2'
+       id='4'&gt;
+	&lt;state&gt;
+	  &lt;new type='element'
+	       name='p'
+	       parent='GUID7'
+	       rid='GUID8' /&gt;
+	  &lt;new type='text'
+	       chdata='It&amp;apos;s good to be the king!'
+	       parent='GUID8'
+	       rid='GUID9'/&gt;
+	  &lt;set target='GUID5'
+	       version='1'
+	       chdata='It&amp;apos;s good to be the king!'/&gt;
+	&lt;/state&gt;
+  &lt;/sxe&gt;
+&lt;/message&gt;
+</pre></div>
+  <p class="" style="">Here is another edit in the session.</p>
+  <p class="caption"><a name="example-17" id="example-17"></a>Example 17. Another edit</p><div class="indent"><pre class="prettyprint">
+&lt;message
+    from='kingclaudius@shakespeare.lit/castle'
+    to='laertes@shakespeare.lit/castle'&gt;
+  &lt;sxe xmlns='urn:xmpp:sxe:0'
+      session='851ba2'
+      id='4'&gt;
+    &lt;new type='element'
+         name='p'
+         parent='GUID7'
+         rid='GUID10' /&gt;
+    &lt;new type='text'
+         chdata='It certainly is!'
+         parent='GUID10'
+         rid='GUID11' /&gt;
+    &lt;set target='GUID5'
+         version='1'
+         chdata='It certainly is' /&gt;
+    &lt;set target='GUID6'
+         version='1'
+         replacefrom='9'
+         replacen='16'
+         chdata='' /&gt;
+    &lt;set target='GUID6'
+         version='2'
+         replacefrom='3'
+         replacen='0'
+         chdata='document'/&gt;
+  &lt;/sxe&gt;
+&lt;/message&gt;
+</pre></div>
+  <p class="" style="">This basic editing session results in the following XML.</p>
+  <p class="caption"><a name="example-18" id="example-18"></a>Example 18. Resulting XHTML document (with additional whitespace nodes for clarity)</p><div class="indent"><pre class="prettyprint">
+&lt;!DOCTYPE html
+PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"&gt;
+&lt;?xml-stylesheet href="style.xsl" type="text/xsl"?&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;!--The document title goes here.--&gt;
+    &lt;title&gt;Royal Musings&lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;p&gt;It&amp;apos;s good to be the king!&lt;/p&gt;
+    &lt;p&gt;It certainly is!&lt;/p&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre></div>
+<h2>10.
+       <a name="def" id="def">Formal Definition</a></h2>
+ <div class="indent"><h3>10.1 <a name="def-sxe" id="def-sxe">SXE Element</a></h3>
+    <p class="" style="">All SXE elements MUST be contained in a &lt;sxe/&gt; element. This element MUST posess the following attributes:</p>
+    <div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: Attributes of &lt;sxe/&gt; element</p><table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <th colspan="" rowspan="">Attribute</th>
+        <th colspan="" rowspan="">Description</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">xmlns</td>
+        <td align="" colspan="" rowspan="">REQUIRED and MUST be "urn:xmpp:sxe:0"</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">session</td>
+        <td align="" colspan="" rowspan="">REQUIRED and MUST be a GUID of the session.</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">id</td>
+        <td align="" colspan="" rowspan="">REQUIRED and MUST be unique within the set of &lt;sxe/&gt; elements sent by the user to the session.</td>
+      </tr>
+    </table></div>
+  </div>
+  <div class="indent"><h3>10.2 <a name="sect-idm263" id="sect-idm263">XML Document Requirements</a></h3>
+    <p class="" style="">The prolog of the XML document cannot be edited after the session has been established.</p>
+    <p class="" style="">If an XML Schema Definition is specified for the document and the processing of an &lt;sxe/&gt; element results in a noncompliant document, the receiving client SHOULD reply with edits that effectively undo the offending edits. TODO: the offending client should probably be notified.</p>
+  </div>
+  <div class="indent"><h3>10.3 <a name="sect-idm266" id="sect-idm266">Mapping the Records to the DOM Document</a></h3>
+    <p class="" style="">A record contains the following fields and corresponds to a single DOM node:</p>
+    <div class="indent"><p class="caption"><a name="table-2" id="table-2"></a>Table 2: The fields of a record</p><table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <th colspan="" rowspan="">Field Name</th>
+        <th colspan="" rowspan="">Mutable</th>
+        <th colspan="" rowspan="">Applies to nodes of type</th>
+        <th colspan="" rowspan="">Description</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">rid</td>
+        <td align="" colspan="" rowspan="">no</td>
+        <td align="" colspan="" rowspan="">all</td>
+        <td align="" colspan="" rowspan="">The GUID of the record.</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">type</td>
+        <td align="" colspan="" rowspan="">no</td>
+        <td align="" colspan="" rowspan="">all</td>
+        <td align="" colspan="" rowspan="">The type of DOM node (element, attr, etc.).</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">version</td>
+        <td align="" colspan="" rowspan="">Indirectly</td>
+        <td align="" colspan="" rowspan="">all</td>
+        <td align="" colspan="" rowspan="">The current version of the record.</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">parent</td>
+        <td align="" colspan="" rowspan="">yes</td>
+        <td align="" colspan="" rowspan="">all</td>
+        <td align="" colspan="" rowspan="">The record id of the record corresponding to the parent node.</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">primary-weight</td>
+        <td align="" colspan="" rowspan="">yes</td>
+        <td align="" colspan="" rowspan="">all</td>
+        <td align="" colspan="" rowspan="">The primary weight used to determine the order of sibling nodes corresponding to the records.</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">ns</td>
+        <td align="" colspan="" rowspan="">yes (TODO: is this reasonable?)</td>
+        <td align="" colspan="" rowspan="">element, attr</td>
+        <td align="" colspan="" rowspan="">The namespace of the element or attribute</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">name</td>
+        <td align="" colspan="" rowspan="">yes (TODO: is this reasonable?)</td>
+        <td align="" colspan="" rowspan="">element, attr</td>
+        <td align="" colspan="" rowspan="">The name of the element or attribute.</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">chdata</td>
+        <td align="" colspan="" rowspan="">yes</td>
+        <td align="" colspan="" rowspan="">text, attr, comment</td>
+        <td align="" colspan="" rowspan="">The content of a text node or a comment or the value of the attribute.</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pitarget</td>
+        <td align="" colspan="" rowspan="">yes (TODO: is this reasonable?)</td>
+        <td align="" colspan="" rowspan="">proccessinginstruction</td>
+        <td align="" colspan="" rowspan="">The target of the processing instruction.</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pidata</td>
+        <td align="" colspan="" rowspan="">yes</td>
+        <td align="" colspan="" rowspan="">proccessinginstruction</td>
+        <td align="" colspan="" rowspan="">The data of the processing instruction.</td>
+      </tr>
+    </table></div>
+    <p class="" style="">Whenever a record is added, modified, or removed, the client MUST ensure that the DOM nodes corresponding to the records meet the following criteria:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">The parent of each DOM node MUST be the node corresponding to the record specified by the 'record id' field of the record of the node. If no such record exists, the "orphan" record MUST be deleted. If the 'parent' field is empty, the node corresponding to the record MUST be a child of the DOM document itself. If two root nodes exist, the record with lower secondary weight MUST be removed. </li>
+      <li class="" style="">Each node MUST be located after the child node that has the greatest weight less than the weight of the node.</li>
+      <li class="" style="">The namespace of each DOM element and attribute MUST be equal to the 'name' field of the corresponding record.</li>
+      <li class="" style="">The name of each DOM element and attribute MUST be equal to the 'name' field of the corresponding record. If two records for attribute nodes specify the same 'name' and 'parent', the record with lower secondary weight MUST be removed.</li>
+      <li class="" style="">The value of each DOM attribute node MUST be equal to the 'chdata' field of the corresponding record.</li>
+      <li class="" style="">The content of each DOM text node MUST be equal to the 'chdata' field of the corresponding record.</li>
+      <li class="" style="">The content of each DOM comment node MUST be equal to the 'chdata' field of the corresponding record.</li>
+      <li class="" style="">The target of each DOM processing instruction MUST be equal to the 'pitarget' field of the corresponding record.</li>
+      <li class="" style="">The data of each DOM processing instruction MUST be equal to the 'pidata' field of the corresponding record.</li>
+      <li class="" style="">The DOM nodes do not offend the XML Schema. If they do, the client SHOULD send edits to correct the situation.</li>
+    </ol>
+    <div class="indent"><p class="caption"><a name="table-3" id="table-3"></a>Table 3: Example set of records</p><table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <th colspan="" rowspan="">rid</th>
+        <th colspan="" rowspan="">type</th>
+        <th colspan="" rowspan="">version</th>
+        <th colspan="" rowspan="">parent</th>
+        <th colspan="" rowspan="">primary-weight</th>
+        <th colspan="" rowspan="">ns</th>
+        <th colspan="" rowspan="">name</th>
+        <th colspan="" rowspan="">chdata</th>
+        <th colspan="" rowspan="">pitarget</th>
+        <th colspan="" rowspan="">pidata</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">GUID0</td>
+        <td align="" colspan="" rowspan="">element</td>
+        <td align="" colspan="" rowspan="">0</td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan="">0</td>
+        <td align="" colspan="" rowspan="">http://www.w3.org/2000/svg</td>
+        <td align="" colspan="" rowspan="">svg</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">GUID1</td>
+        <td align="" colspan="" rowspan="">element</td>
+        <td align="" colspan="" rowspan="">0</td>
+        <td align="" colspan="" rowspan="">GUID0</td>
+        <td align="" colspan="" rowspan="">0</td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan="">path</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">GUID2</td>
+        <td align="" colspan="" rowspan="">attr</td>
+        <td align="" colspan="" rowspan="">0</td>
+        <td align="" colspan="" rowspan="">GUID1</td>
+        <td align="" colspan="" rowspan="">0</td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan="">d</td>
+        <td align="" colspan="" rowspan="">M10 10L20 20L20 10Z</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">GUID9</td>
+        <td align="" colspan="" rowspan="">element</td>
+        <td align="" colspan="" rowspan="">0</td>
+        <td align="" colspan="" rowspan="">GUID0</td>
+        <td align="" colspan="" rowspan="">3.4</td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan="">g</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">GUID5</td>
+        <td align="" colspan="" rowspan="">element</td>
+        <td align="" colspan="" rowspan="">0</td>
+        <td align="" colspan="" rowspan="">GUID0</td>
+        <td align="" colspan="" rowspan="">3.4</td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan="">circle</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">GUID6</td>
+        <td align="" colspan="" rowspan="">attr</td>
+        <td align="" colspan="" rowspan="">3</td>
+        <td align="" colspan="" rowspan="">GUID5</td>
+        <td align="" colspan="" rowspan="">0</td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan="">cx</td>
+        <td align="" colspan="" rowspan="">10</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">GUID7</td>
+        <td align="" colspan="" rowspan="">attr</td>
+        <td align="" colspan="" rowspan="">1</td>
+        <td align="" colspan="" rowspan="">GUID5</td>
+        <td align="" colspan="" rowspan="">1</td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan="">cy</td>
+        <td align="" colspan="" rowspan="">20</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">GUID8</td>
+        <td align="" colspan="" rowspan="">attr</td>
+        <td align="" colspan="" rowspan="">0</td>
+        <td align="" colspan="" rowspan="">GUID5</td>
+        <td align="" colspan="" rowspan="">2</td>
+        <td align="" colspan="" rowspan=""></td>
+        <td align="" colspan="" rowspan="">r</td>
+        <td align="" colspan="" rowspan="">5</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+      </tr>
+    </table></div>
+    <p class="caption"><a name="example-19" id="example-19"></a>Example 19. Corresponding XML document (without the XML prolog)</p><div class="indent"><pre class="prettyprint">
+&lt;svg xmlns='http://www.w3.org/2000/svg'&gt;
+  &lt;path d='M10 10L20 20L20 10Z' /&gt;
+  &lt;circle cx='10' cy='20' r='5' /&gt;
+  &lt;g /&gt;
+&lt;/svg&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>10.4 <a name="sect-idm437" id="sect-idm437">Commutative and Non-commutative Edits</a></h3>
+    <p class="" style="">Changes to the records can be divided into two categories: commutative and non-commutative edits.</p>
+    <p class="" style="">Commutative edits are commutative with all edits and are never "undone" so keeping a history of them is NOT REQUIRED. Edits that add or remove records are commutative.</p>
+    <p class="" style="">An edit that changes an existing record is called non-commutative because it may not be commutative with edits that change the same record. Hence these changes may need to be undone so keeping a history of the changes caused by such edits is REQUIRED. The breadth of this required history depends on the role of the entity and on whether the session works through a server component:</p>
+    <div class="indent"><p class="caption"><a name="table-4" id="table-4"></a>Table 4: Matrix of required history</p><table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+        <td align="" colspan="" rowspan=""></td>
+        <th colspan="" rowspan="">By server</th>
+        <th colspan="" rowspan="">By client</th>
+      </tr>
+      <tr class="body">
+        <th colspan="" rowspan="">Server exists</th>
+        <td align="" colspan="" rowspan="">All non-commutative edits, that have not been undone to records that have not been removed; must store the creator and last modifier of each node (to be included as 'creator' and 'last-modified-by' attributes in &lt;new/&gt; elements sent to joining clients).</td>
+        <td align="" colspan="" rowspan="">Non-commutative edits sent by the client itself. May be removed once a further non-commutative edits to the same record from another entity is received.</td>
+      </tr>
+      <tr class="body">
+        <th colspan="" rowspan="">Server does not exists</th>
+        <td align="" colspan="" rowspan="">---</td>
+        <td align="" colspan="" rowspan="">All non-commutative edits, that have not been undone, to records that have not been removed.</td>
+      </tr>
+    </table></div>
+    <div class="indent"><h3>10.4.1 <a name="serverrequirements" id="serverrequirements">Requirements for the Server Component</a></h3>
+      <p class="" style="">The server MUST apply commutatative edits to its local copy like a client and pass on the edits without changes.</p>
+      <p class="" style="">The server component intercepts and modifies non-commutative edits in order to reduce the history requirements of the clients as indicated above. Once it receives a non-commutative edit, it MUST take the following action depending on whether the version number of the edit is "in-order" (one higher than the current version) or "out-of-order":</p>
+      <ol start="" class="" style="">
+        <li class="" style="">The server receives an in-order non-commutative edit: the server does not modify the edit, applies it locally, and passes it on normally.</li>
+        <li class="" style="">The server receives an out-of-order non-commutative edit: it processes the edit like a client would in order to locally undo conflicting edits; then, instead of passing on the out-of-order edit, the server replaces the edit by an in-order non-commutative edit that results in a record identical to what the server has locally after the (possible) undos. Note that this edit may be a "no-op" that merely increases the version of the target.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="indent"><h3>10.5 <a name="commutativeedits" id="commutativeedits">Commutative Edits</a></h3>
+    <div class="indent"><h3>10.5.1 <a name="newnode" id="newnode">Creating New Nodes</a></h3>
+      <p class="" style="">A client can add a new node to the document by adding a record with the &lt;new/&gt; element.</p>
+
+      <div class="indent"><p class="caption"><a name="table-5" id="table-5"></a>Table 5: Attributes of the &lt;new/&gt; element</p><table border="1" cellpadding="3" cellspacing="0">
+        <tr class="body">
+          <th colspan="" rowspan="">Attribute</th>
+          <th colspan="" rowspan="">Description</th>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">rid</td>
+          <td align="" colspan="" rowspan="">REQUIRED. MUST be a GUID.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">version</td>
+          <td align="" colspan="" rowspan="">OPTIONAL. MUST be a non-negative integer. Assumed to be 0 if not present.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">parent</td>
+          <td align="" colspan="" rowspan="">REQUIRED (Except at top level.)</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">primary-weight</td>
+          <td align="" colspan="" rowspan="">OPTIONAL. MUST be a float. Assumed to be 0 if not present.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">type</td>
+          <td align="" colspan="" rowspan="">REQUIRED. MUST be 'element', 'attr', 'text', 'comment', or 'processinginstruction'</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">ns</td>
+          <td align="" colspan="" rowspan="">OPTIONAL if 'type' is 'element' or 'attr'. Not allowed otherwise.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">name</td>
+          <td align="" colspan="" rowspan="">REQUIRED if 'type' is 'element' or 'attr'. Not allowed otherwise.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">chdata</td>
+          <td align="" colspan="" rowspan="">REQUIRED if 'type' is 'attr', 'text', or 'comment'. Not allowed otherwise.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">pitarget</td>
+          <td align="" colspan="" rowspan="">REQUIRED if 'type' is 'processinginstruction'. Not allowed otherwise.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">pidata</td>
+          <td align="" colspan="" rowspan="">REQUIRED if 'type' is 'processinginstruction'. Not allowed otherwise.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">creator</td>
+          <td align="" colspan="" rowspan="">OPTIONAL. MUST be the JID or room nick of the creator of the node.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">last-modified-by</td>
+          <td align="" colspan="" rowspan="">OPTIONAL. MUST be the JID or room nick of the user who last modified the node.</td>
+        </tr>
+      </table></div>
+
+<p class="caption"><a name="example-20" id="example-20"></a>Example 20. Sending new nodes</p><div class="indent"><pre class="prettyprint">
+&lt;message
+  from='kingclaudius@shakespeare.lit/castle'
+  to='laertes@shakespeare.lit/castle'&gt;
+  &lt;sxe xmlns='urn:xmpp:sxe:0'
+      session='851ba2'
+      id='11'&gt;
+    &lt;new type='element'
+          name='path'
+          parent='GUID1'
+          rid='GUID4' /&gt;
+    &lt;new type='attr'
+          name='d'
+          parent='GUID4'
+          rid='GUID5'
+          chdata='M10 10L30 50L50 10Z' /&gt;
+  &lt;/sxe&gt;
+&lt;/message&gt;
+</pre></div>
+      <p class="" style="">To process a &lt;new/&gt; element the client MUST create a new record with the values of the attributes stored in the corresponding fields.</p>
+  </div>
+  <div class="indent"><h3>10.5.2 <a name="editelement" id="editelement">Removing Nodes</a></h3>
+      <p class="" style="">A client can remove any node in the document by removing the corresponding record with the &lt;remove/&gt; element.</p>
+
+      <div class="indent"><p class="caption"><a name="table-6" id="table-6"></a>Table 6: Attributes of the &lt;remove/&gt; element</p><table border="1" cellpadding="3" cellspacing="0">
+        <tr class="body">
+          <th colspan="" rowspan="">Attribute</th>
+          <th colspan="" rowspan="">Description</th>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">target</td>
+          <td align="" colspan="" rowspan="">REQUIRED and MUST be the record id of the node to be removed.</td>
+        </tr>
+      </table></div>
+
+      <p class="" style="">A client MUST NOT send a &lt;remove/&gt; element that removes a node that has child nodes without explicitly removing the records of those nodes first.</p>
+
+<p class="caption"><a name="example-21" id="example-21"></a>Example 21. Removing an existing nodes.</p><div class="indent"><pre class="prettyprint">
+&lt;message
+  from='kingclaudius@shakespeare.lit/castle'
+  to='laertes@shakespeare.lit/castle'&gt;
+  &lt;sxe xmlns='urn:xmpp:sxe:0'
+      session='851ba2'
+      id='13'&gt;
+    &lt;remove target='GUID5'/&gt;
+    &lt;remove target='GUID4'/&gt;
+  &lt;/sxe&gt;
+&lt;/message&gt;
+</pre></div>
+      <p class="" style="">To processes a &lt;remove/&gt; element the client MUST remove the record specified by the 'target' attribute.</p>
+      <p class="" style="">If the node corresponding to the target record has child nodes, the receiver MUST send &lt;remove/&gt; elements for each of them as described above.</p>
+    </div>
+  </div>
+  <div class="indent"><h3>10.6 <a name="noncommutativeedits" id="noncommutativeedits">Non-commutative Edits</a></h3>
+    <div class="indent"><h3>10.6.1 <a name="sect-idm519" id="sect-idm519">The set Element</a></h3>
+      <p class="" style="">The &lt;set/&gt; element is used to modify an existing record.</p>
+
+      <div class="indent"><p class="caption"><a name="table-7" id="table-7"></a>Table 7: Attributes of the &lt;set/&gt; element</p><table border="1" cellpadding="3" cellspacing="0">
+        <tr class="body">
+          <th colspan="" rowspan="">Attribute</th>
+          <th colspan="" rowspan="">Description</th>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">target</td>
+          <td align="" colspan="" rowspan="">REQUIRED and MUST be the record id of the node being modified.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">version</td>
+          <td align="" colspan="" rowspan="">REQUIRED and MUST be the current version of the node incremented by one.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">parent</td>
+          <td align="" colspan="" rowspan="">OPTIONAL.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">primary-weight</td>
+          <td align="" colspan="" rowspan="">OPTIONAL.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">ns</td>
+          <td align="" colspan="" rowspan="">OPTIONAL but only allowed if the target record is of type 'element' or 'attr'.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">name</td>
+          <td align="" colspan="" rowspan="">OPTIONAL but only allowed if the target record is of type 'element' or 'attr'.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">chdata</td>
+          <td align="" colspan="" rowspan="">OPTIONAL but only allowed if the target node is of type 'attr', 'text', or 'comment'.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">pitarget</td>
+          <td align="" colspan="" rowspan="">OPTIONAL but only allowed if the target record is of type 'processinginstruction'.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">pidata</td>
+          <td align="" colspan="" rowspan="">OPTIONAL but only allowed if the target record is of type 'processinginstruction'.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">replacefrom</td>
+          <td align="" colspan="" rowspan="">replace from position. OPTIONAL but only allowed if 'chdata' and 'replacen' attributes are also included. MUST be a non-negative integer.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">replacen</td>
+          <td align="" colspan="" rowspan="">replace n characters. OPTIONAL but only allowed if 'chdata' and 'replacefrom' attributes are also included. MUST be a non-negative integer.</td>
+        </tr>
+
+      </table></div>
+
+      <p class="caption"><a name="example-22" id="example-22"></a>Example 22. set elements.</p><div class="indent"><pre class="prettyprint">
+
+&lt;message
+  from='kingclaudius@shakespeare.lit/castle'
+  to='laertes@shakespeare.lit/castle'&gt;
+  &lt;sxe xmlns='urn:xmpp:sxe:0'
+      session='851ba2'
+      id='14'&gt;
+
+    &lt;set target='GUID14'
+      version='1'
+      chdata='10' /&gt;
+
+    &lt;set target='GUID8'
+      version='1'
+      parent='GUID1'
+      primary-weight='8' /&gt;
+
+  &lt;/sxe&gt;
+&lt;/message&gt;
+</pre></div>
+    </div>
+    <div class="indent"><h3>10.6.2 <a name="sect-idm559" id="sect-idm559">Processing a set Element</a></h3>
+      <p class="" style="">To processes a &lt;set/&gt; element the client MUST follow the following steps:</p>
+      <ol start="" class="" style="">
+        <li class="" style="">If the record specified by the 'target' attribute doesn't exist, the &lt;set/&gt; element MUST be ignored.</li>
+        <li class="" style="">If the client is receiving history, (i.e. edits sent between the &lt;document-begin/&gt; and &lt;document-end/&gt; elements), it MUST set the version of the target record to the value of the 'version' attribute. Otherwise, the client MUST increment the version of the target recordrecord by one</li>
+        <li class="" style="">
+          <p class="" style="">If the version of of the target record is now equal to the 'version' attribute of the &lt;set/&gt; element, the client MUST store the values of the attributes of the &lt;set/&gt; element as updated values of the corresponding fields in the record. The only exception occurs when 'chdata', 'replacefrom', and 'replacen' are specified: in that case, n characters starting from the f'th character of the existing 'chdata' field MUST be replaced by c, where n, f, and c are the values of the 'replacen', 'replacefrom', and 'chdata' attributes respectively.</p>
+          <p class="" style="">Otherwise all fields of the record, except for the 'version' field, must be reverted to version (v - 1), where v is the value of the 'version' attribute of the received &lt;set/&gt; element.</p>
+        </li>
+      </ol>
+    </div>
+  </div>
+<h2>11.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <div class="indent"><h3>11.1 <a name="mucroles" id="mucroles">MUC Roles</a></h3>
+    <p class="" style="">It should be noted that given the MUC specification and the requirement of this protocol to send a connect request message to all room members in order to join an existing session, you effectively can not use the visitor role of MUC with a regular MUC server component. However, the specialized MUC component, if used, MUST accept and respond to the connection requests even if they come from users who do not have voice in the room.</p>
+  </div>
+<h2>12.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">To follow.</p>
+<h2>13.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This XEP requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm576">6</a>].</p>
+<h2>14.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>14.1 <a name="ns" id="ns">Protocol Namespaces</a></h3>
+    <p class="" style="">Until this specification advances to a status of Draft, its associated namespaces shall be:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:sxe:0</li>
+      <li class="" style="">urn:xmpp:jingle:transports:sxe</li>
+    </ul>
+    <p class="" style="">Upon advancement of this specification, the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm587">7</a>] shall issue permanent namespaces in accordance with the process defined in Section 4 of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idm591">8</a>].</p>
+    <p class="" style="">The following namespaces are requested, and are thought to be unique per the XMPP Registrar's requirements:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:sxe</li>
+      <li class="" style="">urn:xmpp:jingle:transport:sxe</li>
+    </ul>
+  </div>
+  <div class="indent"><h3>14.2 <a name="registrar-identity" id="registrar-identity">Service Discovery Identities</a></h3>
+    <p class="" style="">The &amp;REGISTRAR; shall add the type of "sxe" to the "collaboration" category in its registry of service discovery identities.</p>
+  </div>
+  <div class="indent"><h3>14.3 <a name="registrar-transports" id="registrar-transports">Jingle Transport Methods</a></h3>
+    <p class="" style="">The XMPP Registrar shall include "sxe" in its registry of Jingle transport methods. The registry submission is as follows:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;transport&gt;
+  &lt;name&gt;sxe&lt;/name&gt;
+  &lt;desc&gt;A method for exchanging Shared XML Editing data over XMPP.&lt;/desc&gt;
+  &lt;type&gt;reliable&lt;/type&gt;
+  &lt;doc&gt;XEP-xxxx&lt;/doc&gt;
+&lt;/transport&gt;
+</pre></div>
+  </div>
+<h2>15.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="" style="">To follow.</p>
+<h2>16.
+       <a name="acknowledgements" id="acknowledgements">Acknowledgements</a></h2>
+  <p class="" style="">The theory behind the synchronization of an individual entity (a record) was put forward by Mats Bengtsson (http://coccinella.sourceforge.net/docs/MemoSyncSVG-XMPP.txt). He also provided other input that helped form this XEP. Thanks to Dmitriy Chervov for his feedback based on implementation experience.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0284<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1.1<br />
+            Last Updated: 2019-02-20<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XMPP IM<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT YET ASSIGNED<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0284.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0284.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0284.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Joonas Govenius</h3><p class="indent">
+        Email:
+        <a href="mailto:joonas@uwc.net">joonas@uwc.net</a><br />
+        JabberID:
+        <a href="xmpp:joonas@jabber.org">joonas@jabber.org</a><br /></p><h3>Peter Saint-Andre</h3><p class="indent">
+        Email:
+        <a href="mailto:xsf@stpeter.im">xsf@stpeter.im</a><br />
+        JabberID:
+        <a href="xmpp:peter@jabber.org">peter@jabber.org</a><br />
+        URI:
+        <a href="http://stpeter.im/">http://stpeter.im/</a><br /></p><h3>Tom Pusateri</h3><p class="indent">
+        Email:
+        <a href="mailto:pusateri@bangj.com">pusateri@bangj.com</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm148" id="nt-idm148">1</a>. XEP-0045: Multi-User Chat &lt;<a href="https://xmpp.org/extensions/xep-0045.html">https://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-idm154" id="nt-idm154">2</a>. XEP-0228: Requirements for Shared Editing &lt;<a href="https://xmpp.org/extensions/xep-0228.html">https://xmpp.org/extensions/xep-0228.html</a>&gt;.</p><p><a name="nt-idm166" id="nt-idm166">3</a>. XEP-0166: Jingle &lt;<a href="https://xmpp.org/extensions/xep-0166.html">https://xmpp.org/extensions/xep-0166.html</a>&gt;.</p><p><a name="nt-idm170" id="nt-idm170">4</a>. XEP-0204: Collaborative Data Objects &lt;<a href="https://xmpp.org/extensions/xep-0204.html">https://xmpp.org/extensions/xep-0204.html</a>&gt;.</p><p><a name="nt-idm197" id="nt-idm197">5</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm576" id="nt-idm576">6</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm587" id="nt-idm587">7</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idm591" id="nt-idm591">8</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1.1 (2019-02-20)</h4><div class="indent"><p class="" style="">Fix use of incorrect namespace in examples</p> (ka)
+    </div><h4>Version 0.1 (2010-07-02)</h4><div class="indent"><p class="" style="">Initial published version.</p> (psa)
+    </div><h4>Version 0.0.10 (2010-06-08)</h4><div class="indent"><p class="" style="">Updated Jingle namespaces, transport definitions, reason codes, and other syntax; improved feature discovery and session advertisement; updated namespace to be urn:xmpp:sxe:0 for future-compatibility.</p> (tp/psa)
+    </div><h4>Version 0.0.9 (2009-12-04)</h4><div class="indent"><p class="" style="">Added session signalling via presence.</p> (psa)
+    </div><h4>Version 0.0.8 (2008-01-29)</h4><div class="indent">
+      <ul class="" style="">
+        <li class="" style="">Modified negotiation protocol to use Jingle.</li>
+        <li class="" style="">Defined Jingle transport method.</li>
+      </ul>
+     (psa/jg)
+    </div><h4>Version 0.0.7 (2008-01-24)</h4><div class="indent">
+    <ul class="" style="">
+    <li class="" style="">Added the "Example Session" section.</li>
+    <li class="" style="">Clarification of the 'last-sender' and 'last-id' attributes.</li>
+    <li class="" style="">Changed the definition of the "state".</li>
+    <li class="" style="">Changed "SHOULD [abort the negotiation with others who offered the state]" to a "MUST" after one offer has been accepted.</li>
+    </ul>
+     (jg)
+    </div><h4>Version 0.0.6 (2008-01-20)</h4><div class="indent">
+    <ul class="" style="">
+    <li class="" style="">Wording changes.</li>
+    <li class="" style="">Added a paragraph about "maintaining an unordered set of records" to the introduction.</li>
+    <li class="" style="">Renamed "node id" to "record id".</li>
+    <li class="" style="">Renamed "metadata" to "record".</li>
+    <li class="" style="">Renamed &lt;configure/&gt; to &lt;set/&gt;.</li>
+    <li class="" style="">Renamed "node edits" to non-commutative edits.</li>
+    <li class="" style="">Simplified the explanation of processing edits by creating a section "Mapping the Records to the DOM Document" and concentrating on the changes to the records in section "Commutative and Non-commutative edits".</li>
+    <li class="" style="">Added the description of the &lt;prolog/&gt; element.</li>
+    <li class="" style="">Replaced the &lt;last-sxde/&gt; element with 'last-sender' and 'last-id' attributes.</li>
+    <li class="" style="">Added the 'replacefrom' and 'replacen' attributes.</li>
+    <li class="" style="">Replaced the &lt;in-session/&gt; element with the &lt;alternative-session/&gt; element.</li>
+    </ul>
+   (jg)
+    </div><h4>Version 0.0.5 (2007-08-30)</h4><div class="indent">
+    <ul class="" style="">
+    <li class="" style="">Renamed 'z' to 'weight'.</li>
+    <li class="" style="">Moved the metadata (node id, primary-weight) out of the DOM. I.e. they are no longer attributes of elements; it is up to the implementation to how the metadata is stored.</li>
+    <li class="" style="">Changed "element edits" to "node edits". Now each DOM node is required to have a GUID and can be modified separately. All nodes are arranged by their weight which removes the previous problems with mixed content.</li>
+    <li class="" style="">Modified the examples accordingly.</li>
+    <li class="" style="">Improved the glossary definitions.</li>
+    </ul>
+   (jg)
+    </div><h4>Version 0.0.4 (2007-03-26)</h4><div class="indent"><p class="" style="">Wording changes. Changes to how set content/move element conflict is handled.</p> (jg)
+    </div><h4>Version 0.0.3 (2007-01-09)</h4><div class="indent">
+    <ul class="" style="">
+    <li class="" style="">Simplified the process for joining a session. Removed the notion of history being different from state in the context of joining.</li>
+    <li class="" style="">Moved responsibility of undoing other users' conflicting edits to the server if one exists.</li>
+    <li class="" style="">Added "XML Document Requirements" section.</li>
+    <li class="" style="">Added that changes should be checked against the XSD of the document.</li>
+    <li class="" style="">Renamed 'hash' attribute as 'id'.</li>
+    <li class="" style="">Changed the format of the &lt;feature/&gt; elements.</li>
+    <li class="" style="">Modified negotiation abortion reason.</li>
+    <li class="" style="">Removed the XSD for now.</li>
+    <li class="" style="">Removed the "Security Considerations" for now.</li>
+    <li class="" style="">JEP to XEP.</li>
+    </ul>
+   (jg)
+    </div><h4>Version 0.0.2 (2006-08-28)</h4><div class="indent"><p class="" style="">Initial version of the SXdE proposal after splitting the previous whiteboarding proposal.</p> (jg)
+    </div><h4>Version 0.0.1 (2006-06-19)</h4><div class="indent"><p class="" style="">Initial version.</p> (jg)
+    </div></div><hr /><p>END</p></body></html>

@@ -1,0 +1,153 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0416: E2E Authentication in XMPP</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="E2E Authentication in XMPP" /><meta name="DC.Creator" content="Evgeny Khramtsov" /><meta name="DC.Description" content="This specification describes how X.509 certificates can be used for end-to-end authentication in XMPP." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2019-03-06" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0416" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0416: E2E Authentication in XMPP</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification describes how X.509 certificates can be used for end-to-end authentication in XMPP.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Evgeny Khramtsov</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2018 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1.0</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2019-03-06</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#glossary">Glossary</a><br />3.  <a href="#reqs">Requirements</a><br />   
+      3.1.  <a href="#gen-req">General Requirements</a><br />   
+      3.2.  <a href="#cert-req">Certificate Requirements</a><br />   
+      3.3.  <a href="#ca-req">CA Requirements</a><br />4.  <a href="#cert-valid">Certificate Validation</a><br />5.  <a href="#root-cert-disco">Root Certificates Discovery</a><br />6.  <a href="#leaf-cert-disco">Leaf Certificates Discovery</a><br />7.  <a href="#access">Accessibility Considerations</a><br />8.  <a href="#i18n">Internationalization Considerations</a><br />9.  <a href="#security">Security Considerations</a><br />10.  <a href="#iana">IANA Considerations</a><br />11.  <a href="#registrar">XMPP Registrar Considerations</a><br />12.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">X.509 version 3 certificates can be used to provide a strong cryptographic identity of an XMPP entity, i.e. an association of an XMPP address (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc7622">RFC 7622</a></span>  [<a href="#nt-idm44">1</a>]) with its cryptographic key (formally defined under Section 13.7.1.4 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm48">2</a>]). They were initially intended for the use in SASL EXTERNAL for c2s and mutual s2s authentication (see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0178.html">Best Practices for Use of SASL EXTERNAL (XEP-0178)</a></span>  [<a href="#nt-idm52">3</a>]). This document extends their usage for end-to-end (e2e) authentication of any entities attached to the XMPP network. A separate document also defines how Certificate Signing Request (CSR) of an XMPP account can be issued and signed using the XMPP protocol (XEP-EAX-SIGN).</p>
+  <p class="" style="">Example usages:</p>
+  <div class="indent"><dl>
+    <di><dt><strong>E2E encryption</strong></dt><dd>For end-to-end encryption, XMPP clients may use certificates to mutually identify each other, i.e. check that the cryptographic key belongs to this exact XMPP address.</dd></di>
+    <di><dt><strong>External services</strong></dt><dd>An XMPP server may authenticate users of other servers at its local services, such as an HTTP Upload component (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0363.html">HTTP File Upload (XEP-0363)</a></span>  [<a href="#nt-idm64">4</a>]), e.g. for granting file uploads, or a TURN server (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5766">RFC 5766</a></span>  [<a href="#nt-idm68">5</a>]).</dd></di>
+    <di><dt><strong>XMPP Usage of RELOAD</strong></dt><dd>XMPP entities attached to the XOR overlay (XEP-XOR) are supposed to use certificates for mutual authentication.</dd></di>
+    <di><dt><strong>SPAM protection</strong></dt><dd>Since certificate authorities are required to be Sybil resistant (XEP-EAX-CAR), a spammer is limited in ability to create accounts massively. Thus it is expected that SPAM dissemination will fall to negligible levels.</dd></di>
+    <di><dt><strong>Registration delegation</strong></dt><dd>XMPP accounts registration typically creates a huge burden for operators of public servers. An operator may want to delegate a registration of accounts of its own server to a trusted CA. The CA will validate the users' identities and will issue certificates for them. The users can use these certificates in c2s SASL EXTERNAL authentication at the operator's server as well as for e2e authentication with other entities.</dd></di>
+  </dl></div>
+  <p class="" style="">Note that an XMPP client may use the same certificate for different kinds of e2e authentication.</p>
+  <p class="" style="">Conceptually, the idea is to build PKIX trees where in each tree a node corresponds to a certificate of a CA signing certificates of its successors. A leaf in the tree represents a certificate assigned to an XMPP account, a "leaf certificate". The leaf certificates are supposed to be used for (but not limited to) e2e authentication.</p>
+  <p class="caption"><a name="example-1" id="example-1"></a>Example 1. </p><div class="indent"><pre class="prettyprint">
+          Tree 1                  Tree 2                      Tree N
+  +--------------------+  +---------------------+     +-----------------------+
+  |     Root CA 1      |  |       Root CA 2     | ... |       Root CA N       |
+  +--------------------+  +---------------------+     +-----------------------+
+            |                        |                           |
+            |                        |                           |
+  +--------------------+  +---------------------+     +-----------------------+
+  | juliet@capulet.lit |  | Intermediate CA 2.1 |     | CA of shakespeare.lit |
+  +--------------------+  +---------------------+     +-----------------------+
+                                     |                           |
+                                     |                           |
+                          +---------------------+     +-----------------------+
+                          | romeo@montague.lit  |     | bard@shakespeare.lit  |
+                          +---------------------+     +-----------------------+
+</pre></div>
+  <p class="" style="">In the example above, XMPP servers of domains "capulet.lit" and "montague.lit" do not have associated certificate authorities, so Root CA 1 and Intermediate CA 2.1 sign certificates of "juliet@capulet.lit" and "romeo@montague.lit" directly. An XMPP server of domain "shakespeare.lit" has an associated CA (whose certificate is signed by Root CA N) and thus is able to sign certificates for users of "shakespeare.lit" (and only for them). As long as all root CAs are trusted by all parties, "juliet@capulet.lit", "romeo@montague.lit" and "bard@shakespeare.lit" may mutually authenticate each other using their certificates (for sharing resources, exchanging messages, etc).</p>
+<h2>2.
+       <a name="glossary" id="glossary">Glossary</a></h2>
+  <div class="indent"><dl>
+    <di><dt><strong>CA</strong></dt><dd>Certificate authority - an entity that issues X.509 certificates.</dd></di>
+    <di><dt><strong>CSR</strong></dt><dd>Certificate signing request - a message sent from an applicant to a certificate authority in order to apply for an X.509 certificate.</dd></di>
+    <di><dt><strong>Leaf certificate</strong></dt><dd>A certificate assigned to an XMPP account.</dd></di>
+    <di><dt><strong>Domain-associated certificate</strong></dt><dd>An intermediate certificate assigned for a particular XMPP domain. Such certificates can be used to sign leaf certificates associated with the same XMPP domain only.</dd></di>
+    <di><dt><strong>Intermediate certificate</strong></dt><dd>A non-root certificate used for signing any other certificates.</dd></di>
+    <di><dt><strong>Root certificate</strong></dt><dd>A self-signed certificate used for signing any other certificates.</dd></di>
+  </dl></div>
+<h2>3.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <div class="indent"><h3>3.1 <a name="gen-req" id="gen-req">General Requirements</a></h3>
+    <ol start="" class="" style="">
+      <li class="" style="">The leaf certificate MUST be compliant with c2s SASL EXTERNAL authentication (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm48">2</a>], <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0178.html">Best Practices for Use of SASL EXTERNAL (XEP-0178)</a></span>  [<a href="#nt-idm52">3</a>]).</li>
+      <li class="" style="">The leaf certificate MUST be compliant with RELOAD authentication (RFC6940).</li>
+    </ol>
+  </div>
+  <div class="indent"><h3>3.2 <a name="cert-req" id="cert-req">Certificate Requirements</a></h3>
+    <p class="" style="">The following rules apply to any certificate:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">The certificate MUST conform to <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5280">RFC 5280</a></span>  [<a href="#nt-idm122">6</a>].</li>
+      <li class="" style="">The subject field MUST NOT be null.</li>
+      <li class="" style="">The certificate MUST contain a keyUsage extension with the digitalSignature bit set.</li>
+      <li class="" style="">The certificate SHOULD use Elliptic Curve Cryptography. FIXME: correctly define this statement.</li>
+    </ol>
+    <p class="" style="">The following rules apply to leaf certificates:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">The certificate MUST NOT contain a basicConstraints extension with the cA boolean set to TRUE.</li>
+      <li class="" style="">The certificate MUST include a CRL Distribution Points extension that specifies an URI of a Certificate Revocation List.</li>
+      <li class="" style="">The certificate MUST possess a single XMPP address represented as an XmppAddr as specified under Section 13.7.1.4 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm48">2</a>].</li>
+      <li class="" style="">The SubjectAltName field in the certificate MUST contain a single RELOAD URI as specified under Section 14.15 of RFC6940 encoded as uniformResourceIdentifier type. The "destination" part of the URI MUST be a RELOAD Node-ID. The Node-ID MAY be hexadecimal-encoded. The "overlay" part of the URI MUST be "xmpp.org". The "specifier" part of the URI MUST be empty.</li>
+      <li class="" style="">If the XMPP address doesn't contain non-ASCII characters, it MUST be encoded in the SubjectAltName field as rfc822Name type.</li>
+    </ol>
+    <p class="" style="">Note that the rules for leaf certificates comply with the rules defined for client certificates under Sections 13.7.1.1 and 13.7.1.4 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm48">2</a>]. Thus they can be used for c2s SASL EXTERNAL authentication.</p>
+    <p class="" style="">The requirement to possess a RELOAD URI and an rfc822Name address makes it possible to use the certificate for RELOAD authentication. Even if XOR extension (XEP-XOR) is unused, the RELOAD URI uniquely identifies a user device: a user MAY have several certificates assigned to their XMPP address but with different RELOAD URIs.</p>
+    <p class="" style="">The following rules apply to domain-associated certificates:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">The certificate MUST contain a keyUsage extension with the keyCertSign bit set.</li>
+      <li class="" style="">The certificate MUST contain a basicConstraints extension with the cA boolean set to TRUE and pathLenConstraint set to 0 (zero).</li>
+      <li class="" style="">The certificate MUST include a CRL Distribution Points extension that specifies an URI of a Certificate Revocation List.</li>
+      <li class="" style="">The certificate MUST possess the associated domain name encoded as DNS-ID identifier type. The domain name MUST NOT contain the wildcard character '*'.</li>
+    </ol>
+    <p class="" style="">The following rules apply to intermediate certificates, excluding domain-associated certificates:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">The certificate MUST contain a keyUsage extension with the keyCertSign bit set.</li>
+      <li class="" style="">The certificate MUST contain a basicConstraints extension with the cA boolean set to TRUE.</li>
+      <li class="" style="">The certificate MUST include a CRL Distribution Points extension that specifies an URI of a Certificate Revocation List.</li>
+    </ol>
+    <p class="" style="">The following rules apply to root certificates:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">The certificate MUST contain a keyUsage extension with the keyCertSign bit set.</li>
+      <li class="" style="">The certificate MUST contain a basicConstraints extension with the cA boolean set to TRUE.</li>
+    </ol>
+  </div>
+  <div class="indent"><h3>3.3 <a name="ca-req" id="ca-req">CA Requirements</a></h3>
+    <p class="" style="">CA Requirements are outlined in XEP-EAX-CAR.</p>
+  </div>
+<h2>4.
+       <a name="cert-valid" id="cert-valid">Certificate Validation</a></h2>
+  <p class="" style="">The certificate is considered valid if it follows the rules specified in <a href="#cert-req">Certificate Requirements</a> and, in the case when it is signed by a domain-associated certificate, it is a leaf certificate and the domain from the domain-associated certificate matches the domain part of the XmppAddr of the certificate. Otherwise, the certificate MUST be considered invalid.</p>
+  <p class="" style="">In the case of a certificate chain, the rules for certification path validation are applied (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5280">RFC 5280</a></span>  [<a href="#nt-idm122">6</a>]).</p>
+<h2>5.
+       <a name="root-cert-disco" id="root-cert-disco">Root Certificates Discovery</a></h2>
+  <p class="" style="">An XMPP entity MAY maintain its own list of root certificates. However, in practice it's convenient to retrieve this list from a trusted source. For example, several organizations in the Internet maintain and provide such lists for certificates verification in the Web. This section specifies how the list of root certificates can be retrieved for the purpose of e2e authentication in XMPP.</p>
+  <p class="" style="">Since the authentication is intended to be compliant with RELOAD and creating new document formats or DNS TXT records without exigency are in general discouraged, the Overlay Configuration document is reused to provide the list of root certificates (see Section 11.1 of RFC6940). The root certificates are PEM-encoded (RFC7468) with encapsulation boundaries removed and are included in &lt;root-cert/&gt; elements of the Overlay Configuration.</p>
+  <p class="" style="">In order to retrieve the Overlay Configuration, an HTTP GET request is performed to "https://xmpp.org/.well-known/reload-config". The requesting UA MUST be prepared to process HTTP redirects. In the case of a failure, the UA MAY repeat the request. In this case exponential backoff MUST be applied. Since the list of root certifcates is not a subject for frequent updates, under normal conditions, the UA SHOULD NOT request the Overlay Configuration more often than once per day. Usage of 'If-Modified-Since' is RECOMMENDED (RFC7232).</p>
+  <p class="" style="">Further versions of this specification MAY extend the Overlay Configuration with new XML elements.</p>
+<h2>6.
+       <a name="leaf-cert-disco" id="leaf-cert-disco">Leaf Certificates Discovery</a></h2>
+  <p class="" style="">An XMPP entity MAY want to publish its certificate so other XMPP entities MAY retrieve it. The method to accomplish this depends on the usage:</p>
+  <ul class="" style="">
+    <li class="" style="">In the case of an ordinary XMPP usage (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm48">2</a>]) a special PEP node (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0163.html">Personal Eventing Protocol (XEP-0163)</a></span>  [<a href="#nt-idm184">7</a>]) is used as specified in XEP-EAX-SIGN.</li>
+    <li class="" style="">In the case of XMPP Usage of RELOAD (XEP-XOR) a peer is REQUIRED to store its certificate in the RELOAD overlay (see Section 8 of RFC6940).</li>
+  </ul>
+<h2>7.
+       <a name="access" id="access">Accessibility Considerations</a></h2>
+  <p class="" style="">None required.</p>
+<h2>8.
+       <a name="i18n" id="i18n">Internationalization Considerations</a></h2>
+  <p class="" style="">None required.</p>
+<h2>9.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">TBD.</p>
+<h2>10.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">None required.</p>
+<h2>11.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p class="" style="">None required.</p>
+<h2>12.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="" style="">None required.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0416<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1.0<br />
+            Last Updated: 2019-03-06<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0001<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0416.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0416.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0416.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Evgeny Khramtsov</h3><p class="indent">
+        Email:
+        <a href="mailto:ekhramtsov@process-one.net">ekhramtsov@process-one.net</a><br />
+        JabberID:
+        <a href="xmpp:xram@zinid.ru">xram@zinid.ru</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm44" id="nt-idm44">1</a>. RFC 7622: Extensible Messaging and Presence Protocol (XMPP): Address Format &lt;<a href="http://tools.ietf.org/html/rfc7622">http://tools.ietf.org/html/rfc7622</a>&gt;.</p><p><a name="nt-idm48" id="nt-idm48">2</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm52" id="nt-idm52">3</a>. XEP-0178: Best Practices for Use of SASL EXTERNAL &lt;<a href="https://xmpp.org/extensions/xep-0178.html">https://xmpp.org/extensions/xep-0178.html</a>&gt;.</p><p><a name="nt-idm64" id="nt-idm64">4</a>. XEP-0363: HTTP File Upload &lt;<a href="https://xmpp.org/extensions/xep-0363.html">https://xmpp.org/extensions/xep-0363.html</a>&gt;.</p><p><a name="nt-idm68" id="nt-idm68">5</a>. RFC 5766: Traversal Using Relays around NAT (TURN): Relay Extensions to Session Traversal Utilities for NAT (STUN) &lt;<a href="http://tools.ietf.org/html/rfc5766">http://tools.ietf.org/html/rfc5766</a>&gt;.</p><p><a name="nt-idm122" id="nt-idm122">6</a>. RFC 5280: Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile &lt;<a href="http://tools.ietf.org/html/rfc5280">http://tools.ietf.org/html/rfc5280</a>&gt;.</p><p><a name="nt-idm184" id="nt-idm184">7</a>. XEP-0163: Personal Eventing Protocol &lt;<a href="https://xmpp.org/extensions/xep-0163.html">https://xmpp.org/extensions/xep-0163.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1.0 (2019-03-06)</h4><div class="indent">Accepted by vote of Council on 2019-02-27. (XEP Editor (jsc))
+    </div><h4>Version 0.0.1 (2019-02-08)</h4><div class="indent"><p class="" style="">First draft.</p> (evk)
+    </div></div><hr /><p>END</p></body></html>

@@ -1,0 +1,240 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0415: XMPP Over RELOAD (XOR)</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="XMPP Over RELOAD (XOR)" /><meta name="DC.Creator" content="Evgeny Khramtsov" /><meta name="DC.Description" content="This specification defines an XMPP Usage of REsource LOcation And Discovery (RELOAD). The XMPP usage provides an ability for XMPP clients to discover other peers' location through the peer-to-peer overlay. Once a peer location is determined, the RELOAD AppAttach method is used to establish a direct connection between peers through which XMPP streams are exchanged." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2019-03-06" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0415" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0415: XMPP Over RELOAD (XOR)</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines an XMPP Usage of REsource LOcation And Discovery (RELOAD). The XMPP usage provides an ability for XMPP clients to discover other peers' location through the peer-to-peer overlay. Once a peer location is determined, the RELOAD AppAttach method is used to establish a direct connection between peers through which XMPP streams are exchanged.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Evgeny Khramtsov</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2018 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1.0</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2019-03-06</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#glossary">Glossary</a><br />4.  <a href="#addr-loc">Storing an Address Location</a><br />   
+      4.1.  <a href="#addr-loc-overview">Overview</a><br />   
+      4.2.  <a href="#data-struct">Data Structure</a><br />   
+      4.3.  <a href="#multi-loc">Multiple Locations</a><br />   
+      4.4.  <a href="#access-control">Access Control</a><br />5.  <a href="#sect-idm124">Looking Up an Address Location</a><br />6.  <a href="#direct-conn">Forming a Direct Connection</a><br />   
+      6.1.  <a href="#conn-setup">Setting Up a Connection</a><br />   
+      6.2.  <a href="#stanza-routing">Stanza Routing</a><br />7.  <a href="#c2s-interact">Interaction with XMPP Core</a><br />8.  <a href="#enroll-auth">Enrollment and Authentication</a><br />9.  <a href="#kind-def">XMPP-LOCATION Kind Definition</a><br />10.  <a href="#security">Security Considerations</a><br />   
+      10.1.  <a href="#reload-security">RELOAD Security</a><br />   
+      10.2.  <a href="#spam">SPAM</a><br />   
+      10.3.  <a href="#acc-harvesting">Accounts Harvesting</a><br />   
+      10.4.  <a href="#net-addr-disclosure">Network Address Disclosure</a><br />11.  <a href="#iana">IANA Considerations</a><br />   
+      11.1.  <a href="#data-kind-id">Data Kind-ID</a><br />12.  <a href="#registrar">XMPP Registrar Considerations</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">REsource LOcation And Discovery (RELOAD) (RFC6940) specifies a peer-to-peer (P2P) signaling protocol for general use on the Internet. This document defines an XMPP Usage of RELOAD that allows XMPP clients to establish peer-to-peer XMPP streams without routing them through XMPP servers.</p>
+  <p class="" style="">The XMPP Usage involves two basic functions:</p>
+  <ol start="" class="" style="">
+    <li class="" style=""><span class="strong">Address Location</span>: XMPP clients can use the RELOAD data storage functionality to store a mapping from their XMPP address to their Node-ID in the overlay and to retrieve the Node-ID of other clients.</li>
+    <li class="" style=""><span class="strong">Rendezvous</span>: Once an XMPP client has identified the Node-ID for an XMPP address it wishes to contact, it can use the RELOAD message routing system to set up a direct connection for exchanging XMPP streams.</li>
+  </ol>
+  <p class="" style="">Mappings are stored in the XmppLocation Resource Record defined in this document. All operations required to perform an XMPP address location or rendezvous are standard RELOAD protocol methods.</p>
+  <p class="box" style="">Note: XMPP stanzas are not routed through the overlay and are not stored therein.</p>
+
+  <p class="" style="">For example, Romeo registers location of his XMPP address, "romeo@montague.lit", for his Node-ID "1234".  When Juliet wants to contact Romeo, she queries the overlay for "romeo@montague.lit" and receives Node-ID "1234" in return.  She then uses the overlay routing to establish a direct connection with Romeo and can directly start a standard XMPP stream. In detail, this works along the following steps:</p>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+                      Overlay
+ Juliet      Peer1     ...          PeerN    Romeo
+ (5678)                                     (1234)
+ -------------------------------------------------
+ AppAttach -&gt;
+             AppAttach -&gt;
+                       AppAttach -&gt;
+                                   AppAttach -&gt;
+                                      &lt;- AppAttach
+                             &lt;- AppAttach
+                  &lt;- AppAttach
+      &lt;- AppAttach
+
+ &lt;------------------ ICE Checks -----------------&gt;
+ ---------------- XMPP stream start -------------&gt;
+ &lt;--------------- XMPP stream start --------------
+                       ...
+ ---------------- XMPP stream end ---------------&gt;
+ &lt;--------------- XMPP stream end ----------------
+</pre></div>
+  <p class="" style="">Direct XMPP streams exchange will be documented in follow-up extensions. So far, a possible way is described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0174.html">Link-Local Messaging (XEP-0174)</a></span>  [<a href="#nt-idm56">1</a>], although this method interacts badly with the ordinary XMPP client-to-server connection and message replication accross user devices.</p>
+  <p class="" style="">It is important to note that the XMPP Usage of RELOAD is not intended to replace the existing XMPP servers infrastructure as it looks unrealistic, at least currently. Instead, the overlay connection is designed to be working along with the ordinary XMPP client-to-server connection in order to provide backward compatibility, reliable offline message delivery and multicasting. However, some clients MAY decide to maintain the overlay connection only. As an example, such scenario is possible in the video game industry where all clients are stationary (e.g. desktop) clients with persistent broadband Internet connection, without battery restrictions and no need to receive offline messages.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p class="" style="">TBD</p>
+<h2>3.
+       <a name="glossary" id="glossary">Glossary</a></h2>
+  <div class="indent"><dl>
+    <di><dt><strong>RELOAD</strong></dt><dd>REsource LOcation And Discovery (RFC6940) - a P2P signaling protocol for general use on the Internet. The terminology and definitions from this protocol are used extensively in this document.</dd></di>
+    <di><dt><strong>Address Location</strong></dt><dd>One or many RELOAD Node-IDs to which a peer-to-peer connection can be established in order to contact an owner of the XMPP address.</dd></di>
+  </dl></div>
+<h2>4.
+       <a name="addr-loc" id="addr-loc">Storing an Address Location</a></h2>
+  <div class="indent"><h3>4.1 <a name="addr-loc-overview" id="addr-loc-overview">Overview</a></h3>
+    <p class="" style="">In XMPP Core <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm74">2</a>], a client fully relies on servers for its XMPP address location. In XMPP Usage of RELOAD, this location function is provided by the overlay as a whole. To register its location, a RELOAD peer stores an XmppLocation Resource Record for its own XMPP address using the XMPP-LOCATION Kind, which is formally defined below. Note that if a client wishes to set the location lifetime it MUST use lifetime of the basic RELOAD StoredData structure (see Section 7 of RFC6940).</p>
+    <p class="" style="">As a simple example, consider Juliet with an XMPP address "juliet@capulet.lit" at Node-ID "1234". She might store the mapping "juliet@capulet.lit -&gt; 1234" telling anyone who wants to contact her to establish a direct XMPP stream with node "1234".</p>
+    <p class="" style="">RELOAD peers can store two kinds of XMPP mappings,</p>
+    <ul class="" style="">
+      <li class="" style="">from an XMPP address to a destination list (a single Node-ID is just a trivial destination list), or</li>
+      <li class="" style="">from one XMPP address to another.</li>
+    </ul>
+    <p class="" style="">The meaning of the first kind of mapping is "in order to contact me, form a connection with this Peer". The meaning of the second kind of mapping is "in order to contact me, dereference this XMPP address". The latter allows for forwarding.  For instance, if Juliet wants her messages to be forwarded to Romeo, she might insert the following mapping: "juliet@capulet.lit -&gt; romeo@montague.lit".</p>
+  </div>
+  <div class="indent"><h3>4.2 <a name="data-struct" id="data-struct">Data Structure</a></h3>
+    <p class="" style="">The XmppLocation Resource Record is defined as follows:</p>
+    <p class="caption"></p><div class="indent"><pre class="prettyprint">
+ enum {
+     xmpp_location_address(1),
+     xmpp_location_route(2),
+     (255)
+ } XmppLocationType;
+
+ select (XmppLocation.type) {
+   case xmpp_location_address:
+     opaque            address&lt;0..2^16-1&gt;;
+
+   case xmpp_location_route:
+     uint8             priority;
+     Destination       destination_list&lt;0..2^16-1&gt;;
+
+   /* This type can be extended */
+
+ } XmppLocationData;
+
+ struct {
+    XmppLocationType   type;
+    uint16             length;
+    XmppLocationData   data;
+ } XmppLocation;
+</pre></div>
+  <p class="" style="">The contents of the XmppLocation Resource Record are:</p>
+  <div class="indent"><dl>
+    <di><dt><strong>type</strong></dt><dd>the type of the location</dd></di>
+    <di><dt><strong>length</strong></dt><dd>the length of the rest of the PDU</dd></di>
+    <di><dt><strong>data</strong></dt><dd>the location data</dd></di>
+  </dl></div>
+  <ul class="" style="">
+    <li class="" style="">If the location is of type "xmpp_location_address", then the contents are an opaque string containing the XMPP address. The address MUST be bare (i.e. without a resource part) and MUST be prepared for comparison using PRECIS rules from <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc7622">RFC 7622</a></span>  [<a href="#nt-idm100">3</a>].</li>
+    <li class="" style="">If the location is of type "xmpp_location_route", then the contents are an integer representing a route priority and an opaque string containing a destination list for the Peer. The meaning of a priority is described below in this document.</li>
+  </ul>
+  </div>
+  <div class="indent"><h3>4.3 <a name="multi-loc" id="multi-loc">Multiple Locations</a></h3>
+    <p class="" style="">The XMPP Usage explicitly supports multiple locations for a single XMPP address. The locations are stored in a dictionary with Node-IDs as the dictionary keys. Consider, for instance, the case where Juliet has two Peers:</p>
+    <ul class="" style="">
+      <li class="" style="">her desktop client (1234)</li>
+      <li class="" style="">her cell phone (5678)</li>
+    </ul>
+    <p class="" style="">Juliet might store the following in the overlay at resource "juliet@capulet.lit":</p>
+    <ul class="" style="">
+      <li class="" style="">an XmppLocation of type "xmpp_location_route" with dictionary key "1234" and value "1234", both referring to Node-IDs</li>
+      <li class="" style="">an XmppLocation of type "xmpp_location_route" with dictionary key "5678" and value "5678"</li>
+    </ul>
+  </div>
+  <div class="indent"><h3>4.4 <a name="access-control" id="access-control">Access Control</a></h3>
+    <p class="" style="">In order to prevent hijacking or other misuse, locations are subject to access control rules. Two kinds of restrictions apply:</p>
+    <ul class="" style="">
+      <li class="" style="">A Store is permitted for the owner of this XMPP address, e.g. its certificate is signed by the trusted CA.</li>
+      <li class="" style="">Storing requests are performed according to the USER-NODE-MATCH access control policy of RELOAD.</li>
+    </ul>
+    <p class="" style="">Before a Store is permitted, the Storing Peer MUST check that:</p>
+    <ul class="" style="">
+      <li class="" style="">The XMPP address of the request is a valid Resource Name, e.g. the corresponding certificate is signed by the trusted CA.</li>
+      <li class="" style="">The certificate contains a username that is an XMPP address that hashes to the Resource-ID it is being stored at.</li>
+      <li class="" style="">The certificate contains a Node-ID that is the same as the dictionary key it is being stored at.</li>
+    </ul>
+    <p class="" style="">If any of these checks fail, the request MUST be rejected with an Error_Forbidden error.</p>
+    <p class="" style="">The Storing Peer MUST NOT apply the PRECIS profile to any XMPP addresses. It is the responsibility of the Peer issuing the Store request. This allows to join XMPP agnostic RELOAD nodes to the overlay and protects intermediate peers from excessive computations, as well as possible bugs related to XMPP addresses comparison.</p>
+    
+  </div>
+<h2>5.
+       <a name="sect-idm124" id="sect-idm124">Looking Up an Address Location</a></h2>
+  <p class="" style="">In order to locate a peer in the current overlay, a RELOAD Peer MUST execute the following steps:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">MUST remove the resource part of the XMPP address and prepare it for comparison using PRECIS rules defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc7622">RFC 7622</a></span>  [<a href="#nt-idm100">3</a>].</li>
+    <li class="" style="">MUST perform a Fetch for Kind XMPP-LOCATION at the Resource-ID corresponding to this prepared bare XMPP address. This Fetch SHOULD NOT indicate any dictionary keys, so that it will fetch all the stored values.</li>
+    <li class="" style="">MUST remove duplicate destination lists and MUST initiate direct connections to all Peers as described in the following sections.</li>
+  </ol>
+<h2>6.
+       <a name="direct-conn" id="direct-conn">Forming a Direct Connection</a></h2>
+  <div class="indent"><h3>6.1 <a name="conn-setup" id="conn-setup">Setting Up a Connection</a></h3>
+    <p class="" style="">Once the Peer has translated the XMPP address into a set of destination lists, it then uses the overlay to route AppAttach messages to each of those Peers. It is RECOMMENDED to route AppAttach messages to the Peers in parallel. If the Peer chooses sequential routing, it is RECOMMENDED to sort the destination lists by priority in ascending order and perform the routing and connection attempts in this order (i.e. from the destination list with the smallest priority to the biggest, assuming standard integer comparison).</p>
+    <p class="" style="">The "application" field of AppAttach message MUST be 5222. The responding Peer MUST present a certificate with a Node-ID matching the terminal entry in the destination list. Otherwise, the connection MUST NOT be used and MUST be closed.</p>
+    <p class="" style="">Once the AppAttach succeeds, the Peer MUST start TLS-encrypted XMPP connection. A STARTTLS procedure MUST NOT be used. For better censorship resistance, the Peer MUST NOT use ALPN extension (<span class="ref" style=""><a href="https://tools.ietf.org/html/rfc7301">RFC 7301</a></span>  [<a href="#nt-idm141">4</a>]): since the endpoints are negotiated during the ICE phase, protocol multiplexing is not needed at all.</p>
+    <p class="" style="">A peer (device) of an XMPP user at any time MAY close connections to some peers (devices) of another user while keeping the rest of connections to this user's peers opened. However, only connections corresponding to the destination lists with higher priorities (biggest integer values) MUST be considered for closing as redundant.</p>
+    <p class="" style="">At startup, the peer MUST try to establish connections to all its user's devices. The Peer MUST strive to maintain connections to all its user's devices. It MUST NOT voluntary close some of them.</p>
+  </div>
+  <div class="indent"><h3>6.2 <a name="stanza-routing" id="stanza-routing">Stanza Routing</a></h3>
+    <p class="" style="">A stanza to an XMPP user MUST be sent to all connected peers (devices) of this user. Upon reception of a stanza, the peer MUST forward it to all its user's devices. An XMPP peer MUST be prepared to deal with duplicates and forwards. The follow-up extensions are supposed to clarify this.</p>
+  </div>
+<h2>7.
+       <a name="c2s-interact" id="c2s-interact">Interaction with XMPP Core</a></h2>
+  <p class="" style="">The XMPP Usage of RELOAD is designed to work along with standard XMPP client-to-server (c2s) connection defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm74">2</a>]. Depending on the user preferences or application usage, a peer MAY treat either c2s or RELOAD connection as primary.</p>
+  <ul class="" style="">
+    <li class="" style="">If the c2s connection is primary, the Peer MAY use the overlay in the case when its XMPP server is unavailable. This allows the XMPP service to "degrade gracefully": it is better to keep basic functionality working rather than completely halt the whole service. This is assumed to be the main use case of the current specification.</li>
+    <li class="" style="">If the RELOAD connection is considered as primary, a client MAY use the c2s connection to send stanzas when it has failed to locate the destination XMPP address in the overlay or when all connection attempts to the destination peer have failed.</li>
+  </ul>
+<h2>8.
+       <a name="enroll-auth" id="enroll-auth">Enrollment and Authentication</a></h2>
+  <p class="" style="">Sybil attacks are the major threat of any peer-to-peer system. A successful Sybil attack may degrade or completely paralyze the overlay, e.g. by mounting a consequent Eclipse attack. It is asserted that under realistic assumptions, without a logically centralized authority, Sybil attacks are always possible in peer-to-peer systems  [<a href="#nt-idm158">5</a>]. To address this, the RELOAD specification relies on certificate-based authentication with a central authority. The authority's ability to ensure attackers cannot get a large number of certificates for the overlay is one of the cornerstones of RELOAD's security.</p>
+  <p class="" style="">In the case of a public XMPP overlay based on existing network of federated XMPP servers, RELOAD peers MUST rely on e2e authentication defined in XEP-EAX. The document also specifies a location of the enrollment server.</p>
+  <p class="" style="">In order to build an isolated XMPP overlay the reader is suggested to follow directly the approach described in the RELOAD document itself.</p>
+<h2>9.
+       <a name="kind-def" id="kind-def">XMPP-LOCATION Kind Definition</a></h2>
+  <p class="" style="">This section defines the XMPP-LOCATION Kind.</p>
+  <div class="indent"><dl>
+    <di><dt><strong>Name</strong></dt><dd>XMPP-LOCATION</dd></di>
+    <di><dt><strong>Kind IDs</strong></dt><dd>The Resource Name for the XMPP-LOCATION Kind-ID is the bare XMPP address of the user prepared for comparison using PRECIS. The data stored is an XmppLocation, which can contain either another XMPP address or a destination list to the Peer that is acting for the user.</dd></di>
+    <di><dt><strong>Data Model</strong></dt><dd>The data model for the XMPP-LOCATION Kind-ID is a dictionary. The dictionary key is the Node-ID of the Storing Peer. This allows each Peer (presumably corresponding to a single device) to store a single route mapping.</dd></di>
+    <di><dt><strong>Access Control</strong></dt><dd>USER-NODE-MATCH. Note that this matches the XMPP address against the "id-on-xmppAddr" Object Identifier (as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm74">2</a>]) in the X.509 v3 certificate.</dd></di>
+  </dl></div>
+  <p class="" style="">Data stored under the XMPP-LOCATION Kind is of type XmppLocation, containing one of two data types:</p>
+  <div class="indent"><dl>
+    <di><dt><strong>xmpp_location_address</strong></dt><dd>An XMPP address that the user can be reached at.</dd></di>
+    <di><dt><strong>xmpp_location_route</strong></dt><dd>A destination list that can be used to reach the user's Peer.</dd></di>
+  </dl></div>
+<h2>10.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <div class="indent"><h3>10.1 <a name="reload-security" id="reload-security">RELOAD Security</a></h3>
+    <p class="" style="">This Usage for RELOAD does not define new protocol elements or operations. Hence, no new threats arrive from message exchanges in RELOAD.</p>
+  </div>
+  <div class="indent"><h3>10.2 <a name="spam" id="spam">SPAM</a></h3>
+    <p class="" style="">Successful SPAM dissemination is possible as long as the malicious entity is able to create a lot of accounts in the overlay. In other words, SPAM is a derivative of a Sybil attack. Since the overlay is designed to be Sybil resistant, SPAM is expected to be negligible.</p>
+  </div>
+  <div class="indent"><h3>10.3 <a name="acc-harvesting" id="acc-harvesting">Accounts Harvesting</a></h3>
+    <p class="" style="">TBD</p>
+  </div>
+  <div class="indent"><h3>10.4 <a name="net-addr-disclosure" id="net-addr-disclosure">Network Address Disclosure</a></h3>
+    <p class="" style="">TBD</p>
+  </div>
+<h2>11.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <div class="indent"><h3>11.1 <a name="data-kind-id" id="data-kind-id">Data Kind-ID</a></h3>
+    <p class="" style="">The specification introduces the following code point in the "RELOAD Data Kind-ID" Registry (cf., RFC6940) to represent the XMPP-LOCATION Kind:</p>
+    <div class="indent"><p class="caption"><a name="table-1" id="table-1"></a>Table 1: Code Points</p><table border="1" cellpadding="3" cellspacing="0">
+      <tr class="body">
+	<th colspan="" rowspan="">Kind</th>
+	<th colspan="" rowspan="">Kind-ID</th>
+	<th colspan="" rowspan="">Reference</th>
+      </tr>
+      <tr class="body">
+	<td align="" colspan="" rowspan="">XMPP-LOCATION</td>
+	<td align="" colspan="" rowspan="">0x5</td>
+	<td align="" colspan="" rowspan="">XEP-XOR</td>
+      </tr>
+    </table></div>
+  </div>
+<h2>12.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p class="" style="">This document defines no new XMPP namespaces.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0415<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1.0<br />
+            Last Updated: 2019-03-06<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0001, RFC 6940<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0415.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0415.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0415.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Evgeny Khramtsov</h3><p class="indent">
+        Email:
+        <a href="mailto:ekhramtsov@process-one.net">ekhramtsov@process-one.net</a><br />
+        JabberID:
+        <a href="xmpp:xram@zinid.ru">xram@zinid.ru</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="http://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm56" id="nt-idm56">1</a>. XEP-0174: Link-Local Messaging &lt;<a href="https://xmpp.org/extensions/xep-0174.html">https://xmpp.org/extensions/xep-0174.html</a>&gt;.</p><p><a name="nt-idm74" id="nt-idm74">2</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm100" id="nt-idm100">3</a>. RFC 7622: Extensible Messaging and Presence Protocol (XMPP): Address Format &lt;<a href="http://tools.ietf.org/html/rfc7622">http://tools.ietf.org/html/rfc7622</a>&gt;.</p><p><a name="nt-idm141" id="nt-idm141">4</a>. RFC 7301: Transport Layer Security (TLS) Application-Layer Protocol Negotiation Extension &lt;<a href="https://tools.ietf.org/html/rfc7301">https://tools.ietf.org/html/rfc7301</a>&gt;.</p><p><a name="nt-idm158" id="nt-idm158">5</a>. Douceur, John R. "The sybil attack." International workshop on peer-to-peer systems. Springer, Berlin, Heidelberg, 2002.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1.0 (2019-03-06)</h4><div class="indent">Accepted by vote of Council on 2019-02-27. (XEP Editor (jsc))
+    </div><h4>Version 0.0.1 (2019-02-08)</h4><div class="indent"><p class="" style="">First draft.</p> (evk)
+    </div></div><hr /><p>END</p></body></html>

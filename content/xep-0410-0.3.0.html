@@ -1,0 +1,223 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0410: MUC Self-Ping (Schrödinger's Chat)</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="MUC Self-Ping (Schr&#xF6;dinger's Chat)" /><meta name="DC.Creator" content="Georg Lukas" /><meta name="DC.Description" content="This protocol extension for XEP-0045 Multi User Chat allows clients to check whether they are still joined to a chatroom." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2019-02-20" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0410" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0410: MUC Self-Ping (Schrödinger's Chat)</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This protocol extension for XEP-0045 Multi User Chat allows clients to check whether they are still joined to a chatroom.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Georg Lukas</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2018 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Proposed</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.3.0</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2019-02-20</td></tr></table><hr /><p style="color:red">NOTICE: This document is currently within Last Call or under consideration by the XMPP Council for advancement to the next stage in the XSF standards process.
+            The Last Call ends on 2019-01-22.
+            
+            Please send your feedback to the <a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a> discussion list.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#selfpresencecheck">Client Self-Presence Check</a><br />   
+      3.1.  <a href="#possibleprotocols">Possible Protocol Approaches</a><br />   
+      3.2.  <a href="#performingselfping">Performing a Self-Ping</a><br />   
+      3.3.  <a href="#serveroptimization">Server Optimization</a><br />4.  <a href="#impl">Implementation Notes</a><br />5.  <a href="#security">Security Considerations</a><br />6.  <a href="#iana">IANA Considerations</a><br />7.  <a href="#registrar">XMPP Registrar Considerations</a><br />8.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm62">1</a>] protocol was
+    not designed to handle s2s interruptions or message loss well.  Rather
+    often, the restart of a server or a component causes a client to believe
+    that it is still joined to a given chatroom, while the chatroom service
+    does not know of this occupant.</p>
+  <p class="" style="">Existing approaches for re-synchronization are either inefficient
+    (presence updates and "silent" messages are reflected to all occupants,
+    totalling to O(N²) stanzas per time unit), or mask message /
+    presence losses (the implicit join performed via the deprecated GC1.0
+    protocol).</p>
+  <p class="" style="">This specification aims to provide the most efficient, albeit not the
+    most elegant, way for clients to periodically check whether they are still
+    joined to a chatroom. However, it can not ensure that a client remains
+    joined to a room without any interruptions.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p class="" style="">This specification only makes sense in the context of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm62">1</a>]
+    chatrooms. It makes use of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0199.html">XMPP Ping (XEP-0199)</a></span>  [<a href="#nt-idm74">2</a>] to perform periodic self-pings.</p>
+  <p class="" style="">Server support for this extension is optional, but will significantly
+    improve the reliability with Multi-Session Nicks and mobile clients.</p>
+<h2>3.
+       <a name="selfpresencecheck" id="selfpresencecheck">Client Self-Presence Check</a></h2>
+  <p class="" style="">A typical connection between a client and a Multi-User-Chatroom (MUC)
+    goes through the client-to-server link, possibly a server-to-server link
+    and a typically local server-to-component link. If one of the involved
+    servers or the MUC component is restarted, or one of the links is
+    disturbed for some time, this can lead to the removal of some or all
+    occupants from the affected MUCs, without the clients being informed.</p>
+  <p class="" style="">To an occupant, this looks like the MUC is silent (there is no chat
+    activity and no presence changes), making it hard to realize that the
+    connection was interrupted.</p>
+  <p class="" style="">To prevent the bad usability effect (message loss, lack of reaction from
+    people in a chatroom), a client needs to actively check whether it is
+    still joined to a MUC.</p>
+  <div class="indent"><h3>3.1 <a name="possibleprotocols" id="possibleprotocols">Possible Protocol Approaches</a></h3>
+    <p class="" style="">There are multiple alternative approaches for a client to test whether
+      it is still joined to a MUC:</p>
+    <ol start="" class="" style="">
+      <li class="" style=""><span class="strong">Silent message</span> (e.g. <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0085.html">Chat State Notifications (XEP-0085)</a></span>  [<a href="#nt-idm88">3</a>]): this message will be reflected to
+	all MUC occupants, causing unwanted traffic and potentially waking
+        up mobile devices without reason. If implemented by all clients, this
+	will result in O(N²) messages to the MUC.</li>
+      <li class="" style=""><span class="strong">Presence update</span>: if the MUC service implements the legacy GC1.0 protocol,
+	this will be treated as a join attempt, and the MUC will return the
+	full list of occupants and full room history. The user's client
+	will however miss partial history (other occupants leaving,
+	potentially also messages), and this has the same drawbacks as the
+	first solution.</li>
+      <li class="" style=""><span class="strong">Private message to self</span>: the client can send a MUC
+	private message to itself. However, not all MUCs support / allow
+	private messages, and there is no way to differentiate that from the
+	error responses.</li>
+      <li class="" style=""><span class="strong">Private IQ to self</span>: the client can send an IQ to
+	its own occupant JID. MUCs typically do not forbid those, and
+	reflect the IQ request to the client (or another client of the same
+	user). Once that client responds to the reflected IQ, the response is
+	delivered to the initiating client as a sign of still being joined.
+      </li>
+      <li class="" style=""><span class="strong">Dedicated MUC IQ</span>: a new type of IQ can be deployed
+	to let the client explicitly check whether it is still joined to a
+	MUC. However, this needs to be supported by the server, and the client
+	needs to implement a fallback solution.</li>
+    </ol>
+    <p class="" style="">The private IQ is the most robust and traffic-efficient solution, and
+      it does not rely on server support. The <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0199.html">XMPP Ping (XEP-0199)</a></span>  [<a href="#nt-idm74">2</a>] protocol is
+      appropriate to use for this use case.</p>
+  </div>
+  <div class="indent"><h3>3.2 <a name="performingselfping" id="performingselfping">Performing a Self-Ping</a></h3>
+    <p class="" style="">After an adequate amount of silence from a given MUC (e.g. 15 minutes),
+      or from all MUCs from a given service domain, a client should initiate a
+      self-ping. If Juliet is joined as JuliC in the
+      characters@chat.shakespeare.lit MUC, her client will send the following
+    ping IQ:</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Self-Ping by Juliet's Client</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/client' id='s2c1' type='get'
+      to='characters@chat.shakespeare.lit/JuliC'&gt;
+  &lt;ping xmlns='urn:xmpp:ping'/&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">If Juliet's client is not joined, the MUC service will respond with a
+      &lt;not-acceptable&gt; error. Thus, her client can automatically attempt
+      a rejoin.</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Server Response to a Non-Occupant</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='characters@chat.shakespeare.lit/JuliC' id='s2c1' type='error'
+      to='juliet@capulet.lit/client' &gt;
+  &lt;error type="cancel" by="characters@chat.shakespeare.lit"&gt;
+    &lt;not-acceptable xmlns="urn:ietf:params:xml:ns:xmpp-stanzas" /&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">If her client is joined, the IQ request will be forwarded to any one of
+      Juliet's joined clients.</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Server Reflection of Ping</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='characters@chat.shakespeare.lit/JuliC' id='c0ffee-s2c1' type='get'
+      to='juliet@capulet.lit/somerandomclient' &gt;
+  &lt;ping xmlns='urn:xmpp:ping'/&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">Depending on the other client implementation and its connection status,
+      the IQ will be responded to eventually, in one of these ways, as
+      delivered to the "<tt>client</tt>" resource:</p>
+    <ul class="" style="">
+      <li class="" style=""><span class="strong">Successful IQ response</span>: the client is still joined.</li>
+      <li class="" style=""><span class="strong">Error (&lt;service-unavailable&gt; or
+	  &lt;feature-not-implemented&gt;)</span>: the client is joined, but
+	the pinged client does not implement <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0199.html">XMPP Ping (XEP-0199)</a></span>  [<a href="#nt-idm74">2</a>].</li>
+      <li class="" style=""><span class="strong">Error (&lt;item-not-found&gt;)</span>: the client is
+	joined, but the occupant just changed their name (e.g. initiated by
+	a different client).</li>
+      <li class="" style=""><span class="strong">Any other error</span> [<a href="#nt-idm125">4</a>]: the client is probably not
+	joined any more. It should perform a re-join.</li>
+      <li class="" style=""><span class="strong">Timeout (no response)</span>: the MUC service (or another
+	client) is unreachable. The client may indicate the status to the user
+	and re-attempt the self-ping after some timeout, until it receives
+	either an error or a success response.</li>
+    </ul>
+  </div>
+  <div class="indent"><h3>3.3 <a name="serveroptimization" id="serveroptimization">Server Optimization</a></h3>
+    <p class="" style="">The normal routing rules of the self-ping impose two round-trips: first
+      the initial ping from the client to the MUC, then the reflection of the
+      ping and its response (possibly to another client), and finally the
+      response to the initial IQ. If the other client is experiencing network
+      connectivity issues, which is often the case with mobile devices, the
+      ping request might never be responded to.</p>
+    <p class="" style="">Therefore, a MUC service supporting this protocol may directly respond
+      to a occupant's Ping request to the occupant's own nickname, as
+      opposed to routing it to any of the occupant's clients. A service
+      implementing this optimization needs to advertise the
+      <tt>self-ping-optimization</tt> feature in the <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm134">5</a>] response on
+      the individual MUC room JIDs, and it MUST respond to a self-ping request
+      as follows:</p>
+    <ul class="" style="">
+      <li class="" style=""><span class="strong">Successful IQ response</span>: the client is joined to the MUC.</li>
+      <li class="" style=""><span class="strong">Error (&lt;not-acceptable&gt;)</span>: the client is not joined to the MUC.</li>
+    </ul>
+<p class="caption"><a name="example-4" id="example-4"></a>Example 4. MUC Service Advertises Self-Ping Optimization</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='darkcave@chat.shakespeare.lit'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;!-- ... --&gt;
+    &lt;feature var='http://jabber.org/protocol/muc#self-ping-optimization'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+  </div>
+<h2>4.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <p class="" style="">In Multi-Session-Nick scenarios, where multiple clients of the same user
+    are joined as the same occupant, it is possible that another client
+    initiates a nickname change while a ping request is pending. In that case,
+    the ping might be responded to with &lt;item-not-found&gt;.</p>
+  <p class="" style="">A client should not perform a self-ping after initiating a nickname
+    change, and before receiving the response to the nickname change from the
+    service, as it is not yet clear whether the new nickname will be accepted.
+  </p>
+  <p class="" style="">If a client session is in hibernation (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0198.html">Stream Management (XEP-0198)</a></span>  [<a href="#nt-idm148">6</a>]), the client should defer
+    sending of self-ping requests until it is reconnected and re-authenticated.
+  </p>
+<h2>5.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">A MUC service implementation should not allow a non-occupant to obtain
+    information about occupants. This is however true irregardless of
+    implementing this specification.</p>
+<h2>6.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm156">7</a>].</p>
+<h2>7.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p class="" style="">Include "<tt>http://jabber.org/protocol/muc#self-ping-optimization</tt>"
+    as a valid feature in the Registry of Features.</p>
+    <p class="caption">Registry Submission</p><div class="indent"><pre class="prettyprint">
+&lt;var&gt;
+  &lt;name&gt;http://jabber.org/protocol/muc#self-ping-optimization&lt;/name&gt;
+  &lt;desc&gt;Support for the MUC self-ping optimization&lt;/desc&gt;
+  &lt;doc&gt;XEP-0410&lt;/doc&gt;
+&lt;/var&gt;
+</pre></div>
+
+<h2>8.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="" style="">This document does not define any new XML structure requiring a schema.</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0410<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Proposed">Proposed</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.3.0<br />
+            Last Updated: 2019-02-20<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0001, Etc.<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: muc-selfping<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0410.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0410.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0410.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Georg Lukas</h3><p class="indent">
+        Email:
+        <a href="mailto:georg@op-co.de">georg@op-co.de</a><br />
+        JabberID:
+        <a href="xmpp:georg@yax.im">georg@yax.im</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm62" id="nt-idm62">1</a>. XEP-0045: Multi-User Chat &lt;<a href="https://xmpp.org/extensions/xep-0045.html">https://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-idm74" id="nt-idm74">2</a>. XEP-0199: XMPP Ping &lt;<a href="https://xmpp.org/extensions/xep-0199.html">https://xmpp.org/extensions/xep-0199.html</a>&gt;.</p><p><a name="nt-idm88" id="nt-idm88">3</a>. XEP-0085: Chat State Notifications &lt;<a href="https://xmpp.org/extensions/xep-0085.html">https://xmpp.org/extensions/xep-0085.html</a>&gt;.</p><p><a name="nt-idm125" id="nt-idm125">4</a>. Different service
+	  implementations will send different responses to a client that's not
+	  joined. The recommended error code is &lt;not-acceptable&gt;, however
+	  some servers will respond with &lt;not-allowed&gt; or
+	  &lt;bad-request&gt; as well.</p><p><a name="nt-idm134" id="nt-idm134">5</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm148" id="nt-idm148">6</a>. XEP-0198: Stream Management &lt;<a href="https://xmpp.org/extensions/xep-0198.html">https://xmpp.org/extensions/xep-0198.html</a>&gt;.</p><p><a name="nt-idm156" id="nt-idm156">7</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.3.0 (2019-02-20)</h4><div class="indent">Incorporate council feedback: use @by on error elements (gl)
+    </div><h4>Version 0.2.0 (2019-02-04)</h4><div class="indent">Incorporate feedback from Last Call. (gl)
+    </div><h4>Version 0.1.0 (2018-08-31)</h4><div class="indent">Accepted by vote of Council on 2018-08-01. (XEP Editor (jcb))
+    </div><h4>Version 0.0.2 (2018-08-06)</h4><div class="indent"><p class="" style="">Add handling for another corner case, change title to Council’s liking</p> (gl)
+    </div><h4>Version 0.0.1 (2018-07-31)</h4><div class="indent"><p class="" style="">First draft.</p> (gl)
+    </div></div><hr /><p>END</p></body></html>
