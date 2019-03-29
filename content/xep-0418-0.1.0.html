@@ -1,0 +1,161 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0418: DNS Queries over XMPP (DoX)</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="DNS Queries over XMPP (DoX)" /><meta name="DC.Creator" content="Travis Burtrum" /><meta name="DC.Description" content="This specification defines an XMPP protocol extension for sending DNS queries and getting DNS responses over XML streams. Each DNS query-response pair is mapped&#10;   into an IQ exchange." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2019-03-29" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0418" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0418: DNS Queries over XMPP (DoX)</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines an XMPP protocol extension for sending DNS queries and getting DNS responses over XML streams. Each DNS query-response pair is mapped
+   into an IQ exchange.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Travis Burtrum</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2018 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1.0</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2019-03-29</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />3.  <a href="#protocol">Protocol</a><br />4.  <a href="#usecases">Use Cases</a><br />5.  <a href="#support">Determining Support</a><br />6.  <a href="#impl">Implementation Notes</a><br />7.  <a href="#security">Security Considerations</a><br />8.  <a href="#iana">IANA Considerations</a><br />9.  <a href="#registrar">XMPP Registrar Considerations</a><br />   
+      9.1.  <a href="#registrar-ns">Protocol Namespaces</a><br />10.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">This document defines a specific protocol, DNS over XMPP (DoX), for
+   sending DNS <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc1035">RFC 1035</a></span>  [<a href="#nt-idm46">1</a>] queries and getting DNS responses over <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-idm50">2</a>] (and therefore TLS <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8446">RFC 8446</a></span>  [<a href="#nt-idm54">3</a>] security for integrity and confidentiality.</p>
+   <p class="" style="">The integration with XMPP provides a transport suitable for both
+   existing DNS clients and native XMPP applications seeking access to
+   the DNS.</p>
+   <p class="" style="">This protocol is almost identical in scope to DNS Queries over HTTPS (DoH) <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8484">RFC 8484</a></span>  [<a href="#nt-idm60">4</a>]</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <p class="" style="">This specification addresses the following requirements:</p>
+  <ol start="1" class="" style="">
+    <li class="" style="">Sending a DNS query.</li>
+    <li class="" style="">Responding with a DNS response.</li>
+  </ol>
+<h2>3.
+       <a name="protocol" id="protocol">Protocol</a></h2>
+  <p class="" style="">The DoX protocol is extremely simple:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">The requesting entity (requestor) sends an IQ-get containing a &lt;dns/&gt; element qualified by the 'urn:xmpp:dox:0' namespace, which contains the DNS query.</li>
+    <li class="" style="">The resolving entity (resolver) returns either an IQ-result containing a &lt;dns/&gt; element qualified by the 'urn:xmpp:dox:0' namespace, which contains the DNS response (if it supports the namespace) or an IQ-error (if it does not).</li>
+    <li class="" style="">In both the query and response, the content of the &lt;dns/&gt; element is the DNS on-the-wire format as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc1035">RFC 1035</a></span>  [<a href="#nt-idm46">1</a>]. The body MUST be encoded with base64 <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4648">RFC 4648</a></span>  [<a href="#nt-idm79">5</a>]. Padding characters for base64 MUST NOT be included.</li>
+  </ol>
+<h2>4.
+       <a name="usecases" id="usecases">Use Cases</a></h2>
+    <p class="" style="">Sending a DNS query is done by sending an &lt;iq/&gt; get over the stream from the requestor to the resolver.</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Query</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/home' to='juliet@capulet.lit/chamber'
+ id='s2c1' type='get'&gt;
+  &lt;dns xmlns='urn:xmpp:dox:0'&gt;vOIBIAABAAAAAAABB2V4YW1wbGUDb3JnAAABAAEAACkQAAAAAAAADAAKAAj5HO5JuEe+mA&lt;/dns&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">If the resolver supports the dns namespace, it MUST return an IQ-result, which contains the DNS response:</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Response</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/chamber' to='romeo@montague.lit/home'
+ id='s2c1' type='result'&gt;
+  &lt;dns xmlns='urn:xmpp:dox:0'&gt;vOKBoAABAAEAAAABB2V4YW1wbGUDb3JnAAABAAHADAABAAEAAAhjAARduNgiAAApEAAAAAAAAAA&lt;/dns&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">If the resolver does not support the dns namespace, it MUST return a &lt;service-unavailable/&gt; error:</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. DNS Not Supported</p><div class="indent"><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/chamber' to='romeo@montague.lit/home' id='s2c1' type='error'&gt;
+  &lt;dns xmlns='urn:xmpp:dox:0'&gt;vOIBIAABAAAAAAABB2V4YW1wbGUDb3JnAAABAAEAACkQAAAAAAAADAAKAAj5HO5JuEe+mA&lt;/dns&gt;
+  &lt;error type='cancel'&gt;
+    &lt;service-unavailable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">The other error conditions defined in <span class="ref">RFC 6120</span> could also be returned if appropriate.</p>
+<h2>5.
+       <a name="support" id="support">Determining Support</a></h2>
+  <p class="" style="">If an entity supports the DoX protocol, it MUST report that fact by including a service discovery feature of "urn:xmpp:dox:0" in response to a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm94">6</a>] information request:</p>
+  <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Service Discovery information request</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='get'
+    from='juliet@capulet.lit/balcony'
+    to='capulet.lit'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+</pre></div>
+  <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Service Discovery information response</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result'
+    from='capulet.lit'
+    to='juliet@capulet.lit/balcony'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;feature var='urn:xmpp:dox:0'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+  <p class="" style="">In order for an application to determine whether an entity supports this protocol, where possible it SHOULD use the dynamic, presence-based profile of service discovery defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm101">7</a>]. However, if an application has not received entity capabilities information from an entity, it SHOULD use explicit service discovery instead.</p>
+  <p class="" style="">Support could also be pre-arranged between parties by putting a resolver at a known JID, in which case the requestor can just start sending queries to the resolver</p>
+<h2>6.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <p class="" style="">Some XMPP clients do not respond to IQ stanzas containing unsupported payloads. Although this is in violation of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-idm50">2</a>], this behavior can result in disconnection of clients that are in fact actively connected to the server.</p>
+<h2>7.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">Running DNS over XMPP relies on the security of the underlying XMPP
+   transport, therefore all queries and responses MUST use TLS or equivalent connection security.  This mitigates classic amplification attacks for UDP-
+   based DNS.</p>
+  <p class="" style="">Session-level encryption has well-known weaknesses with respect to
+   traffic analysis, which might be particularly acute when dealing with
+   DNS queries. DoX resolvers can also add DNS padding
+   <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc7830">RFC 7830</a></span>  [<a href="#nt-idm115">8</a>] if the DoX requestor requests it in the DNS query.  An
+   experimental effort to offer guidance on choosing the padding length
+   can be found in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8467">RFC 8467</a></span>  [<a href="#nt-idm119">9</a>].</p>
+  <p class="" style="">The TLS connection provides transport security for the interaction
+   between the DoX resolver and requestor, but it does not provide the
+   response integrity of DNS data provided by DNSSEC.  DNSSEC and DoX
+   are independent and fully compatible protocols, each solving
+   different problems.  The use of one does not diminish the need nor
+   the usefulness of the other.  It is the choice of a requestor to either
+   perform full DNSSEC validation of answers or to trust the DoX resolver
+   to do DNSSEC validation and inspect the AD (Authentic Data) bit in
+   the returned message to determine whether an answer was authentic or
+   not.</p>
+  <p class="" style="">In the absence of DNSSEC information, a DoX resolver can give a requestor
+   invalid data in response to a DNS query.  A DoX capable requestor MUST discard any responses not specifically requested, this prohibition does not guarantee protection against invalid data, but it does reduce the risk.</p>
+  <p class="" style="">If a server receives a dns request directed to a full JID &lt;localpart@domain.tld/resource&gt; associated with a registered account but there is no connected resource matching the 'to' address, <span class="ref">RFC 6120</span> requires it to reply with a &lt;service-unavailable/&gt; error and set the 'from' address of the IQ-error to the full JID provided in the 'to' address of the dns request. If a connected resource receives a dns request but it does not want to reveal its network availability to the sender for any reason (e.g., because the sender is not authorized to know the connected resource's availability), then it too MUST reply with a &lt;service-unavailable/&gt; error. This consistency between the server response and the resolver response helps to prevent presence leaks.</p>
+<h2>8.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">No interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm129">10</a>] is necessary as a result of this document.</p>
+<h2>9.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <div class="indent"><h3>9.1 <a name="registrar-ns" id="registrar-ns">Protocol Namespaces</a></h3>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm136">11</a>] includes "urn:xmpp:dox:0" in its registry of protocol namespaces (see &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;).</p>
+  </div>
+<h2>10.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="caption"></p><div class="indent"><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:dox:0'
+    xmlns='urn:xmpp:dox:0'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-XXXX: https://xmpp.org/extensions/inbox/dox.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name='dns' type='base64Binary'/&gt;
+
+&lt;/xs:schema&gt;
+</pre></div>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0418<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1.0<br />
+            Last Updated: 2019-03-29<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XEP-0030<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: dox<br />
+        Schema: &lt;<a href="http://www.xmpp.org/schemas/dox.xsd">http://www.xmpp.org/schemas/dox.xsd</a>&gt;<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0418.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0418.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0418.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Travis Burtrum</h3><p class="indent">
+        Email:
+        <a href="mailto:travis@burtrum.org">travis@burtrum.org</a><br />
+        JabberID:
+        <a href="xmpp:travis@burtrum.org">travis@burtrum.org</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm46" id="nt-idm46">1</a>. RFC 1035: Domain Names - Implementation and Specification &lt;<a href="http://tools.ietf.org/html/rfc1035">http://tools.ietf.org/html/rfc1035</a>&gt;.</p><p><a name="nt-idm50" id="nt-idm50">2</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm54" id="nt-idm54">3</a>. RFC 8446: The Transport Layer Security (TLS) Protocol Version 1.3 &lt;<a href="http://tools.ietf.org/html/rfc8446">http://tools.ietf.org/html/rfc8446</a>&gt;.</p><p><a name="nt-idm60" id="nt-idm60">4</a>. RFC 8484: DNS Queries over HTTPS (DoH) &lt;<a href="http://tools.ietf.org/html/rfc8484">http://tools.ietf.org/html/rfc8484</a>&gt;.</p><p><a name="nt-idm79" id="nt-idm79">5</a>. RFC 4648: The Base16, Base32, and Base64 Data Encodings &lt;<a href="http://tools.ietf.org/html/rfc4648">http://tools.ietf.org/html/rfc4648</a>&gt;.</p><p><a name="nt-idm94" id="nt-idm94">6</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm101" id="nt-idm101">7</a>. XEP-0115: Entity Capabilities &lt;<a href="https://xmpp.org/extensions/xep-0115.html">https://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-idm115" id="nt-idm115">8</a>. RFC 7830: The EDNS(0) Padding Option &lt;<a href="http://tools.ietf.org/html/rfc7830">http://tools.ietf.org/html/rfc7830</a>&gt;.</p><p><a name="nt-idm119" id="nt-idm119">9</a>. RFC 8467: Padding Policies for Extension Mechanisms for DNS (EDNS(0)) &lt;<a href="http://tools.ietf.org/html/rfc8467">http://tools.ietf.org/html/rfc8467</a>&gt;.</p><p><a name="nt-idm129" id="nt-idm129">10</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm136" id="nt-idm136">11</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1.0 (2019-03-29)</h4><div class="indent">Accepted by vote of Council on 2019-03-13. (XEP Editor (jsc))
+    </div><h4>Version 0.0.1 (2019-03-11)</h4><div class="indent"><p class="" style="">First draft.</p> (tjb)
+    </div></div><hr /><p>END</p></body></html>

@@ -1,0 +1,457 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>XEP-0417: E2E Authentication in XMPP: Certificate Issuance and Revocation</title><link rel="stylesheet" type="text/css" href="xmpp.css" /><link href="prettify.css" type="text/css" rel="stylesheet" /><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" /><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0" /><meta name="DC.Title" content="E2E Authentication in XMPP: Certificate Issuance and Revocation" /><meta name="DC.Creator" content="Evgeny Khramtsov" /><meta name="DC.Description" content="This specification defines a way for a certificate authority to serve certificate signing requests via XMPP in order to issue X.509 certificates for the use in end-to-end and c2s SASL EXTERNAL authentication." /><meta name="DC.Publisher" content="XMPP Standards Foundation" /><meta name="DC.Contributor" content="XMPP Extensions Editor" /><meta name="DC.Date" content="2019-03-29" /><meta name="DC.Type" content="XMPP Extension Protocol" /><meta name="DC.Format" content="XHTML" /><meta name="DC.Identifier" content="XEP-0417" /><meta name="DC.Language" content="en" /><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright &#xA9; 1999 &#x2013; 2018 by the XMPP Standards Foundation (XSF)." /></head><body onload="prettyPrint()"><h1>XEP-0417: E2E Authentication in XMPP: Certificate Issuance and Revocation</h1><table><tr valign="top"><td><strong>Abstract:</strong></td><td>This specification defines a way for a certificate authority to serve certificate signing requests via XMPP in order to issue X.509 certificates for the use in end-to-end and c2s SASL EXTERNAL authentication.</td></tr><tr valign="top"><td><strong>Author:</strong></td><td>Evgeny Khramtsov</td></tr><tr valign="top"><td><strong>Copyright:</strong></td><td>© 1999 – 2018 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</td></tr><tr valign="top"><td><strong>Status:</strong></td><td>Experimental</td></tr><tr valign="top"><td><strong>Type:</strong></td><td>Standards Track</td></tr><tr valign="top"><td><strong>Version:</strong></td><td>0.1.0</td></tr><tr valign="top"><td><strong>Last Updated:</strong></td><td>2019-03-29</td></tr></table><hr /><p style="color:red">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</p><hr /><h2>Table of Contents</h2><div class="indent"><p><br />1.  <a href="#intro">Introduction</a><br />2.  <a href="#reqs">Requirements</a><br />   
+      2.1.  <a href="#ca-server-reqs">CA Server Requirements</a><br />   
+      2.2.  <a href="#ca-cert-reqs">CA Certificate Requirements</a><br />   
+      2.3.  <a href="#csr-reqs">CSR Requirements</a><br />3.  <a href="#glossary">Glossary</a><br />4.  <a href="#x509-elems">X.509 Elements</a><br />   
+      4.1.  <a href="#cert-elems">Certificate Elements</a><br />   
+      4.2.  <a href="#csr-elem">CSR Element</a><br />   
+      4.3.  <a href="#sign-elem">Signature Element</a><br />5.  <a href="#sect-idm118">CA Server Selection</a><br />   
+      5.1.  <a href="#disco-server-support">Determining Server Support</a><br />      
+      5.1.1.  <a href="#service-disco-feats">Service Discovery Features</a><br />      
+      5.1.2.  <a href="#stream-feats">Stream Features</a><br />   
+      5.2.  <a href="#ca-list-retr">CA List Retrieval</a><br />   
+      5.3.  <a href="#merge-ca-lists">Merging CA Lists</a><br />6.  <a href="#cert-issuance">Certificate Issuance</a><br />   
+      6.1.  <a href="#cert-req">Certificate Request</a><br />   
+      6.2.  <a href="#cert-challenge">Certificate Challenge</a><br />   
+      6.3.  <a href="#cert-resp">Certificate Response</a><br />   
+      6.4.  <a href="#cert-req-error">Certificate Request Error</a><br />   
+      6.5.  <a href="#req-timeout">Certificate Request Timeout</a><br />7.  <a href="#cert-rev">Certificate Revocation</a><br />8.  <a href="#x509-ibr">X.509 IBR</a><br />   
+      8.1.  <a href="#ibr-client-rules">IBR Client Rules</a><br />   
+      8.2.  <a href="#ibr-server-rules">IBR Server Rules</a><br />      
+      8.2.1.  <a href="#prealloc">Preallocation</a><br />      
+      8.2.2.  <a href="#routing">Routing</a><br />      
+      8.2.3.  <a href="#reg-mark">Registration Mark</a><br />9.  <a href="#certs-disco">Certificates Discovery</a><br />10.  <a href="#impl">Implementation Notes</a><br />   
+      10.1.  <a href="#storage-format">Storage Format</a><br />   
+      10.2.  <a href="#sasl-mech-trans">SASL Mechanism Transitioning</a><br />   
+      10.3.  <a href="#mobile-os-cons">Mobile OS Considerations</a><br />11.  <a href="#security">Security Considerations</a><br />12.  <a href="#iana">IANA Considerations</a><br />13.  <a href="#registrar">XMPP Registrar Considerations</a><br />14.  <a href="#schema">XML Schema</a></p><p><a href="#appendices">Appendices</a><br />    <a href="#appendix-docinfo">A: Document Information</a><br />    <a href="#appendix-authorinfo">B: Author Information</a><br />    <a href="#appendix-legal">C: Legal Notices</a><br />    <a href="#appendix-xmpp">D: Relation to XMPP</a><br />    <a href="#appendix-discuss">E: Discussion Venue</a><br />    <a href="#appendix-conformance">F: Requirements Conformance</a><br />    <a href="#appendix-notes">G: Notes</a><br />    <a href="#appendix-revs">H: Revision History</a></p></div><hr /><h2>1.
+       <a name="intro" id="intro">Introduction</a></h2>
+  <p class="" style="">E2E Authentication in XMPP (XEP-EAX) specifies certificate requirements for end-to-end authentication. This document describes how such certificates can be obtained directly by an XMPP client from a trusted certificate authority (CA) using the XMPP protocol. This assumes that the CA runs an XMPP server. The CA functionality can be built into the user's server, but this is not a requirement: a client can obtain a certificate from any trusted CA server. In the latter case the user's server should support s2s connectivity with CA servers and, in addition, it may want to trust them if it wishes to accept c2s SASL EXTERNAL authentication (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0178.html">Best Practices for Use of SASL EXTERNAL (XEP-0178)</a></span>  [<a href="#nt-idm53">1</a>]) for users of those certificates as long as the certificates are issued for the users of this server. In order to improve user experience (UX), an account registration and certificate issuance can be combined into a single step if the account's server supports this specification.</p>
+<h2>2.
+       <a name="reqs" id="reqs">Requirements</a></h2>
+  <div class="indent"><h3>2.1 <a name="ca-server-reqs" id="ca-server-reqs">CA Server Requirements</a></h3>
+    <p class="" style="">CA servers MUST NOT allow unencrypted XMPP or HTTP connections.</p>
+  </div>
+  <div class="indent"><h3>2.2 <a name="ca-cert-reqs" id="ca-cert-reqs">CA Certificate Requirements</a></h3>
+    <ol start="" class="" style="">
+      <li class="" style="">A CA certificate MUST fulfill the requirements outlined in XEP-EAX.</li>
+      <li class="" style="">Additionally, a CA that manages an XMPP server for certificates issuance using the protocol described herein MUST encode an XMPP address of the XMPP server in its own certificate as an XmppAddr identifier (see Section 13.7.1.4 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm64">2</a>]). The node and resource parts of the address MUST be empty (omitted). Although there are several ways to encode domain names in X.509 certificates, an XmppAddr identifier type is chosen to provide an indication that the CA accepts certificate signing requests over XMPP.</li>
+    </ol>
+  </div>
+  <div class="indent"><h3>2.3 <a name="csr-reqs" id="csr-reqs">CSR Requirements</a></h3>
+    <p class="" style="">The following rules apply to a certificate signing request:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">It MUST be an ASN.1 CertificateRequest structure which MUST conform to RFC2986.</li>
+      <li class="" style="">Its subject field SHOULD be empty: a subject of the certificate will be generated by the CA server.</li>
+      <li class="" style="">It MUST contain extensionRequest attribute requesting a bare XMPP address encoded within subjectAltName as an XmppAddr identifier type (see Section 13.7.1.4 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm64">2</a>]). The XMPP address MUST be the one a client wishes to associate the requested certificate with.</li>
+      <li class="" style="">It MAY contain other extensionRequest attributes requesting other subjectAltNames such as rfc822Name (email address), a "tel" URI (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3966">RFC 3966</a></span>  [<a href="#nt-idm79">3</a>]) and so on. In this case a client MUST be prepared to be additionally challenged by the CA server to prove possession of the corresponding identities. A client also MUST be prepared that those attributes may be either ignored and omitted in the issued certificate or the whole request rejected.</li>
+      <li class="" style="">It SHOULD NOT contain other extensionRequest attributes.</li>
+    </ol>
+  </div>
+<h2>3.
+       <a name="glossary" id="glossary">Glossary</a></h2>
+  <div class="indent"><dl>
+    <di><dt><strong>CA Server</strong></dt><dd>An XMPP server managed by CA to serve certificate signing requests using the protocol described in this document.</dd></di>
+    <di><dt><strong>X.509 IBR</strong></dt><dd>A procedure of in-band registration of an XMPP account combined with certificate issuance. See <a href="#x509-ibr">X.509 IBR</a> section for details.</dd></di>
+    <di><dt><strong>The "Jabber" network</strong></dt><dd>A publicly available federated network of XMPP servers and clients.</dd></di>
+  </dl></div>
+  <p class="" style="">See also Glossary section of XEP-EAX: terminology from there is heavily used in this document.</p>
+<h2>4.
+       <a name="x509-elems" id="x509-elems">X.509 Elements</a></h2>
+  <div class="indent"><h3>4.1 <a name="cert-elems" id="cert-elems">Certificate Elements</a></h3>
+    <p class="" style="">An X.509 certificate and a chain of X.509 certificates are represented by &lt;x509-cert/&gt; and &lt;x509-cert-chain/&gt; elements respectively, qualified by 'urn:xmpp:x509:0' namespace. These elements can be included into other XMPP elements such as messages, subscription requests and so on.</p>
+    <p class="" style="">Character data of the &lt;x509-cert/&gt; element MUST be a PEM encoded ASN.1 Certificate structure (Section 5.1 of RFC7468) with encapsulation boundaries (BEGIN/END) removed. The &lt;x509-cert/&gt; element MUST NOT contain any child elements.</p>
+    <p class="" style="">The &lt;x509-cert-chain/&gt; element MUST contain one or many &lt;x509-cert/&gt; elements. Those elements MUST be ordered: each certificate in the chain is signed by the entity identified by the next certificate in the chain. A root certificate MAY be included in the chain (as the last element) and an entity performing certification path validation (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5280">RFC 5280</a></span>  [<a href="#nt-idm102">4</a>]) MUST be prepared for this: treating a trusted root certificate in the chain as invalid (because it is self-signed) is a common implementation mistake. However, for the sake of optimization and to avoid trivial bugs, including of a root certificate in the chain is NOT RECOMMENDED.</p>
+    <p class="" style="">An &lt;x509-cert-chain/&gt; element MAY possess 'name' attribute. The attribute contains a human readable text that uniquely represents the chain for a user, e.g. a device this certificate chain is assigned to.</p>
+    <p class="caption"><a name="example-1" id="example-1"></a>Example 1. Certificate Chain</p><div class="indent"><pre class="prettyprint">
+&lt;x509-cert-chain xmlns='urn:xmpp:x509:0'
+                 name='Home Desktop'&gt;
+  &lt;x509-cert&gt;
+    MIICQTCCAeagAwIBAgIBATAKBggqhkjOPQQDAjBFMQswCQYDVQQGEwJBVTETMBEG
+    A1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkg
+    THRkMB4XDTE5MDMwMjA2MjMyMloXDTQ2MDcxODA2MjMyMlowHzEdMBsGCSqGSIb3
+    DQEJARYOdXNlckBsb2NhbGhvc3QwVjAQBgcqhkjOPQIBBgUrgQQACgNCAAQ/5HQB
+    OExPNKkiYVNtPTKSItAewVK5ZyvR7bZFkGCDBOPiqOGoabRufF5xVwmHU7aFd3kL
+    jjnLz6qR6SEz/rcEo4HvMIHsMAkGA1UdEwQCMAAwHQYDVR0OBBYEFLO9AFgmoQJV
+    sbzcfF3gbR+PRh+fMB8GA1UdIwQYMBaAFNetyKStrn2FIcWjsD2F3HAHuhIjMAsG
+    A1UdDwQEAwIF4DAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwcwYDVR0R
+    BGwwaqAcBggrBgEFBQcIBaAQDA51c2VyQGxvY2FsaG9zdIEOdXNlckBsb2NhbGhv
+    c3SGOnJlbG9hZDovLzIyMDI3MjIwMjAxODMxOTkzNDg2ODg1NzA0NzEyMTkzNDMy
+    MzIyNUB4bXBwLm9yZy8wCgYIKoZIzj0EAwIDSQAwRgIhAOHsOvXmtDJroR0ggL1l
+    v+Gh0t6XdNrGc3Lbd+d+LeZAAiEA1Km0ysJgYO6HBEJouPjxE0G9+Ws5SLDuc/0M
+    TvzDgXQ=
+  &lt;/x509-cert&gt;
+  &lt;x509-cert&gt;
+    MIIB0DCCAXegAwIBAgIJAPYd1dvKJm6qMAoGCCqGSM49BAMCMEUxCzAJBgNVBAYT
+    AkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRn
+    aXRzIFB0eSBMdGQwHhcNMTkwMzAyMDYyMzIyWhcNNDYwNzE4MDYyMzIyWjBFMQsw
+    CQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJu
+    ZXQgV2lkZ2l0cyBQdHkgTHRkMFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEYl6sMwVL
+    bwGS0c2BLtgaYI5/sQsT+zQ63HfrVdYZ/NqvogSWieQFpkrRCEcewUMVN+5YfA/l
+    XnzZRqqdz8kSAKNTMFEwHQYDVR0OBBYEFNetyKStrn2FIcWjsD2F3HAHuhIjMB8G
+    A1UdIwQYMBaAFNetyKStrn2FIcWjsD2F3HAHuhIjMA8GA1UdEwEB/wQFMAMBAf8w
+    CgYIKoZIzj0EAwIDRwAwRAIgUYLzzS43j55JDmUum41Ixa+p2EslGJqkhC67s1uL
+    bWACIEB35gO74quIjqoogP7Hh6L+IdJ8q0yiCS1xxAqmvTjL
+  &lt;/x509-cert&gt;
+&lt;/x509-cert-chain&gt;
+</pre></div>
+    <p class="" style="">A certificate chain may be obtained and/or stored as a so called "PEM file" (formalized by RFC7468). In this case the content of this file is trivially mapped to the &lt;x509-cert-chain/&gt; element and vice versa. See also <a href="#storage-format">Storage Format</a>.</p>
+  </div>
+  <div class="indent"><h3>4.2 <a name="csr-elem" id="csr-elem">CSR Element</a></h3>
+    <p class="" style="">A certificate signing request (RFC2986) is represented as an &lt;x509-csr/&gt; element qualified by 'urn:xmpp:x509:0' namespace. Character data of the element MUST be a PEM encoded ASN.1 CertificateRequest structure (Section 7 of RFC7468) with encapsulation boundaries (BEGIN/END) removed. An &lt;x509-csr/&gt; element MUST NOT contain any child elements. The &lt;x509-csr/&gt; element MUST possess a 'transaction' attribute containing a random value identifying a CSR transaction. An &lt;x509-csr/&gt; element MAY possess a 'name' attribute: it contains a human readable text that is linked to the 'name' attribute of the &lt;x509-cert-chain/&gt; element being issued, e.g. a device the requested certificate chain will be assigned to. This name also MAY be stored by the CA server as a part of a user profile, e.g. to futher include it in the user's certificates listing.</p>
+    <p class="caption"><a name="example-2" id="example-2"></a>Example 2. Certificate Request</p><div class="indent"><pre class="prettyprint">
+&lt;x509-csr xmlns='urn:xmpp:x509:0'
+          transaction='j0CAQYFK4EEAAoFpkrRCEce'
+          name='My Phone'&gt;
+  MIIBSDCB7wIBADAfMR0wGwYJKoZIhvcNAQkBFg51c2VyQGxvY2FsaG9zdDBWMBAG
+  ByqGSM49AgEGBSuBBAAKA0IABE470MZk43MAKM/HJEXbVU0cOemftIucZi+2Ug9T
+  JK4s2J5AqrL84Fznv1zF5dT1Mu2QcwxxCMWEIC/a7/3UfFigcTBvBgkqhkiG9w0B
+  CQ4xYjBgMAkGA1UdEwQCMAAwCwYDVR0PBAQDAgXgMB0GA1UdJQQWMBQGCCsGAQUF
+  BwMBBggrBgEFBQcDAjAnBgNVHREEIDAeoBwGCCsGAQUFBwgFoBAMDnVzZXJAbG9j
+  YWxob3N0MAoGCCqGSM49BAMCA0gAMEUCIQDrWmWBB5/W5+r1AXh7eQOXBHlAAZ5E
+  VdF1wXTWUbc1TwIgWQNht5Xu2Z4zOkvnyfh7+fy4L8EQTH8TclPUDaUO1z8=
+&lt;/x509-csr&gt;
+</pre></div>
+  </div>
+  <div class="indent"><h3>4.3 <a name="sign-elem" id="sign-elem">Signature Element</a></h3>
+    <p class="" style="">Given arbitrary data and an X.509 certificate with its private key, a signature of the data is created by computing a signature function from signatureAlgorithm structure of the certificate upon the data and the private key. The result is represented as &lt;x509-signature/&gt; element qualified by 'urn:xmpp:x509:0' namespace. Character data of the element MUST be the Base64 (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4648">RFC 4648</a></span>  [<a href="#nt-idm115">5</a>]) encoded signature. The element MUST NOT contain any child elements.</p>
+    <p class="caption"><a name="example-3" id="example-3"></a>Example 3. Signature</p><div class="indent"><pre class="prettyprint">
+&lt;x509-signature xmlns='urn:xmpp:x509:0'&gt;
+  MIIB8zCCAZqgAwIBAgIBATAKBggqhkjOPQQDAjBFMQswCQYDVQQGEwJBVTETMBEG
+  A1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkg
+  THRkMB4XDTE5MDMwMjE1Mzk0N1oXDTQ2MDcxODE1Mzk0N1owHzEdMBsGCSqGSIb3
+  DQEJARYOdXNlckBsb2NhbGhvc3QwVjAQBgcqhkjOPQIBBgUrgQQACgNCAAROO9DG
+  ZONzACjPxyRF21VNHDnpn7SLnGYvtlIPUySuLNieQKqy/OBc579cxeXU9TLtkHMM
+  cQjFhCAv2u/91HxYo4GjMIGgMAkGA1UdEwQCMAAwHQYDVR0OBBYEFOf7dRPkxIxf
+  z7HWUJ+NPezUiZr+MB8GA1UdIwQYMBaAFL5BMCaVAMvN6fxvJSnb0qpwHT/+MAsG
+  A1UdDwQEAwIF4DAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwJwYDVR0R
+  BCAwHqAcBggrBgEFBQcIBaAQDA51c2VyQGxvY2FsaG9zdDAKBggqhkjOPQQDAgNH
+  ADBEAiBtdFGoGZ/TcxeOiQ2cau9irgEEP6kW6yEU81VRmjG6OQIgTxhH3vMvgONn
+  BXXI8cAFM5iOo5JDq/TW/pV729SFVwg=
+&lt;/x509-signature&gt;
+</pre></div>
+  </div>
+<h2>5.
+       <a name="sect-idm118" id="sect-idm118">CA Server Selection</a></h2>
+  <p class="" style="">Both an XMPP server and a client are supposed to maintain a list of trusted CA certificates. This list MAY be preconfigured or dynamically obtained from a trusted source such as the one described in Section 5 of XEP-EAX, or MAY be a mix of both. In principle, a client MAY choose any CA server extracted from its own list of CA certificates to send a certificate signing request to. However, if a client also wishes to use the certificate for SASL EXTERNAL authentication with its server, it needs to pick a CA server from a mutually trusted CA certificate. For doing this, it MAY retrieve a list of CA certificates from the server and choose a CA server from a mix of the server's list and its own list. The following subsections address the latter use case. If a client has an already registered account and wishes to obtain a certificate for the use in e2e authentication only it MUST directly follow the protocol described in <a href="#cert-issuance">Certificate Issuance</a> section.</p>
+  <div class="indent"><h3>5.1 <a name="disco-server-support" id="disco-server-support">Determining Server Support</a></h3>
+    <div class="indent"><h3>5.1.1 <a name="service-disco-feats" id="service-disco-feats">Service Discovery Features</a></h3>
+      <p class="" style="">An XMPP server willing to disclose its own list of trusted CA certificates to already registered accounts MUST advertise 'urn:xmpp:x509:0' feature. In addition, if it accepts certificates issued by CAs from its list in c2s SASL EXTERNAL authentication, it MUST append an &lt;identity/&gt; element of category 'auth' and type 'cert'. Note that advertising either the feature or the identity alone provides very little knowledge (if any) to a client, so servers are RECOMMENDED to advertise either both of them or none.</p>
+      <p class="caption"><a name="example-4" id="example-4"></a>Example 4. Server Advertising X.509 Authentication Support</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='get'
+    to='shakespeare.lit'
+    id='features'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+
+&lt;iq type='result'
+    from='shakespeare.lit'
+    id='features'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity category='server' type='im'/&gt;
+    &lt;identity category='auth' type='cert'/&gt;
+    ...
+    &lt;feature var='urn:xmpp:x509:0'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></div>
+    </div>
+    <div class="indent"><h3>5.1.2 <a name="stream-feats" id="stream-feats">Stream Features</a></h3>
+      <p class="" style="">An XMPP server that supports certificate issuance during account registration MUST report that by offering the SASL EXTERNAL mechanism and by including &lt;x509-register/&gt; element qualified by 'urn:xmpp:x509:0' namespace in &lt;stream:features/&gt; element. A server MUST NOT include the feature alone and a client MUST ignore the feature if the SASL EXTERNAL mechanism is not offered. Note that the SASL EXTERNAL mechanism is only offered for TLS encrypted streams.</p>
+      <p class="caption"><a name="example-5" id="example-5"></a>Example 5. Server Advertising X.509 IBR Support</p><div class="indent"><pre class="prettyprint">
+&lt;stream:features&gt;
+  &lt;mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'&gt;
+    &lt;mechanism&gt;EXTERNAL&lt;/mechanism&gt;
+  &lt;/mechanisms&gt;
+  &lt;x509-register xmlns='urn:xmpp:x509:0'/&gt;
+&lt;/stream:features&gt;
+</pre></div>
+    </div>
+  </div>
+  <div class="indent"><h3>5.2 <a name="ca-list-retr" id="ca-list-retr">CA List Retrieval</a></h3>
+    <p class="" style="">Once the server support is determined, a list of CA certificates MAY be retrieved from the server by sending an IQ request containing an empty &lt;x509-ca-list/&gt; element qualified by 'urn:xmpp:x509:0' namespace:</p>
+    <p class="caption"><a name="example-6" id="example-6"></a>Example 6. CA List Request</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='get'
+    to='shakespeare.lit'
+    id='ca-list'&gt;
+  &lt;x509-ca-list xmlns='urn:xmpp:x509:0'/&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">The server responds with an unordered list of &lt;x509-cert/&gt; elements included in an &lt;x509-ca-list/&gt; element:</p>
+    <p class="caption"><a name="example-7" id="example-7"></a>Example 7. CA List Response</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result'
+    from='shakespeare.lit'
+    id='ca-list'&gt;
+  &lt;x509-ca-list xmlns='urn:xmpp:x509:0'&gt;
+    &lt;x509-cert&gt;
+      ... PEM encoded ASN.1 Certificate structure ...
+    &lt;/x509-cert&gt;
+    ...
+    &lt;x509-cert&gt;
+      ... PEM encoded ASN.1 Certificate structure ...
+    &lt;/x509-cert&gt;
+  &lt;/x509-ca-list&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">Note that the important difference, except semantics, between &lt;x509-cert-chain/&gt; and &lt;x509-ca-list/&gt; elements is ordering of their &lt;x509-cert/&gt; elements.</p>
+    <p class="" style="">The &lt;x509-ca-list/&gt; element MUST NOT be empty. Upon receiption of an empty &lt;x509-ca-list/&gt; element, a client SHOULD treat it as a server bug or misconfiguration and SHOULD proceed as if the server didn't support c2s SASL EXTERNAL authentication at all.</p>
+  </div>
+  <div class="indent"><h3>5.3 <a name="merge-ca-lists" id="merge-ca-lists">Merging CA Lists</a></h3>
+    <p class="" style="">Once a remote list of CA certificates is retrieved from the server, a client MAY merge it with its own local list and then choose an appropriate CA certificate from this mix. A client is free to use any merging algorithm. The simpliest way to do this is to take an intersection of the remote and local lists. If the result is an empty list, a client MAY apply more sofisticated algorithms, such as checking if there are intermediate CA certificates in the remote list whose are signed by some CA from the local list. In any case, prior to merging, a client MUST filter out certificates from both lists which don't contain an XmppAddr identifier (see <a href="#add-ca-cert-reqs">Additional CA Certificate Requirements</a> for the explanation). When merging is completed, a client proceeds as follows:</p>
+    <ul class="" style="">
+      <li class="" style="">If the result is not an empty list, a client picks from this list whatever CA certificate it finds appropriate, extracts an XMPP server address from an XmppAddr identifier of this certificate and sends a certificate signing request to this server as described in <a href="#cert-issuance">Certificate Issuance</a> or <a href="#x509-ibr">X.509 IBR</a> depending on whether the client has an already registered account or not.</li>
+      <li class="" style="">If the result is an empty list, a client SHOULD proceed as if the server didn't support c2s SASL EXTERNAL authentication at all.</li>
+    </ul>
+  </div>
+<h2>6.
+       <a name="cert-issuance" id="cert-issuance">Certificate Issuance</a></h2>
+  <p class="" style="">The certificate issuance protocol described in this section is designed to work in the presence of network, server and client failures. This in particular means that the use of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0198.html">Stream Management (XEP-0198)</a></span>  [<a href="#nt-idm147">6</a>] is not assumed, because it's unavailable at legacy servers and during in-band registration. The certificate request is performed as a transaction consisting of an IQ request followed by an optional challenge message and then an IQ response. A transaction diagram is shown below:</p>
+  <p class="caption">CSR Transaction</p><div class="indent"><pre class="prettyprint">
+Client                                CA Server
+  |                                        |
+  |--------- Certificate Request ---------&gt;|
+  |                                        |
+  |&lt;----- Optional Challenge Message ------|
+  |                                        |
+  |&lt;------------ Certificate --------------|
+  |                                        |
+Client                                CA Server
+</pre></div>
+  <p class="" style="">To request a certificate, a client generates an ASN.1 CertificateRequest structure following the rules from <a href="#csr-reqs">CSR Requirements</a> section. Note that a client encodes its XMPP address (or the address it wishes to register) as an XmppAddr inside extensionRequest attribute of the structure. The generated structure MUST be retained until successful completion of a transaction. If errors, disconnections or crashes are detected, the same structure MUST be reused for every new transaction (even if another CA server is picked for a retry). Failing to do so during X.509 IBR MAY result into an account deadlock for a prolonged period of time (see <a href="#prealloc">Preallocation</a>). Even when a client has an already registered account, the above requirement protects it from issuing unnecessary certificates (whose number is limited by certificate authorities as outlined in XEP-EAX-CAR).</p>
+  <div class="indent"><h3>6.1 <a name="cert-req" id="cert-req">Certificate Request</a></h3>
+    <p class="" style="">Once a CA certificate is selected, a target XMPP server address is extracted from an XmppAddr identifier of this certificate. The generated ASN.1 CertificateRequest structure is then used to form an &lt;x509-csr/&gt; element as specified under section <a href="#csr-elem">CSR Element</a>. The &lt;x509-csr/&gt; element MUST possess a 'transaction' attribute containing a random value identifying this CSR transaction. It MAY contain a 'name' attribute. The &lt;x509-csr/&gt; element is then included into IQ request for transmission. The 'to' attribute of the IQ stanza MUST be set to the target CA server's address.</p>
+    <p class="caption"><a name="example-8" id="example-8"></a>Example 8. Certificate Request</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='get'
+    to='ca.shakespeare.lit'
+    id='csr'&gt;
+  &lt;x509-csr xmlns='urn:xmpp:x509:0'
+            transaction='4UGObuJYf7yY8ucndbmH'
+            name='My Second Phone'&gt;
+    ... PEM encoded ASN.1 CertificateRequest structure ...
+  &lt;/x509-csr&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">Upon receiption of a certificate request the CA server MUST check that the bare XMPP address in 'from' attribute matches the value of XmppAddr of the CertificateRequest structure.</p>
+    <p class="" style="">The CA server then decides to either issue a certificate, challenge a client or generate an error. If it has an already issued certificate for this CSR, it MUST respond with the certificate without challenging a client. If it has received another request with the same CSR during a challenge procedure, it MUST abort the running procedure, destroy an internal transaction state and process the request within a new transaction.</p>
+  </div>
+  <div class="indent"><h3>6.2 <a name="cert-challenge" id="cert-challenge">Certificate Challenge</a></h3>
+    <p class="" style="">The CA server MAY challenge a certificate request. It MAY do so for many reasons, for example, it MAY want to identify a human user in order to prevent massive creation of certificates by a single person. Another possible case is when the CA server detected some errors (e.g. too many issued certificates) and wants the user to perform some actions in order to resolve the problem. To do so the CA server responds with an &lt;x509-challenge/&gt; element. The element MUST possess 'uri' attribute containing an URI. It also MUST possess a 'transaction' attribute with the value copied from a 'transaction' attribute of the original &lt;x509-csr/&gt; element. The &lt;x509-challenge/&gt; element MUST contain exactly one &lt;x509-signature/&gt; element carring a signature computed upon concatenation of the values from 'transaction' and 'uri' attributes using the CA certificate (see <a href="#sign-elem">Signature Element</a>). The challenge element is then included into message stanza for transmission. The value of 'to' attribute of the message MUST be copied from the value of 'from' attribute of the IQ request.</p>
+    <p class="" style="">In this version of the protocol the URI MUST be an HTTPS URL. A client is supposed to open this URL in a web browser for a user to process the challenge. The content of the URL is opaque to a human user and thus SHOULD NOT be rendered in a client's user interface.</p>
+    <p class="caption"><a name="example-9" id="example-9"></a>Example 9. CA Server Sends Challenge</p><div class="indent"><pre class="prettyprint">
+&lt;message type='normal'
+         from='ca.shakespeare.lit'
+         to='romeo@montague.lit/orchard'&gt;
+  &lt;x509-challenge xmlns='urn:xmpp:x509:0'
+                  transaction='4UGObuJYf7yY8ucndbmH'
+                  uri='https://ca.shakespeare.lit/csr/cOemft/8EQTH8'&gt;
+    &lt;x509-signature&gt;
+      ... Base64 encoded signature ...
+    &lt;/x509-signature&gt;
+  &lt;/x509-challenge&gt;
+&lt;/message&gt;
+</pre></div>
+    <p class="" style="">In the above example the signature is computed upon '4UGObuJYf7yY8ucndbmHhttps://ca.shakespeare.lit/csr/cOemft/8EQTH8'.</p>
+    <p class="" style="">Upon receiption of a challenge a client MUST follow these rules:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">A client checks that the value of 'from' attribute matches the CA server address.</li>
+      <li class="" style="">A client checks that the value of 'transaction' attribute matches the identifier of the running transaction.</li>
+      <li class="" style="">A client verifies the signature using the public key of the CA certificate.</li>
+    </ol>
+    <p class="" style="">If all the checks have passed, a client spawns an URI handler and waits for the certificate response. Otherwise, a client MAY ignore the message or MAY reply with a corresponding stanza error.</p>
+  </div>
+  <div class="indent"><h3>6.3 <a name="cert-resp" id="cert-resp">Certificate Response</a></h3>
+    <p class="" style="">When the CA server successfully issued a certificate it MUST respond with an IQ result containing the full certificate chain represented as an &lt;x509-cert-chain/&gt; containing the issued certificate represented as an &lt;x509-cert/&gt; element. Note that according to the defined ordering, this certificate MUST always be the first element in the chain. The server MUST NOT respond with an empty &lt;x509-cert-chain/&gt; element. If the original &lt;x509-csr/&gt; element has possessed a 'name' attribute, its value MUST be copied to 'name' attribute of &lt;x509-cert-chain/&gt; element.</p>
+    <p class="caption"><a name="example-10" id="example-10"></a>Example 10. Certificate Response</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result'
+    from='ca.shakespeare.lit'
+    to='romeo@montague.lit/orchard'
+    id='csr'&gt;
+  &lt;x509-cert-chain xmlns='urn:xmpp:x509:0'
+                   name='My Second Phone'&gt;
+    &lt;x509-cert&gt;
+      ... PEM encoded ASN.1 Certificate structure ...
+    &lt;/x509-cert&gt;
+    ...
+    &lt;x509-cert&gt;
+      ... PEM encoded ASN.1 Certificate structure ...
+    &lt;/x509-cert&gt;
+  &lt;/x509-cert-chain&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">Upon receiption of a response matching the request a client proceeds as follows:</p>
+    <ul class="" style="">
+      <li class="" style="">It MUST destroy internal IQ and transaction states.</li>
+      <li class="" style="">It MUST check that the response has arrived from the requested CA server.</li>
+      <li class="" style="">It MUST check that the response carries &lt;x509-cert-chain/&gt; element which contains at least one &lt;x509-cert/&gt; element.</li>
+      <li class="" style="">It MUST check that all certificates in the chain are valid according to the rules outlined in XEP-EAX.</li>
+      <li class="" style="">It MUST perform certification path validation (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5280">RFC 5280</a></span>  [<a href="#nt-idm102">4</a>]) to check that the certificate chain is indeed signed by the requested CA.</li>
+    </ul>
+    <p class="" style="">If all the checks succeed, the transaction is considered to be completed. At this point a client MAY release the ASN.1 CertificateRequest structure.</p>
+    <p class="" style="">If either of the checks fails, a client MUST behave as if it received an error response with a permanent condition (see <a href="#cert-req-error">Certificate Request Error</a> section).</p>
+  </div>
+  <div class="indent"><h3>6.4 <a name="cert-req-error" id="cert-req-error">Certificate Request Error</a></h3>
+    <p class="" style="">If the CA server refuses to issue a certificate it MUST generate a corresponding stanza error. In this case &lt;error/&gt; element MUST possess 'by' attribute with the value of the CA server's address. If the error is generated due to challenge failure, &lt;error/&gt; element MUST contain &lt;x509-challenge-failed/&gt; element qualified by 'urn:xmpp:x509:0' namespace.</p>
+    <p class="caption"><a name="example-11" id="example-11"></a>Example 11. CA Server Error</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='error'
+    from='ca.shakespeare.lit'
+    to='romeo@montague.lit/orchard'
+    id='csr'&gt;
+  &lt;error type='auth'
+         by='ca.shakespeare.lit'&gt;
+    &lt;forbidden xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+    &lt;x509-challenge-failed xmlns='urn:xmpp:x509:0'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+</pre></div>
+    <p class="" style="">When a client receives an error response, it considers the transaction as failed and MUST destroy internal IQ and transaction states.</p>
+    <p class="" style="">In the case of a temporary failure, a client MAY repeat the request to the same CA server. In the case of a permanent failure, a client MUST choose another CA server if it has decided to retry. In both cases, the 'name' attribute and character data of &lt;x509-csr/&gt; element of the new request MUST be the same. However, a client MUST generate new values for 'transaction' attribute of &lt;x509-csr/&gt; element and for 'id' attribute of the IQ stanza.</p>
+    <p class="" style="">A client MUST NOT process an URI from &lt;gone/&gt; and &lt;redirect/&gt; error conditions and MUST treat these errors as permanent failures.</p>
+  </div>
+  <div class="indent"><h3>6.5 <a name="req-timeout" id="req-timeout">Certificate Request Timeout</a></h3>
+    <p class="" style="">If a client detects a request timeout, i.e. neither challenge nor response have arrived in the assumed time, it MUST behave as if it received an error response with a temporary condition (see <a href="#cert-req-error">Certificate Request Error</a> section).</p>
+  </div>
+<h2>7.
+       <a name="cert-rev" id="cert-rev">Certificate Revocation</a></h2>
+  <p class="" style="">A registered client at any time MAY revoke its certificate. To accomplish this it MUST create an IQ stanza containing &lt;x509-revoke/&gt; element qualified by 'urn:xmpp:x509:0' namespace. The element MUST contain:</p>
+  <ul class="" style="">
+    <li class="" style="">The certificate being revoked represented as &lt;x509-cert/&gt; element.</li>
+    <li class="" style="">An &lt;x509-signature/&gt; element computed upon the ASN.1 DER encoded tbsCertificate structure of the certificate as described in <a href="#sign-elem">Signature Element</a>.</li>
+  </ul>
+  <p class="" style="">There MUST be exactly one &lt;x509-cert/&gt; element and exactly one &lt;x509-signature/&gt; element.</p>
+  <p class="" style="">The IQ stanza MUST be sent to the CA server that has issued the certificate, i.e. extracted from XmppAddr of the corresponding CA certificate.</p>
+  <p class="caption"><a name="example-12" id="example-12"></a>Example 12. Certificate Revocation Request</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set'
+    to='ca.shakespeare.lit'
+    id='revoke'&gt;
+  &lt;x509-revoke xmlns='urn:xmpp:x509:0'&gt;
+    &lt;x509-cert&gt;
+      ... PEM encoded ASN.1 Certificate structure ...
+    &lt;/x509-cert&gt;
+    &lt;x509-signature&gt;
+      ... Base64 encoded signature ...
+    &lt;/x509-signature&gt;
+  &lt;/x509-revoke&gt;
+&lt;/iq&gt;
+</pre></div>
+  <p class="" style="">The CA server MUST verify the signature using the public key of the certificate, MUST append the certificate's serial to the corresponding CRL and, in the case of success, MUST respond with an empty IQ result:</p>
+  <p class="caption"><a name="example-13" id="example-13"></a>Example 13. Certificate Revocation Request</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='result'
+    from='ca.shakespeare.lit'
+    to='romeo@montague.lit/orchard'
+    id='revoke'&gt;
+</pre></div>
+  <p class="" style="">In the case of failure, the CA server MUST respond with a corresponding stanza error. Depending on the error type, a client MAY either repeat the request or give up.</p>
+  <p class="" style="">Upon successful revocation, a client MAY retract the corresponding published item (see <a href="#certs-disco">Certificates Discovery</a> section).</p>
+  <p class="" style="">A client SHOULD revoke all its certificates prior to cancelling the account registration (Section 3.2 of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0077.html">In-Band Registration (XEP-0077)</a></span>  [<a href="#nt-idm214">7</a>]).</p>
+<h2>8.
+       <a name="x509-ibr" id="x509-ibr">X.509 IBR</a></h2>
+  <p class="" style="">The protocol supports certificate issuance during account registration. Thus the requested certificate can be also used in SASL EXTERNAL authentication with the server where the account is being registered. The rationale for this is at least twofold:</p>
+  <ul class="" style="">
+    <li class="" style="">Consequent creation of an account and then a certificate (for e2e authentication, as described in the sections above) creates burden for users because they typically need to pass a challenge twice: firstly at the local server, and secondly at some CA server. Combining these two steps into one improves user experience in this regard.</li>
+    <li class="" style="">Managing freely available account registration at public servers is not a simple task for operators of these servers. Failing to manage it correctly leads to uncontrolled massive creation of accounts used for SPAM propagation, DoS attacks, etc. and degrades the "Jabber" network as a whole. A server operator may want to delegate a registration and verification procedure to a trusted CA, which is believed to be very good at this task. The operator doesn't lose the userbase in this case: user data and profiles are still located at the operator's server.</li>
+  </ul>
+  <p class="" style="">The registration protocol described in this section is called X.509 In-Band Registration (X.509 IBR).</p>
+  <p class="" style="">A server that supports X.509 IBR MUST report that as specified under section <a href="#stream-feats">Stream Features</a>.</p>
+  <div class="indent"><h3>8.1 <a name="ibr-client-rules" id="ibr-client-rules">IBR Client Rules</a></h3>
+    <p class="" style="">Once a client has learnt server support from the stream features, it MUST retrieve a list of CA certificates from the server as specified under section <a href="#ca-list-retr">CA List Retrieval</a>. The server MUST allow unregistered clients to retrieve this list if it has reported X.509 IBR support. Then a client merges the server's list with its local list as described in section <a href="#merge-ca-lists">Merging CA Lists</a> and choose a CA certificate from the mix. A client then follows the procedure described in <a href="#cert-issuance">Certificate Issuance</a> section.</p>
+    <p class="" style="">Once a certificate is obtained, it is RECOMMENDED to perform SASL EXTERNAL authentication with the server as soon as possible in order for the server to mark the account as registered (see <a href="#reg-mark">Registration Mark</a>).</p>
+  </div>
+  <div class="indent"><h3>8.2 <a name="ibr-server-rules" id="ibr-server-rules">IBR Server Rules</a></h3>
+    <p class="" style="">Upon receiption of a certificate request, the server checks that:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">The IQ stanza possesses 'to' attribute.</li>
+      <li class="" style="">The ASN.1 CertificateRequest structure inside &lt;x509-csr/&gt; element contains an XMPP address (that the client requests to register, see <a href="#csr-reqs">CSR Requirements</a>).</li>
+      <li class="" style="">The server is responsible for the domain of the XMPP address.</li>
+      <li class="" style="">An XMPP address in 'to' attribute is a trusted CA server and the server allows this CA to issue certificates for the users of the domain.</li>
+      <li class="" style="">There is no already registered or preallocated (see <a href="#prealloc">Preallocation</a>) account matching the XMPP address being registered. If the account is preallocated, an ASN.1 CertificateRequest structure from the preallocation MUST match the one from the request.</li>
+    </ol>
+    <p class="" style="">If either of these checks fails, the server MUST generate a corresponding stanza error. If the error is generated because the account is already registered or preallocated, the error condition MUST be &lt;conflict/&gt;.</p>
+    <p class="" style="">If all the checks succeed, the server preallocates an account and routes the request as described below.</p>
+    <div class="indent"><h3>8.2.1 <a name="prealloc" id="prealloc">Preallocation</a></h3>
+      <p class="" style="">In order to prevent registration of the same account by different human users, the server MUST temporary preallocate an account upon receiption of a certificate request and later MUST mark it as permanently registered and/or release the preallocation. The server preallocates an account by storing an association of the XMPP address with the ASN.1 CertificateRequest structure from the request. The server MUST keep an account preallocated for a period long enough for a client to complete the issuance and authentication. The server MUST NOT allow registration of preallocated accounts using different methods (e.g. <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0077.html">In-Band Registration (XEP-0077)</a></span>  [<a href="#nt-idm214">7</a>]).</p>
+    </div>
+    <div class="indent"><h3>8.2.2 <a name="routing" id="routing">Routing</a></h3>
+      <p class="" style="">If the server has accepted the request it MUST set 'from' attribute of the IQ stanza with the value of the XMPP address being registered and MUST forward the request towards the CA server. Since the client doesn't yet have an account at the server, the standard routing rules (Section 8.5 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6121">RFC 6121</a></span>  [<a href="#nt-idm253">8</a>]) cannot be used to route back CA responses. In order to find the corresponding client's stream statelessly, the server MAY append a resource part to the XMPP address in 'from' attribute. The resource MAY contain arbitrary data needed by the server to detect the client's stream location. Note that the data MUST NOT be more than 1023 octets in length (Section 3.4 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc7622">RFC 7622</a></span>  [<a href="#nt-idm257">9</a>]). Prior to forwarding of a CA response to a client, the server MAY remove 'to' attribute from the response, however, this is not strictly speaking needed since a client is supposed not to check its value (see "Implementation Note" of Section 8.1.1.1 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm64">2</a>]).</p>
+    </div>
+    <div class="indent"><h3>8.2.3 <a name="reg-mark" id="reg-mark">Registration Mark</a></h3>
+      <p class="" style="">In general, there is no way for the server to know whether certificate issuance was successful or not: even though the server is able to inspect CA responses, their delivery to a client is not guaranteed. So the only reliable way to mark an account as registered is at the first successful SASL EXTERNAL authentication. When the account is finally marked, the server MUST release the preallocation.</p>
+    </div>
+  </div>
+<h2>9.
+       <a name="certs-disco" id="certs-disco">Certificates Discovery</a></h2>
+  <p class="" style="">A client MAY use local PEP storage (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0163.html">Personal Eventing Protocol (XEP-0163)</a></span>  [<a href="#nt-idm269">10</a>]) in order to publish its certificates so other peers can discover them. It MUST do this by including each certificate chain represented as &lt;x509-cert-chain/&gt; element in a separate pubsub &lt;item/&gt; element and publish each of the items to 'urn:xmpp:x509:0' node. Note well: a single item corresponds to a single certificate chain.</p>
+  <p class="caption"><a name="example-14" id="example-14"></a>Example 14. Publishing Certificate Chain</p><div class="indent"><pre class="prettyprint">
+&lt;iq type='set' id='announce1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='urn:xmpp:x509:0'&gt;
+      &lt;item id='304402206242a7b554e2f1a1bd790758'&gt;
+        &lt;x509-cert-chain xmlns='urn:xmpp:x509:0'
+                         name='Laptop'&gt;
+          &lt;x509-cert&gt;
+            ... PEM encoded ASN.1 Certificate structure ...
+          &lt;/x509-cert&gt;
+          ...
+          &lt;x509-cert&gt;
+            ... PEM encoded ASN.1 Certificate structure ...
+          &lt;/x509-cert&gt;
+        &lt;/x509-cert-chain&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></div>
+  <p class="" style="">To uniquely identify a certificate chain within the node, 'id' attribute of the &lt;item/&gt; element MUST contain first 16 octets from a signatureValue (Section 4.1.1.3 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5280">RFC 5280</a></span>  [<a href="#nt-idm102">4</a>]) of the first certificate in the chain, represented in lowercased hexadecimal encoding. For instance, a value of 'id' attribute from the example above corresponds to the signature from the example below.</p>
+  <p class="caption"><a name="example-15" id="example-15"></a>Example 15. Certificate Signature</p><div class="indent"><pre class="prettyprint">
+ 30:44:02:20:62:42:a7:b5:54:e2:f1:a1:bd:79:07:58:f7:53:
+ 22:ba:0a:a5:4a:3f:d8:51:22:38:6c:59:3a:fd:77:d6:07:a4:
+ 02:20:6c:ac:34:ac:71:f5:4b:ba:58:9f:34:f4:3a:6a:64:31:
+ 06:72:5e:e9:e6:ea:9d:99:31:e6:a3:08:e6:67:57:c1
+</pre></div>
+<h2>10.
+       <a name="impl" id="impl">Implementation Notes</a></h2>
+  <div class="indent"><h3>10.1 <a name="storage-format" id="storage-format">Storage Format</a></h3>
+    <p class="" style="">For compatibility with other programs, a client SHOULD store an obtained certificate chain in PEM format (RFC7468) written to a file with ".pem" extension. Alternatively, a client MAY store it in other formats, but SHOULD provide a procedure for exporting in PEM format.</p>
+  </div>
+  <div class="indent"><h3>10.2 <a name="sasl-mech-trans" id="sasl-mech-trans">SASL Mechanism Transitioning</a></h3>
+    <p class="" style="">When an already registered client detects server support e.g. after software upgrade, it may ask the user to request a certificate and transition to SASL EXTERNAL authentication (although the exact question may not contain these technical details). In order to avoid confusion, a client should check if it has a mutually trusted CA certificate with the server as specified under <a href="#ca-list-retr">CA List Retrieval</a> and <a href="#merge-ca-lists">Merging CA Lists</a> sections before asking for transitioning.</p>
+  </div>
+  <div class="indent"><h3>10.3 <a name="mobile-os-cons" id="mobile-os-cons">Mobile OS Considerations</a></h3>
+    <p class="" style="">In order to optimize battery consumption some mobile operating systems have very strong limitations for background processes. This may become a problem for a client running a challenge procedure: the procedure is typically interactive and thus the client process may be preempted and killed. A possible workaround is to store the request state in durable storage and, when the challenge is passed and the client process is restarted, consult the storage and repeat the request if needed. Since CA servers are prepared to resend responses for already issued certificates without challenging, a client doesn't need to disturb a human user again in order to receive the certificate.</p>
+  </div>
+<h2>11.
+       <a name="security" id="security">Security Considerations</a></h2>
+  <p class="" style="">TODO</p>
+<h2>12.
+       <a name="iana" id="iana">IANA Considerations</a></h2>
+  <p class="" style="">None required.</p>
+<h2>13.
+       <a name="registrar" id="registrar">XMPP Registrar Considerations</a></h2>
+  <p class="" style="">The urn:xmpp:x509:0 namespace needs to be registered.</p>
+<h2>14.
+       <a name="schema" id="schema">XML Schema</a></h2>
+  <p class="" style="">TODO</p>
+<hr /><a name="appendices" id="appendices"></a><h2>Appendices</h2><hr /><a name="appendix-docinfo" id="appendix-docinfo"></a><h3>Appendix A: Document Information</h3><p class="indent">
+            Series: <a href="http://xmpp.org/extensions/">XEP</a><br />
+            Number: 0417<br />
+            Publisher: <a href="/xsf/">XMPP Standards Foundation</a><br />
+            Status:
+            <a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a><br />
+            Type:
+            <a href="http://xmpp.org/extensions/xep-0001.html#types-Standards Track">Standards Track</a><br />
+            Version: 0.1.0<br />
+            Last Updated: 2019-03-29<br />
+                Approving Body: <a href="http://xmpp.org/council/">XMPP Council</a><br />Dependencies: XMPP Core, XMPP IM, RFC 2986, RFC 4648, RFC 5280, RFC 7468, RFC 7622, XEP-0001, XEP-0163, XEP-0178, XEP-0416<br />
+                Supersedes: None<br />
+                Superseded By: None<br />
+            Short Name: NOT_YET_ASSIGNED<br />
+              Source Control:
+                <a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0417.xml">HTML</a><br />
+            This document in other formats:
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0417.xml">XML</a> 
+                <a class="standardsButton" href="http://xmpp.org/extensions/xep-0417.pdf">PDF</a></p><hr /><a name="appendix-authorinfo" id="appendix-authorinfo"></a><h3>Appendix B: Author Information</h3><div class="indent"><h3>Evgeny Khramtsov</h3><p class="indent">
+        Email:
+        <a href="mailto:ekhramtsov@process-one.net">ekhramtsov@process-one.net</a><br />
+        JabberID:
+        <a href="xmpp:xram@zinid.ru">xram@zinid.ru</a><br /></p></div><hr /><a name="appendix-legal" id="appendix-legal"></a><h3>Appendix C: Legal Notices</h3><div class="indent"><h4>Copyright</h4>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).<h4>Permissions</h4>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.<h4>Disclaimer of Warranty</h4><span style="font-weight: bold">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</span><h4>Limitation of Liability</h4>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.<h4>IPR Conformance</h4>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</div><hr /><a name="appendix-xmpp" id="appendix-xmpp"></a><h3>Appendix D: Relation to XMPP</h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><hr /><a name="appendix-discuss" id="appendix-discuss"></a><h3>Appendix E: Discussion Venue</h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="http://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><hr /><a name="appendix-conformance" id="appendix-conformance"></a><h3>Appendix F: Requirements Conformance</h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><hr /><a name="appendix-notes" id="appendix-notes"></a><h3>Appendix G: Notes</h3><div class="indent"><p><a name="nt-idm53" id="nt-idm53">1</a>. XEP-0178: Best Practices for Use of SASL EXTERNAL &lt;<a href="https://xmpp.org/extensions/xep-0178.html">https://xmpp.org/extensions/xep-0178.html</a>&gt;.</p><p><a name="nt-idm64" id="nt-idm64">2</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm79" id="nt-idm79">3</a>. RFC 3966: The tel URI for Telephone Numbers &lt;<a href="http://tools.ietf.org/html/rfc3966">http://tools.ietf.org/html/rfc3966</a>&gt;.</p><p><a name="nt-idm102" id="nt-idm102">4</a>. RFC 5280: Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile &lt;<a href="http://tools.ietf.org/html/rfc5280">http://tools.ietf.org/html/rfc5280</a>&gt;.</p><p><a name="nt-idm115" id="nt-idm115">5</a>. RFC 4648: The Base16, Base32, and Base64 Data Encodings &lt;<a href="http://tools.ietf.org/html/rfc4648">http://tools.ietf.org/html/rfc4648</a>&gt;.</p><p><a name="nt-idm147" id="nt-idm147">6</a>. XEP-0198: Stream Management &lt;<a href="https://xmpp.org/extensions/xep-0198.html">https://xmpp.org/extensions/xep-0198.html</a>&gt;.</p><p><a name="nt-idm214" id="nt-idm214">7</a>. XEP-0077: In-Band Registration &lt;<a href="https://xmpp.org/extensions/xep-0077.html">https://xmpp.org/extensions/xep-0077.html</a>&gt;.</p><p><a name="nt-idm253" id="nt-idm253">8</a>. RFC 6121: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc6121">http://tools.ietf.org/html/rfc6121</a>&gt;.</p><p><a name="nt-idm257" id="nt-idm257">9</a>. RFC 7622: Extensible Messaging and Presence Protocol (XMPP): Address Format &lt;<a href="http://tools.ietf.org/html/rfc7622">http://tools.ietf.org/html/rfc7622</a>&gt;.</p><p><a name="nt-idm269" id="nt-idm269">10</a>. XEP-0163: Personal Eventing Protocol &lt;<a href="https://xmpp.org/extensions/xep-0163.html">https://xmpp.org/extensions/xep-0163.html</a>&gt;.</p></div><hr /><a name="appendix-revs" id="appendix-revs"></a><h3>Appendix H: Revision History</h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><div class="indent"><h4>Version 0.1.0 (2019-03-29)</h4><div class="indent">Accepted by vote of Council on 2019-03-13. (XEP Editor (jsc))
+    </div><h4>Version 0.0.1 (2019-03-11)</h4><div class="indent"><p class="" style="">First draft.</p> (evk)
+    </div></div><hr /><p>END</p></body></html>
