@@ -1,0 +1,971 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>XEP-0260: Jingle SOCKS5 Bytestreams Transport Method</title>
+<style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0260";
+}
+        </style>
+<link rel="stylesheet" type="text/css" href="xmpp.css">
+<link href="prettify.css" type="text/css" rel="stylesheet">
+<link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+<script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0">
+<meta name="DC.Title" content="Jingle SOCKS5 Bytestreams Transport Method">
+<meta name="DC.Creator" content="Peter Saint-Andre">
+<meta name="DC.Creator" content="Dirk Meyer">
+<meta name="DC.Creator" content="Justin Karneges">
+<meta name="DC.Creator" content="Marcus Lundblad">
+<meta name="DC.Creator" content="Tobias Markmann">
+<meta name="DC.Creator" content="Klaus Hartke">
+<meta name="DC.Description" content="This specification defines a Jingle transport method that results in sending data via the SOCKS5 Bytestreams (S5B) protocol defined in XEP-0065. Essentially this transport method reuses XEP-0065 semantics for sending the data and defines native Jingle methods for starting and ending an S5B session.">
+<meta name="DC.Publisher" content="XMPP Standards Foundation">
+<meta name="DC.Contributor" content="XMPP Extensions Editor">
+<meta name="DC.Date" content="2018-05-15">
+<meta name="DC.Type" content="XMPP Extension Protocol">
+<meta name="DC.Format" content="XHTML">
+<meta name="DC.Identifier" content="XEP-0260">
+<meta name="DC.Language" content="en">
+<meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2018 by the XMPP Standards Foundation (XSF).">
+</head>
+<body onload="prettyPrint()">
+<h1>XEP-0260: Jingle SOCKS5 Bytestreams Transport Method</h1>
+<div class="docmeta-wrap">
+<dl id="docmeta" class="compact">
+<dt>Abstract</dt>
+<dd>This specification defines a Jingle transport method that results in sending data via the SOCKS5 Bytestreams (S5B) protocol defined in XEP-0065. Essentially this transport method reuses XEP-0065 semantics for sending the data and defines native Jingle methods for starting and ending an S5B session.</dd>
+<dt>Authors</dt>
+<dd><ul class="authors">
+<li>Peter Saint-Andre</li>
+<li>Dirk Meyer</li>
+<li>Justin Karneges</li>
+<li>Marcus Lundblad</li>
+<li>Tobias Markmann</li>
+<li>Klaus Hartke</li>
+</ul></dd>
+<dt>Copyright</dt>
+<dd>© 1999 – 2019 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd>
+<dt>Status</dt>
+<dd>
+<p>Draft</p>
+<div id="status-notice" class="draft standards track">NOTICE: The protocol defined herein is a <strong>Draft Standard</strong> of the XMPP Standards Foundation. Implementations are encouraged and the protocol is appropriate for deployment in production systems, but some changes to the protocol are possible before it becomes a Final Standard.</div>
+</dd>
+<dt>Type</dt>
+<dd>Standards Track</dd>
+<dt>Version</dt>
+<dd>1.0.3 (2018-05-15)</dd>
+</dl>
+<div class="timeline-wrap">
+<div class="timeline-head">Document Lifecycle</div>
+<ol class="timeline">
+<li>Experimental</li>
+<li>Proposed</li>
+<li class="current">Draft</li>
+<li>Final</li>
+</ol>
+</div>
+</div>
+<nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc">
+<li><a href="#intro">Introduction</a></li>
+<li>
+<a href="#protocol">Protocol</a><ol>
+<li><a href="#select">Selecting Candidates</a></li>
+<li><a href="#exchange">Exchanging Candidates</a></li>
+<li><a href="#connect">Connecting to Candidates</a></li>
+<li><a href="#complete">Completing the Negotiation</a></li>
+<li><a href="#data">Exchanging Data</a></li>
+<li><a href="#close">Closing the Bytestream</a></li>
+</ol>
+</li>
+<li><a href="#fallback">Fallback Methods</a></li>
+<li><a href="#rules">Processing Rules and Usage Guidelines</a></li>
+<li><a href="#support">Determining Support</a></li>
+<li>
+<a href="#security">Security Considerations</a><ol>
+<li><a href="#security-sharing">Sharing IP Addresses</a></li>
+<li><a href="#security-media">Encryption of Media</a></li>
+</ol>
+</li>
+<li><a href="#iana">IANA Considerations</a></li>
+<li>
+<a href="#registrar">XMPP Registrar Considerations</a><ol>
+<li><a href="#registrar-ns">Protocol Namespaces</a></li>
+<li><a href="#registrar-versioning">Protocol Versioning</a></li>
+<li><a href="#registrar-transports">Jingle Transport Methods</a></li>
+</ol>
+</li>
+<li><a href="#schema">Schema</a></li>
+<li><a href="#acks">Acknowledgements</a></li>
+</ol>
+<h6><a href="#appendices">Appendices</a></h6>
+<ol class="toc-appendices">
+<li><a href="#appendix-docinfo">Document Information</a></li>
+<li><a href="#appendix-authorinfo">Author Information</a></li>
+<li><a href="#appendix-legal">Legal Notices</a></li>
+<li><a href="#appendix-xmpp">Relation to XMPP</a></li>
+<li><a href="#appendix-discuss">Discussion Venue</a></li>
+<li><a href="#appendix-conformance">Requirements Conformance</a></li>
+<li><a href="#appendix-notes">Notes</a></li>
+<li><a href="#appendix-revs">Revision History</a></li>
+</ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0166.html">Jingle (XEP-0166)</a></span>  [<a href="#nt-idm158">1</a>] defines a framework for negotiating and managing data sessions over XMPP. In order to provide a flexible framework, the base Jingle specification defines neither data transport methods nor application formats, leaving that up to separate specifications. The current document defines a transport method for establishing and managing data exchanges between XMPP entities using the existing SOCKS5 Bytestreams (S5B) protocol specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0065.html">SOCKS5 Bytestreams (XEP-0065)</a></span>  [<a href="#nt-idm162">2</a>]. This "jingle-s5b" method results in a streaming transport method suitable for use in Jingle application types where packet loss cannot be tolerated (e.g., file transfer). Jingle-S5B reuses the protocol flow from <span class="ref">XEP-0065</span> for the communication with a SOCKS5 streamhost; the communication between two clients to negotiate the possible candidates differs from <span class="ref">XEP-0065</span> and shares similarities with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0176.html">Jingle ICE-UDP Transport Method (XEP-0176)</a></span>  [<a href="#nt-idm168">3</a>]</p>
+<h2 id="protocol">2.
+       Protocol<a class="anchor-link" href="#protocol"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">The basic flow is as follows.</p>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+Initiator                        Responder
+  |                                  |
+  |  session-initiate                |
+  |  (with S5B candidates)           |
+  |---------------------------------&gt;|
+  |  ack                             |
+  |&lt;---------------------------------|
+  |  session-accept                  |
+  |  (with S5B candidates)           |
+  |&lt;---------------------------------|
+  |  ack                             |
+  |---------------------------------&gt;|
+  |  candidate-used transport-info   |
+  |&lt;---------------------------------|
+  |  ack                             |
+  |---------------------------------&gt;|
+  |  candidate-used transport-info   |
+  |---------------------------------&gt;|
+  |  ack                             |
+  |&lt;---------------------------------|
+  |  S5B "SESSION"                   |
+  |&lt;================================&gt;|
+  |  session-terminate               |
+  |&lt;---------------------------------|
+  |  ack                             |
+  |---------------------------------&gt;|
+  |                                  |
+</pre></figure>
+  <p class="" style="">This flow is illustrated in the following examples (to simplify the presentation these use an "example" application instead of a real application type).</p>
+  <div class="indent">
+<h3 id="select">2.1 Selecting Candidates<a class="anchor-link" href="#select"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+    <p class="" style="">It is RECOMMENDED that a client will offer as many &lt;candidate/&gt; elements as possible with itself as the host (i.e., non-proxy candidates). Such candidates might be found using the following methods:</p>
+    <ul class="" style="">
+      <li class="" style="">Opening the TCP port on all available interfaces the user wants to use (e.g., maybe not an expensive UMTS link), including the IPv4 and IPv6 addresses of that interface (if available).</li>
+      <li class="" style="">Using the client's external IP address as discovered through an assisting NAT protocol or other means.</li>
+    </ul>
+    <p class="" style="">If the client knows it is behind a NAT and the router announces UPnP IGD or NAT-PMP support, the client SHOULD map the open port to the external interface of the router and include the public IP address and port information in the &lt;candidate/&gt; offers. To increase the chance of success without using a proxy, this specification encourages the responder to also send offers, effectively equivalent to the "fast-mode" for SOCKS5 Bytestreams as previously described at &lt;<a href="https://web.archive.org/web/20161019171450/http://delta.affinix.com/specs/stream.html">http://delta.affinix.com/specs/stream.html</a>&gt;.</p>
+  </div>
+  <div class="indent">
+<h3 id="exchange">2.2 Exchanging Candidates<a class="anchor-link" href="#exchange"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+    <p class="" style="">Once the initiator has a set of candidates, it sends a Jingle session-initiate request that contains one or more transport candidates which are a mixture of <span class="ref">XEP-0065</span> streamhosts and ICE candidates used in <span class="ref">XEP-0176</span>.</p>
+    <p class="" style="">Just as with the &lt;query/&gt; element from <span class="ref">XEP-0065</span>, here the &lt;transport/&gt; element contains the candidates. The following rules apply to the defined attributes of the &lt;transport/&gt; element when sent by the initiator in a Jingle session-initate message:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">The 'sid' attribute MUST be included. This attribute specifies the Stream ID for this bytestream.</li>
+      <li class="" style="">The 'dstaddr' attribute SHOULD be included if the initiator includes at least one candidate of the "proxy" type. This attribute enables the initiator to communicate the value it has calculated for the SOCKS5 DST.ADDR field (see Section 5.3.2 and Section 7 of <span class="ref">XEP-0065</span>) so that the responder can provide an accurate value to the proxy during SOCKS5 negotiation. Here the value is calculated as SHA1(SID + Initiator JID + Responder JID) since the initiator will be the entity that activates the bytestream at the proxy.  [<a href="#nt-idm191">4</a>]</li>
+      <li class="" style="">The 'mode' attribute MAY be included. This attribute specifies whether the underlying transport for the bytestream will be TCP (a value of "tcp", which is the default) or UDP (a value of "udp", see Section 8 of <span class="ref">XEP-0065</span>).</li>
+    </ol>
+    <p class="" style="">In the following example, Romeo's client has two interfaces, one on port 5086 and the other on port 5087. The provided candidates are the IPv4 address of one interface, the IPv4 address of the second interface, and a proxy address at streamer.shakespeare.lit. Because Romeo's client has included a proxy candidate, it includes its computed value for the DST.ADDR field in the 'dstaddr' attribute (here computed as the SHA-1 hash of "vj3hs98yromeo@montague.lit/orchardjuliet@capulet.lit/balcony").</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Initiator sends session-initiate<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='xn28s7gk'
+    to='juliet@capulet.lit/balcony'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-initiate'
+          initiator='romeo@montague.lit/orchard'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='ex'&gt;
+      &lt;description xmlns='urn:xmpp:example'/&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:s5b:1'
+                 dstaddr='972b7bf47291ca609517f67f86b5081086052dad'
+        	 mode='tcp'
+                 sid='vj3hs98y'&gt;
+        &lt;candidate cid='hft54dqy'
+                   host='192.168.4.1'
+                   jid='romeo@montague.lit/orchard'
+                   port='5086'
+                   priority='8257636'
+                   type='direct'/&gt;
+        &lt;candidate cid='hutr46fe'
+                   host='24.24.24.1'
+                   jid='romeo@montague.lit/orchard'
+                   port='5087'
+                   priority='8258636'
+                   type='direct'/&gt;
+        &lt;candidate cid='xmdh4b7i'
+                   host='123.456.7.8'
+                   jid='streamer.shakespeare.lit'
+                   port='7625'
+                   priority='7878787'
+                   type='proxy'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The responder immediately acknowledges receipt.</p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Responder acknowledges session-initiate<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='xn28s7gk'
+    to='romeo@montague.lit/orchard'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">Depending on the application type, a user agent controlled by a human user might need to wait for the user to affirm a desire to proceed with the session before continuing. When the user agent has received such affirmation (or if the user agent can automatically proceed for any reason, e.g. because no human intervention is expected or because a human user has configured the user agent to automatically accept sessions with a given entity), it returns a Jingle session-accept message.</p>
+    <p class="" style="">This message MUST contain a &lt;transport/&gt; element qualified by the 'urn:xmpp:jingle:transports:s5b:1' namespace, which SHOULD in turn contain one &lt;candidate/&gt; element for each SOCKS5 Bytestreams candidate generated by or known to the responder, but MAY instead be empty if the responder does not wish to offer any candidates or wishes to send each candidate as the payload of a transport-info message. If the responder sends candidates in the session-accept, the chances of a successful connection are increased. For example, the initiator might be behind a NAT or might have no access to an S5B proxy, whereas the responder might have a public IP address, might know about a proxy, or might have NAT penetration support like NAT-PMP in a router. However, the responder MUST NOT offer as a candidate any host/port combination that has already been offered by the initiator; this helps to prevent failure of negotiation with S5B proxies.</p>
+    <p class="" style="">The following rules apply to the defined attributes of the &lt;transport/&gt; element when sent by the responder in a Jingle session-accept message:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">The 'sid' attribute MUST be included and MUST be the same Stream ID communicated by the initiator in the Jingle session-initiate message.</li>
+      <li class="" style="">The 'dstaddr' attribute SHOULD be included if the responder includes at least one candidate of the "proxy" type. This attribute enables the responder to communicate the value it has calculated for the SOCKS5 DST.ADDR field (see Section 5.3.2 and Section 7 of <span class="ref">XEP-0065</span>) so that the initiator can provide an accurate value to the proxy during SOCKS5 negotiation. Here the value is calculated as SHA1(SID + Responder JID + Initiator JID) since the responder will be the entity that activates the bytestream at the proxy.  [<a href="#nt-idm208">5</a>]</li>
+      <li class="" style="">The 'mode' attribute MUST NOT be included since the underlying transport for the bytestream is determined by the initiator.</li>
+    </ol>
+    <p class="" style="">In the following example, Juliet's client opens one port. The provided candidates are the (private) IPv4 address of the interface, a (public) IPv6 address, the public IPv4 address created by mapping the private IP address/port using NAT-PMP, and a proxy address. Because Juliet's client has included a proxy candidate, it includes its computed value for the DST.ADDR field in the 'dstaddr' attribute (here computed as the SHA-1 hash of "vj3hs98yjuliet@capulet.lit/balconyromeo@montague.lit/orchard").</p>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Responder sends session-accept with candidates<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='hwd987h'
+    to='romeo@montague.lit/orchard'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-accept'
+          responder='juliet@capulet.lit/balcony'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='ex'&gt;
+      &lt;description xmlns='urn:xmpp:example'/&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:s5b:1'
+                 dstaddr='1a12fb7bc625e55f3ed5b29a53dbe0e4aa7d80ba'
+                 sid='vj3hs98y'&gt;
+        &lt;candidate cid='ht567dq'
+                   host='192.169.1.10'
+                   jid='juliet@capulet.lit/balcony'
+                   port='6539'
+                   priority='8257636'
+                   type='direct'/&gt;
+        &lt;candidate cid='grt654q2'
+                   host='2001:638:708:30c9:219:d1ff:fea4:a17d'
+                   jid='juliet@capulet.lit/balcony'
+                   port='6539'
+                   priority='8257606'
+                   type='direct'/&gt;
+        &lt;candidate cid='hr65dqyd'
+                   host='134.102.201.180'
+                   jid='juliet@capulet.lit/balcony'
+                   port='16453'
+                   priority='7929856'
+                   type='assisted'/&gt;
+        &lt;candidate cid='pzv14s74'
+                   host='234.567.8.9'
+                   jid='proxy.marlowe.lit'
+                   port='7676'
+                   priority='7788877'
+                   type='proxy'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The initiator acknowledges receipt and tries to connect to the offered candidates.</p>
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Initiator acknowledges session-accept<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='hwd987h'
+    to='juliet@capulet.lit/balcony'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">A client SHOULD check the offered candidates in order of their priority, starting with the highest value. How the priority is calculated depends on the actual available interfaces. An implementation SHOULD use the following formula:</p>
+    <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+priority = (2^16)*(type preference) + (local preference)
+     </pre></figure>
+    <p class="" style="">The type preference is an integer value between 0 and 127. The following types and their suggested preference values are defined.</p>
+    <figure class="table"><figcaption id="table-1"><strong>Table 1:</strong> Defined Types<a class="anchor-link" href="#table-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+      <tr class="body">
+	<th colspan="" rowspan="">Type</th>
+	<th colspan="" rowspan="">Description</th>
+	<th colspan="" rowspan="">Preference Value</th>
+      </tr>
+      <tr class="body">
+	<td align="" colspan="" rowspan="">direct</td>
+	<td align="" colspan="" rowspan="">Direct connection using the given interface</td>
+	<td align="" colspan="" rowspan="">126</td>
+      </tr>
+      <tr class="body">
+	<td align="" colspan="" rowspan="">assisted</td>
+	<td align="" colspan="" rowspan="">Direct connection using NAT assisting technologies like NAT-PMP or UPnP-IGD</td>
+	<td align="" colspan="" rowspan="">120</td>
+      </tr>
+      <tr class="body">
+	<td align="" colspan="" rowspan="">tunnel</td>
+	<td align="" colspan="" rowspan="">Tunnel protocols such as Teredo</td>
+	<td align="" colspan="" rowspan="">110</td>
+      </tr>
+      <tr class="body">
+	<td align="" colspan="" rowspan="">proxy</td>
+	<td align="" colspan="" rowspan="">SOCKS5 Relay</td>
+	<td align="" colspan="" rowspan="">10</td>
+      </tr>
+    </table></figure>
+    <p class="" style="">The local preference is used to rate different candidates of the same type, e.g. a DSL link might be preferred over a VPN connection. The value of the local preference SHOULD be between 0 and 65535. The proposed values are only guidelines. If a client wants to increase or decrease the value of a specific candidate it is free to do so. For instance, a client might have an expensive UMTS link as a last resort and might rate this link lower than all SOCKS5 relays.</p>
+  </div>
+  <div class="indent">
+<h3 id="connect">2.3 Connecting to Candidates<a class="anchor-link" href="#connect"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+    <p class="" style="">After receiving its peer's candidates, a client start to connect to them in order of the priority. A detailed description of the protocol can be found in <span class="ref">XEP-0065</span>.</p>
+    <p class="" style="">Once one client has successfully created a connection, it sends the &lt;candidate-used/&gt; element to the peer inside a Jingle transport-info message. If a client receives a candidate-used notification it SHOULD continue trying to connect to candidates sent by its peer if it has not tried all candidates with a higher priority than the one successfully used by the peer.</p>
+    <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Initiator sends candidate-used in Jingle transport-info<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='hjdi8'
+    to='juliet@capulet.lit/balcony'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='transport-info'
+          initiator='romeo@montague.lit/orchard'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='ex'&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:s5b:1'
+                 sid='vj3hs98y'&gt;
+        &lt;candidate-used cid='hr65dqyd'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The peer immediately acknowledges receipt.</p>
+    <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Responder acknowledges candidate-used message<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='hjdi8'
+    to='romeo@montague.lit/orchard'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">If a client is unable to connect to <em>any</em> candidate sent by its peer, or if it stopped trying to connect because its peer sent a candidate-used notification with a priority higher than its remaining candidate(s), it sends a candidate-error Jingle transport-info message (this is equivalent to the IQ-error with code='500' from the "fast-mode" extension).</p>
+    <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Responder sends candidate-error in Jingle transport-info<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='gft65ewd'
+    to='romeo@montague.lit/orchard'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='transport-info'
+          initiator='romeo@montague.lit/orchard'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='ex'&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:s5b:1'
+                 sid='vj3hs98y'&gt;
+        &lt;candidate-error/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The peer immediately acknowledges receipt.</p>
+    <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> Responder acknowledges candidate-error message<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='gft65ewd'
+    to='juliet@capulet.lit/balcony'
+    type='result'/&gt;
+</pre></figure>
+  </div>
+  <div class="indent">
+<h3 id="complete">2.4 Completing the Negotiation<a class="anchor-link" href="#complete"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+    <p class="" style="">The transport negotiation is completed in one of the following ways:</p>
+    <ol start="1" class="" style="">
+      <li class="" style="">If both parties send a candidate-error notification then the SOCKS5 negotiation has failed and the parties need to fall back to some other transport method, typically (but not necessarily) IBB; see the <a href="#fallback">Fallback Methods</a> section of this document for details.</li>
+      <li class="" style="">If one of the parties sends a candidate-error notification and the other party sends a candidate-used notification, then the candidate-used shall be considered the nominated candidate.</li>
+      <li class="" style="">If both parties send a candidate-used notification but the candidates have a different priority, then the candidate with the higher priority shall be considered the nominated candidate.</li>
+      <li class="" style="">If both parties send a candidate-used notification with candidates having the same priority, then the candidate chosen by the initiator shall be considered the nominated candidate (this is consistent with the rules in <span class="ref">XEP-0166</span>).</li>
+    </ol>
+    <p class="" style="">The parties shall use the nominated candidate for the data transfer. However, if the nominated candidate is of the "proxy" type, then the peer has no way to know when it can send data. Therefore the party that offered the nominated candidate MUST do two things...</p>
+    <p class="" style="">First, it activates the bytestream, as described in <span class="ref">XEP-0065</span>:</p>
+    <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> Responder activates the bytestream at proxy<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='vy1fa63k'
+    to='streamer.shakespeare.lit'
+    type='set'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/bytestreams'
+         sid='a73sjjvkla37jfea'&gt;
+    &lt;activate&gt;romeo@montague.lit/orchard&lt;/activate&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Proxy informs responder of activation<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='streamer.shakespeare.lit'
+    id='vy1fa63k'
+    to='juliet@capulet.lit/balcony'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">Second, it sends an activated notification to the peer; it does so by sending a transport-info message containing an &lt;activated/&gt; element:</p>
+    <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Responder informs initiator that bytestream has been activated<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='bv73bs91'
+    to='romeo@montague.lit/orchard'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='transport-info'
+          initiator='romeo@montague.lit/orchard'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='ex'&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:s5b:1'
+                 sid='vj3hs98y'&gt;
+        &lt;activated cid='xmdh4b7i'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">If the nominated candidate is of the proxy type and either party cannot connect to the proxy (for example because of a restrictive firewall), the failing party shall send a transport-info message containing an &lt;proxy-error/&gt; element.</p>
+    <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> Responder informs initiator of inability to connect to the proxy<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='bv73bs91'
+    to='romeo@montague.lit/orchard'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='transport-info'
+          initiator='romeo@montague.lit/orchard'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='ex'&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:s5b:1'
+                 sid='vj3hs98y'&gt;
+        &lt;proxy-error/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The parties shall then consider the bytestream unsuccessful and SHOULD attempt to fall back to another transport as described in <a href="#fallback">Fallback Methods</a>.</p>
+  </div>
+  <div class="indent">
+<h3 id="data">2.5 Exchanging Data<a class="anchor-link" href="#data"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+    <p class="" style="">Once the parties have chosen (and if necessary activated) a streamhost, they can exchange data as defined in <span class="ref">XEP-0065</span>.</p>
+  </div>
+  <div class="indent">
+<h3 id="close">2.6 Closing the Bytestream<a class="anchor-link" href="#close"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+    <p class="" style="">Once the parties have finished using the bytestream (e.g., because a complete file has been sent), either party can send a Jingle session-terminate action.</p>
+    <figure class="code-example" id="example-13"><figcaption><strong>Example 13.</strong> Initiator terminates the session<a class="anchor-link" href="#example-13"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='hz81vf48'
+    to='juliet@capulet.lit/balcony'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-terminate'
+          initiator='romeo@montague.lit/orchard'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;reason&gt;&lt;success/&gt;&lt;/reason&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The other party then acknowledges the session-terminate and the Jingle session is finished.</p>
+    <figure class="code-example" id="example-14"><figcaption><strong>Example 14.</strong> Responder acknowledges session-terminate<a class="anchor-link" href="#example-14"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='hz81vf48'
+    to='romeo@montague.lit/orchard'
+    type='result'/&gt;
+</pre></figure>
+  </div>
+<h2 id="fallback">3.
+       Fallback Methods<a class="anchor-link" href="#fallback"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">If the SOCKS5 Bytestreams negotiation fails, the parties might want to "fall back" to another transport. Currently the transport of last resort for a streaming exchange is <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0047.html">In-Band Bytestreams (XEP-0047)</a></span>  [<a href="#nt-idm284">6</a>] as described for Jingle in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0261.html">Jingle In-Band Bytestreams Transport Method (XEP-0261)</a></span>  [<a href="#nt-idm288">7</a>], however if other transport methods are defined in the future (e.g. <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6544">RFC 6544</a></span>  [<a href="#nt-idm292">8</a>]) then clients could fall back to those methods instead of IBB. The protocol flow for fallback from S5B to IBB is as follows.</p>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+Romeo                               Juliet
+  |                                  |
+  |  session-initiate                |
+  |  (with S5B info)                 |
+  |---------------------------------&gt;|
+  |  ack                             |
+  |&lt;---------------------------------|
+  |  session-accept                  |
+  |  (with S5B info)                 |
+  |&lt;---------------------------------|
+  |  [ SOCKS5 failure! ]             |
+  |x--------------------------------x|
+  |  transport-replace (IBB)         |
+  |---------------------------------&gt;|
+  |  ack                             |
+  |&lt;---------------------------------|
+  |  transport-accept (IBB)          |
+  |&lt;---------------------------------|
+  |  ack                             |
+  |---------------------------------&gt;|
+  |  IBB "SESSION"                   |
+  |=================================&gt;|
+  |  terminate                       |
+  |&lt;---------------------------------|
+  |  ack                             |
+  |---------------------------------&gt;|
+  |                                  |
+</pre></figure>
+  <p class="" style="">First the initiator sends a Jingle session-initiate, in this case with a transport of SOCKS5 Bytestreams. The protocol flow is exactly the same as described above. If both parties are unable to connect to a candidate provided by the peer, they send candidate-error messages to indicate that SOCKS5 has failed. The initiator MUST either terminate the Jingle session with a Jingle reason of &lt;connectivity-error/&gt; or replace the transport with something else using the transport-replace action. Typically the fallback option is IBB (see, for example, <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0234.html">Jingle File Transfer (XEP-0234)</a></span>  [<a href="#nt-idm298">9</a>]). Therefore the initiator sends a transport-replace action including a transport of IBB.</p>
+    <figure class="code-example" id="example-15"><figcaption><strong>Example 15.</strong> Initiator replaces transport with IBB<a class="anchor-link" href="#example-15"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='hs92n57'
+    to='juliet@capulet.lit/balcony'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='transport-replace'
+          initiator='romeo@montague.lit/orchard'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='ex'&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:ibb:1'
+                 block-size='4096'
+                 sid='ch3d9s71'/&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The responder then acknowledges the transport-replace action.</p>
+    <figure class="code-example" id="example-16"><figcaption><strong>Example 16.</strong> Responder acknowledges transport-replace<a class="anchor-link" href="#example-16"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='hs92n57'
+    to='romeo@montague.lit/orchard'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">If the transport replacement is acceptable, the responder then sends a transport-accept action to the initiator (if not, the responder sends a transport-reject action). If the responder wishes to use a smaller block size than the one specified in the transport-replace offer, this can be done by specifying a block-size attribute in the transport-accept action.</p>
+    <figure class="code-example" id="example-17"><figcaption><strong>Example 17.</strong> Responder sends transport-accept<a class="anchor-link" href="#example-17"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='is71ns63'
+    to='romeo@montague.lit/orchard'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='transport-accept'
+          initiator='romeo@montague.lit/orchard'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='ex'&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:ibb:1'
+                 block-size='2048'
+                 sid='ch3d9s71'/&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The initiator acknowledges the Jingle transport-accept action.</p>
+    <figure class="code-example" id="example-18"><figcaption><strong>Example 18.</strong> Initiator acknowledges transport-accept<a class="anchor-link" href="#example-18"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='is71ns63'
+    to='romeo@montague.lit/orchard'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">Now the parties can send data using In-Band Bytestreams as defined in <span class="ref">XEP-0261</span> and <span class="ref">XEP-0047</span>.</p>
+<h2 id="rules">4.
+       Processing Rules and Usage Guidelines<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">The same processing rules and usage guidelines defined in <span class="ref">XEP-0065</span> apply to the Jingle S5B Transport Method. This document adds the following implementation suggestions in the context of Jingle:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">Try the offered candidates in the order of their priority, from highest to lowest.</li>
+    <li class="" style="">Stagger the connection attempts (e.g., initiate communications with the highest-priority candidate, then wait 200ms before initiating communications with the second-highest-priority candidate).</li>
+    <li class="" style="">To increase the potential for using a direct connection, consider waiting a bit longer than 200ms to initiate communications with proxy candidates.</li>
+  </ol>
+<h2 id="support">5.
+       Determining Support<a class="anchor-link" href="#support"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">To advertise its support for the Jingle SOCKS5 Bytestreams Transport Method, when replying to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm321">10</a>] information requests an entity MUST return URNs for any version of this protocol that the entity supports -- e.g., "urn:xmpp:jingle:transports:s5b:1" for this version (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number).</p>
+  <figure class="code-example" id="example-19"><figcaption><strong>Example 19.</strong> Service discovery information request<a class="anchor-link" href="#example-19"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='uw72g176'
+    to='juliet@capulet.lit/balcony'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <figure class="code-example" id="example-20"><figcaption><strong>Example 20.</strong> Service discovery information response<a class="anchor-link" href="#example-20"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='uw72g176'
+    to='romeo@montague.lit/orchard'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;feature var='urn:xmpp:jingle:1'/&gt;
+    &lt;feature var='urn:xmpp:jingle:transports:s5b:1'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <p class="" style="">In order for an application to determine whether an entity supports this protocol, where possible it SHOULD use the dynamic, presence-based profile of service discovery defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm329">11</a>]. However, if an application has not received entity capabilities information from an entity, it SHOULD use explicit service discovery instead.</p>
+<h2 id="security">6.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <div class="indent">
+<h3 id="security-sharing">6.1 Sharing IP Addresses<a class="anchor-link" href="#security-sharing"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+    <p class="" style="">The exchange of candidates might result in exposure of the sender's IP addresses, which comprise a form of personally identifying information. A Jingle client MUST enable a user to control which entities will be allowed to receive such information. If a human user explicitly accepts a session request, then the client can consider that action to imply approval of IP address sharing.</p>
+  </div>
+  <div class="indent">
+<h3 id="security-media">6.2 Encryption of Media<a class="anchor-link" href="#security-media"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+    <p class="" style="">This specification, like <span class="ref">XEP-0065</span> before it, does not directly support end-to-end encryption of the media sent over the transport.</p>
+  </div>
+<h2 id="iana">7.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm341">12</a>].</p>
+<h2 id="registrar">8.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <div class="indent">
+<h3 id="registrar-ns">8.1 Protocol Namespaces<a class="anchor-link" href="#registrar-ns"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm348">13</a>] includes 'urn:xmpp:jingle:transports:s5b:1' in its registry of protocol namespaces at &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idm353">14</a>].</p>
+  </div>
+  <div class="indent">
+<h3 id="registrar-versioning">8.2 Protocol Versioning<a class="anchor-link" href="#registrar-versioning"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+  <div class="indent">
+<h3 id="registrar-transports">8.3 Jingle Transport Methods<a class="anchor-link" href="#registrar-transports"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm348">13</a>] includes "jingle-s5b" in its registry of Jingle transport methods at &lt;<a href="https://xmpp.org/registrar/jingle-transports.html">https://xmpp.org/registrar/jingle-transports.html</a>&gt;. The registry submission is as follows:</p>
+    <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;transport&gt;
+  &lt;name&gt;s5b&lt;/name&gt;
+  &lt;desc&gt;
+    A method for negotiating data exchange over SOCKS5 Bytestreams.
+  &lt;/desc&gt;
+  &lt;type&gt;streaming&lt;/type&gt;
+  &lt;doc&gt;XEP-0260&lt;/doc&gt;
+&lt;/transport&gt;
+</pre></figure>
+  </div>
+<h2 id="schema">9.
+       Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:jingle:transports:s5b:1'
+    xmlns='urn:xmpp:jingle:transports:s5b:1'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-0260: http://www.xmpp.org/extensions/xep-0260.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name='transport'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:choice&gt;
+        &lt;xs:element ref='activated'
+                    minOccurs='0' maxOccurs='1'/&gt;
+        &lt;xs:element ref='candidate'
+                    minOccurs='0' maxOccurs='unbounded'/&gt;
+        &lt;xs:element name='candidate-error'
+                    minOccurs='0' maxOccurs='1' type='empty'/&gt;
+        &lt;xs:element ref='candidate-used'
+                    minOccurs='0' maxOccurs='1'/&gt;
+        &lt;xs:element name='proxy-error'
+                    minOccurs='0' maxOccurs='1' type='empty'/&gt;
+      &lt;/xs:choice&gt;
+      &lt;xs:attribute name='dstaddr' use='optional' type='xs:string'/&gt;
+      &lt;xs:attribute name='mode' use='optional' default='tcp'&gt;
+        &lt;xs:simpleType&gt;
+          &lt;xs:restriction base='xs:NCName'&gt;
+            &lt;xs:enumeration value='tcp'/&gt;
+            &lt;xs:enumeration value='udp'/&gt;
+          &lt;/xs:restriction&gt;
+        &lt;/xs:simpleType&gt;
+      &lt;/xs:attribute&gt;
+      &lt;xs:attribute name='sid' type='xs:string' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='candidate'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='cid'
+                        type='xs:string' use='required'/&gt;
+          &lt;xs:attribute name='host'
+                        type='xs:string' use='required'/&gt;
+          &lt;xs:attribute name='jid'
+                        type='xs:string' use='required'/&gt;
+          &lt;xs:attribute name='port'
+                        type='xs:positiveInteger' use='optional'/&gt;
+          &lt;xs:attribute name='priority'
+                        type='xs:positiveInteger' use='required'/&gt;
+          &lt;xs:attribute name='type'
+                        use='optional' default='direct'&gt;
+            &lt;xs:simpleType&gt;
+              &lt;xs:restriction base='xs:NCName'&gt;
+                &lt;xs:enumeration value='assisted'/&gt;
+                &lt;xs:enumeration value='direct'/&gt;
+                &lt;xs:enumeration value='proxy'/&gt;
+                &lt;xs:enumeration value='tunnel'/&gt;
+              &lt;/xs:restriction&gt;
+            &lt;/xs:simpleType&gt;
+          &lt;/xs:attribute&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='candidate-used'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='cid' type='xs:string' use='required'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='activated'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='cid' type='xs:string' use='required'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+</pre></figure>
+<h2 id="acks">10.
+       Acknowledgements<a class="anchor-link" href="#acks"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">Thanks to Steffen Larsen, Florian Schmaus, Kevin Smith, and Remko Tronçon for their feedback.</p>
+<hr>
+<a name="appendices"></a><h2>Appendices</h2>
+<h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<dl class="compact">
+<dt>Series</dt>
+<dd><a href="http://xmpp.org/extensions/">XEP</a></dd>
+<dt>Number</dt>
+<dd>0260</dd>
+<dt>Publisher</dt>
+<dd><a href="/xsf/">XMPP Standards Foundation</a></dd>
+<dt>Status</dt>
+<dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Draft">Draft</a></dd>
+<dt>Type</dt>
+<dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd>
+<dt>Version</dt>
+<dd>1.0.3</dd>
+<dt>Last Updated</dt>
+<dd>2018-05-15</dd>
+<dt>Approving Body</dt>
+<dd><a href="http://xmpp.org/council/">XMPP Council</a></dd>
+<dt>Dependencies</dt>
+<dd>XMPP Core, XEP-0030, XEP-0065</dd>
+<dt>Supersedes</dt>
+<dd>None</dd>
+<dt>Superseded By</dt>
+<dd>None</dd>
+<dt>Short Name</dt>
+<dd>jingle-s5b</dd>
+<dt>Schema</dt>
+<dd>
+        &lt;<a href="http://xmpp.org/schemas/jingle-transports-s5b.xsd">http://xmpp.org/schemas/jingle-transports-s5b.xsd</a>&gt;<br>
+</dd>
+<dt>Source Control</dt>
+<dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0260.xml">HTML</a></dd>
+</dl>
+<p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0260.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0260.pdf">PDF</a></p>
+<h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<h5>Peter Saint-Andre</h5>
+<dl class="compact">
+<dt>Email</dt>
+<dd><a href="mailto:xsf@stpeter.im">xsf@stpeter.im</a></dd>
+<dt>JabberID</dt>
+<dd><a href="xmpp:peter@jabber.org">peter@jabber.org</a></dd>
+<dt>URI</dt>
+<dd><a href="http://stpeter.im/">http://stpeter.im/</a></dd>
+</dl>
+<h5>Dirk Meyer</h5>
+<dl class="compact">
+<dt>Email</dt>
+<dd><a href="mailto:dmeyer@tzi.de">dmeyer@tzi.de</a></dd>
+<dt>JabberID</dt>
+<dd><a href="xmpp:dmeyer@jabber.org">dmeyer@jabber.org</a></dd>
+</dl>
+<h5>Justin Karneges</h5>
+<dl class="compact">
+<dt>Email</dt>
+<dd><a href="mailto:justin@karneges.com">justin@karneges.com</a></dd>
+<dt>JabberID</dt>
+<dd><a href="xmpp:justin@andbit.net">justin@andbit.net</a></dd>
+</dl>
+<h5>Marcus Lundblad</h5>
+<dl class="compact">
+<dt>Email</dt>
+<dd><a href="mailto:ml@update.uu.se">ml@update.uu.se</a></dd>
+<dt>JabberID</dt>
+<dd><a href="xmpp:mlundblad@jabber.org">mlundblad@jabber.org</a></dd>
+</dl>
+<h5>Tobias Markmann</h5>
+<dl class="compact">
+<dt>Email</dt>
+<dd><a href="mailto:tobias.markmann@isode.com">tobias.markmann@isode.com</a></dd>
+<dt>JabberID</dt>
+<dd><a href="xmpp:tm@ayena.de">tm@ayena.de</a></dd>
+</dl>
+<h5>Klaus Hartke</h5>
+<dl class="compact">
+<dt>Email</dt>
+<dd><a href="mailto:klaus.hartke@googlemail.com">klaus.hartke@googlemail.com</a></dd>
+<dt>JabberID</dt>
+<dd><a href="xmpp:nx@jabber.org">nx@jabber.org</a></dd>
+</dl>
+<h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<div class="indent">
+<h4>Copyright</h4>
+<p>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p>
+<h4>Permissions</h4>
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p>
+<h4>Disclaimer of Warranty</h4>
+<p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p>
+<h4>Limitation of Liability</h4>
+<p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p>
+<h4>IPR Conformance</h4>
+<p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p>
+<h4>Visual Presentation</h4>
+<p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p>
+</div>
+<h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p>
+<h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<p class="indent">There exists a special venue for discussion related to the technology described in this document: the &lt;<a href="http://mail.jabber.org/mailman/listinfo/jingle">jingle@xmpp.org</a>&gt; mailing list.</p>
+<p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p>
+<p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p>
+<p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p>
+<h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p>
+<h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<div class="indent">
+<p><a name="nt-idm158">1</a>. XEP-0166: Jingle &lt;<a href="https://xmpp.org/extensions/xep-0166.html">https://xmpp.org/extensions/xep-0166.html</a>&gt;.</p>
+<p><a name="nt-idm162">2</a>. XEP-0065: SOCKS5 Bytestreams &lt;<a href="https://xmpp.org/extensions/xep-0065.html">https://xmpp.org/extensions/xep-0065.html</a>&gt;.</p>
+<p><a name="nt-idm168">3</a>. XEP-0176: Jingle ICE-UDP Transport Method &lt;<a href="https://xmpp.org/extensions/xep-0176.html">https://xmpp.org/extensions/xep-0176.html</a>&gt;.</p>
+<p><a name="nt-idm191">4</a>. In <span class="ref">XEP-0065</span>, the DST.ADDR is always calculated as SHA1(SID + Requester JID + Target JID); in <span class="ref">XEP-0260</span> the Jingle "initiator" is the SOCKS5 Bytestreams "requester" and the Jingle "responder" is the SOCKS5 Bytestreams "target", so for proxy candidates sent from the initiator/requester to the responder/target the DST.ADDR is calculated as SHA1(SID + Initiator JID + Responder JID). Note well that the calcuation for proxy candidates sent from the responder/target to the initiator/requester is SHA1(SID + Responder JID + Initiator JID); this scenario is not covered by <span class="ref">XEP-0065</span> since in that specification only the SOCKS5 Bytestreams "requester" provides candidates.</p>
+<p><a name="nt-idm208">5</a>. As noted, the calculation for proxy candidates sent from the responder/target to the initiator/requester is SHA1(SID + Responder JID + Initiator JID); this scenario is not covered by <span class="ref">XEP-0065</span> since in that specification only the SOCKS5 Bytestreams "requester" provides candidates.</p>
+<p><a name="nt-idm284">6</a>. XEP-0047: In-Band Bytestreams &lt;<a href="https://xmpp.org/extensions/xep-0047.html">https://xmpp.org/extensions/xep-0047.html</a>&gt;.</p>
+<p><a name="nt-idm288">7</a>. XEP-0261: Jingle In-Band Bytestreams Transport Method &lt;<a href="https://xmpp.org/extensions/xep-0261.html">https://xmpp.org/extensions/xep-0261.html</a>&gt;.</p>
+<p><a name="nt-idm292">8</a>. RFC 6544: TCP Candidates with Interactive Connectivity Establishment (ICE) &lt;<a href="http://tools.ietf.org/html/rfc6544">http://tools.ietf.org/html/rfc6544</a>&gt;.</p>
+<p><a name="nt-idm298">9</a>. XEP-0234: Jingle File Transfer &lt;<a href="https://xmpp.org/extensions/xep-0234.html">https://xmpp.org/extensions/xep-0234.html</a>&gt;.</p>
+<p><a name="nt-idm321">10</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p>
+<p><a name="nt-idm329">11</a>. XEP-0115: Entity Capabilities &lt;<a href="https://xmpp.org/extensions/xep-0115.html">https://xmpp.org/extensions/xep-0115.html</a>&gt;.</p>
+<p><a name="nt-idm341">12</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p>
+<p><a name="nt-idm348">13</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p>
+<p><a name="nt-idm353">14</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p>
+</div>
+<h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p>
+<ol class="revision-history">
+<li id="revision-history-v1.0.3">
+<div class="revision-head">Version 1.0.3 (2018-05-15)<a class="anchor-link" href="#revision-history-v1.0.3"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Replace broken link using archive.org</p>
+<div class="revision-author">fs</div>
+</li>
+<li id="revision-history-v1.0.2">
+<div class="revision-head">Version 1.0.2 (2018-05-04)<a class="anchor-link" href="#revision-history-v1.0.2"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Fix the schema to mention @sid is required rather than optional.</p>
+<div class="revision-author">egp</div>
+</li>
+<li id="revision-history-v1.0.1">
+<div class="revision-head">Version 1.0.1 (2016-05-17)<a class="anchor-link" href="#revision-history-v1.0.1"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Fix broken ICE-TCP reference.</p>
+<div class="revision-author">ssw</div>
+</li>
+<li id="revision-history-v1.0">
+<div class="revision-head">Version 1.0 (2011-09-23)<a class="anchor-link" href="#revision-history-v1.0"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Per a vote of the XMPP Council, advanced specification from Experimental to Draft; also added a further note about calculation of the 'dstaddr' attribute.</p>
+<div class="revision-author">psa</div>
+</li>
+<li id="revision-history-v0.9">
+<div class="revision-head">Version 0.9 (2011-09-13)<a class="anchor-link" href="#revision-history-v0.9"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Further clarified use of the dstaddr attribute, especially when the responder shares a proxy candidate with the initiator.</p>
+<div class="revision-author">psa/tm</div>
+</li>
+<li id="revision-history-v0.8">
+<div class="revision-head">Version 0.8 (2011-09-08)<a class="anchor-link" href="#revision-history-v0.8"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">More clearly described how to activate the bytestream.</p>
+<div class="revision-author">psa/tm</div>
+</li>
+<li id="revision-history-v0.7">
+<div class="revision-head">Version 0.7 (2011-08-31)<a class="anchor-link" href="#revision-history-v0.7"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Per feedback from the XMPP Council, changed some implementation guidelines from normative to informative and modified the security considerations to remove user interface recommendations and the recommendation to use XTLS (since it is not longer being actively developed).</p>
+<div class="revision-author">psa</div>
+</li>
+<li id="revision-history-v0.6">
+<div class="revision-head">Version 0.6 (2011-08-26)<a class="anchor-link" href="#revision-history-v0.6"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Added a 'dstaddr' attribute for feature-parity with XEP-0065.</p>
+<div class="revision-author">psa/tm</div>
+</li>
+<li id="revision-history-v0.5">
+<div class="revision-head">Version 0.5 (2010-04-13)<a class="anchor-link" href="#revision-history-v0.5"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Removed 'zeroconf' attribute for consistency with XEP-0065; clarified use of proxy-error condition; corrected schema.</p>
+<div class="revision-author">psa</div>
+</li>
+<li id="revision-history-v0.4">
+<div class="revision-head">Version 0.4 (2010-02-17)<a class="anchor-link" href="#revision-history-v0.4"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Added proxy-error action; added a block-size attribute in the transport-accept action when negotiating fallback to another transport, analogous to changes in XEP-0261; editorial review.</p>
+<div class="revision-author">ml/psa</div>
+</li>
+<li id="revision-history-v0.3">
+<div class="revision-head">Version 0.3 (2009-07-14)<a class="anchor-link" href="#revision-history-v0.3"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Major update to make Jingle S5B inherit more features from ICE and ICE-TCP. Added priorities and candidate identifiers. Renamed streamhost element to candidate element. Updated candidate selection to use priorities, and it is now required for both clients to send a candidate-used or candidate-error notification. Defined type attribute to differentiate between various kinds of candidates. More clearly described how S5B negotiation is completed, including an activated notification from responder to initiator when the candidate used is a proxy. Noted reuse of fast-mode methodology from S5B optimization specification. Because of incompatibilities with the previous version, changed the namespace to urn:xmpp:jingle:transports:s5b:1.</p>
+<div class="revision-author">dm/kh/psa/jk</div>
+</li>
+<li id="revision-history-v0.2">
+<div class="revision-head">Version 0.2 (2009-03-09)<a class="anchor-link" href="#revision-history-v0.2"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Minor changes to track modifications to XEP-0166; updated security considerations for consistency with other transport methods; added section on service discovery.</p>
+<div class="revision-author">psa</div>
+</li>
+<li id="revision-history-v0.1">
+<div class="revision-head">Version 0.1 (2009-02-19)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Initial published version.</p>
+<div class="revision-author">psa</div>
+</li>
+<li id="revision-history-v0.0.3">
+<div class="revision-head">Version 0.0.3 (2009-02-18)<a class="anchor-link" href="#revision-history-v0.0.3"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Clarified order of events to be consistent with raw-udp and ice-udp.</p>
+<div class="revision-author">psa</div>
+</li>
+<li id="revision-history-v0.0.2">
+<div class="revision-head">Version 0.0.2 (2009-02-11)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Specified that the responder can send &lt;streamhost/&gt; candidates, consistent with the earlier S5B optimization extension; this change required the introduction of streamhost-used and streamhost-error. Also added text to encourage the use of NAT-assisting protocols.</p>
+<div class="revision-author">dm/jk</div>
+</li>
+<li id="revision-history-v0.0.1">
+<div class="revision-head">Version 0.0.1 (2009-02-10)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Rough draft.</p>
+<div class="revision-author">psa</div>
+</li>
+</ol>
+<p>END</p>
+</body>
+</html>
