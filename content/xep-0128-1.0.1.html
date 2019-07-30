@@ -1,0 +1,326 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>XEP-0128: Service Discovery Extensions</title>
+<style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0128";
+}
+        </style>
+<link rel="stylesheet" type="text/css" href="xmpp.css">
+<link href="prettify.css" type="text/css" rel="stylesheet">
+<link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+<script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0">
+<meta name="DC.Title" content="Service Discovery Extensions">
+<meta name="DC.Creator" content="Peter Saint-Andre">
+<meta name="DC.Description" content="This document specifies best practices for including extended information in Service Discovery results.">
+<meta name="DC.Publisher" content="XMPP Standards Foundation">
+<meta name="DC.Contributor" content="XMPP Extensions Editor">
+<meta name="DC.Date" content="2019-07-30">
+<meta name="DC.Type" content="XMPP Extension Protocol">
+<meta name="DC.Format" content="XHTML">
+<meta name="DC.Identifier" content="XEP-0128">
+<meta name="DC.Language" content="en">
+<meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2018 by the XMPP Standards Foundation (XSF).">
+</head>
+<body onload="prettyPrint()">
+<h1>XEP-0128: Service Discovery Extensions</h1>
+<div class="docmeta-wrap">
+<dl id="docmeta" class="compact">
+<dt>Abstract</dt>
+<dd>This document specifies best practices for including extended information in Service Discovery results.</dd>
+<dt>Author</dt>
+<dd>Peter Saint-Andre</dd>
+<dt>Copyright</dt>
+<dd>© 1999 – 2019 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd>
+<dt>Status</dt>
+<dd>
+<p>Active</p>
+<div id="status-notice" class="active informational">NOTICE: This Informational specification defines a best practice or protocol profile that has been approved by the XMPP Council and/or the XSF Board of Directors. Implementations are encouraged and the best practice or protocol profile is appropriate for deployment in production systems.</div>
+</dd>
+<dt>Type</dt>
+<dd>Informational</dd>
+<dt>Version</dt>
+<dd>1.0.1 (2019-07-30)</dd>
+</dl>
+<div class="timeline-wrap">
+<div class="timeline-head">Document Lifecycle</div>
+<ol class="timeline">
+<li>Experimental</li>
+<li>Proposed</li>
+<li class="current">Active</li>
+</ol>
+</div>
+</div>
+<nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc">
+<li><a href="#intro">Introduction</a></li>
+<li><a href="#recommendations">Recommendations</a></li>
+<li>
+<a href="#examples">Examples</a><ol>
+<li><a href="#examples-server">IM Server</a></li>
+<li><a href="#examples-muc">Multi-User Chat Room</a></li>
+</ol>
+</li>
+<li><a href="#impl">Implementation Notes</a></li>
+<li><a href="#security">Security Considerations</a></li>
+<li><a href="#iana">IANA Considerations</a></li>
+<li><a href="#registrar">XMPP Registrar Considerations</a></li>
+</ol>
+<h6><a href="#appendices">Appendices</a></h6>
+<ol class="toc-appendices">
+<li><a href="#appendix-docinfo">Document Information</a></li>
+<li><a href="#appendix-authorinfo">Author Information</a></li>
+<li><a href="#appendix-legal">Legal Notices</a></li>
+<li><a href="#appendix-xmpp">Relation to XMPP</a></li>
+<li><a href="#appendix-discuss">Discussion Venue</a></li>
+<li><a href="#appendix-conformance">Requirements Conformance</a></li>
+<li><a href="#appendix-notes">Notes</a></li>
+<li><a href="#appendix-revs">Revision History</a></li>
+</ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">Developers periodically wonder why <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm55">1</a>] does not include more bits of information. For example, why does the &lt;identity/&gt; element not include a 'description' attribute, and can we add one now? The answer is: well, it just doesn't, and at this point it's too late to make further changes (since XEP-0030 is Final). So the best approach is to specify a well-defined extension mechanism.</p>
+  <p class="" style="">Let us consider an example. A <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm60">2</a>] room might want to include additional information in its service discovery results, such as the full room description, the current discussion topic (room subject), the number of occupants in the room, and the JID of the room owner.</p>
+  <p class="" style="">Adding one new attribute to the service discovery schema (even if that were an option) would not solve the problem, since a MUC service might want to provide certain bits of information, whereas a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm65">3</a>] service might want to provide other bits.</p>
+  <p class="" style="">A better solution would be to include extended information qualified by a namespace that provides a way to flexibly define structured data formats. Thankfully, we already possess such a protocol: <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0004.html">Data Forms (XEP-0004)</a></span>  [<a href="#nt-idm70">4</a>]. In addition, we possess a way to define common fields used in data forms: <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0068.html">Field Standardization for Data Forms (XEP-0068)</a></span>  [<a href="#nt-idm74">5</a>]. Using these building blocks, we can define some best practices for extending service discovery results.</p>
+<h2 id="recommendations">2.
+       Recommendations<a class="anchor-link" href="#recommendations"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">If an entity desires to provide extended information about itself in an IQ results stanza within the context of the <span class="ref">Service Discovery</span> protocol, it SHOULD do so by including each bit of information as the XML character data of the &lt;value/&gt; child of a distinct &lt;field/&gt; element, with the entire set of fields contained within an &lt;x/&gt; element of type "result" qualified by the 'jabber:x:data' namespace; this &lt;x/&gt; element SHOULD be a child of the &lt;query/&gt; element qualified by the 'http://jabber.org/protocol/disco#info' namespace. Thus the IQ result SHOULD be of the following form:</p>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;iq type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;x type='result' xmlns='jabber:x:data'&gt;
+      &lt;field var='[var-name]' label='[optional]'&gt;
+        &lt;value&gt;[var-value]&lt;/value&gt;
+      &lt;/field&gt;
+      ...
+    &lt;/x&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></figure>
+  <p class="" style="">Note: A &lt;field/&gt; element MAY contain more than one &lt;value/&gt; child if appropriate.</p>
+  <p class="" style="">If the data fields are to be used in the context of a protocol approved by the XMPP Standards Foundation, they SHOULD be described in the relevant XMPP Extension Protocol specification and registered in accordance with the rules defined in XEP-0068, resulting in the inclusion of a &lt;field/&gt; element whose 'var' attribute has a value of "FORM_TYPE" and whose 'type' attribute has a value of "hidden".</p>
+  <p class="" style="">An entity MUST NOT supply extended information about associated children communicated via the 'http://jabber.org/protocol/disco#items' namespace, since a core principle of <span class="ref">Service Discovery</span> is that an entity must define its own identity only and must not define the identity of any children associated with the entity.</p>
+<h2 id="examples">3.
+       Examples<a class="anchor-link" href="#examples"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <div class="indent">
+<h3 id="examples-server">3.1 IM Server<a class="anchor-link" href="#examples-server"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+    <p class="" style="">The following is an example of including a disco extension in the IQ result sent by a standard instant messaging server.</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Entity Queries Server for Information<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='capulet.com'
+    to='shakespeare.lit'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+
+&lt;iq type='result'
+    from='shakespeare.lit'
+    to='capulet.com'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity
+        category='server'
+        type='im'
+        name='shakespeare.lit jabber server'/&gt;
+    &lt;feature var='jabber:iq:register'/&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field var='FORM_TYPE' type='hidden'&gt;
+        &lt;value&gt;http://jabber.org/network/serverinfo&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='c2s_port'&gt;
+        &lt;value&gt;5222&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='c2s_port_ssl'&gt;
+        &lt;value&gt;5223&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='http_access'&gt;
+        &lt;value&gt;http://shakespeare.lit/jabber&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='ip_version'&gt;
+        &lt;value&gt;ipv4&lt;/value&gt;
+        &lt;value&gt;ipv6&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='info_url'&gt;
+        &lt;value&gt;http://shakespeare.lit/support.php&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent">
+<h3 id="examples-muc">3.2 Multi-User Chat Room<a class="anchor-link" href="#examples-muc"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+    <p class="" style="">The following is an example of including a disco extension in the IQ result sent by a Multi-User Chat room.</p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> User Queries Room for Information<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='hag66@shakespeare.lit/pda'
+    to='darkcave@macbeth.shakespeare.lit'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+
+&lt;iq type='result'
+    from='darkcave@macbeth.shakespeare.lit'
+    to='hag66@shakespeare.lit/pda'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity
+        category='conference'
+        type='text'
+        name='A Dark Cave'/&gt;
+    &lt;feature var='http://jabber.org/protocol/muc'/&gt;
+    &lt;feature var='jabber:iq:register'/&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field var='FORM_TYPE' type='hidden'&gt;
+        &lt;value&gt;http://jabber.org/protocol/muc#roominfo&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='muc#roominfo_description' label='Description'&gt;
+        &lt;value&gt;The place for all good witches!&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='muc#roominfo_subject' label='Subject'&gt;
+        &lt;value&gt;Spells&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='muc#roominfo_occupants' label='Number of occupants'&gt;
+        &lt;value&gt;3&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='muc#roominfo_lang' label='Language of discussion'&gt;
+        &lt;value&gt;en&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+<h2 id="impl">4.
+       Implementation Notes<a class="anchor-link" href="#impl"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">In general, the XMPP Standards Foundation may choose to define at most one FORM_TYPE for each service discovery identity (category+type) registered with the XMPP Registrar. In addition, particular applications may define application-specific FORM_TYPEs as well, and one entity may have multiple service discovery identities (e.g., an XMPP server might also function as a publish-subscribe service). Therefore, it is possible (and allowed) for a single service discovery result to contain multiple service discovery extension elements (potentially up to two elements for each identity).</p>
+<h2 id="security">5.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">Applications SHOULD ensure that information disclosed in a disco extension is appropriate for discovery by any entity on the network.</p>
+<h2 id="iana">6.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm99">6</a>].</p>
+<h2 id="registrar">7.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm105">7</a>]; however, specifications following the best practices defined herein may register FORM_TYPEs and field values with the XMPP Registrar.</p>
+<hr>
+<a name="appendices"></a><h2>Appendices</h2>
+<h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<dl class="compact">
+<dt>Series</dt>
+<dd><a href="http://xmpp.org/extensions/">XEP</a></dd>
+<dt>Number</dt>
+<dd>0128</dd>
+<dt>Publisher</dt>
+<dd><a href="/xsf/">XMPP Standards Foundation</a></dd>
+<dt>Status</dt>
+<dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Active">Active</a></dd>
+<dt>Type</dt>
+<dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Informational">Informational</a></dd>
+<dt>Version</dt>
+<dd>1.0.1</dd>
+<dt>Last Updated</dt>
+<dd>2019-07-30</dd>
+<dt>Approving Body</dt>
+<dd><a href="http://xmpp.org/council/">XMPP Council</a></dd>
+<dt>Dependencies</dt>
+<dd>XMPP Core, XEP-0004, XEP-0030, XEP-0068</dd>
+<dt>Supersedes</dt>
+<dd>None</dd>
+<dt>Superseded By</dt>
+<dd>None</dd>
+<dt>Short Name</dt>
+<dd>N/A</dd>
+<dt>Source Control</dt>
+<dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0128.xml">HTML</a></dd>
+</dl>
+<p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0128.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0128.pdf">PDF</a></p>
+<h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<h5>Peter Saint-Andre</h5>
+<dl class="compact">
+<dt>Email</dt>
+<dd><a href="mailto:xsf@stpeter.im">xsf@stpeter.im</a></dd>
+<dt>JabberID</dt>
+<dd><a href="xmpp:peter@jabber.org">peter@jabber.org</a></dd>
+<dt>URI</dt>
+<dd><a href="http://stpeter.im/">http://stpeter.im/</a></dd>
+</dl>
+<h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<div class="indent">
+<h4>Copyright</h4>
+<p>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p>
+<h4>Permissions</h4>
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p>
+<h4>Disclaimer of Warranty</h4>
+<p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p>
+<h4>Limitation of Liability</h4>
+<p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p>
+<h4>IPR Conformance</h4>
+<p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p>
+<h4>Visual Presentation</h4>
+<p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p>
+</div>
+<h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p>
+<h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p>
+<p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p>
+<p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p>
+<h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p>
+<h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<div class="indent">
+<p><a name="nt-idm55">1</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p>
+<p><a name="nt-idm60">2</a>. XEP-0045: Multi-User Chat &lt;<a href="https://xmpp.org/extensions/xep-0045.html">https://xmpp.org/extensions/xep-0045.html</a>&gt;.</p>
+<p><a name="nt-idm65">3</a>. XEP-0060: Publish-Subscribe &lt;<a href="https://xmpp.org/extensions/xep-0060.html">https://xmpp.org/extensions/xep-0060.html</a>&gt;.</p>
+<p><a name="nt-idm70">4</a>. XEP-0004: Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0004.html">https://xmpp.org/extensions/xep-0004.html</a>&gt;.</p>
+<p><a name="nt-idm74">5</a>. XEP-0068: Field Data Standardization for Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0068.html">https://xmpp.org/extensions/xep-0068.html</a>&gt;.</p>
+<p><a name="nt-idm99">6</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p>
+<p><a name="nt-idm105">7</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p>
+</div>
+<h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p>
+<ol class="revision-history">
+<li id="revision-history-v1.0.1">
+<div class="revision-head">Version 1.0.1 (2019-07-30)<a class="anchor-link" href="#revision-history-v1.0.1"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>Remove now-incorrect informational statement about the likelihood of multiple forms in a single disco#info reply.<div class="revision-author">gdk</div>
+</li>
+<li id="revision-history-v1.0">
+<div class="revision-head">Version 1.0 (2004-10-20)<a class="anchor-link" href="#revision-history-v1.0"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>Per a vote of the Jabber Council, advanced status to Active; also added implementation notes.<div class="revision-author">psa</div>
+</li>
+<li id="revision-history-v0.2">
+<div class="revision-head">Version 0.2 (2004-03-15)<a class="anchor-link" href="#revision-history-v0.2"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>Clarified syntax and corrected several errors; added IM server example.<div class="revision-author">psa</div>
+</li>
+<li id="revision-history-v0.1">
+<div class="revision-head">Version 0.1 (2004-03-05)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>Initial version.<div class="revision-author">psa</div>
+</li>
+</ol>
+<p>END</p>
+</body>
+</html>
