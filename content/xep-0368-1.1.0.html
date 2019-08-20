@@ -1,0 +1,299 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>XEP-0368: SRV records for XMPP over TLS</title>
+<style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0368";
+}
+        </style>
+<link rel="stylesheet" type="text/css" href="xmpp.css">
+<link href="prettify.css" type="text/css" rel="stylesheet">
+<link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+<script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0">
+<meta name="DC.Title" content="SRV records for XMPP over TLS">
+<meta name="DC.Creator" content="Travis Burtrum">
+<meta name="DC.Description" content="This specification defines a procedure to look up xmpps-client/xmpps-server SRV records (for direct TLS connections) in addition to xmpp-client/xmpp-server and mix weights/priorities.">
+<meta name="DC.Publisher" content="XMPP Standards Foundation">
+<meta name="DC.Contributor" content="XMPP Extensions Editor">
+<meta name="DC.Date" content="2019-08-20">
+<meta name="DC.Type" content="XMPP Extension Protocol">
+<meta name="DC.Format" content="XHTML">
+<meta name="DC.Identifier" content="XEP-0368">
+<meta name="DC.Language" content="en">
+<meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2018 by the XMPP Standards Foundation (XSF).">
+</head>
+<body onload="prettyPrint()">
+<h1>XEP-0368: SRV records for XMPP over TLS</h1>
+<div class="docmeta-wrap">
+<dl id="docmeta" class="compact">
+<dt>Abstract</dt>
+<dd>This specification defines a procedure to look up xmpps-client/xmpps-server SRV records (for direct TLS connections) in addition to xmpp-client/xmpp-server and mix weights/priorities.</dd>
+<dt>Author</dt>
+<dd>Travis Burtrum</dd>
+<dt>Copyright</dt>
+<dd>© 1999 – 2019 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd>
+<dt>Status</dt>
+<dd>
+<p>Draft</p>
+<div id="status-notice" class="draft standards track">NOTICE: The protocol defined herein is a <strong>Draft Standard</strong> of the XMPP Standards Foundation. Implementations are encouraged and the protocol is appropriate for deployment in production systems, but some changes to the protocol are possible before it becomes a Final Standard.</div>
+</dd>
+<dt>Type</dt>
+<dd>Standards Track</dd>
+<dt>Version</dt>
+<dd>1.1.0 (2019-08-20)</dd>
+</dl>
+<div class="timeline-wrap">
+<div class="timeline-head">Document Lifecycle</div>
+<ol class="timeline">
+<li>Experimental</li>
+<li>Proposed</li>
+<li class="current">Draft</li>
+<li>Final</li>
+</ol>
+</div>
+</div>
+<nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc">
+<li><a href="#intro">Introduction</a></li>
+<li><a href="#glossary">Glossary</a></li>
+<li><a href="#reqs">Requirements</a></li>
+<li><a href="#usecases">Use Cases</a></li>
+<li><a href="#impl">Implementation Notes</a></li>
+<li><a href="#security">Security Considerations</a></li>
+<li><a href="#iana">IANA Considerations</a></li>
+<li><a href="#registrar">XMPP Registrar Considerations</a></li>
+</ol>
+<h6><a href="#appendices">Appendices</a></h6>
+<ol class="toc-appendices">
+<li><a href="#appendix-docinfo">Document Information</a></li>
+<li><a href="#appendix-authorinfo">Author Information</a></li>
+<li><a href="#appendix-legal">Legal Notices</a></li>
+<li><a href="#appendix-xmpp">Relation to XMPP</a></li>
+<li><a href="#appendix-discuss">Discussion Venue</a></li>
+<li><a href="#appendix-conformance">Requirements Conformance</a></li>
+<li><a href="#appendix-notes">Notes</a></li>
+<li><a href="#appendix-revs">Revision History</a></li>
+</ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style=""><span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-idm83">1</a>] specifies the use of xmpp-client/xmpp-server SRV records as the method of discovering how to connect to an XMPP server. This XEP extends that to include new xmpps-client/xmpps-server SRV records pointing to direct TLS ports and combine priorities and weights as if they were a single SRV record similar to <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6186">RFC 6186</a></span>  [<a href="#nt-idm87">2</a>]. It also provides an easy way for clients to bypass restrictive firewalls that only allow HTTPS, for servers to host multiple protocols/services on a single port, and for servers and clients to take advantage of less round trips and existing direct TLS loadbalancers.</p>
+<h2 id="glossary">2.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <div class="indent"><dl>
+    <di>
+      <dt><strong>Direct TLS</strong></dt>
+      <dd>
+        Where TLS is attempted immediately on connect to a TCP socket, like how HTTPS works, not like how STARTTLS works with any protocol.
+      </dd>
+    </di>
+  </dl></div>
+<h2 id="reqs">3.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+    <p class="" style="">The following format for DNS SRV resource records is specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc2782">RFC 2782</a></span>  [<a href="#nt-idm98">3</a>]:</p>
+    <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+    _service._proto.name. TTL class SRV priority weight port target.
+</pre></figure>
+    <p class="" style=""><span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-idm83">1</a>] defines SRV records only where 'service' is 'xmpp-client' and 'xmpp-server'. This document specifies two additionally look up records where 'service' is 'xmpps-client' and 'xmpps-server'. This document specifies that the following additional rules apply:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">Both 'xmpp-' and 'xmpps-' records SHOULD be treated as the same record with regard to connection order as specified by <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc2782">RFC 2782</a></span>  [<a href="#nt-idm98">3</a>], in that all priorities and weights are mixed. This enables the server operator to decide if they would rather clients connect with STARTTLS or direct TLS.  However, clients MAY choose to prefer one type of connection over the other.</li>
+      <li class="" style="">Where 'service' starts with 'xmpps-' the client or server MUST connect with direct TLS enabled.</li>
+      <li class="" style="">Where 'service' starts with 'xmpp-' the client or server MUST NOT connect with direct TLS enabled, connection method is unchanged from <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-idm83">1</a>].</li>
+      <li class="" style="">TLS certificates MUST be validated the same way as for STARTTLS. (i.e., as specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-idm83">1</a>]).</li>
+      <li class="" style="">STARTTLS MUST NOT be used over direct TLS connections.</li>
+      <li class="" style="">Client or server MUST set SNI TLS extension to the JID's domain part.</li>
+      <li class="" style="">Client or server SHOULD set the ALPN (<span class="ref" style=""><a href="https://tools.ietf.org/html/rfc7301">RFC 7301</a></span>  [<a href="#nt-idm128">4</a>]) TLS extension.</li>
+      <li class="" style="">When ALPN is used, the ALPN protocol MUST be '<strong>xmpp-client</strong>', where the SRV service is '<strong>xmpps-client</strong>'.</li>
+      <li class="" style="">When ALPN is used, the ALPN protocol MUST be '<strong>xmpp-server</strong>', where the SRV service is '<strong>xmpps-server</strong>'.</li>
+    </ol>
+<h2 id="usecases">4.
+       Use Cases<a class="anchor-link" href="#usecases"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">For server operators, this provides a way to host multiple services on the same port, especially when SNI or ALPN extensions are used. Servers could even host xmpp-client and xmpp-server services on the same TLS port. For clients, this provides a virtually zero overhead way to bypass restrictive firewalls that only allow HTTP over port 80 and HTTPS over port 443, as XMPP-over-TLS is indistinguishable from HTTP-over-TLS when ALPN is not used. For clients and servers, direct TLS saves round trips vs STARTTLS.</p>
+<h2 id="impl">5.
+       Implementation Notes<a class="anchor-link" href="#impl"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">The only overhead is the single additional SRV lookup. All clients that support STARTTLS already have support for direct TLS.</p>
+  <p class="" style="">Server operators should not expect multiplexing (via ALPN) to work in all scenarios and therefore should provide additional SRV record(s) that do not require multiplexing (either standard STARTTLS or dedicated direct XMPP-over-TLS).  This is a result of relying on ALPN for multiplexing, where ALPN might not be supported by all devices or may be disabled by a user due to privacy reasons.</p>
+  <p class="" style="">If the <code>_xmpps-client</code> (or <code>_xmpps-server</code>) target is set to <code>.</code> (dot), this indicates as per <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc2782">RFC 2782</a></span>  [<a href="#nt-idm98">3</a>] that the service is not provided for the given domain. In this context, this means that Direct TLS is not supported. In this case, the initiating party SHOULD look up <code>_xmpp-client</code> (or <code>_xmpp-server</code>) records. The initiating party MUST NOT perform A/AAAA fallback as per <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm83">1</a>] (since the service provider has already indicated that the SRV protocol is supported).</p>
+<h2 id="security">6.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+    <p class="" style="">Direct TLS provides AT LEAST the same level of security as STARTTLS, and more privacy without ALPN as using STARTTLS leaks that the underlying protocol is XMPP, while any direct TLS stream should be indistinguishable from any other direct TLS stream. Direct TLS provides more security than STARTTLS if <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc7590">RFC 7590</a></span>  [<a href="#nt-idm159">5</a>] is not followed, as it isn't subject to STARTTLS stripping. All security setup and certificate validation code SHOULD be shared between the STARTTLS and direct TLS logic as well. All SRV-based connection methods are subject to DNS modification/stripping/spoofing of SRV records in the absence of DNSSEC.</p>
+<h2 id="iana">7.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+    <p class="" style="">ALPN (<span class="ref" style=""><a href="https://tools.ietf.org/html/rfc7301">RFC 7301</a></span>  [<a href="#nt-idm128">4</a>]) requires registration of new Protocol IDs.  This document specifies two Protocol IDs:</p>
+
+<p class="" style="">
+Protocol: XMPP jabber:client namespace<br>
+Identification Sequence:<br>
+   0x78 0x6d 0x70 0x70 0x2d 0x63 0x6c 0x69 0x65 0x6e 0x74 ("xmpp-client")<br>
+Reference: [<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0368.html">SRV records for XMPP over TLS (XEP-0368)</a></span>  [<a href="#nt-idm173">6</a>]]
+</p>
+
+<p class="" style="">
+Protocol: XMPP jabber:server namespace<br>
+Identification Sequence:<br>
+   0x78 0x6d 0x70 0x70 0x2d 0x73 0x65 0x72 0x76 0x65 0x72 ("xmpp-server")<br>
+Reference: [<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0368.html">SRV records for XMPP over TLS (XEP-0368)</a></span>  [<a href="#nt-idm173">6</a>]]
+</p>
+
+<p class="" style="">The ALPN registry is currently located <a href="https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids">here</a>.</p>
+
+<p class="" style="">Issues with direct TLS ports mentioned in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc2595">RFC 2595</a></span>  [<a href="#nt-idm188">7</a>] <a href="https://tools.ietf.org/html/rfc2595#section-7">Section 7</a> do not apply here for these reasons:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">URL scheme is unchanged.</li>
+      <li class="" style="">"Security" is the same between STARTTLS and direct TLS, and post-2014 the general consensus is that no public XMPP server or client should connect without some form of TLS per the <a href="https://github.com/stpeter/manifesto/blob/master/manifesto.txt">ubiquitous encryption manifesto</a>.</li>
+      <li class="" style="">A "Use TLS when available" security model is possible here because the client could fall back to standard STARTTLS SRV records if the server administrator supplies them.</li>
+      <li class="" style="">No port numbers are assigned because SRV allows using arbitrary ports at the server administrator's discretion.</li>
+    </ol>
+<h2 id="registrar">8.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a>
+</h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm201">8</a>].</p>
+<hr>
+<a name="appendices"></a><h2>Appendices</h2>
+<h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<dl class="compact">
+<dt>Series</dt>
+<dd><a href="http://xmpp.org/extensions/">XEP</a></dd>
+<dt>Number</dt>
+<dd>0368</dd>
+<dt>Publisher</dt>
+<dd><a href="/xsf/">XMPP Standards Foundation</a></dd>
+<dt>Status</dt>
+<dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Draft">Draft</a></dd>
+<dt>Type</dt>
+<dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd>
+<dt>Version</dt>
+<dd>1.1.0</dd>
+<dt>Last Updated</dt>
+<dd>2019-08-20</dd>
+<dt>Approving Body</dt>
+<dd><a href="http://xmpp.org/council/">XMPP Council</a></dd>
+<dt>Dependencies</dt>
+<dd>XMPP Core, RFC 2782</dd>
+<dt>Supersedes</dt>
+<dd>None</dd>
+<dt>Superseded By</dt>
+<dd>None</dd>
+<dt>Short Name</dt>
+<dd>NOT_YET_ASSIGNED</dd>
+<dt>Source Control</dt>
+<dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0368.xml">HTML</a></dd>
+</dl>
+<p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0368.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0368.pdf">PDF</a></p>
+<h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<h5>Travis Burtrum</h5>
+<dl class="compact">
+<dt>Email</dt>
+<dd><a href="mailto:travis@burtrum.org">travis@burtrum.org</a></dd>
+<dt>JabberID</dt>
+<dd><a href="xmpp:travis@burtrum.org">travis@burtrum.org</a></dd>
+</dl>
+<h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<div class="indent">
+<h4>Copyright</h4>
+<p>This XMPP Extension Protocol is copyright © 1999 – 2018 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p>
+<h4>Permissions</h4>
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p>
+<h4>Disclaimer of Warranty</h4>
+<p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p>
+<h4>Limitation of Liability</h4>
+<p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p>
+<h4>IPR Conformance</h4>
+<p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p>
+<h4>Visual Presentation</h4>
+<p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p>
+</div>
+<h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p>
+<h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p>
+<p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p>
+<p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="http://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p>
+<p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p>
+<h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p>
+<h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<div class="indent">
+<p><a name="nt-idm83">1</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p>
+<p><a name="nt-idm87">2</a>. RFC 6186: Use of SRV Records for Locating Email Submission/Access Services &lt;<a href="http://tools.ietf.org/html/rfc6186">http://tools.ietf.org/html/rfc6186</a>&gt;.</p>
+<p><a name="nt-idm98">3</a>. RFC 2782: A DNS RR for specifying the location of services (DNS SRV) &lt;<a href="http://tools.ietf.org/html/rfc2782">http://tools.ietf.org/html/rfc2782</a>&gt;.</p>
+<p><a name="nt-idm128">4</a>. RFC 7301: Transport Layer Security (TLS) Application-Layer Protocol Negotiation Extension &lt;<a href="https://tools.ietf.org/html/rfc7301">https://tools.ietf.org/html/rfc7301</a>&gt;.</p>
+<p><a name="nt-idm159">5</a>. RFC 7590: Use of Transport Layer Security (TLS) in the Extensible Messaging and Presence Protocol (XMPP) &lt;<a href="http://tools.ietf.org/html/rfc7590">http://tools.ietf.org/html/rfc7590</a>&gt;.</p>
+<p><a name="nt-idm173">6</a>. XEP-0368: SRV records for XMPP over TLS &lt;<a href="https://xmpp.org/extensions/xep-0368.html">https://xmpp.org/extensions/xep-0368.html</a>&gt;.</p>
+<p><a name="nt-idm188">7</a>. RFC 2595: Using TLS with IMAP, POP3 and ACAP &lt;<a href="http://tools.ietf.org/html/rfc2595">http://tools.ietf.org/html/rfc2595</a>&gt;.</p>
+<p><a name="nt-idm201">8</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p>
+</div>
+<h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a>
+</h3>
+<p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p>
+<ol class="revision-history">
+<li id="revision-history-v1.1.0">
+<div class="revision-head">Version 1.1.0 (2019-08-20)<a class="anchor-link" href="#revision-history-v1.1.0"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Describe how to fall back if _xmpps-server/_xmpps-client records cannot be found.</p>
+<div class="revision-author">jsc</div>
+</li>
+<li id="revision-history-v1.0.1">
+<div class="revision-head">Version 1.0.1 (2019-07-15)<a class="anchor-link" href="#revision-history-v1.0.1"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Fix trivial 'to' vs. 'two' typo.</p>
+<div class="revision-author">Nyco</div>
+</li>
+<li id="revision-history-v1.0.0">
+<div class="revision-head">Version 1.0.0 (2017-03-09)<a class="anchor-link" href="#revision-history-v1.0.0"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Advance to draft as approved by the XMPP Council.</p>
+<div class="revision-author">XEP Editor (ssw)</div>
+</li>
+<li id="revision-history-v0.1.2">
+<div class="revision-head">Version 0.1.2 (2017-02-15)<a class="anchor-link" href="#revision-history-v0.1.2"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Implement more last call comments, editorial changes, mixing SRV records is now SHOULD.</p>
+<div class="revision-author">tjb</div>
+</li>
+<li id="revision-history-v0.1.1">
+<div class="revision-head">Version 0.1.1 (2017-02-06)<a class="anchor-link" href="#revision-history-v0.1.1"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Implement last call comments, editorial changes, SNI is now MUST.</p>
+<div class="revision-author">tjb</div>
+</li>
+<li id="revision-history-v0.1">
+<div class="revision-head">Version 0.1 (2015-12-15)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">Initial published version approved by the XMPP Council.</p>
+<div class="revision-author">XEP Editor (asw)</div>
+</li>
+<li id="revision-history-v0.0.2">
+<div class="revision-head">Version 0.0.2 (2015-12-15)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">tls proto to tcp, change service instead.  Set SNI correctly.</p>
+<div class="revision-author">tjb</div>
+</li>
+<li id="revision-history-v0.0.1">
+<div class="revision-head">Version 0.0.1 (2015-10-31)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a>
+</div>
+<p class="" style="">First draft.</p>
+<div class="revision-author">psa</div>
+</li>
+</ol>
+<p>END</p>
+</body>
+</html>
