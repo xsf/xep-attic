@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0357: Push Notifications</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0357";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0"><meta name="DC.Title" content="Push Notifications"><meta name="DC.Creator" content="Kevin Smith"><meta name="DC.Creator" content="Lance Stout"><meta name="DC.Description" content="This specification defines a way for an XMPP servers to deliver information for use in push notifications to mobile and other devices."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2020-02-11"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0357"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0357: Push Notifications</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification defines a way for an XMPP servers to deliver information for use in push notifications to mobile and other devices.</dd><dt>Authors</dt><dd><ul class="authors"><li>Kevin Smith</li><li>Lance Stout</li></ul></dd><dt>Copyright</dt><dd>© 1999 – 2020 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Deferred</p><div id="status-notice" class="deferred standards track">WARNING: This document has been automatically Deferred after 12 months of inactivity in its previous Experimental state. Implementation of the protocol described herein is not recommended for production systems. However, exploratory implementations are encouraged to resume the standards process.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.4.1 (2020-02-11)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li>Experimental</li><li class="current inserted">Deferred</li><li>Proposed</li><li>Draft</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#concepts">Concepts and Approach</a><ol><li><a href="#general-architecture">General Architecture of a Push Notification Service</a></li><li><a href="#xmpp-architecture">Mapping the General Architecture to XMPP</a></li></ol></li><li><a href="#sect-idm144">XMPP Push Service</a><ol><li><a href="#sect-idm149">Recommended Defaults</a></li><li><a href="#sect-idm154">Business Rules</a></li></ol></li><li><a href="#disco">Discovering Support</a><ol><li><a href="#sect-idm160">Account Owner Service Discovery</a></li><li><a href="#sect-idm169">Push Service Discovery</a></li></ol></li><li><a href="#enabling">Enabling Notifications</a></li><li><a href="#disabling">Disabling Notifications</a></li><li><a href="#publishing">Publishing Notifications</a><ol><li><a href="#sect-idm213">Publish Errors</a></li><li><a href="#sect-idm217">Notification Delivery</a></li></ol></li><li><a href="#sect-idm220">Remote Disabling of Notifications</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#ns">Protocol Namespaces</a></li><li><a href="#registrar-versioning">Protocol Versioning</a></li><li><a href="#registrar-formtypes">Field Standardization</a><ol><li><a href="#registrar-formtypes">urn:xmpp:push:summary FORM_TYPE</a></li></ol></li><li><a href="#registrar-disco">Service Discovery Category/Type</a></li></ol></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+        <p class="" style="">The purpose of push notifications is to inform users of new messages or other pertinent information even when they have no XMPP clients online.</p>
+        <p class="" style="">Typically, these notifications are delivered to a user's mobile device, displaying a notice that can trigger opening an XMPP client to continue a conversation or answer a Jingle session request.</p>
+
+        <p class="" style="">There have been several push notification implementations by mobile XMPP client vendors. However, experience has shown that these implementations carried several drawbacks:</p>
+        <ul class="" style="">
+            <li class="" style="">Treated the XMPP client and XMPP server as one unified service, such that push notifications only worked using the "official" client.</li>
+            <li class="" style="">Proxied a user's session through the client provider's backend services in order to monitor for and trigger push notifications.</li>
+        </ul>
+
+        <p class="" style="">The goal for this document is to make the generalized case possible, whereby a user may use their XMPP client of choice with their own server of choice. The requirements are thus:</p>
+        <ul class="" style="">
+            <li class="" style="">Allow XMPP servers to support push notifications to multiple client implementations, via multiple external or proprietary push services.</li>
+            <li class="" style="">Allow clients to receive push notifications from multiple third-party XMPP servers.</li>
+            <li class="" style="">Eliminate the need for clients to proxy a user's XMPP session in order to enable push notifications.</li>
+        </ul>
+
+        <p class="em" style="">Note: Any publish-subscribe use cases not described herein are described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm100">1</a>]. Also, this document does not show error flows related to the generic publish-subscribe use cases referenced herein, since they are exhaustively defined in <span class="ref">XEP-0060</span>. The reader is referred to <span class="ref">XEP-0060</span> for all relevant protocol details related to the XMPP publish-subscribe extension. This document merely defines a "subset" or "profile" of XMPP publish-subscribe.</p>
+    <h2 id="concepts">2.
+       Concepts and Approach<a class="anchor-link" href="#concepts"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+        <p class="" style="">XMPP Push works between the user's XMPP server and two push notification services in tandem:</p>
+        <ol start="" class="" style="">
+            <li class="" style="">The user's XMPP server publishes notifications to the XMPP Push Service of each of the user's client applications.</li>
+            <li class="" style="">The XMPP Push Service (as defined here) for a client application then delivers the notification to a third-party notification delivery service.</li>
+            <li class="" style="">The third-party (and potentially proprietary or platform-dependent) push service delivers the notification from the client application's backend service to the user's device.</li>
+        </ol>
+
+        <p class="" style="">This two-tiered push architecture allows the user's XMPP server to deliver notifications to arbitrary third-party clients, and in turn allows those clients to use the appropriate delivery mechanism for their platforms without having to share any private keys or other credentials with the XMPP server.</p>
+
+        <div class="indent"><h3 id="general-architecture">2.1 General Architecture of a Push Notification Service<a class="anchor-link" href="#general-architecture"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+            <p class="" style="">The current state-of-the-art for a generic push notification service requires four actors:</p>
+            <div class="indent"><dl>
+                <di>
+                    <dt><strong>App Client</strong></dt>
+                    <dd>The app client is the software installed and ran by the user, and is the final receiver of a push notification.</dd>
+                </di>
+                <di>
+                    <dt><strong>App Server</strong></dt>
+                    <dd>The app server is a backend service for the app client. At minimum, the app server exists to trigger push notifications, but it often also performs business logic for the app.</dd>
+                </di>
+                <di>
+                    <dt><strong>User Agent</strong></dt>
+                    <dd>The user agent is a service running locally on the user's device which receives push notifications and delivers them to the appropriate application.</dd>
+                </di>
+                <di>
+                    <dt><strong>Push Service</strong></dt>
+                    <dd>The push service ferries notifications from the App Server to the User Agent. How it does so is often proprietary and vendor/platform dependent.</dd>
+                </di>
+            </dl></div>
+
+            <p class="" style="">Enabling notifications is a five step process:</p>
+            <ol start="" class="" style="">
+                <li class="" style="">The App Client asks the User Agent to authorize the delivery of notifications.</li>
+                <li class="" style="">The User Agent then requests a token from the Push Service which authorizes delivery of notifications to that User Agent and App Client.</li>
+                <li class="" style="">The Push Service issues the token to the User Agent.</li>
+                <li class="" style="">The User Agent gives the token to the App Client.</li>
+                <li class="" style="">The App Client sends the token to the App Server for later use.</li>
+            </ol>
+            <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> The five general steps to enable push notifications<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
++------------+          +------------+
+|            |    5     |            |
+| App Client +----------&gt; App Server |
+|            |          |            |
++-+--------^-+          +------------+
+  |1       |4
+  |        |
++-v--------+-+  3       +---------------+
+|            &lt;----------+               |
+| User Agent |          | Push Service  |
+|            +----------&gt;               |
++------------+  2       +---------------+
+</pre></figure>
+            <p class="" style="">To send a push notification, the App Server sends the notification data to the Push Service along with the saved token.</p>
+
+            <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> General delivery of a push notification<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
++------------+          +------------+
+|            |          |            |
+| App Client |          | App Server |
+|            |          |            |
++-----^------+          +------+-----+
+      |                        |
+      |                        |
++-----+------+          +------v--------+
+|            |          |               |
+| User Agent &lt;----------+ Push Service  |
+|            |          |               |
++------------+          +---------------+
+</pre></figure>
+        </div>
+
+        <div class="indent"><h3 id="xmpp-architecture">2.2 Mapping the General Architecture to XMPP<a class="anchor-link" href="#xmpp-architecture"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+            <p class="" style="">To build an XMPP Push service on top of a general push service, we perform the following mapping:</p>
+            <ul class="" style="">
+                <li class="" style="">The general App Client becomes the XMPP User Agent</li>
+                <li class="" style="">The general App Server becomes the XMPP Push Service</li>
+                <li class="" style="">The XMPP server is now the new logical "App Server"</li>
+                <li class="" style="">The XMPP client portion of the application is the new logical "App Client"</li>
+            </ul>
+            <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Mapping the generic push architecture to use XMPP<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
++-------------+         +-------------+
+|             |   5     |             |
+| XMPP Client +---------&gt; XMPP Server |
+|             |         |             |
++-+--------^--+         +-------------+
+  |1       |4
+  |        |
++-v--------+-+  3       +------------+-------------------+
+|            &lt;----------+            |                   |
+| App Client |          | App Server | XMPP Push Service |
+|            +----------&gt;            |                   |
++------------+  2       +------------+-------------------+
+</pre></figure>
+        </div>
+    <h2 id="sect-idm144">3.
+       XMPP Push Service<a class="anchor-link" href="#sect-idm144"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+        <p class="" style="">An XMPP Push Service is a PubSub service as defined by the XMPP <span class="ref">XEP-0060</span> extension. The functional difference between a Push Service and a generic pubsub service is that a Push Service will generally summarize and forward published content via non-XMPP mechanisms.</p>
+        <p class="em" style="">Note: a Push Service is provided by a specific client application as part of the App Server. A user's XMPP server will typically <em>not</em> act as a Push Service itself, but will instead publish to the Push Services for the user's client applications.</p>
+
+        <div class="indent"><h3 id="sect-idm149">3.1 Recommended Defaults<a class="anchor-link" href="#sect-idm149"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+            <p class="" style="">A Push Service MUST:</p>
+            <ul class="" style="">
+                <li class="" style="">Support the 'whitelist' access model and set it to the default.</li>
+                <li class="" style="">Support the 'publish-only' affiliation.</li>
+            </ul>
+        </div>
+        <div class="indent"><h3 id="sect-idm154">3.2 Business Rules<a class="anchor-link" href="#sect-idm154"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+            <p class="" style="">Each PubSub node is a delivery target for the Push Service, which could represent multiple devices for a single user.</p>
+            <p class="" style="">In order to prevent information leaks, each node SHOULD be configured with a 'whitelist' access model so that only trusted entities are able to view or subscribe to published notifications. Furthermore, the 'publish-only' affiliation SHOULD be used to allow acceptable entities (such as the server JID and the user's bare JID) to publish to the node to trigger notifications.</p>
+            <p class="" style="">Care SHOULD  be taken to ensure that publish requests are coming from the user's server and not from other third-party client applications using the full JID of a user. A Push Service MAY opt to only accept or further process publish requests from server JIDs and bare user JIDs to ensure that only a user's server is able to publish, but it SHOULD instead use publish options with credentials shared only with the user's server (see <a href="#enabling">Enabling Notifications</a>).</p>
+        </div>
+    <h2 id="disco">4.
+       Discovering Support<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+        <div class="indent"><h3 id="sect-idm160">4.1 Account Owner Service Discovery<a class="anchor-link" href="#sect-idm160"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+            <p class="" style="">Before enabling or disabling push services, a client SHOULD determine whether the user's server supports publishing push notifications; to do so, it MUST send a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm164">2</a>] information quest to the user's bare JID:</p>
+            <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Client queries server regarding protocol support<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='user@example.com/mobile'
+    to='user@example.com'
+    id='x13'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+            <p class="" style="">If the user's server supports publishing push notifications and the account is provisioned to allow them, the server MUST include the feature 'urn:xmpp:push:0' in its list of supported features.</p>
+
+            <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Server communicates protocol support<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit'
+    to='juliet@capulet.lit/balcony'
+    id='disco1'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity category='account' type='registered'/&gt;
+    &lt;feature var='urn:xmpp:push:0'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+        </div>
+
+        <div class="indent"><h3 id="sect-idm169">4.2 Push Service Discovery<a class="anchor-link" href="#sect-idm169"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+            <p class="" style="">If a service supports the XMPP Push Service publish-subscribe profile described herein, it MUST include an identity of "pubsub/push" in "disco#info" results.</p>
+            <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Service identifies as a Push Services<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='push-5.client.example'
+    to='user@example.com/mobile'
+    id='x23'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity category='pubsub' type='push' /&gt;
+    &lt;feature var='urn:xmpp:push:0'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+        </div>
+    <h2 id="enabling">5.
+       Enabling Notifications<a class="anchor-link" href="#enabling"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+        <p class="" style="">The full process for enabling notifications requires initializing two separate push services: between the App Client and App Server, and between the App Server and the user's XMPP server.</p>
+        <p class="em" style="">Note: It is assumed that an App Client is able to perform any registration procedures it requires to bootstrap its own preferred push notification system. Furthermore, it is assumed that the App Client or App Server is able to provision a node on its own XMPP Push Service. It is possible, but not required, to perform these actions over XMPP using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0077.html">In-Band Registration (XEP-0077)</a></span>  [<a href="#nt-idm177">3</a>].</p>
+
+        <ol start="" class="" style="">
+            <li class="" style="">The App Client performs any necessary bootstrapping and registration for its preferred push service.</li>
+            <li class="" style="">The App Client registers itself with the App Server.</li>
+            <li class="" style="">The App Server allocates or reuses a node on the App Server's XMPP Push Service.</li>
+            <li class="" style="">The App Server informs the App Client of the provisioned node, along with any additional parameters required for publishing to that node.</li>
+            <li class="" style="">The App Client requests the XMPP server to publish notifications to the given node.</li>
+        </ol>
+
+        <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> The full flow of enabling push notifications for an application<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
++-------------+         +-------------+
+|             |         |             |
+| XMPP Client +---------&gt; XMPP Server |
+|             |  5b     |             |
++------^------+         +-------------+
+       |5a
+       |
++------+-----+   4      +--------------+---------------------+
+|            &lt;----------+              |                     |
+| App Client |          | App Server &lt;-3-&gt; XMPP Push Service |
+|            +----------&gt;              |                     |
++--+------^--+   2      +--------------+---------------------+
+   |1a    |1d
+   |      |
++--v------+--+   1c     +---------------+
+|            &lt;----------+               |
+| User Agent |          | Push Service  |
+|            +----------&gt;               |
++------------+   1b     +---------------+
+</pre></figure>
+
+        <p class="" style="">For the last step, the App Client sends an IQ-set to the user's bare JID with an &lt;enable /&gt; element qualified by the 'urn:xmpp:push:0' namespace, which MUST contain a 'jid' attribute of the XMPP Push Service being enabled. It SHOULD contain a 'node' attribute which is set to the provisioned node specified by the App Server.</p>
+
+        <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> Enabling Notifications<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='set' id='x42'&gt;
+  &lt;enable xmlns='urn:xmpp:push:0' jid='push-5.client.example' node='yxs32uqsflafdk3iuqo' /&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+        <p class="" style="">An App Server MAY require additional information to be provided with each published notification, such as authentication credentials. These parameters are included in the enable request by adding a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0004.html">Data Forms (XEP-0004)</a></span>  [<a href="#nt-idm191">4</a>] data form with a FORM_TYPE of 'http://jabber.org/protocol/pubsub#publish-options'.</p>
+
+        <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> Enabling Notifications, with provided publish options<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='set' id='x43'&gt;
+  &lt;enable xmlns='urn:xmpp:push:0' jid='push-5.client.example' node='yxs32uqsflafdk3iuqo'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field var='FORM_TYPE'&gt;&lt;value&gt;http://jabber.org/protocol/pubsub#publish-options&lt;/value&gt;&lt;/field&gt;
+      &lt;field var='secret'&gt;&lt;value&gt;eruio234vzxc2kla-91&lt;/value&gt;&lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/enable&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+       <p class="" style="">The JID for a Push Service MAY be enabled multiple times for a user only if different node values are provided. If the combination of JID and node has already been enabled, then the server SHOULD use the last received request for any publish options.</p>
+    <h2 id="disabling">6.
+       Disabling Notifications<a class="anchor-link" href="#disabling"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+        <p class="" style="">If the user decides to stop push notifications for a particular client application, the App Client SHOULD send an IQ-set to the user's bare JID with a &lt;disable /&gt; element qualified by the 'urn:xmpp:push:0' namespace, which MUST include a 'jid' attribute of the service to be removed.</p>
+
+        <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Disabling all notifications to a given service<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='set' id='x97'&gt;
+  &lt;disable xmlns='urn:xmpp:push:0' jid='push-5.client.example' /&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+        <p class="" style="">A 'node' attribute MAY be included to remove a particular JID and node combination if multiple nodes have been enabled for a single service JID.</p>
+
+        <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Disabling notifications<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='set' id='x97'&gt;
+  &lt;disable xmlns='urn:xmpp:push:0' jid='push-5.client.example' node='yxs32uqsflafdk3iuqo' /&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+        <p class="" style="">If a 'node' attribute is provided, then only that combination of JID and node SHOULD be removed from the set of enabled services. Otherwise, the server SHOULD disable all enabled entries for the specified service for the user.</p>
+
+        <p class="" style="">When a service is not enabled, the server MUST NOT attempt publishing notifications to the service.</p>
+    <h2 id="publishing">7.
+       Publishing Notifications<a class="anchor-link" href="#publishing"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+        <p class="" style="">When the user's server detects an event warranting a push notification, it performs a PubSub publish to all XMPP Push Services registered for the user, where the item payload is a &lt;notification /&gt; element in the 'urn:xmpp:push:0' namespace.</p>
+        <p class="" style="">A <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0004.html">Data Forms (XEP-0004)</a></span>  [<a href="#nt-idm191">4</a>] data form whose FORM_TYPE is 'urn:xmpp:push:summary' MAY be included to provide summarized information such as the number of unread messages or number of pending subscription requests.</p>
+        <p class="" style="">Other elements MAY be included if relevant for the notification.</p>
+        <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> Server publishes a push notification<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='set'
+    from='example.com'
+    to='push-5.client.example'
+    id='n12'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='yxs32uqsflafdk3iuqo'&gt;
+      &lt;item&gt;
+        &lt;notification xmlns='urn:xmpp:push:0'&gt;
+          &lt;x xmlns='jabber:x:data'&gt;
+            &lt;field var='FORM_TYPE'&gt;&lt;value&gt;urn:xmpp:push:summary&lt;/value&gt;&lt;/field&gt;
+            &lt;field var='message-count'&gt;&lt;value&gt;1&lt;/value&gt;&lt;/field&gt;
+            &lt;field var='last-message-sender'&gt;&lt;value&gt;juliet@capulet.example/balcony&lt;/value&gt;&lt;/field&gt;
+            &lt;field var='last-message-body'&gt;&lt;value&gt;Wherefore art thou, Romeo?&lt;/value&gt;&lt;/field&gt;
+          &lt;/x&gt;
+          &lt;additional xmlns='http://example.com/custom'&gt;Additional custom elements&lt;/additional&gt;
+        &lt;/notification&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+        <p class="" style="">If additional data was provided when enabling the service, the publish request SHOULD include the data as publish options.</p>
+
+        <figure class="code-example" id="example-13"><figcaption><strong>Example 13.</strong> Server publishes a push notification with provided publish options<a class="anchor-link" href="#example-13"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='set'
+    from='example.com'
+    to='push-5.client.example'
+    id='n12'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='yxs32uqsflafdk3iuqo'&gt;
+      &lt;item&gt;
+        &lt;notification xmlns='urn:xmpp:push:0'&gt;
+          &lt;x xmlns='jabber:x:data'&gt;
+            &lt;field var='FORM_TYPE'&gt;&lt;value&gt;urn:xmpp:push:summary&lt;/value&gt;&lt;/field&gt;
+            &lt;field var='message-count'&gt;&lt;value&gt;1&lt;/value&gt;&lt;/field&gt;
+            &lt;field var='last-message-sender'&gt;&lt;value&gt;juliet@capulet.example/balcony&lt;/value&gt;&lt;/field&gt;
+            &lt;field var='last-message-body'&gt;&lt;value&gt;Wherefore art thou, Romeo?&lt;/value&gt;&lt;/field&gt;
+          &lt;/x&gt;
+          &lt;additional xmlns='http://example.com/custom'&gt;Additional custom elements&lt;/additional&gt;
+        &lt;/notification&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+    &lt;publish-options&gt;
+      &lt;x xmlns='jabber:x:data'&gt;
+        &lt;field var='FORM_TYPE'&gt;&lt;value&gt;http://jabber.org/protocol/pubsub#publish-options&lt;/value&gt;&lt;/field&gt;
+        &lt;field var='secret'&gt;&lt;value&gt;eruio234vzxc2kla-91&lt;value&gt;&lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/publish-options&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+        <div class="indent"><h3 id="sect-idm213">7.1 Publish Errors<a class="anchor-link" href="#sect-idm213"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+            <p class="" style="">If a publish request is returned with an IQ-error, then the server SHOULD consider the particular JID and node combination to be disabled.</p>
+            <p class="" style="">However, a server MAY choose to keep a service enabled if the error is deemed recoverable or transient, until a sufficient number of errors have been received in a row.</p>
+            <p class="" style="">A server MAY retry an automatically disabled JID and node combination after a period of time (e.g. 1 day).</p>
+        </div>
+
+        <div class="indent"><h3 id="sect-idm217">7.2 Notification Delivery<a class="anchor-link" href="#sect-idm217"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+            <p class="" style="">Once the notification has been published to the XMPP Push Service, it is left to the implementation how to deliver the notification to the user's device. However, the general flow for the process looks like so:</p>
+            <figure class="code-example" id="example-14"><figcaption><strong>Example 14.</strong> The full path of a push notification, from XMPP server to user client<a class="anchor-link" href="#example-14"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
++-------------+         +-------------+
+|             |         |             |
+| XMPP Client |         | XMPP Server +--------+
+|             |         |             |        |
++-----^-------+         +-------------+        |
+      .                                        |
+      .                                        |
++-----+------+          +------------+---------v---------+
+|            |          |            |                   |
+| App Client |          | App Server &lt; XMPP Push Service |
+|            |          |            |                   |
++-----^------+          +------+-----+-------------------+
+      |                        |
+      |                        |
++-----+------+          +------v--------+
+|            |          |               |
+| User Agent &lt;----------+ Push Service  |
+|            |          |               |
++------------+          +---------------+
+</pre></figure>
+        </div>
+    <h2 id="sect-idm220">8.
+       Remote Disabling of Notifications<a class="anchor-link" href="#sect-idm220"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+        <p class="" style="">It can be desirable for an XMPP Push Service to stop accepting notifications from the user's XMPP server. To do so, the XMPP Push Service removes the 'publish-only' (or other publish-enabling affiliation) from the user's JID, and MAY send an affiliation change notice to the user's bare JID:</p>
+
+        <figure class="code-example" id="example-15"><figcaption><strong>Example 15.</strong> Push Service announces stop of push support<a class="anchor-link" href="#example-15"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='push-5.client.example' to='user@example.com'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub' node='yxs32uqsflafdk3iuqo'&gt;
+    &lt;affiliation jid='user@example.com' affiliation='none' /&gt;
+  &lt;/pubsub&gt;
+&lt;/message&gt;
+</pre></figure>
+
+        <p class="" style="">Upon receiving an affiliation change event, the server MAY remove the received JID and node combination from the set of enabled services. If a server does not do so, then the service will be removed from the enabled set through the error handling process.</p>
+    <h2 id="security">9.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+        <p class="" style="">Push notifications require routing private information, such as message bodies, through third parties. As such, servers SHOULD allow users to limit the information sent via push notifications.</p>
+        <p class="" style="">It is NOT RECOMMENDED to allow in-band modification of push notification content settings. Such operations SHOULD be done out-of-band to prevent privilege escalation.</p>
+    <h2 id="iana">10.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+        <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm231">5</a>].</p>
+    <h2 id="registrar">11.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+        <div class="indent"><h3 id="ns">11.1 Protocol Namespaces<a class="anchor-link" href="#ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+            <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm238">6</a>] includes 'urn:xmpp:push:0' in its registry of protocol namespaces (see &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;).</p>
+            <ul class="" style="">
+                <li class="" style="">urn:xmpp:push:0</li>
+            </ul>
+        </div>
+        <div class="indent"><h3 id="registrar-versioning">11.2 Protocol Versioning<a class="anchor-link" href="#registrar-versioning"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+            <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+        </div>
+        <div class="indent"><h3 id="registrar-formtypes">11.3 Field Standardization<a class="anchor-link" href="#registrar-formtypes"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+            <p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0068.html">Field Standardization for Data Forms (XEP-0068)</a></span>  [<a href="#nt-idm250">7</a>] defines a process for standardizing the fields used within Data Forms scoped by a particular namespace, and the XMPP Registrar maintains a registry of such FORM_TYPES (see &lt;<a href="https://xmpp.org/registrar/formtypes.html">https://xmpp.org/registrar/formtypes.html</a>&gt;).</p>
+
+            <div class="indent"><h4 id="registrar-formtypes">11.3.1 urn:xmpp:push:summary FORM_TYPE<a class="anchor-link" href="#registrar-formtypes"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+                <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;form_type&gt;
+  &lt;name&gt;urn:xmpp:push:summary&lt;/name&gt;
+  &lt;doc&gt;XEP-XXXX&lt;/doc&gt;
+  &lt;desc&gt;Provides summarizing information about a user for use in push notifications.&lt;/desc&gt;
+  &lt;field
+      var='message-count'
+      type='text-single'
+      label='The number of unread or undelivered messages'/&gt;
+  &lt;field
+      var='pending-subscription-count'
+      type='text-single'
+      label='The number of pending incoming presence subscription requests'/&gt;
+  &lt;field
+      var='last-message-sender'
+      type='jid-single'
+      label='The sender of the last received message'/&gt;
+  &lt;field
+      var='last-message-body'
+      type='text-single'
+      label='The body text of the last received message'/&gt;
+&lt;/form_type&gt;
+</pre></figure>
+            </div>
+        </div>
+        <div class="indent"><h3 id="registrar-disco">11.4 Service Discovery Category/Type<a class="anchor-link" href="#registrar-disco"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+            <p class="" style="">The XMPP Registrar includes a category of "component" in its registry of Service Discovery identities (see &lt;<a href="https://xmpp.org/registrar/disco-categories.html">https://xmpp.org/registrar/disco-categories.html</a>&gt;); as a result of this document, the Registrar includes a type of "jidprep" to that category.</p>
+            <p class="" style="">The registry submission is as follows:</p>
+            <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;category&gt;
+  &lt;name&gt;pubsub&lt;/name&gt;
+  &lt;type&gt;
+    &lt;name&gt;push&lt;/name&gt;
+    &lt;desc&gt;
+      A push notification service that supports the publish-subscribe profile defined in XEP-XXXX.
+    &lt;/desc&gt;
+    &lt;doc&gt;XEP-XXXX&lt;/doc&gt;
+  &lt;/type&gt;
+&lt;/category&gt;
+</pre></figure>
+        </div>
+    <h2 id="schema">12.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+        <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:push:0'
+    xmlns='urn:xmpp:push:0'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-xxxx: http://www.xmpp.org/extensions/xep-xxxx.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:import
+      namespace='jabber:x:data'
+      schemaLocation='http://xmpp.org/schemas/x-data.xsd' /&gt;
+
+  &lt;xs:element name='enable'&gt;
+    &lt;xs:complexType&gt;
+       &lt;xs:sequence minOccurs='0' maxOccurs='unbounded' xmlns:xdata='jabber:x:data'&gt;
+         &lt;xs:element ref='xdata:x' /&gt;
+       &lt;/xs:sequence&gt;
+       &lt;xs:attribute name='jid' type='xs:string' use='required' /&gt;
+       &lt;xs:attribute name='node' type='xs:string' use='required' /&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='disable'&gt;
+    &lt;xs:complexType&gt;
+       &lt;xs:attribute name='jid' type='xs:string' use='required' /&gt;
+       &lt;xs:attribute name='node' type='xs:string' use='optional' /&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='notification'&gt;
+    &lt;xs:complexType&gt;
+       &lt;xs:sequence minOccurs='0' maxOccurs='unbounded' xmlns:xdata='jabber:x:data'&gt;
+         &lt;xs:element ref='xdata:x' /&gt;
+         &lt;xs:any /&gt;
+       &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+&lt;/xs:schema&gt;
+</pre></figure>
+    <hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="http://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0357</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a></dd><dt>Type</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.4.1</dd><dt>Last Updated</dt><dd>2020-02-11</dd><dt>Approving Body</dt><dd><a href="http://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, XMPP IM, XEP-0004, XEP-0030, XEP-0060</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>push</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0357.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0357.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0357.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Kevin Smith</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:kevin@kismith.co.uk">kevin@kismith.co.uk</a></dd><dt>JabberID</dt><dd><a href="xmpp:kevin@doomsong.co.uk">kevin@doomsong.co.uk</a></dd></dl><h5>Lance Stout</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:lance@andyet.com">lance@andyet.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:lance@lance.im">lance@lance.im</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm100">1</a>. XEP-0060: Publish-Subscribe &lt;<a href="https://xmpp.org/extensions/xep-0060.html">https://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-idm164">2</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm177">3</a>. XEP-0077: In-Band Registration &lt;<a href="https://xmpp.org/extensions/xep-0077.html">https://xmpp.org/extensions/xep-0077.html</a>&gt;.</p><p><a name="nt-idm191">4</a>. XEP-0004: Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0004.html">https://xmpp.org/extensions/xep-0004.html</a>&gt;.</p><p><a name="nt-idm231">5</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm238">6</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idm250">7</a>. XEP-0068: Field Data Standardization for Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0068.html">https://xmpp.org/extensions/xep-0068.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.4.1"><div class="revision-head">Version 0.4.1 (2020-02-11)<a class="anchor-link" href="#revision-history-v0.4.1"><abbr title="Link to this point in the document">¶</abbr></a></div>Fix document-internal link<div class="revision-author">@sonnyp</div></li><li id="revision-history-v0.4.0"><div class="revision-head">Version 0.4.0 (2018-10-01)<a class="anchor-link" href="#revision-history-v0.4.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Defer due to lack of activity.<div class="revision-author">XEP Editor (jsc)</div></li><li id="revision-history-v0.3"><div class="revision-head">Version 0.3 (2017-08-24)<a class="anchor-link" href="#revision-history-v0.3"><abbr title="Link to this point in the document">¶</abbr></a></div><ul class="" style="">
+              <li class="" style="">Use server JID as 'from' address for notifications (hw).</li>
+              <li class="" style="">Added Kevin Smith as author (ls).</li>
+          </ul><div class="revision-author">XEP Editor (jwi)</div></li><li id="revision-history-v0.2.1"><div class="revision-head">Version 0.2.1 (2016-02-16)<a class="anchor-link" href="#revision-history-v0.2.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Fix example to include 'type' attribute in accordance with XEP-0004 (Holger Weiß).</p><div class="revision-author">XEP Editor (mam)</div></li><li id="revision-history-v0.2"><div class="revision-head">Version 0.2 (2015-09-10)<a class="anchor-link" href="#revision-history-v0.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Change the name to 'Push Notifications' based on feedback.</p><div class="revision-author">lance</div></li><li id="revision-history-v0.1"><div class="revision-head">Version 0.1 (2015-03-18)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial published version approved by the XMPP Council.</p><div class="revision-author">XEP Editor (mam)</div></li><li id="revision-history-v0.0.2"><div class="revision-head">Version 0.0.2 (2015-03-10)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Adjust some wording and typo fixes.</p><div class="revision-author">lance</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version 0.0.1 (2015-02-23)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial version.</p><div class="revision-author">lance</div></li></ol><p>END</p></body></html>

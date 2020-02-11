@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0430: Inbox</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0430";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0"><meta name="DC.Title" content="Inbox"><meta name="DC.Creator" content="Dave Cridland"><meta name="DC.Description" content="This specification proposes a mechanism by which clients can find a list of ongoing conversations and their state."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2020-02-03"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0430"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0430: Inbox</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification proposes a mechanism by which clients can find a list of ongoing conversations and their state.</dd><dt>Author</dt><dd>Dave Cridland</dd><dt>Copyright</dt><dd>© 1999 – 2020 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.2.0 (2020-02-03)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Draft</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a><ol><li><a href="#sect-idm54">Terminology</a></li></ol></li><li><a href="#overview">Overview</a><ol><li><a href="#feature">Discovering Support</a></li><li><a href="#sect-idm68">The Inbox</a></li></ol></li><li><a href="#sect-idm77">Protocol Elements</a><ol><li><a href="#sect-idm78">Querying</a></li></ol></li><li><a href="#sect-idm116">Unread Messages</a></li><li><a href="#sect-idm132">Examples</a></li><li><a href="#sect-idm145">Schema</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#ack">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">When initially run, a messaging client typically shows some list of contacts and chatrooms, and whether any new
+    messages are present in each.</p>
+  <p class="" style="">The current mechanism for achieving this UX involves a complete synchronization of the server-side archive, and is both
+    time-consuming and bandwidth-intensive. This specification proposes a solution to directly obtain such data from
+    the server.</p>
+  <p class="" style="">Moreover, the information gathered by the server to support this can be used in support of mobile push notifications.</p>
+  <div class="indent"><h3 id="sect-idm54">1.1 Terminology<a class="anchor-link" href="#sect-idm54"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Nomenclature used for instant messages versus ancillary messages will need to be adjusted to make it consistent
+      with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0422.html">Message Fastening (XEP-0422)</a></span>  [<a href="#nt-idm58">1</a>] et al.</p>
+  </div>
+<h2 id="overview">2.
+       Overview<a class="anchor-link" href="#overview"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="feature">2.1 Discovering Support<a class="anchor-link" href="#feature"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Support for this protocol is advertised by the Service Discovery protocol defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm65">2</a>] using a feature
+      of <code>urn:xmpp:inbox:1</code>.</p>
+  </div>
+  <div class="indent"><h3 id="sect-idm68">2.2 The Inbox<a class="anchor-link" href="#sect-idm68"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The Inbox consists semantically of a list of conversations in order of last activity. Each conversation is
+      identified by a jid - for group chats this would be the chatroom, and for individual contacts this would be their
+      bare jid.</p>
+    <p class="" style="">Each Inbox entry includes a count of messages considered new, the last MAM stanza-id relating to this conversation,
+      and the last MAM result for this conversation, as defined by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-idm73">3</a>]. In addition, a client-controlled boolean
+      marker can be used to indicate a manual "set unread" state.</p>
+    <p class="" style="">Finding more messages from this conversation can be achieved via a MAM query using <code>with</code> to specify the
+      conversation required.</p>
+  </div>
+<h2 id="sect-idm77">3.
+       Protocol Elements<a class="anchor-link" href="#sect-idm77"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <div class="indent"><h3 id="sect-idm78">3.1 Querying<a class="anchor-link" href="#sect-idm78"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">An &lt;iq/&gt; of type "get" is used, containing a single element <code>&lt;inbox/&gt;</code>, containing an optional RSM
+        filter as specified by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0059.html">Result Set Management (XEP-0059)</a></span>  [<a href="#nt-idm83">4</a>]. This will typically be sent only to the user's own bare jid. If a client
+        requests the inbox without RSM, the server MAY limit the number of conversations arbitrarily by either time or number. This element has a number of attributes:</p>
+      <ul class="" style="">
+        <li class="" style=""><code>unread-only</code> - Defaults to false. If true, the server will list only conversations with at least one unread message.</li>
+        <li class="" style=""><code>messages</code> - Defaults to true. If true, the server includes the last message; if false, this is elided.</li>
+      </ul>
+      <p class="" style="">The server
+        responds with a sequence of &lt;message/&gt; stanzas, each containing an <code>&lt;entry/&gt;</code> element qualified by the
+        <code>urn:xmpp:inbox:1</code> namespace with a number of attributes:</p>
+      <ul class="" style="">
+        <li class="" style=""><code>jid</code> - contains the Jid of the conversation for this entry.</li>
+        <li class="" style=""><code>unread</code> - contains a count of messages which are deemed to be unread by the server. Clients may use this to indicate unread messages to the user.</li>
+        <li class="" style=""><code>id</code> - contains the last id in the MAM archive for this conversation. Clients may use this as a marker to fetch additional messages (or collated fastenings, see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0427.html">MAM Fastening Collation (XEP-0427)</a></span>  [<a href="#nt-idm102">5</a>]) about the conversation via MAM.</li>
+      </ul>
+      <p class="" style="">If the <code>messages</code> attribute is missing or set to <code>true</code>, the <code>&lt;entry/&gt;</code> element is followed by the latest instant message, if any, which is encapsulated as a
+        <code>&lt;result/&gt;</code> element as defined by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-idm73">3</a>]. This contains collated fastenings if supported by the
+        server.</p>
+      <p class="" style="">After all entries required have been returned, the server then responds with an &lt;iq/&gt; result containing a
+        <code>&lt;fin/&gt;</code> element qualified by <code>urn:xmpp:inbox:1</code>. This contains the RSM data, a total count of conversation
+        entries within the inbox, a count of conversations with unread messages, and a total count of unread messages.</p>
+    </div>
+  <h2 id="sect-idm116">4.
+       Unread Messages<a class="anchor-link" href="#sect-idm116"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">Servers MUST track which instant messages sent to clients remain unread.</p>
+    <ul class="" style="">
+      <li class="" style="">An instant message is always read if it is followed by an instant message which is read.</li>
+      <li class="" style="">An instant message always starts unread.</li>
+      <li class="" style="">A Chat Marker (see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0333.html">Chat Markers (XEP-0333)</a></span>  [<a href="#nt-idm124">6</a>]) of "displayed" or "acknowledged" causes the message to be read (and also causes
+      all prior messages to be read by implication).</li>
+      <li class="" style="">A Message Receipt (see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0184.html">Message Delivery Receipts  (XEP-0184)</a></span>  [<a href="#nt-idm129">7</a>]) does not cause messages to be considered unread.</li>
+      <li class="" style="">Unmarking a conversation always sets the unread counter to zero, and by implication sets all messages to be
+        read.</li>
+    </ul>
+  <h2 id="sect-idm132">5.
+       Examples<a class="anchor-link" href="#sect-idm132"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">Let us assume a user has only three jids they have exchanged messages with. Asking for their inbox is simple:</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> <a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+    &lt;iq type='get' id='iq_stanza_id'&gt;
+      &lt;inbox xmlns='urn:xmpp:inbox:1'/&gt;
+    &lt;/iq&gt;
+    </pre></figure>
+    <p class="" style="">The server responds with a list of conversations:</p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> <a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+    &lt;message&gt;
+      &lt;entry xmlns='urn:xmpp:inbox:1' unread='5' jid='first_contact@example.net' id='uuid-1'/&gt;
+      &lt;result xmlns='urn:xmpp:mam:2' queryid='iq_stanza_id' id='uuid-1'&gt;
+        &lt;forwarded xmlns='urn:xmpp:forward:0'&gt;
+          &lt;message xmlns='jabber:client' from='first_contact@example.net' to='user@example.org' type='chat'&gt;
+            &lt;body&gt;Greetings from Alpha Centauri!&lt;/body&gt;
+          &lt;/message&gt;
+        &lt;/forwarded&gt;
+      &lt;/result&gt;
+    &lt;/message&gt;
+
+    &lt;message&gt;
+      &lt;entry xmlns='urn:xmpp:inbox:1' unread='0' jid='second_contact@example.net' id='uuid-5'/&gt;
+      &lt;result xmlns='urn:xmpp:mam:2' queryid='iq_stanza_id' id='uuid-5'&gt;
+        &lt;forwarded xmlns='urn:xmpp:forward:0'&gt;
+          &lt;message xmlns='jabber:client' from='second_contact@example.net' to='user@example.org' type='chat'&gt;
+            &lt;body&gt;Greetings from Mars!&lt;/body&gt;
+          &lt;/message&gt;
+        &lt;/forwarded&gt;
+      &lt;/result&gt;
+    &lt;/message&gt;
+
+    &lt;message&gt;
+      &lt;entry xmlns='urn:xmpp:inbox:1' unread='1' jid='third_contact@example.net' id='uuid-8'/&gt;
+      &lt;result xmlns='urn:xmpp:mam:2' queryid='iq_stanza_id' id='uuid-8'&gt;
+        &lt;forwarded xmlns='urn:xmpp:forward:0'&gt;
+          &lt;message xmlns='jabber:client' from='third_contact@example.net' to='user@example.org' type='chat'&gt;
+            &lt;body&gt;Greetings from Somewhere Else!&lt;/body&gt;
+          &lt;/message&gt;
+        &lt;/forwarded&gt;
+      &lt;/result&gt;
+    &lt;/message&gt;
+    </pre></figure>
+    <p class="" style="">If the <code>id</code> of a conversation has changed, a client might fetch the missing messages and metadata by requesting the MAM archive <code>with</code> the <code>jid</code> of the entry, and <code>after</code> the previous known <code>id</code> for the conversation.</p>
+    <p class="" style="">After the list of conversations, the server completes its response with a the reply to the original IQ.</p>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> <a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+      &lt;iq type='result' id='iq_stanza_id'&gt;
+        &lt;fin xmlns='urn:xmpp:inbox:1' total='3' unread='2' all-unread='6'&gt;
+          &lt;!-- RSM --&gt;
+        &lt;/fin&gt;
+    </pre></figure>
+  <h2 id="sect-idm145">6.
+       Schema<a class="anchor-link" href="#sect-idm145"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">TODO - Hopefully roughly given by the examples.</p>
+  <h2 id="security">7.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="iana">8.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This XEP requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm153">8</a>]. </p>
+<h2 id="registrar">9.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">None.</p>
+<h2 id="ack">10.
+       Acknowledgements<a class="anchor-link" href="#ack"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The author notes that this protocol is heavily based on the <code>mod_inbox</code> system of MongooseIM. In addition, Kevin Smith and several others at the XMPP Summit 24 provided useful feedback which has shaped this specification.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="http://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0430</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.2.0</dd><dt>Last Updated</dt><dd>2020-02-03</dd><dt>Approving Body</dt><dd><a href="http://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, XEP-0313</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>inbox</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0430.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0430.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0430.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Dave Cridland</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:dave@hellopando.com">dave@hellopando.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:dwd@dave.cridland.net">dwd@dave.cridland.net</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm58">1</a>. XEP-0422: Message Fastening &lt;<a href="https://xmpp.org/extensions/xep-0422.html">https://xmpp.org/extensions/xep-0422.html</a>&gt;.</p><p><a name="nt-idm65">2</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm73">3</a>. XEP-0313: Message Archive Management &lt;<a href="https://xmpp.org/extensions/xep-0313.html">https://xmpp.org/extensions/xep-0313.html</a>&gt;.</p><p><a name="nt-idm83">4</a>. XEP-0059: Result Set Management &lt;<a href="https://xmpp.org/extensions/xep-0059.html">https://xmpp.org/extensions/xep-0059.html</a>&gt;.</p><p><a name="nt-idm102">5</a>. XEP-0427: MAM Fastening Collation &lt;<a href="https://xmpp.org/extensions/xep-0427.html">https://xmpp.org/extensions/xep-0427.html</a>&gt;.</p><p><a name="nt-idm124">6</a>. XEP-0333: Chat Markers &lt;<a href="https://xmpp.org/extensions/xep-0333.html">https://xmpp.org/extensions/xep-0333.html</a>&gt;.</p><p><a name="nt-idm129">7</a>. XEP-0184: Message Delivery Receipts &lt;<a href="https://xmpp.org/extensions/xep-0184.html">https://xmpp.org/extensions/xep-0184.html</a>&gt;.</p><p><a name="nt-idm153">8</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.2.0"><div class="revision-head">Version 0.2.0 (2020-02-03)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Updates from the Summit 24 discussion:
+      <ul class="" style="">
+        <li class="" style="">Remove Marked</li>
+        <li class="" style="">Metadata in sibling</li>
+        <li class="" style="">Ensure the last "mam id" is present in metadata, and describe how that can be used.</li>
+        <li class="" style="">Add options to control unread-only and elide messages.</li>
+      </ul>
+    <div class="revision-author">dwd</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version 0.1.0 (2020-01-29)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Accepted by vote of Council on 2020-01-22.<div class="revision-author">XEP Editor (jsc)</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version 0.0.1 (2019-12-30)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Initial Revision</li>
+      </ul>
+    <div class="revision-author">dwd</div></li></ol><p>END</p></body></html>
