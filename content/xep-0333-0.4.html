@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0333: Chat Markers</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0333";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0"><meta name="DC.Title" content="Chat Markers"><meta name="DC.Creator" content="Spencer MacDonald"><meta name="DC.Description" content="This specification describes a solution of marking the last received, displayed and acknowledged message in a chat."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2020-04-15"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0333"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0333: Chat Markers</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification describes a solution of marking the last received, displayed and acknowledged message in a chat.</dd><dt>Author</dt><dd>Spencer MacDonald</dd><dt>Copyright</dt><dd>© 1999 – 2020 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Deferred</p><div id="status-notice" class="deferred standards track">WARNING: This document has been automatically Deferred after 12 months of inactivity in its previous Experimental state. Implementation of the protocol described herein is not recommended for production systems. However, exploratory implementations are encouraged to resume the standards process.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.4 (2020-04-15)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li>Experimental</li><li class="current inserted">Deferred</li><li>Proposed</li><li>Draft</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#terms">Terminology</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#disco">Determining support</a></li><li><a href="#when">When to send Chat Markers and markable messages</a><ol><li><a href="#when-bare">Bare JID</a></li><li><a href="#when-full">Full JID</a></li><li><a href="#when-chat-marker">Chat Marker</a></li></ol></li><li><a href="#format">Protocol Format</a></li><li><a href="#requirements">Requirements</a></li><li><a href="#rules">Business Rules</a><ol><li><a href="#chatstates">Optimizations</a></li><li><a href="#never-auto-acknowledge">Never Auto Acknowledge</a></li><li><a href="#marking-sent-messages">Marking Sent Messages</a></li><li><a href="#receipts">Interaction with Delivery Receipts</a></li><li><a href="#chatstates">Interaction with Chat States</a></li><li><a href="#rules-muc">Usage within MUC</a></li></ol></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-ns">Protocol Namespaces</a></li></ol></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The concept of delivery and read receipts has been popularised by other messaging services such as iMessage, Google Hangouts and Blackberry Messenger.
+  These services provide a visual indication of when a message has been delivered to any of the recipients resources and (optionally) when it has been read.
+  These visual indications (referred to herein as "Chat Markers") are synced between all of the sender's
+  and recipient's resources automatically, so the state of a chat is always consistent.
+  If one or more of the resources is not connected, it can fetch Chat Markers from the Message Archive upon reconnecting.</p>
+	<p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0184.html">Message Delivery Receipts  (XEP-0184)</a></span>  [<a href="#nt-idm93">1</a>] currently provides delivery receipts on a per message basis,
+	but it does not provide any mechanism for the user to indicate that they have read or acknowledged the message.
+	As delivery receipts are sent on a per message basis it would require multiple messages to "sync up" up delivery receipts between resources.</p>
+  <p class="" style="">Moreover by using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0085.html">Chat State Notifications (XEP-0085)</a></span>  [<a href="#nt-idm98">2</a>] you could infer that a message has been read by the recipient, if they become active at any point after the message has been delivered, but again it would require multiple messages to "sync up" chat states between resources.</p>
+	<p class="" style="">This XEP outlines an efficient message based protocol to provide this functionally using Chat Markers.</p>
+  <p class="box" style=""><em>Note: Chat Markers do not mark each individual message, nor do they assume a reliable transport. This means that Chat Markers can only provide a heuristic solution, but this is often satisfactory for the majority of use cases.</em></p>
+<h2 id="terms">2.
+       Terminology<a class="anchor-link" href="#terms"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The term "active chat" refers to a chat that a user is currently active in. See <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0085.html">Chat State Notifications (XEP-0085)</a></span>  [<a href="#nt-idm98">2</a>].</p>
+  <p class="" style="">The term "system notification" refers to a notification (typically a preview) that is displayed separately to a Chat.</p>
+  <p class="" style="">The term "read" in the context of iMessage, Google Hangouts and Blackberry Messenger, directly maps to the displayed element in the Chat Marker namespace.</p>
+  <p class="" style="">The term "markable message" refers to the stanza for which the original sender would like to receive a Chat Marker.</p>
+  <p class="" style="">The term "Chat Marker" refers to the stanza by which the recipient replies to a "markable message" with a marker.</p>
+<h2 id="reqs">3.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document addresses the following requirements:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">Enable a client to mark a message as markable.</li>
+    <li class="" style="">Enable a client to mark the last received message in a chat.</li>
+    <li class="" style="">Enable a client to mark the last displayed message in a chat.</li>
+    <li class="" style="">Enable a client to mark the last acknowledged message in a chat.</li>
+    <li class="" style="">Enable a client to fetch and set Chat Markers regardless of wether the other users in a chat are online.</li>
+  </ol>
+<h2 id="disco">4.
+       Determining support<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+	<p class="" style="">If an entity supports the Chat Markers protocol, it MUST report that by including a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm125">3</a>]
+	 feature of "urn:xmpp:chat-markers:0" in response to disco#info requests:</p>
+<figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Client queries for server features<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+
+&lt;iq type='get' id='disco1' to='capulet.lit' from='juliet@capulet.lit/balcony'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+
+</pre></figure>
+
+<figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Entity responds with features<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+
+&lt;iq type='result' id='disco1' from='capulet.lit' to='juliet@capulet.lit/balcony'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;feature var='urn:xmpp:chat-markers:0'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+
+</pre></figure>
+
+	<p class="" style="">Support can also be determined via <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm132">4</a>], a.k.a. "caps".</p>
+<h2 id="when">5.
+       When to send Chat Markers and markable messages<a class="anchor-link" href="#when"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="when-bare">5.1 Bare JID<a class="anchor-link" href="#when-bare"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If the sender knows only the recipient's bare JID, it cannot determine (via <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm125">3</a>] or <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm132">4</a>]) whether the intended recipient supports the Chat Markers protocol. In this case, the sender MAY send a Chat Marker or markable message.</p>
+  </div>
+  <div class="indent"><h3 id="when-full">5.2 Full JID<a class="anchor-link" href="#when-full"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If the sender knows a full JID for the recipient (e.g., via presence), it SHOULD attempt to determine (via service disco or entity capabilities) whether the client at that full JID supports the Chat Markers protocol before attempting to send a Chat Marker or markable message.</p>
+    <p class="" style="">If the sender determines that the recipient's client does not support the Chat Markers protocol then it SHOULD NOT send Chat Markers or markable messages.</p>
+    <p class="" style="">If the sender determines that the recipient's client supports the Chat Markers protocol then it MAY send a Chat Marker or markable message to that full JID.</p>
+  </div>
+  <div class="indent"><h3 id="when-chat-marker">5.3 Chat Marker<a class="anchor-link" href="#when-chat-marker"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">To prevent looping, an entity MUST NOT send a Chat Marker to mark up to a Chat Marker.</p>
+  </div>
+<h2 id="format">6.
+       Protocol Format<a class="anchor-link" href="#format"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Chat Markers use a dedicated protocol extension qualified by the 'urn:xmpp:chat-markers:0' namespace.</p>
+  <p class="" style="">There are 4 allowable elements in the namespace, the first 'markable' indicates that a message can be marked with a Chat Marker and is therefore a "markable message".</p>
+  <p class="" style="">The 3 other allowable elements in this namespace are used to mark a message (in order of significance):</p>
+  <ul class="" style="">
+    <li class="" style="">received -- the message has been received by a client.</li>
+    <li class="" style="">displayed -- the message has been displayed to a user in a active chat and not in a system notification.</li>
+    <li class="" style="">acknowledged -- the message has been acknowledged by some user interaction e.g. pressing an acknowledgement button.</li>
+  </ul>
+
+  <p class="" style="">The Chat Marker MUST have an 'id' which is the 'id' of the message being marked.</p>
+  <p class="" style="">The Chat Marker message stanza MUST have a 'thread' child element if the message has been received, displayed or acknowledged in the context of a thread.</p>
+  <p class="" style="">A Chat Marker Indicates that all messages up to and including that message 'id' have been marked. If a thread is supplied, a Chat Marker is only valid in the context of that thread.</p>
+
+<figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Example Content Message with a markable Chat Marker<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+
+&lt;message
+    from='northumberland@shakespeare.lit/westminster'
+    id='message-1'
+    to='kingrichard@royalty.england.lit/throne'&gt;
+  &lt;thread&gt;sleeping&lt;/thread&gt;
+  &lt;body&gt;My lord, dispatch; read o'er these articles.&lt;/body&gt;
+  &lt;markable xmlns='urn:xmpp:chat-markers:0'/&gt;
+&lt;/message&gt;
+
+</pre></figure>
+
+<p class="box" style="">Note: A sender MUST include an 'id' attribute on every markable message.</p>
+
+<p class="" style="">If recipient does not support the Chat Markers protocol it SHOULD NOT return an error.</p>
+
+<figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Example Message marked with a recieved Chat Marker<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+
+&lt;message
+    from='kingrichard@royalty.england.lit/throne'
+    id='message-2'
+    to='northumberland@shakespeare.lit/westminster'&gt;
+  &lt;thread&gt;sleeping&lt;/thread&gt;
+  &lt;received xmlns='urn:xmpp:chat-markers:0'
+               id='message-1'/&gt;
+&lt;/message&gt;
+
+</pre></figure>
+  <p class="" style="">When the recipient sends a Chat Marker, it SHOULD ensure that the message stanza contains only the Chat Marker child element and optionally (when appropriate) a thread child element. Naturally, intermediate entities might add other extension elements to the message when routing or delivering the receipt message, e.g., a &lt;delay/&gt; element as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0203.html">Delayed Delivery (XEP-0203)</a></span>  [<a href="#nt-idm169">5</a>].</p>
+<h2 id="requirements">7.
+       Requirements<a class="anchor-link" href="#requirements"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Clients SHOULD use <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0280.html">Message Carbons (XEP-0280)</a></span>  [<a href="#nt-idm175">6</a>] to support multiple online resources.</p>
+  <p class="" style="">Clients SHOULD use <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0136.html">Message Archiving (XEP-0136)</a></span>  [<a href="#nt-idm180">7</a>] or <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-idm184">8</a>] to support offline updating of Chat Markers. Chat Markers SHOULD be archived, so they can be fetched and set regardless of whether the other users in a chat are online.</p>
+  <p class="" style="">Messages MUST have an 'id' to use Chat Markers.</p>
+  <p class="" style="">Messages MUST include the 'markable' element to use Chat Markers.</p>
+  <p class="" style="">Chat Markers MUST only move forward. If a Chat Marker is received for an earlier message than the current Chat Marker, it MUST be ignored by the client.
+  </p>
+  <p class="" style="">Chat Markers for unknown messages MUST be ignored by the client. A client MAY store the Chat Marker incase the associated message is retrieved later.
+  </p>
+<h2 id="rules">8.
+       Business Rules<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="chatstates">8.1 Optimizations<a class="anchor-link" href="#chatstates"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Less Significant Chat Markers SHOULD only be sent if they are later than the more significant Chat Marker i.e. if a Message has been marked as displayed,
+      a received Chat Marker should only be sent if it has a later timestamp than the displayed Chat Marker.</p>
+    <p class="" style="">To avoid sending redundant Chat Markers while retrieving archived messages, Chat Markers SHOULD only be sent after retrieving the most recent message for a chat.</p>
+    <p class="" style="">Only Messages that can be displayed in a chat SHOULD be markable.</p>
+  </div>
+  <div class="indent"><h3 id="never-auto-acknowledge">8.2 Never Auto Acknowledge<a class="anchor-link" href="#never-auto-acknowledge"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Clients MUST NOT mark a message as acknowledged without any user interaction.</p>
+  </div>
+  <div class="indent"><h3 id="marking-sent-messages">8.3 Marking Sent Messages<a class="anchor-link" href="#marking-sent-messages"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Clients MAY mark a sent or received message, as Chat Markers are inclusive of of both previously sent and received messages.</p>
+  </div>
+  <div class="indent"><h3 id="receipts">8.4 Interaction with Delivery Receipts<a class="anchor-link" href="#receipts"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Chat Markers MAY be used alongside Delivery Receipts.</p>
+  </div>
+  <div class="indent"><h3 id="chatstates">8.5 Interaction with Chat States<a class="anchor-link" href="#chatstates"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Chat Markers MAY be used alongside Chat States.</p>
+  </div>
+  <div class="indent"><h3 id="rules-muc">8.6 Usage within MUC<a class="anchor-link" href="#rules-muc"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Markers may be used within a MUC to indicate read status of each occupant.</p>
+    <p class="" style="">Within the context of a MUC messages are relayed through the MUC's own JID. In a
+       MUC that preserves the 'id' attribute chosen by the sender of the message this
+       'id' attribute cannot be considered unique, as it may be unintentionally or
+       even maliciously reused by another MUC occupant.</p>
+
+    <p class="" style="">Therefore, if a MUC announces support for <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0359.html">Unique and Stable Stanza IDs (XEP-0359)</a></span>  [<a href="#nt-idm209">9</a>] then clients MUST always use
+       the MUC-assigned id for Chat Markers. The id will be contained in a &lt;stanza-id/&gt;
+       element inserted into the stanza with a 'by' attribute matching the MUC's own JID.</p>
+
+    <p class="" style="">As per XEP-0359 security considerations, if XEP-0359 support is not announced on the
+       MUC room's JID then &lt;stanza-id/&gt; elements with a 'by' attribute that match the
+       MUC's JID should be considered spoofed and MUST be ignored.</p>
+
+<figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Example MUC message with a markable Chat Marker<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+
+&lt;message
+    from='coven@chat.shakespeare.lit/firstwitch'
+    to='coven@chat.shakespeare.lit'
+    id='message-1'
+    type='groupchat'&gt;
+  &lt;thread&gt;Act IV, Scene I&lt;/thread&gt;
+  &lt;body&gt;Thrice the brinded cat hath mew'd.&lt;/body&gt;
+  &lt;markable xmlns='urn:xmpp:chat-markers:0' /&gt;
+  &lt;stanza-id xmlns='urn:xmpp:sid:0' by='coven@chat.shakespeare.lit' id='39K7ZYIp' /&gt;
+&lt;/message&gt;
+
+</pre></figure>
+
+<figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Example marker response to a markable MUC message<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+
+&lt;message
+    from='coven@chat.shakespeare.lit/secondwitch'
+    to='coven@chat.shakespeare.lit'
+    id='message-2'
+    type='groupchat'&gt;
+  &lt;thread&gt;Act IV, Scene I&lt;/thread&gt;
+  &lt;displayed xmlns='urn:xmpp:chat-markers:0'
+            id='39K7ZYIp'/&gt;
+&lt;/message&gt;
+
+</pre></figure>
+
+  </div>
+<h2 id="security">9.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">A user may not wish to disclose that they have received, displayed or acknowledge a message.</p>
+  <p class="" style="">It is possible for a sender to leak its presence when updating Chat Markers;
+    therefore, a sender SHOULD NOT send Chat Markers to recipients who are not otherwise authorized to view its presence.</p>
+<h2 id="iana">10.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the Internet Assigned Numbers Authority (IANA).</p>
+<h2 id="registrar">11.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="registrar-ns">11.1 Protocol Namespaces<a class="anchor-link" href="#registrar-ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+	<p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">'urn:xmpp:chat-markers:0'</li>
+    </ul>
+  </div>
+<h2 id="schema">12.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema attributeFormDefault="unqualified"
+  elementFormDefault="qualified"
+  targetNamespace="urn:xmpp:chat-markers:0"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-0333: http://xmpp.org/extensions/xep-0333.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name="markable"&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base="xs:string"&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name="received"&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base="xs:string"&gt;
+          &lt;xs:attribute type="xs:string" name="id"/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name="displayed"&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base="xs:string"&gt;
+          &lt;xs:attribute type="xs:string" name="id"/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+
+  &lt;xs:element name="acknowledged"&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base="xs:string"&gt;
+          &lt;xs:attribute type="xs:string" name="id"/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+&lt;/xs:schema&gt;
+
+</pre></figure>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="http://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0333</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a></dd><dt>Type</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.4</dd><dt>Last Updated</dt><dd>2020-04-15</dd><dt>Approving Body</dt><dd><a href="http://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, XEP-0001</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>NOT_YET_ASSIGNED</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0333.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0333.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0333.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Spencer MacDonald</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:im@spencermacdonald.com">im@spencermacdonald.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:im@spencermacdonald.com">im@spencermacdonald.com</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm93">1</a>. XEP-0184: Message Delivery Receipts &lt;<a href="https://xmpp.org/extensions/xep-0184.html">https://xmpp.org/extensions/xep-0184.html</a>&gt;.</p><p><a name="nt-idm98">2</a>. XEP-0085: Chat State Notifications &lt;<a href="https://xmpp.org/extensions/xep-0085.html">https://xmpp.org/extensions/xep-0085.html</a>&gt;.</p><p><a name="nt-idm125">3</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm132">4</a>. XEP-0115: Entity Capabilities &lt;<a href="https://xmpp.org/extensions/xep-0115.html">https://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-idm169">5</a>. XEP-0203: Delayed Delivery &lt;<a href="https://xmpp.org/extensions/xep-0203.html">https://xmpp.org/extensions/xep-0203.html</a>&gt;.</p><p><a name="nt-idm175">6</a>. XEP-0280: Message Carbons &lt;<a href="https://xmpp.org/extensions/xep-0280.html">https://xmpp.org/extensions/xep-0280.html</a>&gt;.</p><p><a name="nt-idm180">7</a>. XEP-0136: Message Archiving &lt;<a href="https://xmpp.org/extensions/xep-0136.html">https://xmpp.org/extensions/xep-0136.html</a>&gt;.</p><p><a name="nt-idm184">8</a>. XEP-0313: Message Archive Management &lt;<a href="https://xmpp.org/extensions/xep-0313.html">https://xmpp.org/extensions/xep-0313.html</a>&gt;.</p><p><a name="nt-idm209">9</a>. XEP-0359: Unique and Stable Stanza IDs &lt;<a href="https://xmpp.org/extensions/xep-0359.html">https://xmpp.org/extensions/xep-0359.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.4"><div class="revision-head">Version 0.4 (2020-04-15)<a class="anchor-link" href="#revision-history-v0.4"><abbr title="Link to this point in the document">¶</abbr></a></div>Add notes about usage within MUCs.<div class="revision-author">mw</div></li><li id="revision-history-v0.3"><div class="revision-head">Version 0.3 (2017-09-11)<a class="anchor-link" href="#revision-history-v0.3"><abbr title="Link to this point in the document">¶</abbr></a></div>Defer due to lack of activity.<div class="revision-author">XEP Editor (jwi)</div></li><li id="revision-history-v0.2.1"><div class="revision-head">Version 0.2.1 (2015-10-28)<a class="anchor-link" href="#revision-history-v0.2.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Fixing typo ("cannot" repeated twice) (JC Brand).</p><div class="revision-author">XEP Editor (mam)</div></li><li id="revision-history-v0.2"><div class="revision-head">Version 0.2 (2013-09-05)<a class="anchor-link" href="#revision-history-v0.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Moved Thread outside of the Chat Marker.</p><div class="revision-author">sdm</div></li><li id="revision-history-v0.1"><div class="revision-head">Version 0.1 (2013-07-11)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial published version approved by the XMPP Council.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.0.4"><div class="revision-head">Version 0.0.4 (2013-07-06)<a class="anchor-link" href="#revision-history-v0.0.4"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <p class="" style="">Noted that Chat Markers is a heuristic solution.</p>
+      <p class="" style="">Added markable element.</p>
+    <div class="revision-author">sdm</div></li><li id="revision-history-v0.0.3"><div class="revision-head">Version 0.0.3 (2013-06-20)<a class="anchor-link" href="#revision-history-v0.0.3"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <p class="" style="">Changed read Chat Marker to displayed.</p>
+      <p class="" style="">Removed stamp from Chat Marker.</p>
+      <p class="" style="">Added thread to Chat Marker.</p>
+      <p class="" style="">Changed namespace to allow for versioning.</p>
+    <div class="revision-author">sdm</div></li><li id="revision-history-v0.0.2"><div class="revision-head">Version 0.0.2 (2013-06-11)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Change to a message based protocol.</p><div class="revision-author">sdm</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version 0.0.1 (2013-05-24)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">sdm</div></li></ol><p>END</p></body></html>
