@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0389: Extensible In-Band Registration</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0389";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0"><meta name="DC.Title" content="Extensible In-Band Registration"><meta name="DC.Creator" content="Sam Whited"><meta name="DC.Description" content="
+    This specification defines an XMPP protocol extension for in-band
+    registration with instant messaging servers and other services with which an
+    XMPP entity may initiate a stream.
+    It aims to improve upon the state of the art and replace XEP-0077: In-Band
+    Registration by allowing multi-factor registration mechanisms, and account
+    recovery.
+  "><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2020-04-22"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0389"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0389: Extensible In-Band Registration</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>
+    This specification defines an XMPP protocol extension for in-band
+    registration with instant messaging servers and other services with which an
+    XMPP entity may initiate a stream.
+    It aims to improve upon the state of the art and replace XEP-0077: In-Band
+    Registration by allowing multi-factor registration mechanisms, and account
+    recovery.
+  </dd><dt>Author</dt><dd>Sam Whited</dd><dt>Copyright</dt><dd>© 1999 – 2020 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.4.0 (2020-04-22)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Draft</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#usecases">Use Cases</a></li><li><a href="#disco">Discovering Support</a><ol><li><a href="#sect-idm109">Stream Feature</a></li><li><a href="#sect-idm114">Service Discovery</a></li><li><a href="#sect-idm125">Retrieving the Flows</a></li></ol></li><li><a href="#challenge">Challenges</a><ol><li><a href="#dataform">Data Form</a></li><li><a href="#oob">Out of Band Data</a></li></ol></li><li><a href="#completion">Completing Registration or Recovery</a></li><li><a href="#i18n">Internationalization Considerations</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-ns">Protocol Namespaces</a></li><li><a href="#registrar-challenges">IBR Challenges Registry</a></li><li><a href="#registrar-ibrchallenges">Challenge Types</a></li><li><a href="#registrar-versioning">Namespace Versioning</a></li></ol></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    Historically, registering with an XMPP service has been difficult.
+    Each server either used customized out-of-band registration mechanisms such
+    as web forms which were difficult to discover, or they used <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0077.html">In-Band Registration (XEP-0077)</a></span>  [<a href="#nt-idm79">1</a>] which
+    could easily be abused by spammers to register large numbers of accounts and
+    which allowed for only limited extensibility.
+  </p>
+  <p class="" style="">
+    To solve these issues this specification provides a new in-band registration
+    protocol that allows servers to present the user with a series of
+    "challenges".
+    This allows for both multi-stage proof-of-possession registration flows and
+    spam prevention mechanisms such as proof-of-work functions.
+  </p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <ul class="" style="">
+    <li class="" style="">
+      The server MUST be able to present multiple challenges to the client.
+    </li>
+    <li class="" style="">
+      The server SHOULD be able reduce account registration spam.
+    </li>
+    <li class="" style="">
+      The server MAY present a challenge that requires the user to complete a
+      step out-of-band.
+    </li>
+    <li class="" style="">
+      A client SHOULD be able to register an account without requiring the user
+      to leave the client.
+    </li>
+    <li class="" style="">
+      A client MUST be able to use the same mechanism to register an account and
+      to recover a forgotten password (subject to server policy).
+    </li>
+    <li class="" style="">
+      A client MUST be able to register with a server as well as external
+      components.
+    </li>
+  </ul>
+<h2 id="glossary">3.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><dl>
+    
+      <dt><strong>Challenge</strong></dt>
+      <dd>
+        A challenge is an action taken during account registration or recovery
+        that requires a response.
+        For example, displaying a form to a user or asking for a token.
+      </dd>
+    
+    
+      <dt><strong>Challenge Type</strong></dt>
+      <dd>
+        The type of a challenge is a unique string that identifies the type of
+        payload that can be expected.
+        For example, a challenge element with type "jabber:x:data" can be
+        expected to contain a data form.
+        Challenge types must be defined and registered in the challenge types
+        registry.
+        When defining a challenge it is often convenient to reuse an XML
+        namespace from the document defining the challenge.
+      </dd>
+    
+    
+      <dt><strong>Flow</strong></dt>
+      <dd>
+        A flow, or more specifically a "registration flow" or "recovery flow",
+        is a collection of challenges that together can be used to gather enough
+        information to register a new account or recover an existing account.
+      </dd>
+    
+  </dl></div>
+<h2 id="usecases">4.
+       Use Cases<a class="anchor-link" href="#usecases"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <ul class="" style="">
+    <li class="" style="">
+      As a server operator, I want to prevent individual spammers from
+      registering many accounts so I require registrants to perform a
+      proof-of-work function before registration is completed.
+    </li>
+    <li class="" style="">
+      As a server operator I want to prevent bots from registering accounts so I
+      require that registrants submit a form which requires user interaction.
+    </li>
+    <li class="" style="">
+      As a user I do not want to lose access to my account if I forget my
+      password, so I provide my email and telephone number in response to the
+      servers data form.
+    </li>
+    <li class="" style="">
+      As a server operator I do not want users to accidentally add an incorrect
+      recovery address so I send an email with a unique link to the indicated
+      account and require that they click the link before registration can
+      continue.
+    </li>
+    <li class="" style="">
+      As a server operator I want to prevent SPIM using a proof-of-possession
+      protocol so I present the user with a form asking for a mobile phone
+      number and then send a verification code to that number via SMS and show
+      another form requesting the verification code.
+    </li>
+  </ul>
+<h2 id="disco">5.
+       Discovering Support<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="sect-idm109">5.1 Stream Feature<a class="anchor-link" href="#sect-idm109"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+  <p class="" style="">
+    If a server supports registering for or recovering an account using
+    Extensible IBR, it MUST inform the connecting client when returning stream
+    features during the stream negotiation process.
+    This is done by including a &lt;register/&gt; element, qualified by the
+    'urn:xmpp:register:0' namespace for account registration, or a
+    &lt;recovery/&gt; element qualified by the same namespace for account
+    recovery.
+    The register and recovery features are always voluntary-to-negotiate.
+    The registration and recovery features MUST NOT be advertised before
+    encryption has been negotiated, eg. using direct TLS or opportunistic TLS.
+    They SHOULD be advertised at the same time as the SASL authentication
+    feature, meaning that after registration or recovery is completed SASL
+    authentication can proceed.
+  </p>
+  <p class="" style="">
+    For recovery or registration, the server MUST include a list of all
+    challenges which the client may receive during the course of registering or
+    recovering an account.
+    These are grouped into "flows" and let the client pick a registration
+    workflow that only contains challenges which the client supports.
+    Each &lt;flow/&gt; element MUST have a unique "id" attribute which is used
+    by the client to identify the flow being selected.
+    They must also have at least one &lt;name/&gt; element containing a short,
+    human readable description of the flow.
+    If multiple &lt;name/&gt; elements are present they MUST have unique values
+    for the "xml:lang" attribute.
+    Clients MAY use the name element to show the different flows to the user and
+    ask them to pick between them.
+    Each flow must also contain an unordered set of &lt;challenge/&gt; elements
+    representing the various challenges that must be completed to complete the
+    registration or recovery flow.
+    Each &lt;challenge/&gt; element contains a "type" attribute that uniquely
+    identifies the challenge for the purpose of determining if it is supported.
+    If a flow would offer the same challenge twice (eg. two data forms asking
+    for different data), the challenge SHOULD only be listed once in the flow
+    element.
+  </p>
+  <p class="" style="">
+    For example, a server may advertise a "Verify with SMS" flow and a "Verify
+    by Phone Call" flow that both show a data form asking for a phone number
+    and then a second data form asking for a token provided to the user in a
+    text message or phone call depending on which flow the user selects.
+  </p>
+  <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Host Advertises Stream Features<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:features&gt;
+  &lt;mechanisms xmlns='urn:xmpp:sasl:0'&gt;
+    &lt;mechanism&gt;EXTERNAL&lt;/mechanism&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1-PLUS&lt;/mechanism&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1&lt;/mechanism&gt;
+    &lt;mechanism&gt;PLAIN&lt;/mechanism&gt;
+  &lt;/mechanisms&gt;
+  &lt;register xmlns='urn:xmpp:register:0'&gt;
+    &lt;flow id='0'&gt;
+      &lt;name&gt;Verify with SMS&lt;/name&gt;
+      &lt;challenge type='jabber:x:data'/&gt;
+    &lt;/flow&gt;
+    &lt;flow id='1'&gt;
+      &lt;name&gt;Verify by Phone Call&lt;/name&gt;
+      &lt;challenge type='jabber:x:data'/&gt;
+    &lt;/flow&gt;
+    &lt;flow id='2'&gt;
+      &lt;name&gt;Verify with the web&lt;/name&gt;
+      &lt;challenge type='jabber:x:data'/&gt;
+      &lt;challenge type='jabber:x:oob'/&gt;
+    &lt;/flow&gt;
+  &lt;/register&gt;
+  &lt;recovery xmlns='urn:xmpp:register:0'&gt;
+    &lt;flow id='0'&gt;
+      &lt;name&gt;Visit Password Recovery Site&lt;/name&gt;
+      &lt;challenge type='jabber:x:oob'/&gt;
+    &lt;/flow&gt;
+  &lt;/recovery&gt;
+&lt;/stream:features&gt;</pre></figure>
+  </div>
+  <div class="indent"><h3 id="sect-idm114">5.2 Service Discovery<a class="anchor-link" href="#sect-idm114"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">
+      Clients, servers, and other services such as components that support
+      Extensible IBR after stream negotiation is complete MUST advertise the
+      fact by including a feature of "urn::xmpp:register:0" in response to
+      <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm118">2</a>] information requests and in their <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm122">3</a>] profiles.
+    </p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Disco info response<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+  …
+  &lt;feature var='urn:xmpp:register:0' /&gt;
+  …
+&lt;/query&gt;</pre></figure>
+  </div>
+  <div class="indent"><h3 id="sect-idm125">5.3 Retrieving the Flows<a class="anchor-link" href="#sect-idm125"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">
+      To find what flows an entity provides (if any) after stream negotiation is
+      complete the requester can send an IQ of type "get" containing a
+      &lt;register&gt; or &lt;recovery&gt; element qualified by the
+      "urn:xmpp:register:0" namespace.
+    </p>
+    <p class="" style="">
+      When responding to a query for registration or recovery flows the list of
+      challenges should be included just as it would be if during stream feature
+      negotiation.
+      That is, a "register" or "recovery" element containing a list of flows,
+      each with an id, containing a name and a list of challenges.
+      If an entity supports this specification but does not provide any flows
+      after stream negotiation it MUST respond with an empty list.
+    </p>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Registration flows query<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'&gt;
+  &lt;register xmlns='urn:xmpp:register:0'/&gt;
+&lt;/iq&gt;</pre></figure>
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Registration flows results<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'&gt;
+  &lt;register xmlns='urn:xmpp:register:0'&gt;
+    &lt;flow id='0'&gt;
+      &lt;name&gt;Verify with SMS&lt;/name&gt;
+      &lt;challenge type='jabber:x:data'/&gt;
+    &lt;/flow&gt;
+    &lt;flow id='1'&gt;
+      &lt;name&gt;Verify by Phone Call&lt;/name&gt;
+      &lt;challenge type='jabber:x:data'/&gt;
+    &lt;/flow&gt;
+    &lt;flow id='2'&gt;
+      &lt;name&gt;Verify with the web&lt;/name&gt;
+      &lt;challenge type='jabber:x:data'/&gt;
+      &lt;challenge type='jabber:x:oob'/&gt;
+    &lt;/flow&gt;
+  &lt;/register&gt;
+&lt;/iq&gt;</pre></figure>
+    <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Empty registration flows results<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'&gt;
+  &lt;register xmlns='urn:xmpp:register:0'/&gt;
+&lt;/iq&gt;</pre></figure>
+  </div>
+<h2 id="challenge">6.
+       Challenges<a class="anchor-link" href="#challenge"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    A client selects the registration or recovery feature for negotiation by
+    replying with an element of the same name and namespace.
+    The element MUST contain a &lt;flow&gt; element that MUST have an "id"
+    attribute matching one of the flows advertised by the server.
+    For example, to select the "Verify by Phone Call" registration flow from
+    the previous example, the client would reply with:
+  </p>
+  <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Client selects a recovery flow<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;register xmlns='urn:xmpp:register:0'&gt;
+  &lt;flow id='1'/&gt;
+&lt;/register&gt;</pre></figure>
+  <p class="" style="">
+    If the client is initiating registration or recovery after a stream has
+    already been initiated it uses the same registration element wrapped in an
+    IQ of type "set".
+    </p>
+  <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Client selects a recovery flow after stream negotiation<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='set' id='foo'&gt;
+  &lt;recovery xmlns='urn:xmpp:register:0'&gt;
+    &lt;flow id='0'/&gt;
+  &lt;/recovery&gt;
+&lt;/iq&gt;</pre></figure>
+  <p class="" style="">
+    The server then replies to the IQ or feature selection with a challenge.
+    If replying to an IQ, the challenge must be wrapped in an IQ of type
+    "result".
+    Challenges take the form of a &lt;challenge/&gt; element qualified by the
+    'urn:xmpp:register:0' namespace with a 'type' attribute that uniquely
+    identifies the type of payload a client might expect the element to contain.
+  </p>
+    <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> Server issues a challenge<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;challenge xmlns='urn:xmpp:register:0'
+           type='urn:example:challenge'&gt;
+  &lt;example xmlns='urn:example:challenge'&gt;Payload&lt;/example&gt;
+&lt;/challenge&gt;</pre></figure>
+  <p class="" style="">
+    After a challenge is received, the client replies to the challenge by
+    sending a &lt;response/&gt; element qualified by the 'urn:xmpp:register:0'
+    namespace or a cancellation as defined later in this document.
+    If the client sends a response, it MUST also include the payload
+    corresponding to the challenges 'type' element (which may be empty).
+  </p>
+    <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> Client responds to a challenge<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;response xmlns='urn:xmpp:register:0'&gt;
+  &lt;result xmlns='urn:example:challenge'&gt;Example Response&lt;/result&gt;
+&lt;/response&gt;</pre></figure>
+  <div class="indent"><h3 id="dataform">6.1 Data Form<a class="anchor-link" href="#dataform"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">
+      This document defines a type of 'jabber:x:data' which MUST always contain a
+      data form (an 'x' element with type 'form') as defined by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0004.html">Data Forms (XEP-0004)</a></span>  [<a href="#nt-idm144">4</a>].
+    </p>
+    <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Server issues a data form challenge<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;challenge xmlns='urn:xmpp:register:0'
+           type='jabber:x:data'&gt;
+  &lt;x xmlns='jabber:x:data' type='form'&gt;
+    &lt;title&gt;Chat Registration&lt;/title&gt;
+    &lt;instructions&gt;
+      Please provide the following information
+      to sign up to view our chat rooms!
+    &lt;/instructions&gt;
+    &lt;field type='hidden' var='FORM_TYPE'&gt;
+      &lt;value&gt;urn:xmpp:register:0&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;field type='text-single' label='Given Name' var='first'/&gt;
+    &lt;field type='text-single' label='Family Name' var='last'/&gt;
+    &lt;field type='text-single' label='Nickname' var='nick'&gt;
+      &lt;required/&gt;
+    &lt;/field&gt;
+    &lt;field type='text-single' label='Recovery Email Address' var='email'&gt;
+      &lt;required/&gt;
+    &lt;/field&gt;
+  &lt;/x&gt;
+&lt;/challenge&gt;</pre></figure>
+  <p class="" style="">
+    The response to a "jabber:x:data" challenge MUST be a form submission (an
+    'x' element of type 'submit').
+    For instance, to reply to the data form challenge from the previous example
+    a client might send:
+  </p>
+  <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Client submits a data form in response to the challenge<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;response xmlns='urn:xmpp:register:0'&gt;
+  &lt;x xmlns='jabber:x:data' type='submit'&gt;
+    &lt;field type='hidden' var='FORM_TYPE'&gt;
+      &lt;value&gt;urn:xmpp:register:0&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;field type='text-single' label='Given Name' var='first'&gt;
+      &lt;value&gt;Juliet&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;field type='text-single' label='Family Name' var='last'&gt;
+      &lt;value&gt;Capulet&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;field type='text-single' label='Nickname' var='nick'&gt;
+      &lt;value&gt;Jule&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;field type='text-single' label='Recovery Email Address' var='email'&gt;
+      &lt;value&gt;juliet@capulet.com&lt;/value&gt;
+    &lt;/field&gt;
+  &lt;/x&gt;
+&lt;/response&gt;</pre></figure>
+  </div>
+  <div class="indent"><h3 id="oob">6.2 Out of Band Data<a class="anchor-link" href="#oob"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">
+      Challenges of the type "jabber:x:oob" MUST contain an &lt;x/&gt; element
+      qualified by the "jabber:x:oob" namespace as defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0066.html">Out-of-Band Data (XEP-0066)</a></span>  [<a href="#nt-idm153">5</a>].
+    </p>
+    <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> Server issues an OOB challenge<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;challenge xmlns='urn:xmpp:register:0'
+           type='jabber:x:oob'&gt;
+  &lt;x xmlns='jabber:x:oob'&gt;
+    &lt;url&gt;http://example.net/login?token=foo&lt;/url&gt;
+  &lt;/x&gt;
+&lt;/challenge&gt;</pre></figure>
+    <p class="" style="">
+      If the client sends a response to the OOB challenge it MUST be empty.
+    </p>
+    <figure class="code-example" id="example-13"><figcaption><strong>Example 13.</strong> Client acknowledges the OOB challenge<a class="anchor-link" href="#example-13"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;response xmlns='urn:xmpp:register:0'/&gt;</pre></figure>
+  </div>
+<h2 id="completion">7.
+       Completing Registration or Recovery<a class="anchor-link" href="#completion"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    If after receiving a challenge or response a client or server does not wish
+    to continue registration or recovery, it may send an empty &lt;cancel/&gt;
+    element qualified by the 'urn:xmpp:register:0' namespace.
+    This informs the client or server that registration is complete.
+    This is the same as submitting a data form of type 'cancel' in response to a
+    data form challenge.
+  </p>
+  <figure class="code-example" id="example-14"><figcaption><strong>Example 14.</strong> User Cancels Registration or Recovery<a class="anchor-link" href="#example-14"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;cancel xmlns='urn:xmpp:register:0'/&gt;</pre></figure>
+  <p class="" style="">
+    If the IQ based registration or recovery flow is being used and the server
+    wishes to cancel the flow, it MAY respond to any IQ from the client with the
+    cancel element and type "result".
+  </p>
+  <figure class="code-example" id="example-15"><figcaption><strong>Example 15.</strong> Server cancels request<a class="anchor-link" href="#example-15"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result' id='bar'&gt;
+  &lt;cancel xmlns='urn:xmpp:register:0'/&gt;
+&lt;/iq&gt;</pre></figure>
+  <p class="" style="">
+    If the client successfully completes all required challenges during stream
+    negotiation the server MUST return an empty &lt;success/&gt; element
+    qualified by the 'urn:xmpp:register:0' namespace, at which point it may
+    continue with the stream negotiation process.
+    If the server needs more information, for example, in the previous challenge
+    the user entered an email and now the server wishes to ask for a code that
+    was sent to that email, the server MAY send another challenge.
+  </p>
+  <figure class="code-example" id="example-16"><figcaption><strong>Example 16.</strong> Server indicates success during steam negotiation<a class="anchor-link" href="#example-16"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;success xmlns='urn:xmpp:register:0'/&gt;</pre></figure>
+  <p class="" style="">
+    If the IQ based flow is being used and the server wishes to indicate success
+    it sends an empty IQ response of type "result".
+  </p>
+  <figure class="code-example" id="example-17"><figcaption><strong>Example 17.</strong> Server indicates success after stream negotiation<a class="anchor-link" href="#example-17"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result' id='bar' /&gt;</pre></figure>
+<h2 id="i18n">8.
+       Internationalization Considerations<a class="anchor-link" href="#i18n"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    When providing instructions in a data form, or in the name element of a
+    registration or recovery flow, the server SHOULD use the language specified
+    in the XML stream's current xml:lang, or the closest language for which the
+    server has a translation (eg. based on mutual intelligibility between
+    scripts and languages).
+  </p>
+  <p class="" style="">
+    For more information about language tags and matching, see <span class="ref" style=""><a href="http://tools.ietf.org/html/bcp47">BCP 47</a></span>  [<a href="#nt-idm172">6</a>].
+  </p>
+<h2 id="security">9.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    Servers that allow in-band registration need to take measures to prevent
+    abuse.
+    Common techniques to prevent spam registrations include displaying CAPTCHAs
+    or requiring proof-of-possession of a valid email address or telephone number
+    by sending a unique code (e.g. an HMAC that can later be verified as having
+    originated at the server) to the users email and requiring that they enter
+    the code before continuing.
+    Servers that do not take such measures risk being black listed by other
+    servers in the network.
+  </p>
+<h2 id="iana">10.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm180">7</a>].</p>
+<h2 id="registrar">11.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="registrar-ns">11.1 Protocol Namespaces<a class="anchor-link" href="#registrar-ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:register:0</li>
+    </ul>
+    <p class="" style="">
+      Upon advancement of this specification from a status of Experimental to a
+      status of Draft, the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm190">8</a>] shall add the foregoing namespace to the
+      registries located at &lt;<a href="https://xmpp.org/registrar/stream-features.html">https://xmpp.org/registrar/stream-features.html</a>&gt;, and &lt;<a href="https://xmpp.org/registrar/disco-features.html">https://xmpp.org/registrar/disco-features.html</a>&gt; as described
+      in Section 4 of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idm196">9</a>].
+    </p>
+    <figure class="code"><figcaption>Service Discovery Features Registry Submission</figcaption><pre class="prettyprint">
+&lt;var&gt;
+  &lt;name&gt;urn:xmpp:register:0&lt;/name&gt;
+  &lt;desc&gt;Support for in band registration and password reset.&lt;/desc&gt;
+  &lt;doc&gt;&amp;xep0389;&lt;/doc&gt;
+&lt;/var&gt;</pre></figure>
+    <figure class="code"><figcaption>Stream Features Registry Submission</figcaption><pre class="prettyprint">
+&lt;feature&gt;
+  &lt;ns&gt;urn:xmpp:register:0&lt;/ns&gt;
+  &lt;name&gt;Extensible In-Band Registration&lt;/name&gt;
+  &lt;element&gt;register&lt;/element&gt;
+  &lt;desc&gt;Support for in band registration and password reset.&lt;/desc&gt;
+  &lt;doc&gt;&amp;xep0389;&lt;/doc&gt;
+&lt;/feature&gt;</pre></figure>
+    <p class="" style="">
+      The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm190">8</a>] shall also add the foregoing namespace to the Jabber/XMPP
+      Protocol Namespaces Registry located at &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;.
+      Upon advancement of this specification from a status of Experimental to a
+      status of Draft, the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm190">8</a>] shall remove the provisional status from
+      this registry entry.
+    </p>
+    <figure class="code"><figcaption>Jabber/XMPP Protocol Namespaces Registry Submission</figcaption><pre class="prettyprint">
+&lt;ns&gt;
+  &lt;name&gt;urn:xmpp:register:0&lt;/name&gt;
+  &lt;doc&gt;&amp;xep0389;&lt;/doc&gt;
+  &lt;status&gt;provisional&lt;/status&gt;
+&lt;/ns&gt;</pre></figure>
+  </div>
+  <div class="indent"><h3 id="registrar-challenges">11.2 IBR Challenges Registry<a class="anchor-link" href="#registrar-challenges"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">
+      The XMPP Registrar shall maintain a registry of IBR challenges.
+      Challenges defined within the XEP series MUST be registered with the XMPP
+      Registrar.
+    </p>
+    <p class="" style="">In order to submit new values to this registry, the registrant shall define an XML fragment of the following form and either include it in the relevant XMPP Extension Protocol or send it to the email address &lt;registrar@xmpp.org&gt;:</p>
+    <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;challenge&gt;
+  &lt;type&gt;A name that uniquely identifies the challenge.&lt;/type&gt;
+  &lt;desc&gt;A natural-language summary of the challenge.&lt;/desc&gt;
+  &lt;doc&gt;
+    The document (or documents) in which the IBR challenge and its payload are
+    defined.
+  &lt;/doc&gt;
+&lt;/challenge&gt;</pre></figure>
+  <p class="" style="">
+    For an example registration, see the next section.
+  </p>
+  </div>
+  <div class="indent"><h3 id="registrar-ibrchallenges">11.3 Challenge Types<a class="anchor-link" href="#registrar-ibrchallenges"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This specification defines the following IBR challenge:</p>
+    <ul class="" style="">
+      <li class="" style="">jabber:x:data</li>
+      <li class="" style="">jabber:x:oob</li>
+    </ul>
+    <p class="" style="">
+      Upon advancement of this specification from a status of Experimental to a
+      status of Draft, the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm190">8</a>] shall add the following definitions to
+      the IBR challenges registry, as described in this document:
+    </p>
+    <figure class="code"><figcaption>IBR Challenges Registry Submission for Data Forms</figcaption><pre class="prettyprint">
+&lt;challenge&gt;
+  &lt;type&gt;jabber:x:data&lt;/type&gt;
+  &lt;desc&gt;Requests that the client fill out an XEP-0004 data form.&lt;/desc&gt;
+  &lt;doc&gt;&amp;xep0389;, &amp;xep0004;&lt;/doc&gt;
+&lt;/challenge&gt;</pre></figure>
+    <figure class="code"><figcaption>IBR Challenges Registry Submission for OOB Data</figcaption><pre class="prettyprint">
+&lt;challenge&gt;
+  &lt;type&gt;jabber:x:oob&lt;/type&gt;
+  &lt;desc&gt;Requests that the client execute a URI.&lt;/desc&gt;
+  &lt;doc&gt;&amp;xep0066;&lt;/doc&gt;
+&lt;/challenge&gt;</pre></figure>
+  </div>
+  <div class="indent"><h3 id="registrar-versioning">11.4 Namespace Versioning<a class="anchor-link" href="#registrar-versioning"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="http://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0389</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.4.0</dd><dt>Last Updated</dt><dd>2020-04-22</dd><dt>Approving Body</dt><dd><a href="http://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core</dd><dt>Supersedes</dt><dd>XEP-0077</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>ibr2</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0389.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0389.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0389.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Sam Whited</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:sam@samwhited.com">sam@samwhited.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:sam@samwhited.com">sam@samwhited.com</a></dd><dt>URI</dt><dd><a href="https://blog.samwhited.com/">https://blog.samwhited.com/</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm79">1</a>. XEP-0077: In-Band Registration &lt;<a href="https://xmpp.org/extensions/xep-0077.html">https://xmpp.org/extensions/xep-0077.html</a>&gt;.</p><p><a name="nt-idm118">2</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm122">3</a>. XEP-0115: Entity Capabilities &lt;<a href="https://xmpp.org/extensions/xep-0115.html">https://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-idm144">4</a>. XEP-0004: Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0004.html">https://xmpp.org/extensions/xep-0004.html</a>&gt;.</p><p><a name="nt-idm153">5</a>. XEP-0066: Out of Band Data &lt;<a href="https://xmpp.org/extensions/xep-0066.html">https://xmpp.org/extensions/xep-0066.html</a>&gt;.</p><p><a name="nt-idm172">6</a>. BCP 47: Tags for Identifying Languages &lt;<a href="http://tools.ietf.org/html/bcp47">http://tools.ietf.org/html/bcp47</a>&gt;.</p><p><a name="nt-idm180">7</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm190">8</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idm196">9</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.4.0"><div class="revision-head">Version 0.4.0 (2020-04-22)<a class="anchor-link" href="#revision-history-v0.4.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Add OOB challenge type.</li>
+        <li class="" style="">Add IQ query for flows.</li>
+        <li class="" style="">Add a glossary.</li>
+        <li class="" style="">Make challenge listings more consistent.</li>
+        <li class="" style="">Cleanup and expand the registrar considerations section.</li>
+        <li class="" style="">Clarifications and typo fixes throughout the text.</li>
+      </ul>
+    <div class="revision-author">ssw</div></li><li id="revision-history-v0.3.0"><div class="revision-head">Version 0.3.0 (2020-04-19)<a class="anchor-link" href="#revision-history-v0.3.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Move back to experimental.</li>
+        <li class="" style="">Add IQ variant of registration/recovery.</li>
+        <li class="" style="">Allow client to select between multiple flows.</li>
+      </ul>
+    <div class="revision-author">ssw</div></li><li id="revision-history-v0.2.0"><div class="revision-head">Version 0.2.0 (2018-10-01)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Defer due to lack of activity.<div class="revision-author">XEP Editor (jsc)</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version 0.1.0 (2017-03-16)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      Move to experimental.
+    <div class="revision-author">XEP Editor (ssw)</div></li><li id="revision-history-v0.0.2"><div class="revision-head">Version 0.0.2 (2017-02-15)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Don't allow feature to act as auth.</li>
+        <li class="" style="">Use a more conventional list for challenge type listings.</li>
+      </ul>
+    <div class="revision-author">ssw</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version 0.0.1 (2017-02-08)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">ssw</div></li></ol><p>END</p></body></html>
