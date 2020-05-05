@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0438: Best practices for password hashing and storage</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0438";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0"><meta name="DC.Title" content="Best practices for password hashing and storage"><meta name="DC.Creator" content="Sam Whited"><meta name="DC.Description" content="
+    This document outlines best practices for handling user passwords on the
+    public Jabber network for both clients and servers.
+  "><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2020-05-05"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0438"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0438: Best practices for password hashing and storage</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>
+    This document outlines best practices for handling user passwords on the
+    public Jabber network for both clients and servers.
+  </dd><dt>Author</dt><dd>Sam Whited</dd><dt>Copyright</dt><dd>© 1999 – 2020 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental informational">WARNING: This Informational document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the best practice or protocol profile described herein is encouraged in exploratory implementations, although production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Informational</dd><dt>Version</dt><dd>0.1.0 (2020-05-05)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Active</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#required">SASL Mechanisms</a></li><li><a href="#client">Client Best Practices</a><ol><li><a href="#pinning">Mechanism Pinning</a></li><li><a href="#client-storage">Storage</a></li></ol></li><li><a href="#server">Server Best Practices</a><ol><li><a href="#server-required">Additional SASL Requirements</a></li><li><a href="#server-storage">Storage</a></li><li><a href="#auth">Authentication and Rotation</a></li></ol></li><li><a href="#pbkdf2">PBKDF2 Parameters</a></li><li><a href="#passwordcomplexity">Password Complexity Requirements</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    Following best practices when hashing and storing passwords and other
+    authenticator secrets impacts a great deal more than just a users identity.
+    It also effects usability, and backwards compatibility by determining what
+    authentication and authorization mechanisms can be used.
+    Unfortunately, aside from mandating the use of SCRAM-SHA-1 in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm43">1</a>], and
+    recommending at least 4096 rounds of PBKDF2 in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5802">RFC 5802</a></span>  [<a href="#nt-idm47">2</a>] (a
+    number which is now woefully inadequate), no general recommendations for
+    best practices in password storage, transmission, or key derivation function
+    tuning exist in the XMPP ecosystem.
+  </p>
+  <p class="" style="">
+    Many of the recommendations in this document were taken from
+    <span class="ref" style=""><a href="https://doi.org/10.6028/NIST.SP.800-63b">Digital Identity Guidelines: Authentication and Lifecycle Management</a></span>  [<a href="#nt-idm52">3</a>] and <span class="ref" style=""><a href="https://doi.org/10.6028/NIST.SP.800-132">Recommendation for Password-Based Key Derivation, Part 1: Storage Applications</a></span>  [<a href="#nt-idm56">4</a>].
+  </p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    This document makes specific recommendations for best practices on the
+    public Jabber network for both clients and servers.
+    It does not attempt to address private networks or proprietary services
+    which may have different requirements, use cases, and security models.
+    These recommendations include the hashing and storage of memorized secrets
+    and other authenticators, authentication, and compatibility between clients
+    and servers with respect to authentication.
+  </p>
+  <p class="" style="">
+    To keep the length of this document manageable, we assume basic familiarity
+    with password storage and handling, common terms, and cryptographic
+    operations.
+    For an overview of basic password security see the <span class="ref" style=""><a href="https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html">OWASP Password Storage Cheat Sheet</a></span>  [<a href="#nt-idm63">5</a>]
+    maintained by the <span class="ref" style=""><a href="https://owasp.org/">Open Web Application Security Project (OWASP)</a></span>  [<a href="#nt-idm67">6</a>].
+  </p>
+<h2 id="glossary">3.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    Many terms used in this document are defined in <span class="ref" style=""><a href="https://doi.org/10.6028/NIST.SP.800-63-3">Digital Identity Guidelines</a></span>  [<a href="#nt-idm73">7</a>] Appendix
+    A.1 and in <span class="ref" style=""><a href="https://doi.org/10.6028/NIST.SP.800-132">Recommendation for Password-Based Key Derivation, Part 1: Storage Applications</a></span>  [<a href="#nt-idm56">4</a>] §3.1.
+    Throughout this document the term "password" is used to mean any password,
+    passphrase, PIN, or other memorized secret.
+  </p>
+  <div class="indent"><dl>
+    
+      <dt><strong>Pepper</strong></dt>
+      <dd>
+        A secret added to a password hash like a salt.
+        Unlike a salt, peppers are secret and not unique.
+        They must not be stored alongside the hashed password.
+      </dd>
+    
+  </dl></div>
+<h2 id="required">4.
+       SASL Mechanisms<a class="anchor-link" href="#required"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    Clients and servers must already implement the SASL mechanisms listed in RFC
+    6120 §13.8.1 For Authentication Only.
+    These mechanisms are:
+  </p>
+  <ul class="" style="">
+    <li class="" style="">SCRAM-SHA-1</li>
+    <li class="" style="">SCRAM-SHA-1-PLUS</li>
+  </ul>
+  <p class="" style="">
+    In addition, clients and servers SHOULD support the following SCRAM variants
+    defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc7677">RFC 7677</a></span>  [<a href="#nt-idm91">8</a>]:
+  </p>
+  <ul class="" style="">
+    <li class="" style="">SCRAM-SHA-256</li>
+    <li class="" style="">SCRAM-SHA-256-PLUS</li>
+  </ul>
+  <p class="" style="">
+    Clients SHOULD NOT invent their own mechanisms that have not been
+    standardized by the IETF, the XSF, or another reputable standards body.
+  </p>
+  <p class="" style="">
+    Clients MUST NOT implement any mechanism with a usage status of "OBSOLETE",
+    "MUST NOT be used", or "LIMITED" in the <span class="ref" style=""><a href="http://www.iana.org/assignments/sasl-mechanisms">IANA SASL Mechanisms Registry</a></span>  [<a href="#nt-idm100">9</a>].
+    Similarly, any mechanism that depends on a hash function listed as "MUST
+    NOT" in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0414.html">Cryptographic Hash Function Recommendations for XMPP (XEP-0414)</a></span>  [<a href="#nt-idm104">10</a>] MUST NOT be used.
+    This means that the following mechanisms which were commonly used with XMPP
+    in the past MUST NOT be supported:
+  </p>
+  <ul class="" style="">
+    <li class="" style="">CRAM-MD5 (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc2195">RFC 2195</a></span>  [<a href="#nt-idm110">11</a>])</li>
+    <li class="" style="">DIGEST-MD5 (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6331">RFC 6331</a></span>  [<a href="#nt-idm115">12</a>])</li>
+  </ul>
+<h2 id="client">5.
+       Client Best Practices<a class="anchor-link" href="#client"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="pinning">5.1 Mechanism Pinning<a class="anchor-link" href="#pinning"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">
+      Clients maintain a list of preferred SASL mechanisms, generally ordered by
+      perceived strength to enable strong authentication (RFC 6120 §6.3.3
+      Mechanism Preferences).
+      To prevent downgrade attacks by a malicious actor that has successfully
+      man in the middled a connection, or compromised a trusted server's
+      configuration, clients SHOULD implement "mechanism pinning".
+      That is, after the first successful authentication with a strong
+      mechanism, clients SHOULD make a record of the authentication and
+      thereafter only advertise and use mechanisms of equal or higher perceived
+      strength.
+    </p>
+    <p class="" style="">
+      For reference, the following mechanisms are ordered by their perceived
+      strength from strongest to weakest with mechanisms of equal strength on
+      the same line.
+      This list is a non-normative example and does not indicate that these
+      mechanisms should or should not be supported:
+    </p>
+    <ol start="" class="" style="">
+      <li class="" style="">EXTERNAL</li>
+      <li class="" style="">SCRAM-SHA-1-PLUS, SCRAM-SHA-256-PLUS</li>
+      <li class="" style="">SCRAM-SHA-1, SCRAM-SHA-256</li>
+      <li class="" style="">PLAIN</li>
+      <li class="" style="">DIGEST-MD5, CRAM-MD5</li>
+    </ol>
+  </div>
+  <div class="indent"><h3 id="client-storage">5.2 Storage<a class="anchor-link" href="#client-storage"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">
+      Clients SHOULD always store authenticators in a trusted and encrypted
+      keystore such as the system keystore, or an encrypted store created
+      specifically for the clients use.
+      They SHOULD NOT store authenticators as plain text.
+    </p>
+    <p class="" style="">
+      If clients know that they will only ever authenticate using a mechanism
+      such as SCRAM where the original password is not needed (for example if
+      the mechanism has been pinned) they SHOULD store the SCRAM bits or the
+      hashed and salted password instead of the original password.
+      However, if backwards compatibility with servers that only support the
+      PLAIN mechanism or other mechanisms that require using the original
+      password is required, clients MAY choose to store the original password
+      so long as an appropriate keystore is used.
+    </p>
+  </div>
+<h2 id="server">6.
+       Server Best Practices<a class="anchor-link" href="#server"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="server-required">6.1 Additional SASL Requirements<a class="anchor-link" href="#server-required"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">
+      Servers MUST NOT support any mechanism that would require authenticators
+      to be stored in such a way that they could be recovered in plain text from
+      the stored information.
+      This includes mechanisms that store authenticators using reversable
+      encryption, obsolete hashing mechanisms such as MD5, and hashes that are
+      unsuitable for use with authenticators such as SHA256.
+    </p>
+  </div>
+  <div class="indent"><h3 id="server-storage">6.2 Storage<a class="anchor-link" href="#server-storage"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">
+      Servers MUST always store passwords only after they have been salted and
+      hashed.
+      If multiple hashes are supported for use with SCRAM, for example
+      SCRAM-SHA-1 and SCRAM-SHA-256, separate salted and hashed passwords SHOULD
+      be calculated and stored for each mechanism so that users can log in with
+      multiple clients that support only some of the mechanisms.
+    </p>
+    <p class="" style="">
+      A distinct salt SHOULD be used for each user, and each SCRAM family
+      supported.
+      Salts MUST be generated using a cryptographically secure random number
+      generator.
+      The salt MAY be stored in the same datastore as the password.
+      If it is stored alongside the password, it SHOULD be combined with a
+      pepper stored in the application configuration, an environment variable,
+      or some other location other than the datastore containing the salts.
+    </p>
+  </div>
+  <div class="indent"><h3 id="auth">6.3 Authentication and Rotation<a class="anchor-link" href="#auth"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">
+      When authenticating using PLAIN or similar mechanisms that involve
+      transmitting the original password to the server the password MUST
+      be hashed and compared against the salted and hashed password in the
+      database using a constant time comparison.
+    </p>
+    <p class="" style="">
+      Each time a password is changed or reset, a new random salt should be
+      created and the iteration count and pepper (if applicable) should be
+      updated to the latest value required by server policy.
+    </p>
+    <p class="" style="">
+      If a pepper is used, consideration should be taken to ensure that it can
+      be easily rotated.
+      For example, multiple peppers could be stored with new passwords and
+      reset passwords using the latest pepper.
+      A hash of the pepper using a cryptographically secure hash function such
+      as SHA256 could then be stored in the database next to the salt so that
+      future logins can identify which pepper in the list was used.
+      This is just one example, pepper rotation schemes are outside the scope of
+      this document.
+    </p>
+  </div>
+<h2 id="pbkdf2">7.
+       PBKDF2 Parameters<a class="anchor-link" href="#pbkdf2"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    Because the PBKDF2 key derivation function (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8018">RFC 8018</a></span>  [<a href="#nt-idm144">13</a>]) is used by
+    SCRAM-SHA-1 which is mandated for use in XMPP, this document recommends it
+    for password storage.
+    Servers SHOULD use the following parameters when applying PBKDF2:
+  </p>
+  <div class="indent"><dl>
+    
+      <dt><strong>Minimum iterations</strong></dt>
+      <dd>10,000 (100,000 for higher security environments)</dd>
+    
+    
+      <dt><strong>Minimum salt length</strong></dt>
+      <dd>16 bytes</dd>
+    
+    
+      <dt><strong>Minimum pepper length</strong></dt>
+      <dd>32 bytes</dd>
+    
+  </dl></div>
+  <p class="" style="">
+    The minimum iteration count may be tuned to the specific system on which
+    password hashing is taking place.
+  </p>
+<h2 id="passwordcomplexity">8.
+       Password Complexity Requirements<a class="anchor-link" href="#passwordcomplexity"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    Clients and servers SHOULD enforce a minimum length of 8 characters for user
+    passwords.
+    If using a mechanism such as PLAIN where the server performs hashing on the
+    original password, a maximum length between 64 and 128 characters MAY be
+    imposed to prevent denial of service (DoS) attacks.
+    Passwords SHOULD be required to conform to the Opaque String profile of
+    <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8265">RFC 8265</a></span>  [<a href="#nt-idm161">14</a>].
+    No other password restrictions should be applied.
+  </p>
+<h2 id="security">9.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    The SCRAM suite of SASL mechanisms are recommended in this document,
+    however, there is currently no way to force a password reset.
+    This reduces upgrade agility if a weakness is discovered in SCRAM and means
+    that new, untested, SCRAM-based or SCRAM-like mechanisms should be added
+    with caution.
+  </p>
+  <p class="" style="">
+    This document mentions many hash functions that are already in
+    use in the XMPP ecosystem, or that have been used in the past.
+    It does not make recommendations for what functions should or should not be
+    used in new applications.
+    For recommendations about the use of hash functions and their security
+    implications, see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0414.html">Cryptographic Hash Function Recommendations for XMPP (XEP-0414)</a></span>  [<a href="#nt-idm104">10</a>]
+  </p>
+  <p class="" style="">
+    This document contains recommendations that are likely to change over time.
+    It should be reviewed yearly to ensure that it remains accurate and up to
+    date.
+    Many of the recommendations in this document were taken from the
+    <span class="ref" style=""><a href="https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html">OWASP Password Storage Cheat Sheet</a></span>  [<a href="#nt-idm63">5</a>], which can be used as a reference when making updates.
+  </p>
+<h2 id="iana">10.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm179">15</a>].
+  </p>
+<h2 id="registrar">11.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    No namespaces or parameters need to be registered with the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm185">16</a>] as a
+    result of this document.
+  </p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="http://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0438</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Informational">Informational</a></dd><dt>Version</dt><dd>0.1.0</dd><dt>Last Updated</dt><dd>2020-05-05</dd><dt>Approving Body</dt><dd><a href="http://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>
+                None
+              </dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>passwords</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0438.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0438.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0438.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Sam Whited</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:sam@samwhited.com">sam@samwhited.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:sam@samwhited.com">sam@samwhited.com</a></dd><dt>URI</dt><dd><a href="https://blog.samwhited.com/">https://blog.samwhited.com/</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm43">1</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm47">2</a>. RFC 5802: Salted Challenge Response Authentication Mechanism (SCRAM) SASL and GSS-API Mechanisms &lt;<a href="http://tools.ietf.org/html/rfc5802">http://tools.ietf.org/html/rfc5802</a>&gt;.</p><p><a name="nt-idm52">3</a>. Digital Identity Guidelines: Authentication and Lifecycle Management, NIST Special Publication 800-63B &lt;<a href="https://doi.org/10.6028/NIST.SP.800-63b">https://doi.org/10.6028/NIST.SP.800-63b</a>&gt;.</p><p><a name="nt-idm56">4</a>. Recommendation for Password-Based Key Derivation, Part 1: Storage Applications, NIST Special Publication 800-132 &lt;<a href="https://doi.org/10.6028/NIST.SP.800-132">https://doi.org/10.6028/NIST.SP.800-132</a>&gt;.</p><p><a name="nt-idm63">5</a>. OWASP Cheat Sheet Series for password storage &lt;<a href="https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html">https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html</a>&gt;.</p><p><a name="nt-idm67">6</a>. The Open Web Application Security Project (OWASP, or OWASP Foundation) is a nonprofit foundation that works to improve the security of software. For further information, see &lt;<a href="https://owasp.org/">https://owasp.org/</a>&gt;.</p><p><a name="nt-idm73">7</a>. Digital Identity Guidelines, NIST Special Publication 800-63-3 &lt;<a href="https://doi.org/10.6028/NIST.SP.800-63-3">https://doi.org/10.6028/NIST.SP.800-63-3</a>&gt;.</p><p><a name="nt-idm91">8</a>. RFC 7677: SCRAM-SHA-256 and SCRAM-SHA-256-PLUS Simple Authentication and Security Layer (SASL) Mechanisms &lt;<a href="http://tools.ietf.org/html/rfc7677">http://tools.ietf.org/html/rfc7677</a>&gt;.</p><p><a name="nt-idm100">9</a>. IANA registry of mechanisms used in the Simple Authentication and Security Layer protocol &lt;<a href="http://www.iana.org/assignments/sasl-mechanisms">http://www.iana.org/assignments/sasl-mechanisms</a>&gt;.</p><p><a name="nt-idm104">10</a>. XEP-0414: Cryptographic Hash Function Recommendations for XMPP &lt;<a href="https://xmpp.org/extensions/xep-0414.html">https://xmpp.org/extensions/xep-0414.html</a>&gt;.</p><p><a name="nt-idm110">11</a>. RFC 2195: IMAP/POP AUTHorize Extension for Simple Challenge/Response &lt;<a href="http://tools.ietf.org/html/rfc2195">http://tools.ietf.org/html/rfc2195</a>&gt;.</p><p><a name="nt-idm115">12</a>. RFC 6331: Moving DIGEST-MD5 to Historic &lt;<a href="http://tools.ietf.org/html/rfc6331">http://tools.ietf.org/html/rfc6331</a>&gt;.</p><p><a name="nt-idm144">13</a>. RFC 8018: PKCS #5: Password-Based Cryptography Specification Version 2.1 &lt;<a href="http://tools.ietf.org/html/rfc8018">http://tools.ietf.org/html/rfc8018</a>&gt;.</p><p><a name="nt-idm161">14</a>. RFC 8265: PRECIS Framework: Preparation, Enforcement, and Comparison of Internationalized Strings in Application ProtocolePRECIS Framework: Preparation, Enforcement, and Comparison of Internationalized Strings in Application Protocolsration, Enforcement, and Comparison of Internationalized Strings Representing Usernames and Passwords &lt;<a href="http://tools.ietf.org/html/rfc8265">http://tools.ietf.org/html/rfc8265</a>&gt;.</p><p><a name="nt-idm179">15</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm185">16</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.1.0"><div class="revision-head">Version 0.1.0 (2020-05-05)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Accepted by vote of Council on 2020-04-22.<div class="revision-author">XEP Editor (jsc)</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version 0.0.1 (2020-04-19)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">ssw</div></li></ol><p>END</p></body></html>
