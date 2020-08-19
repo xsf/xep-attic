@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0178: Best Practices for Use of SASL EXTERNAL with Certificates</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0178";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0"><meta name="DC.Title" content="Best Practices for Use of SASL EXTERNAL with Certificates"><meta name="DC.Creator" content="Peter Saint-Andre"><meta name="DC.Creator" content="Peter Millard"><meta name="DC.Description" content="This document specifies best practices for XMPP usage of the SASL EXTERNAL mechanism in the context of PKIX certificates."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2020-08-19"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0178"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0178: Best Practices for Use of SASL EXTERNAL with Certificates</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This document specifies best practices for XMPP usage of the SASL EXTERNAL mechanism in the context of PKIX certificates.</dd><dt>Authors</dt><dd><ul class="authors"><li>Peter Saint-Andre</li><li>Peter Millard</li></ul></dd><dt>Copyright</dt><dd>© 1999 – 2020 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Active</p><div id="status-notice" class="active informational">NOTICE: This Informational specification defines a best practice or protocol profile that has been approved by the XMPP Council and/or the XSF Board of Directors. Implementations are encouraged and the best practice or protocol profile is appropriate for deployment in production systems.</div></dd><dt>Type</dt><dd>Informational</dd><dt>Version</dt><dd>1.2 (2020-08-19)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li>Experimental</li><li>Proposed</li><li class="current">Active</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#c2s">Client-to-Server Recommendation</a></li><li><a href="#s2s">Server-to-Server Recommendation</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#ack">Acknowledgements</a></li><li><a href="#authornote">Author Note</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">XMPP as specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3920">RFC 3920</a></span>  [<a href="#nt-idm45690848282400">1</a>] and updated in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm45690848277120">2</a>] allows the use of any SASL (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4422">RFC 4422</a></span>  [<a href="#nt-idm45690848272480">3</a>]) mechanism in the authentication of XMPP entities. This document specifies a recommended protocol flow for use of the SASL EXTERNAL mechanism with PKIX (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5280">RFC 5280</a></span>  [<a href="#nt-idm45690848268016">4</a>]) certificates  [<a href="#nt-idm45690848265888">5</a>], especially when an XMPP service indicates that TLS is mandatory-to-negotiate.</p>
+<h2 id="c2s">2.
+       Client-to-Server Recommendation<a class="anchor-link" href="#c2s"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">As specified in <span class="ref">RFC 3920</span> and updated in <span class="ref">RFC 6120</span>, during the stream negotiation process an XMPP client can present a certificate (a "client certificate"). If a JabberID is included in a client certificate, it is encapsulated as an id-on-xmppAddr Object Identifier ("xmppAddr"), i.e., a subjectAltName entry of type otherName with an ASN.1 Object Identifier of "id-on-xmppAddr" as specified in Section 13.7.1.4 of <span class="ref">RFC 6120</span>.</p>
+  <p class="" style="">There are three possible cases:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">The certificate includes one xmppAddr.</li>
+    <li class="" style="">The certificate includes more than one xmppAddr.</li>
+    <li class="" style="">The certificate includes no xmppAddr.</li>
+  </ol>
+  <p class="" style="">This specification includes recommendations that address all three cases.</p>
+  <p class="" style="">The RECOMMENDED protocol flow for client-to-server use of SASL EXTERNAL with client certificates is as follows:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">
+      <p class="" style="">Client initiates stream to server.</p>
+      <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> <a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:client'
+        from='juliet@example.com'
+        to='example.com'
+        version='1.0'&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server replies with stream header.</p>
+      <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> <a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:client'
+        id='c2s_234'
+        from='example.com'
+        to='juliet@example.com'
+        version='1.0'&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server advertises TLS stream feature, which might indicate that TLS is mandatory-to-negotiate.</p>
+      <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> <a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:features&gt;
+  &lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'&gt;
+    &lt;required/&gt;
+  &lt;/starttls&gt;
+&lt;/stream:features&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Client sends STARTTLS command to server.</p>
+      <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> <a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server informs client to proceed.</p>
+      <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> <a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;proceed xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server requests, and client presents, the client certificate during TLS negotiation.</p>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server and client successfully complete the TLS negotiation and client initiates a new initial stream header to server over the encrypted TCP connection.</p>
+      <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> <a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:client'
+        from='juliet@example.com'
+        to='example.com'
+        version='1.0'&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server replies with response stream header.</p>
+      <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> <a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:client'
+        id='c2s_345'
+        from='example.com'
+        to='juliet@example.com'
+        version='1.0'&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server advertises SASL mechanisms. Because the client presented a client certificate, here the server offers the SASL EXTERNAL mechanism (see Section 6.3.4 of <span class="ref">RFC 6120</span> for recommendations regarding the conditions under which to offer the SASL EXTERNAL mechanism).</p>
+      <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> <a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:features&gt;
+  &lt;mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'&gt;
+    &lt;mechanism&gt;EXTERNAL&lt;mechanism&gt;
+    &lt;mechanism&gt;DIGEST-MD5&lt;mechanism&gt;
+    &lt;mechanism&gt;ANONYMOUS&lt;mechanism&gt;
+  &lt;/mechanisms&gt;
+&lt;/stream:features&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Client considers EXTERNAL to be its preferred SASL mechanism so it attempts to complete SASL negotiation using that mechanism. The following paragraphs illustrate several possible paths, depending on whether the client includes an authorization identity (for the official rules regarding when to include the authorization identity, see Section 6.3.8 of <span class="ref">RFC 6120</span>).</p>
+      <ol start="" class="" style="list-style-type:lower-alpha">
+        <li class="" style="">
+          <p class="" style="">If the client certificate contains only one JID, then the client MAY include an authorization identity, but only if it desires to be authorized as a JID other than the address in the client certificate; else it MUST NOT include an authorization identity (this is shown in the following example by setting the XML character data of the &lt;auth/&gt; element to "=").</p>
+          <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> <a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl'
+      mechanism='EXTERNAL'&gt;=&lt;/auth&gt;
+</pre></figure>
+        </li>
+        <li class="" style="">
+          <p class="" style="">If the client certificate contains more than one JID, then the client MUST include an authorization identity so that the server can determine which JID to use (this is shown in the following example by setting the XML character data of the &lt;auth/&gt; element to "anVsaWV0QGV4YW1wbGUuY29t", which is the base 64 encoding for "juliet@example.com").</p>
+          <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> <a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl'
+      mechanism='EXTERNAL'&gt;anVsaWV0QGV4YW1wbGUuY29t&lt;/auth&gt;
+</pre></figure>
+        </li>
+        <li class="" style="">
+          <p class="" style="">If the client certificate does not contain a JID, then the client MAY include an authorization identity, but only if it desires to be authorized as a JID other than the address specified during SASL negotiation; else it MUST NOT include an authorization identity (this is shown in the following example by setting the XML character data of the &lt;auth/&gt; element to "=").</p>
+          <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> <a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl'
+      mechanism='EXTERNAL'&gt;=&lt;/auth&gt;
+</pre></figure>
+        </li>
+      </ol>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server determines whether to allow authentication and authorization of user.</p>
+      <ol start="" class="" style="list-style-type:lower-alpha">
+        <li class="" style="">
+          <p class="" style="">If (1) the certificate presented by the client contains only one valid XMPP address that corresponds to a registered account on the server and (2) the client did not pass an authorization identity in the SASL exchange, then the server SHOULD allow authentication and authorization of that JID.</p>
+          <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> <a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/&gt;
+</pre></figure>
+        </li>
+        <li class="" style="">
+          <p class="" style="">If the certificate contains more than one valid XMPP address that corresponds to a registered account on the server (e.g., because the server offers virtual hosting) and during the SASL exchange the client specified an authorization identity that corresponds to one of the JIDs presented in the client certificate, then the server SHOULD allow authentication and authorization of the JID specified as the authorization identity.</p>
+          <figure class="code-example" id="example-13"><figcaption><strong>Example 13.</strong> <a class="anchor-link" href="#example-13"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/&gt;
+</pre></figure>
+          <p class="" style="">If no authorization identity is included, then the server SHOULD return a SASL failure case of &lt;invalid-authzid/&gt; and close the stream.</p>
+          <figure class="code-example" id="example-14"><figcaption><strong>Example 14.</strong> <a class="anchor-link" href="#example-14"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'&gt;
+  &lt;invalid-authzid/&gt;
+&lt;/failure&gt;
+&lt;/stream:stream&gt;
+</pre></figure>
+        </li>
+        <li class="" style="">
+          <p class="" style="">If the certificate does not contain an XMPP address, then the server MAY attempt to determine if there is a registered account associated with the user, for example by performing an LDAP lookup based on the Common Name or other information presented by the client in the certificate; if such a JID mapping is successful and the mapped JID matches the authorization identity provided, then the server SHOULD allow authentication and authorization of that mapped JID.</p>
+          <figure class="code-example" id="example-15"><figcaption><strong>Example 15.</strong> <a class="anchor-link" href="#example-15"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/&gt;
+</pre></figure>
+          <p class="" style="">If JID mapping is unsuccessful, then the server SHOULD return a SASL failure condition of &lt;not-authorized/&gt; and close the stream.</p>
+          <figure class="code-example" id="example-16"><figcaption><strong>Example 16.</strong> <a class="anchor-link" href="#example-16"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'&gt;
+  &lt;not-authorized/&gt;
+&lt;/failure&gt;
+&lt;/stream:stream&gt;
+</pre></figure>
+          <p class="" style="">If JID mapping is successful but the mapped JID does not match the authorization identity provided (if any), then the server SHOULD return a SASL failure condition of &lt;invalid-authzid/&gt; and close the stream.</p>
+          <figure class="code-example" id="example-17"><figcaption><strong>Example 17.</strong> <a class="anchor-link" href="#example-17"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'&gt;
+  &lt;invalid-authzid/&gt;
+&lt;/failure&gt;
+&lt;/stream:stream&gt;
+</pre></figure>
+        </li>
+      </ol>
+    </li>
+    <li class="" style="">
+      <p class="" style="">If SASL authentication succeeded, the client opens a new stream, then client and server proceed with resource binding as described in <span class="ref">RFC 6120</span>.</p>
+    </li>
+  </ol>
+<h2 id="s2s">3.
+       Server-to-Server Recommendation<a class="anchor-link" href="#s2s"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style=""><span class="ref">RFC 3920</span> specified that if a JabberID is included in a certificate intended for use by an XMPP server (a "server certificate"), it shall be encapsulated as an xmppAddr. That recommendation is updated in <span class="ref">RFC 6120</span> through a reference to <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6125">RFC 6125</a></span>  [<a href="#nt-idm45690848187664">7</a>], which prefers use of a dNSName and/or SRVName entry in the Subject Alternative Name. The DNS domain name contained in the certificate can be a fully-qualified domain name ("FQDN") or a so-called "wildcard" with the '*' character as the complete left-most label (see <span class="ref">RFC 6125</span> for complete details).</p>
+  <p class="" style="">The RECOMMENDED protocol flow for server-to-server use of SASL EXTERNAL with server (domain) certificates is as follows:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">
+      <p class="" style="">Server1 initiates stream to server2.</p>
+      <figure class="code-example" id="example-18"><figcaption><strong>Example 18.</strong> <a class="anchor-link" href="#example-18"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        from='conference.example.org'
+        to='example.com'
+        version='1.0'&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server2 replies with stream header.</p>
+      <figure class="code-example" id="example-19"><figcaption><strong>Example 19.</strong> <a class="anchor-link" href="#example-19"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        id='s2s_234'
+        from='example.com'
+        to='conference.example.org'
+        version='1.0'&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server2 advertises TLS stream feature, which might indicate that TLS is mandatory-to-negotiate.</p>
+      <figure class="code-example" id="example-20"><figcaption><strong>Example 20.</strong> <a class="anchor-link" href="#example-20"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:features&gt;
+  &lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'&gt;
+    &lt;required/&gt;
+  &lt;/starttls&gt;
+&lt;/stream:features&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server1 sends STARTTLS command to Server2.</p>
+      <figure class="code-example" id="example-21"><figcaption><strong>Example 21.</strong> <a class="anchor-link" href="#example-21"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server2 informs Server1 to proceed.</p>
+      <figure class="code-example" id="example-22"><figcaption><strong>Example 22.</strong> <a class="anchor-link" href="#example-22"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;proceed xmlns='urn:ietf:params:xml:ns:xmpp-tls'/&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server2 requests, and Server1 presents, Server1's certificate during TLS negotiation.</p>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server2 validates certificate in accordance with the rules from <span class="ref">RFC 6120</span> and <span class="ref">RFC 6125</span>.</p>
+      <ol start="" class="" style="list-style-type:lower-alpha">
+        <li class="" style="">
+          <p class="" style="">If certificate is unacceptable for the reasons explained in <span class="ref">RFC 6120</span> and <span class="ref">RFC 6125</span>, Server2 closes Server1's TCP connection.</p>
+        </li>
+        <li class="" style="">
+          <p class="" style="">Else Server2 completes successful TLS negotiation and Server1 sends a new initial stream header to Server2 over the encrypted TCP connection.</p>
+          <figure class="code-example" id="example-23"><figcaption><strong>Example 23.</strong> <a class="anchor-link" href="#example-23"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        from='conference.example.org'
+        to='example.com'
+        version='1.0'&gt;
+</pre></figure>
+        </li>
+      </ol>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server2 replies with stream header.</p>
+      <figure class="code-example" id="example-24"><figcaption><strong>Example 24.</strong> <a class="anchor-link" href="#example-24"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:stream
+        xmlns:stream='http://etherx.jabber.org/streams'
+        xmlns='jabber:server'
+        id='s2s_345'
+        from='example.com'
+        to='conference.example.org'
+        version='1.0'&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server2 advertises SASL mechanisms. If the 'from' attribute of the stream header sent by Server1 can be matched against one of the identifiers provided in the certificate following the matching rules from <span class="ref">RFC 6125</span>, Server2 SHOULD advertise the SASL EXTERNAL mechanism. If no match is found, Server2 MAY either close Server1's TCP connection or continue with a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0220.html">Server Dialback (XEP-0220)</a></span>  [<a href="#nt-idm45690848151056">8</a>] negotiation.</p>
+      <figure class="code-example" id="example-25"><figcaption><strong>Example 25.</strong> <a class="anchor-link" href="#example-25"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:features&gt;
+  &lt;mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'&gt;
+    &lt;mechanism&gt;EXTERNAL&lt;mechanism&gt;
+  &lt;/mechanisms&gt;
+&lt;/stream:features&gt;
+</pre></figure>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server1 considers EXTERNAL to be its preferred SASL mechanism. For server-to-server authentication, the &lt;auth/&gt; element MAY include an authorization identity, however a future version of this specification might disallow use of the authorization identity in server-to-server authentication (in the following example, Server1 includes an empty response of "=" as shown in <span class="ref">RFC 6120</span>).</p>
+      <figure class="code-example" id="example-26"><figcaption><strong>Example 26.</strong> <a class="anchor-link" href="#example-26"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl'
+      mechanism='EXTERNAL'&gt;=&lt;/auth&gt;
+</pre></figure>
+      <p class="" style="">Interoperability Note: Previous versions of this specification stated that the receiving server always relied on the connecting server's inclusion of the authorization identity. Even though this is no longer required, the connecting server SHOULD include the authorization identity for backward compability.</p>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Server2 determines if hostname is valid.</p>
+      <ol start="" class="" style="list-style-type:lower-alpha">
+        <li class="" style="">
+          <p class="" style="">If the 'from' attribute of stream header sent by Server1 can be matched against one of the identifiers provided in the certificate following the matching rules from <span class="ref">RFC 6125</span>, Server2 returns success.</p>
+          <figure class="code-example" id="example-27"><figcaption><strong>Example 27.</strong> <a class="anchor-link" href="#example-27"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/&gt;
+</pre></figure>
+          <p class="" style="">Implementation Note: If Server2 needs to assign an authorization identity during SASL negotiation, it SHOULD use the value of the 'from' attribute of the stream header sent by Server1.</p>
+        </li>
+        <li class="" style="">
+          <p class="" style="">Else Server2 SHOULD return a &lt;not-authorized/&gt; error and either close Server1's TCP connection or continue with a Server Dialback (XEP-0220) [8] negotiation.</p>
+          <figure class="code-example" id="example-28"><figcaption><strong>Example 28.</strong> <a class="anchor-link" href="#example-28"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'&gt;
+  &lt;not-authorized/&gt;
+&lt;/failure&gt;
+&lt;/stream:stream&gt;
+</pre></figure>
+        </li>
+      </ol>
+    </li>
+  </ol>
+<h2 id="security">4.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document introduces no security considerations or concerns above and beyond those discussed in <span class="ref">RFC 6120</span> and <span class="ref">RFC 6125</span>.</p>
+<h2 id="iana">5.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm45690848121584">9</a>].</p>
+<h2 id="registrar">6.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm45690848118640">10</a>].</p>
+<h2 id="ack">7.
+       Acknowledgements<a class="anchor-link" href="#ack"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Thanks to Dave Cridland, Philipp Hancke, Joe Hildebrand, Justin Karneges, Chris Newton, Rob Norris, and Matthias Wimmer for their comments.</p>
+<h2 id="authornote">8.
+       Author Note<a class="anchor-link" href="#authornote"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Peter Millard, co-author of the initial version of this specification, died on April 26, 2006. The remaining author appreciates his assistance in defining the best practices described herein.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="http://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0178</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Active">Active</a></dd><dt>Type</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Informational">Informational</a></dd><dt>Version</dt><dd>1.2</dd><dt>Last Updated</dt><dd>2020-08-19</dd><dt>Approving Body</dt><dd><a href="http://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>N/A</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0178.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0178.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0178.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Peter Saint-Andre</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:xsf@stpeter.im">xsf@stpeter.im</a></dd><dt>JabberID</dt><dd><a href="xmpp:peter@jabber.org">peter@jabber.org</a></dd><dt>URI</dt><dd><a href="http://stpeter.im/">http://stpeter.im/</a></dd></dl><h5>Peter Millard</h5>
+      See <a href="#authornote">Author Note</a><br><dl class="compact"></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm45690848282400">1</a>. RFC 3920: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc3920">http://tools.ietf.org/html/rfc3920</a>&gt;.</p><p><a name="nt-idm45690848277120">2</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm45690848272480">3</a>. RFC 4422: Simple Authentication and Security Layer (SASL) &lt;<a href="http://tools.ietf.org/html/rfc4422">http://tools.ietf.org/html/rfc4422</a>&gt;.</p><p><a name="nt-idm45690848268016">4</a>. RFC 5280: Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile &lt;<a href="http://tools.ietf.org/html/rfc5280">http://tools.ietf.org/html/rfc5280</a>&gt;.</p><p><a name="nt-idm45690848265888">5</a>. This specification focuses on the use of the SASL EXTERNAL mechanism with X.509 certificates. Future specifications might document best practices for use of SASL EXTERNAL outside the context of the X.509 infrastructure, for example via Internet Protocol Security (IPSec) as specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4301">RFC 4301</a></span>  [<a href="#nt-idm45690848258192">6</a>].</p><p><a name="nt-idm45690848258192">6</a>. RFC 4301: Security Architecture for the Internet Protocol &lt;<a href="http://tools.ietf.org/html/rfc4301">http://tools.ietf.org/html/rfc4301</a>&gt;.</p><p><a name="nt-idm45690848187664">7</a>. RFC 6125: Representation and Verification of Domain-Based Application Service Identity within Internet Public Key Infrastructure Using X.509 (PKIX) Certificates in the Context of Transport Layer Security (TLS) &lt;<a href="http://tools.ietf.org/html/rfc6125">http://tools.ietf.org/html/rfc6125</a>&gt;.</p><p><a name="nt-idm45690848151056">8</a>. XEP-0220: Server Dialback &lt;<a href="https://xmpp.org/extensions/xep-0220.html">https://xmpp.org/extensions/xep-0220.html</a>&gt;.</p><p><a name="nt-idm45690848121584">9</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm45690848118640">10</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v1.2"><div class="revision-head">Version 1.2 (2020-08-19)<a class="anchor-link" href="#revision-history-v1.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Add fallback to dialback if EXTERNAL authentication fails due to practical experience.</p><div class="revision-author">@woj-tek</div></li><li id="revision-history-v1.1"><div class="revision-head">Version 1.1 (2011-05-25)<a class="anchor-link" href="#revision-history-v1.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Updated text and examples to be consistent with RFC 6120 and RFC 6125.</p><div class="revision-author">psa</div></li><li id="revision-history-v1.0"><div class="revision-head">Version 1.0 (2007-02-15)<a class="anchor-link" href="#revision-history-v1.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Per a vote of the XMPP Council, advanced specification to Active.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.7"><div class="revision-head">Version 0.7 (2007-02-06)<a class="anchor-link" href="#revision-history-v0.7"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Clarified that the scope of this specification is limited to X.509 certificates.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.6"><div class="revision-head">Version 0.6 (2007-01-29)<a class="anchor-link" href="#revision-history-v0.6"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Allowed client to not include an authorization identity if the certificate contains no XMPP address (thus depending on the server to assign the identity).</p><div class="revision-author">psa</div></li><li id="revision-history-v0.5"><div class="revision-head">Version 0.5 (2007-01-25)<a class="anchor-link" href="#revision-history-v0.5"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Clarified distinction between authentication and authorization; corrected handling of authorization identities; corrected conditions under which SASL EXTERNAL mechanism is offered; specified recommended formats for client and server certificates.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.4"><div class="revision-head">Version 0.4 (2006-11-27)<a class="anchor-link" href="#revision-history-v0.4"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Modified XMPP address encapsulation methods per revisions to RFC 3920; clarified conditions for certificates to be considered acceptable.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.3"><div class="revision-head">Version 0.3 (2006-09-21)<a class="anchor-link" href="#revision-history-v0.3"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Added TLS and SASL required child elements per revisions to RFC 3920.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.2"><div class="revision-head">Version 0.2 (2006-03-09)<a class="anchor-link" href="#revision-history-v0.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Corrected client-server failure case to place error in SASL flow rather than binding flow; added note about non-X.509 usages.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.1"><div class="revision-head">Version 0.1 (2006-03-09)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial version.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.0.3"><div class="revision-head">Version 0.0.3 (2006-02-10)<a class="anchor-link" href="#revision-history-v0.0.3"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Specified inclusion of authorization identity for server-to-server.</p><div class="revision-author">psa/pgm</div></li><li id="revision-history-v0.0.2"><div class="revision-head">Version 0.0.2 (2006-02-10)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Clarified distinction between authentication and authorization.</p><div class="revision-author">psa/pgm</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version 0.0.1 (2006-02-09)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">psa/pgm</div></li></ol><p>END</p></body></html>
