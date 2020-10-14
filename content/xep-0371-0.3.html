@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0371: Jingle ICE Transport Method</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0371";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0"><meta name="DC.Title" content="Jingle ICE Transport Method"><meta name="DC.Creator" content="Peter Saint-Andre"><meta name="DC.Description" content='This specification defines a Jingle transport method that results in sending media data using datagram associations via the User Datagram Protocol (UDP) or using end-to-end connections via the Transport Control Protocol (TCP). This transport method is negotiated via the Interactive Connectivity Establishment (ICE) methodology (which provides robust NAT traversal for media traffic) and also supports the ability to exchange candidates throughout the life of the session, consistent with so-called "Trickle ICE" (draft-ietf-ice-trickle).'><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2020-05-14"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0371"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0371: Jingle ICE Transport Method</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification defines a Jingle transport method that results in sending media data using datagram associations via the User Datagram Protocol (UDP) or using end-to-end connections via the Transport Control Protocol (TCP). This transport method is negotiated via the Interactive Connectivity Establishment (ICE) methodology (which provides robust NAT traversal for media traffic) and also supports the ability to exchange candidates throughout the life of the session, consistent with so-called "Trickle ICE" (draft-ietf-ice-trickle).</dd><dt>Author</dt><dd>Peter Saint-Andre</dd><dt>Copyright</dt><dd>© 1999 – 2020 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Deferred</p><div id="status-notice" class="deferred standards track">WARNING: This document has been automatically Deferred after 12 months of inactivity in its previous Experimental state. Implementation of the protocol described herein is not recommended for production systems. However, exploratory implementations are encouraged to resume the standards process.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.3 (2020-05-14)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li>Experimental</li><li class="current inserted">Deferred</li><li>Proposed</li><li>Draft</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#terms">Glossary</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#conformance">Jingle Conformance</a></li><li><a href="#protocol">Protocol Description</a><ol><li><a href="#protocol-flow">Overall Flow</a></li><li><a href="#protocol-initiate">Session Initiation</a></li><li><a href="#protocol-syntax">Syntax</a></li><li><a href="#protocol-response">Response</a></li><li><a href="#protocol-candidates">Candidate Negotiation</a></li><li><a href="#protocol-checks">Connectivity Checks</a></li><li><a href="#protocol-end">End-of-Candidates Indication</a></li><li><a href="#protocol-acceptance">Acceptance of Successful Candidate</a></li><li><a href="#protocol-renegotiate">Negotiating a New Candidate</a></li><li><a href="#protocol-restarts">ICE Restarts</a></li></ol></li><li><a href="#fallback">Fallback to Raw UDP</a></li><li><a href="#info">Informational Messages</a></li><li><a href="#support">Determining Support</a><ol><li><a href="#support-ice">ICE Support</a></li><li><a href="#support-sdp">SDP Offer / Answer Support</a></li></ol></li><li><a href="#impl">Implementation Notes</a></li><li><a href="#deploy">Deployment Notes</a></li><li><a href="#security">Security Considerations</a><ol><li><a href="#security-sharing">Sharing IP Addresses</a></li><li><a href="#security-media">Encryption of Media</a></li></ol></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-ns">Protocol Namespaces</a></li><li><a href="#registrar-versioning">Protocol Versioning</a></li><li><a href="#registrar-features">Service Discovery Features</a></li><li><a href="#registrar-transports">Jingle Transport Methods</a></li></ol></li><li><a href="#schema">XML Schema</a></li><li><a href="#ack">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0166.html">Jingle (XEP-0166)</a></span>  [<a href="#nt-idm98">2</a>] defines a framework for negotiating and managing out-of-band data sessions over XMPP. In order to provide a flexible framework, the base Jingle specification defines neither data transport methods nor application formats, leaving that up to separate specifications.</p>
+  <p class="" style="">The current document defines a transport method for establishing and managing data exchanges between XMPP entities by means of the Interactive Connectivity Establishment (ICE) methodology specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>]. The Jingle usage of ICE was also the first technology to send ICE candidates incrementally, a technique that has since become known as "Trickle ICE" <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-ietf-ice-trickle/">Incremental Provisioning of Candidates for the Interactive Connectivity Establishment (ICE) Protocol</a></span>  [<a href="#nt-idm107">4</a>].</p>
+  <p class="" style="">The process for ICE negotiation is largely the same in Jingle as it is in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>]. There are several differences:</p>
+  <ul class="" style="">
+    <li class="" style="">Instead of using the Session Initiation Protocol (SIP) as the signalling channel, Jingle uses XMPP as the signalling channel.</li>
+    <li class="" style="">Syntax from the Session Description Protocol (see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4566">RFC 4566</a></span>  [<a href="#nt-idm119">5</a>]) is mapped to an XML syntax suitable for sending over the XMPP signalling channel.</li>
+    <li class="" style="">In Jingle, lists of "preferred" candidates are typically sent in the Jingle session-initiate and session-accept messages, in a way that is consistent with the SDP offer / answer model described in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3264">RFC 3264</a></span>  [<a href="#nt-idm124">6</a>] and the process described in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>].</li>
+    <li class="" style="">Candidates can also be sent in separate transport-info messages either before sending or receiving the session-accept message (to expedite negotiation) or after media begins to flow (to find modify existing candidates, find superior candidates, or adjust to changing network conditions). This usage, which has been part of the Jingle ICE transport method since 2005, has since come to be known as "Trickle ICE"; as defined here the usage is consistent with the IETF specification for Trickle ICE <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-ietf-ice-trickle/">Incremental Provisioning of Candidates for the Interactive Connectivity Establishment (ICE) Protocol</a></span>  [<a href="#nt-idm107">4</a>].</li>
+  </ul>
+  <p class="" style="">As originally defined in XEP-0166 and then <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0176.html">Jingle ICE-UDP Transport Method (XEP-0176)</a></span>  [<a href="#nt-idm138">7</a>] the use of ICE in Jingle applied only to negotiations that established a User Datagram Protocol association (see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc0768">RFC 768</a></span>  [<a href="#nt-idm142">8</a>]) and thus resulted in a Jingle datagram transport suitable for media applications where some packet loss is tolerable (e.g., audio and video). However, since the publication of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6544">RFC 6544</a></span>  [<a href="#nt-idm72">1</a>] in 2012 it has also been possible to exchange Transmission Control Protocol (see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc0793">RFC 793</a></span>  [<a href="#nt-idm150">9</a>]) candidates during ICE negotiation. Therefore this document expands the use of ICE in Jingle to also establish a TCP connection and thus result in a Jingle stream transport suitable for media applications where packet loss cannot be tolerated (e.g., file transfer). To reduce the possibility of confusion, the expanded definition provided here is specified in a new XEP, which is intended to supersede XEP-0176.</p>
+<h2 id="terms">2.
+       Glossary<a class="anchor-link" href="#terms"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The reader is referred to <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>] and draft-ietf-ice-trickle for a description of various terms used in the context of ICE. Those terms are not reproduced here.</p>
+<h2 id="reqs">3.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The Jingle transport method defined herein is designed to meet the following requirements:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">Make it possible to establish and manage out-of-band connections between two XMPP entities, even if they are behind Network Address Translators (NATs) or firewalls.</li>
+    <li class="" style="">Enable use of UDP or TCP as the transport protocol.</li>
+    <li class="" style="">Make it relatively easy to implement support in standard Jabber/XMPP clients.</li>
+    <li class="" style="">Where communication with non-XMPP entities is needed, push as much complexity as possible onto server-side gateways between the XMPP network and the non-XMPP network.</li>
+  </ol>
+<h2 id="conformance">4.
+       Jingle Conformance<a class="anchor-link" href="#conformance"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+   <p class="" style="">In accordance with Section 10 of <span class="ref">XEP-0166</span>, this document specifies the following information related to the Jingle ICE transport method:</p>
+   <ol start="" class="" style="">
+     <li class="" style=""><p class="" style="">The transport negotiation process is defined in the <a href="#protocol">Protocol Description</a> section of this document.</p></li>
+     <li class="" style=""><p class="" style="">The semantics of the &lt;transport/&gt; element are defined in the <a href="#protocol-negotiate">ICE Negotiation</a> section of this document.</p></li>
+     <li class="" style=""><p class="" style="">Depending on the kinds of candidates exchanged, successful negotiation of this method results in use of a datagram transport (suitable for applications where some packet loss is tolerable, such as audio and video) or of a streaming transport (suitable for applications where packet loss is not tolerable, such as file transfer).</p></li>
+     <li class="" style=""><p class="" style="">If multiple components are to be communicated by the application type that uses the transport, the transport shall support those components and assign identifiers for them as described in the specification that defines the application type.</p></li>
+   </ol>
+<h2 id="protocol">5.
+       Protocol Description<a class="anchor-link" href="#protocol"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="protocol-flow">5.1 Overall Flow<a class="anchor-link" href="#protocol-flow"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The overall protocol flow for negotiation of the Jingle ICE Transport Method is as follows (note: many of these events happen simultaneously, not in sequence).</p>
+    <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+INITIATOR                              RESPONDER
+    |                                      |
+    |  Jingle session-initiate stanza      |
+    |  (with zero or more candidates)      |
+    |-------------------------------------&gt;|
+    |  Jingle ack (XMPP IQ-result)         |
+    |&lt;-------------------------------------|
+    |  Jingle session-accept stanza        |
+    |  (with one or more candidates)       |
+    |&lt;-------------------------------------|
+    |  Jingle ack (XMPP IQ-result)         |
+    |-------------------------------------&gt;|
+    |  multiple STUN Binding Requests      |
+    |&lt;====================================&gt;|
+    |  multiple STUN Binding Results       |
+    |&lt;====================================&gt;|
+    |&lt;=========MEDIA NOW FLOWS============&gt;|
+    |  optional Jingle transport-info      |
+    |  stanzas (one candidate per stanza)  |
+    |&lt;------------------------------------&gt;|
+    |                                      |
+</pre></figure>
+    <p class="" style="">Note: The examples in this document follow the scenario described in Section 15 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>], except that we substitute the Shakespearean characters "Romeo" and "Juliet" for the generic entities "L" and "R".</p>
+  </div>
+  <div class="indent"><h3 id="protocol-initiate">5.2 Session Initiation<a class="anchor-link" href="#protocol-initiate"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">In order for the initiator in a Jingle exchange to start the negotiation, it sends a Jingle "session-initiate" stanza that includes at least one content type, as described in <span class="ref">XEP-0166</span>. If the initiator wishes to negotiate the ICE transport method for an application format, it MUST include a &lt;transport/&gt; child element qualified by the 'urn:xmpp:jingle:transports:ice:0' namespace (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number). This element SHOULD in turn contain one &lt;candidate/&gt; element for each of the initiator's higher-priority transport candidates as determined in accordance with the ICE methodology, but MAY instead be empty (with each candidate to be sent as the payload of a transport-info message).</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Initiation<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.example/dr4hcr0st3lup4c'
+    id='ixt174g9'
+    to='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-initiate'
+          initiator='romeo@montague.example/dr4hcr0st3lup4c'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='this-is-the-audio-content'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:rtp:1' media='audio'&gt;
+        &lt;payload-type id='96' name='speex' clockrate='16000'/&gt;
+        &lt;payload-type id='97' name='speex' clockrate='8000'/&gt;
+        &lt;payload-type id='18' name='G729'/&gt;
+        &lt;payload-type id='0' name='PCMU' /&gt;
+        &lt;payload-type id='103' name='L16' clockrate='16000' channels='2'/&gt;
+        &lt;payload-type id='98' name='x-ISAC' clockrate='8000'/&gt;
+      &lt;/description&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:ice:0'
+                 pwd='asd88fgpdd777uzjYhagZg'
+                 ufrag='8hhy'
+                 ice2='true'&gt;
+        &lt;candidate component='1'
+                   foundation='2B78DADC1A9E'
+                   generation='0'
+                   id='el0747fg11'
+                   ip='10.0.1.1'
+                   network='1'
+                   port='8998'
+                   priority='2130706431'
+                   protocol='udp'
+                   type='host'/&gt;
+        &lt;candidate component='1'
+                   foundation='58AA96B8FA5A'
+                   generation='0'
+                   id='y3s2b30v3r'
+                   ip='192.0.2.3'
+                   network='1'
+                   port='45664'
+                   priority='1694498815'
+                   protocol='udp'
+                   rel-addr='10.0.1.1'
+                   rel-port='8998'
+                   type='srflx'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="protocol-syntax">5.3 Syntax<a class="anchor-link" href="#protocol-syntax"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The &lt;transport/&gt; element's 'pwd' and 'ufrag' attributes MUST be included whenever sending one or more candidates to the other party, e.g., in a session-initiate, session-accept, transport-info, content-add, or transport-replace message. The values for these attributes are separately generated for both the initiator and the responder, in accordance with <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>] and as shown in the examples.</p>
+    <p class="" style="">'ice2' attribute tells about compliancy with <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>]. If the attribute is not set or set to 'false' in &lt;transport/&gt; element, the recipient can assume <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5245">RFC 5245</a></span>  [<a href="#nt-idm206">10</a>]. The value of the attribute may not be changed during lifetime of the transport instance, but it's not an error to skip the attribute in consequent transport-info updates.</p>
+    <p class="" style="">The attributes of the &lt;transport/&gt; element are as follows.</p>
+    <figure class="table"><figcaption id="table-1"><strong>Table 1:</strong> Transport Attributes<a class="anchor-link" href="#table-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+      <tr class="body">
+        <th colspan="" rowspan="">Name</th>
+        <th colspan="" rowspan="">Description</th>
+        <th colspan="" rowspan="">SDP Syntax</th>
+        <th colspan="" rowspan="">Example</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pwd</td>
+        <td align="" colspan="" rowspan="">A Password as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>].</td>
+        <td align="" colspan="" rowspan="">a=ice-pwd line</td>
+        <td align="" colspan="" rowspan="">asd88fgpdd777uzjYhagZg</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">ufrag</td>
+        <td align="" colspan="" rowspan="">A Username Fragment as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>].</td>
+        <td align="" colspan="" rowspan="">a=ice-ufrag line</td>
+        <td align="" colspan="" rowspan="">8hhy</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">ice2</td>
+        <td align="" colspan="" rowspan="">ice2 option as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>].</td>
+        <td align="" colspan="" rowspan="">a=ice-options:ice2</td>
+        <td align="" colspan="" rowspan="">true</td>
+      </tr>
+    </table></figure>
+    <p class="" style="">The attributes of the &lt;candidate/&gt; element are as follows.</p>
+    <figure class="table"><figcaption id="table-2"><strong>Table 2:</strong> Candidate Attributes<a class="anchor-link" href="#table-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+      <tr class="body">
+        <th colspan="" rowspan="">Name</th>
+        <th colspan="" rowspan="">Description</th>
+        <th colspan="" rowspan="">SDP Syntax</th>
+        <th colspan="" rowspan="">Example</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">component</td>
+        <td align="" colspan="" rowspan="">A Component ID as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>].</td>
+        <td align="" colspan="" rowspan="">Component ID value in a=candidate line</td>
+        <td align="" colspan="" rowspan="">1</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">foundation</td>
+        <td align="" colspan="" rowspan="">A Foundation as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>]. (Note that version 1.0 of this specification container an error, whereby the data type for the Jingle 'foundation' attribute was defined as xs:unsignedByte; in version 1.1 this was corrected to xs:string, however some existing implementations might not use or expect strings.)</td>
+        <td align="" colspan="" rowspan="">Foundation value in a=candidate line</td>
+        <td align="" colspan="" rowspan="">2B78DADC1A9E</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">generation</td>
+        <td align="" colspan="" rowspan="">An index, starting at 0, that enables the parties to keep track of updates to the candidate throughout the life of the session. For details, see the <a href="#protocol-restarts">ICE Restarts</a> section of this document.</td>
+        <td align="" colspan="" rowspan="">extended name/value pair in a=candidate line</td>
+        <td align="" colspan="" rowspan="">0</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">id</td>
+        <td align="" colspan="" rowspan="">A unique identifier for the candidate.</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+        <td align="" colspan="" rowspan="">el0747fg11</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">ip</td>
+        <td align="" colspan="" rowspan="">The Internet Protocol (IP) address for the candidate transport mechanism; this can be either an IPv4 address or an IPv6 address.</td>
+        <td align="" colspan="" rowspan="">IP Address value in a=candidate line</td>
+        <td align="" colspan="" rowspan="">192.0.2.3</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">network</td>
+        <td align="" colspan="" rowspan="">An index, starting at 0, referencing which network this candidate is on for a given peer (used for diagnostic purposes if the calling hardware has more than one Network Interface Card).</td>
+        <td align="" colspan="" rowspan="">N/A</td>
+          <td align="" colspan="" rowspan="">0</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">port</td>
+        <td align="" colspan="" rowspan="">The port at the candidate IP address.</td>
+        <td align="" colspan="" rowspan="">Port value in a=candidate line</td>
+        <td align="" colspan="" rowspan="">45664</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">priority</td>
+        <td align="" colspan="" rowspan="">A Priority as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>].
+           [<a href="#nt-idm300">11</a>]
+        </td>
+        <td align="" colspan="" rowspan="">Priority value in a=candidate line</td>
+        <td align="" colspan="" rowspan="">2130706431</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">protocol</td>
+        <td align="" colspan="" rowspan="">The protocol to be used. The values allowed by this specification are "udp" (see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>]) and "tcp" (see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6544">RFC 6544</a></span>  [<a href="#nt-idm72">1</a>]).</td>
+        <td align="" colspan="" rowspan="">Transport protocol field in a=candidate line</td>
+        <td align="" colspan="" rowspan="">udp</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">rel-addr</td>
+        <td align="" colspan="" rowspan="">A related address as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>].</td>
+        <td align="" colspan="" rowspan="">Value of raddr attribute in a=candidate line</td>
+        <td align="" colspan="" rowspan="">10.0.1.1</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">rel-port</td>
+        <td align="" colspan="" rowspan="">A related port as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>].</td>
+        <td align="" colspan="" rowspan="">Value of rport attribute in a=candidate line</td>
+        <td align="" colspan="" rowspan="">8998</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">tcptype</td>
+        <td align="" colspan="" rowspan="">A TCP candidate type as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6544">RFC 6544</a></span>  [<a href="#nt-idm72">1</a>]. The allowable values are "active" for TCP active candidates, "passive" for TCP passive candidates, and "so" for TCP simultaneous-open candidates.</td>
+        <td align="" colspan="" rowspan="">Value of tcptype attribute in a=candidate line</td>
+        <td align="" colspan="" rowspan="">so</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">type</td>
+        <td align="" colspan="" rowspan="">An ICE candidate type as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>]. The allowable values are "host" for host candidates, "prflx" for peer reflexive candidates, "relay" for relayed candidates, and "srflx" for server reflexive candidates. Note that TCP candidate types (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6544">RFC 6544</a></span>  [<a href="#nt-idm72">1</a>]) are handled via the 'tcptype' attribute.</td>
+        <td align="" colspan="" rowspan="">Value of typ attribute in a=candidate line</td>
+        <td align="" colspan="" rowspan="">srflx</td>
+      </tr>
+    </table></figure>
+  </div>
+  <div class="indent"><h3 id="protocol-response">5.4 Response<a class="anchor-link" href="#protocol-response"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">As described in <span class="ref">XEP-0166</span>, to acknowledge receipt of the session initiation request, the responder immediately returns an IQ-result.</p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Responder acknowledges receipt of session-initiate request<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    id='ixt174g9'
+    to='romeo@montague.example/dr4hcr0st3lup4c'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">Depending on the application type, a user agent controlled by a human user might need to wait for the user to affirm a desire to proceed with the session before continuing. When the user agent has received such affirmation (or if the user agent can automatically proceed for any reason, e.g., because no human intervention is expected or because a human user has configured the user agent to automatically accept sessions with a given entity), it returns a Jingle session-accept message. This message MUST contain a &lt;transport/&gt; element qualified by the 'urn:xmpp:jingle:transports:ice:0' namespace, which SHOULD in turn contain one &lt;candidate/&gt; element for each ICE candidate generated by or known to the responder, but MAY instead be empty (with each candidate to be sent as the payload of a transport-info message).</p>
+     <p class="" style="">Note: See the <a href="#security">Security Considerations</a> section of this document regarding the exposure of IP addresses by the responder's client.</p>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Responder accepts the session request<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    id='rw782g55'
+    to='romeo@montague.example/dr4hcr0st3lup4c'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-accept'
+          initiator='romeo@montague.example/dr4hcr0st3lup4c'
+          responder='juliet@capulet.example/yn0cl4bnw0yr3vym'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='this-is-the-audio-content'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:rtp:1' media='audio'&gt;
+        &lt;payload-type id='97' name='speex' clockrate='8000'/&gt;
+        &lt;payload-type id='18' name='G729'/&gt;
+      &lt;/description&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:ice:0'
+                 pwd='YH75Fviy6338Vbrhrlp8Yh'
+                 ufrag='9uB6'&gt;
+        &lt;candidate component='1'
+                   foundation='2B78DADC1A9E'
+                   generation='0'
+                   id='or2ii2syr1'
+                   ip='192.0.2.1'
+                   network='0'
+                   port='3478'
+                   priority='2130706431'
+                   protocol='udp'
+                   type='host'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="protocol-candidates">5.5 Candidate Negotiation<a class="anchor-link" href="#protocol-candidates"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The initiator and responder negotiate connectivity over ICE by exchanging XML-formatted transport candidates for the channel. This negotiation proceeds immediately in order to maximize the possibility that connectivity can be established (and therefore media can be exchanged) as quickly as possible. In order to expedite session establishment, the initiator SHOULD include transport candidates in its session-initiate message but MAY also send additional transport candidates as soon as it learns of them, even before receiving the IQ-result that acknowledges the session-initiate message (i.e., the initiator MUST consider the session to be live as soon as it sends the session-initiate message).  [<a href="#nt-idm370">12</a>]</p>
+    <p class="" style="">The first step in negotiating connectivity is for each party to send transport candidates to the other party.  [<a href="#nt-idm376">14</a>] These candidates SHOULD be gathered by following the procedure specified in Section 5.1.1 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>] (typically by communicating with a standalone STUN server in order to discover the client's public IP address and port) and prioritized by following the procedure specified in Section 5.1.2 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>].</p>
+      <p class="" style="">Each candidate shall be sent as a &lt;candidate/&gt; child of a &lt;transport/&gt; element qualified by the 'urn:xmpp:jingle:transports:ice:0' namespace. The &lt;transport/&gt; element is sent via a Jingle message of type session-initiate, session-accept, or transport-info.</p>
+      <p class="" style="">Either party MAY include multiple &lt;candidate/&gt; elements in one &lt;transport/&gt; element, especially in the session-initiate and session-accept messages sent at the beginning of the session negotiation. Including multiple candidates in the session-initiate and session-accept messages can help to ensure interoperability with entities that implement the SDP offer/answer model described in <span class="ref">RFC 3264</span>; in particular, an entity SHOULD include multiple candidates in its session-initiate or session-accept message if the other party advertises support for the "urn:ietf:rfc:3264" service discovery feature as described in the <a href="#support-sdp">SDP Offer / Answer Support</a> section of this document. However, including one candidate per subsequent transport-info message typically results in a faster negotiation because the candidates most likely to succeed are sent first (in the session-info and session-accept messages) and it is not necessary to gather all candidates before beginning to send any candidates; furthermore, because certain candidates can be more "expensive" in terms of bandwidth or processing power, either party might not want to advertise the existence of such candidates unless it is necessary to do so after other candidates have failed.</p>
+      <p class="" style="">If the party that receives a candidate in a Jingle message can successfully process a given candidate or set of candidates, it returns an IQ-result (if not, for example because the candidate data is improperly formatted, it returns an IQ-error). At this point, the receiving entity is only indicating receipt of the candidate or set of candidates, not telling the other party that the candidate will be used.</p>
+      <p class="" style="">The initiator can keep sending candidates (without stopping to receive an acknowledgement of receipt from the responder for each candidate) until it has exhausted its supply of possible or desirable transport candidates. The responder can also keep sending potential candidates, which the initiator will acknowledge.</p>
+  </div>
+  <div class="indent"><h3 id="protocol-checks">5.6 Connectivity Checks<a class="anchor-link" href="#protocol-checks"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">As the initiator and responder receive candidates, they probe the candidates for connectivity. In performing these connectivity checks, each party SHOULD follow the procedure specified in Section 7 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>]. The following business rules apply:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">Each party sends a STUN Binding Request (see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5389">RFC 5389</a></span>  [<a href="#nt-idm405">15</a>]) from each local candidate it generated to each remote candidate it received.</li>
+      <li class="" style="">In accordance with <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>], the STUN Binding Requests MUST include the PRIORITY attribute (computed according to Section 7.1.2.1. of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>]).</li>
+      <li class="" style="">For the purposes of the Jingle ICE Transport Method, both parties are full ICE implementations and therefore the controlling role MUST be assumed by the initiator and the controlled role MUST be assumed by the responder.</li>
+      <li class="" style="">The STUN Binding Requests generated by the initiator MAY include the USE-CANDIDATE attribute to indicate that the initiator wishes to cease checks for this component.</li>
+      <li class="" style="">The STUN Binding Requests generated by the initiator MUST include the ICE-CONTROLLING attribute.</li>
+      <li class="" style="">The STUN Binding Requests generated by the responder MUST include the ICE-CONTROLLED attribute.</li>
+      <li class="" style="">The parties MUST use STUN short term credentials to authenticate requests and perform message integrity checks. As in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>], the username in the STUN Binding Request is of the form "ufrag-of-peer:ufrag-of-sender" and the password is the value of the 'pwd' attribute provided by the peer.  [<a href="#nt-idm425">16</a>]</li>
+    </ol>
+    <p class="" style="">When it receives a STUN Binding Request, each party MUST return a STUN Binding Response, which indicates either an error case or the success case. As described in Section 7.2.5.3 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>], a connectivity check succeeds if <em>all</em> of the following are true:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">The Binding request generated a success response.</li>
+      <li class="" style="">The source and destination transport addresses in the Binding request and response are symmetric.</li>
+    </ol>
+    <p class="" style="">For the candidates exchanged in the previous section, the connectivity checks would be as follows (this diagram mirrors the example from section 15.1 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>]).</p>
+    <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+ENTITY                   IP Address  Mnemonic name
+   --------------------------------------------------
+   ICE Agent L (Initiator): 10.0.1.1    L-PRIV-1
+   ICE Agent R (Responder): 192.0.2.1   R-PUB-1
+   STUN Server:             192.0.2.2   STUN-PUB-1
+   NAT (Public):            192.0.2.3   NAT-PUB-1
+
+
+             L             NAT           STUN             R
+             |STUN alloc.   |              |              |
+             |(1) STUN Req  |              |              |
+             |S=$L-PRIV-1   |              |              |
+             |D=$STUN-PUB-1 |              |              |
+             |-------------&gt;|              |              |
+             |              |(2) STUN Req  |              |
+             |              |S=$NAT-PUB-1  |              |
+             |              |D=$STUN-PUB-1 |              |
+             |              |-------------&gt;|              |
+             |              |(3) STUN Res  |              |
+             |              |S=$STUN-PUB-1 |              |
+             |              |D=$NAT-PUB-1  |              |
+             |              |MA=$NAT-PUB-1 |              |
+             |              |&lt;-------------|              |
+             |(4) STUN Res  |              |              |
+             |S=$STUN-PUB-1 |              |              |
+             |D=$L-PRIV-1   |              |              |
+             |MA=$NAT-PUB-1 |              |              |
+             |&lt;-------------|              |              |
+             |(5) L's Candidate Information|              |
+             |-------------------------------------------&gt;|
+             |              |              |              | STUN
+             |              |              |              | alloc.
+             |              |              |(6) STUN Req  |
+             |              |              |S=$R-PUB-1    |
+             |              |              |D=$STUN-PUB-1 |
+             |              |              |&lt;-------------|
+             |              |              |(7) STUN Res  |
+             |              |              |S=$STUN-PUB-1 |
+             |              |              |D=$R-PUB-1    |
+             |              |              |MA=$R-PUB-1   |
+             |              |              |-------------&gt;|
+             |(8) R's Candidate Information|              |
+             |&lt;-------------------------------------------|
+             |              |         (9) Bind Req        |Begin
+             |              |         S=$R-PUB-1          |Connectivity
+             |              |         D=$L-PRIV-1         |Checks
+             |              |         &lt;-------------------|
+             |              |         Dropped             |
+             |(10) Bind Req |              |              |
+             |S=$L-PRIV-1   |              |              |
+             |D=$R-PUB-1    |              |              |
+             |-------------&gt;|              |              |
+             |              |(11) Bind Req |              |
+             |              |S=$NAT-PUB-1  |              |
+             |              |D=$R-PUB-1    |              |
+             |              |----------------------------&gt;|
+             |              |(12) Bind Res |              |
+             |              |S=$R-PUB-1    |              |
+             |              |D=$NAT-PUB-1  |              |
+             |              |MA=$NAT-PUB-1 |              |
+             |              |&lt;----------------------------|
+             |(13) Bind Res |              |              |
+             |S=$R-PUB-1    |              |              |
+             |D=$L-PRIV-1   |              |              |
+             |MA=$NAT-PUB-1 |              |              |
+             |&lt;-------------|              |              |
+             |Data          |              |              |
+             |===========================================&gt;|
+             |              |              |              |
+             |              |(14) Bind Req |              |
+             |              |S=$R-PUB-1    |              |
+             |              |D=$NAT-PUB-1  |              |
+             |              |&lt;----------------------------|
+             |(15) Bind Req |              |              |
+             |S=$R-PUB-1    |              |              |
+             |D=$L-PRIV-1   |              |              |
+             |&lt;-------------|              |              |
+             |(16) Bind Res |              |              |
+             |S=$L-PRIV-1   |              |              |
+             |D=$R-PUB-1    |              |              |
+             |MA=$R-PUB-1   |              |              |
+             |-------------&gt;|              |              |
+             |              |(17) Bind Res |              |
+             |              |S=$NAT-PUB-1  |              |
+             |              |D=$R-PUB-1    |              |
+             |              |MA=$R-PUB-1   |              |
+             |              |----------------------------&gt;|
+             |Data          |              |              |
+             |&lt;===========================================|
+             |              |              |              |
+                                .......
+             |              |              |              |
+             |(18) Bind Req |              |              |
+             |S=$L-PRIV-1   |              |              |
+             |D=$R-PUB-1    |              |              |
+             |USE-CAND      |              |              |
+             |-------------&gt;|              |              |
+             |              |(19) Bind Req |              |
+             |              |S=$NAT-PUB-1  |              |
+             |              |D=$R-PUB-1    |              |
+             |              |USE-CAND      |              |
+             |              |----------------------------&gt;|
+             |              |(20) Bind Res |              |
+             |              |S=$R-PUB-1    |              |
+             |              |D=$NAT-PUB-1  |              |
+             |              |MA=$NAT-PUB-1 |              |
+             |              |&lt;----------------------------|
+             |(21) Bind Res |              |              |
+             |S=$R-PUB-1    |              |              |
+             |D=$L-PRIV-1   |              |              |
+             |MA=$NAT-PUB-1 |              |              |
+             |&lt;-------------|              |              |
+             |              |              |              |
+</pre></figure>
+    <p class="" style="">Note: aggressive nomination described in RFC 5245 is not used anymore in the updated <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>]. From now on the initiator MUST nominate just one valid candidate pair.</p>
+  </div>
+  <div class="indent"><h3 id="protocol-end">5.7 End-of-Candidates Indication<a class="anchor-link" href="#protocol-end"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">As explained in the Trickle ICE specification, when a party has completed gathering of ICE candidates it will send an "end-of-candidates indication" to the other party. In Jingle, this takes the form of an informational message as described under <a href="#info">Informational Messages</a>. This specificaton defines only a standalone "end-of-candidates indication" (i.e., not a way to indicate ICE completion in an offer or answer).</p>
+  </div>
+  <div class="indent"><h3 id="protocol-acceptance">5.8 Acceptance of Successful Candidate<a class="anchor-link" href="#protocol-acceptance"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If, based on STUN connectivity checks, the parties determine that they will be able to exchange media (i.e., each component has "nominated" candidate pair and ICE processing is "completed"), they proceed with optional remote-candidate notification after which ICE transport is considered to be established. By this moment the parties may exchange media data already since it's allowed even before the candidate pairs nomination according to <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>]</p>
+    <p class="" style="">Once the parties have connectivity and therefore the initiator has completed ICE for the media stream as explained in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>], the initiator MAY communicate the in-use (nominated) candidate pairs in the signalling channel by sending a transport-info message that contains a &lt;remote-candidate/&gt; element for each component of the data stream (this maps to the SDP "remote-candidates" attribute as described in Appendix B of draft-ietf-mmusic-ice-sip-sdp specification, i.e., remote candidates are "the actual candidates at R that were selected by the offerer").</p>
+    <p class="" style="">Note, while in SIP this message is MUST it's just MAY for XMPP. The difference comes from a SIP problem (offer updates) which doesn't exist in XMPP. Basically there is no <strong>transport-info</strong> or any other message which represents candidates of a valid pair and therefore the race condition is not possible. Even so if the responder advertises "urn:ietf:rfc:3264" disco feature and hence may serve as a Jingle-to-SIP proxy the message MUST be sent.</p>
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Initiator communicates in-use candidate<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.example/dr4hcr0st3lup4c'
+    id='pd81b49s'
+    to='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    type='set'&gt;
+ &lt;jingle xmlns='urn:xmpp:jingle:1'
+         action='transport-info'
+         initiator='romeo@montague.example/dr4hcr0st3lup4c'
+         sid='a73sjjvkla37jfea'&gt;
+   &lt;content creator='initiator' name='this-is-the-audio-content'&gt;
+     &lt;transport xmlns='urn:xmpp:jingle:transports:ice:0'
+                pwd='asd88fgpdd777uzjYhagZg'
+                ufrag='8hhy'&gt;
+       &lt;remote-candidate component='1'
+                         ip='10.0.1.2'
+                         port='9001'/&gt;
+       &lt;remote-candidate component='2'
+                         ip='10.0.1.2'
+                         port='9002'/&gt;
+     &lt;/transport&gt;
+   &lt;/content&gt;
+ &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">(In accordance with Jingle core, the responder will also acknowledge the transport-info message.)</p>
+    <p class="" style="">In the unlikely event that one of the parties determines that it cannot establish connectivity even after sending and checking lower-priority candidates, it SHOULD terminate the session as described in <span class="ref">XEP-0166</span>, or alternatively it may do content-remove or transport-replace.</p>
+  </div>
+  <div class="indent"><h3 id="protocol-renegotiate">5.9 Negotiating a New Candidate<a class="anchor-link" href="#protocol-renegotiate"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Even after media has begun to flow, either party MAY continue to send additional candidates to the other party (e.g., because the user agent has become aware of a new media proxy or network interface card). Such candidates are shared by sending a transport-info message.</p>
+    <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Initiator sends a subsequent candidate<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.example/dr4hcr0st3lup4c'
+    id='uh3g1f48'
+    to='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='transport-info'
+          initiator='romeo@montague.example/dr4hcr0st3lup4c'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='this-is-the-audio-content'&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:ice:0'
+                 pwd='asd88fgpdd777uzjYhagZg'
+                 ufrag='8hhy'&gt;
+        &lt;candidate component='1'
+                   foundation='2B78DADC1A9E'
+                   generation='0'
+                   id='m3110wc4nd'
+                   ip='2001:db8::9:1'
+                   network='0'
+                   port='9001'
+                   priority='21149780477'
+                   protocol='udp'
+                   type='host'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The receiving party MUST acknowledge receipt of the candidate.</p>
+    <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Recipient acknowledges receipt<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    id='uh3g1f48'
+    to='romeo@montague.example/dr4hcr0st3lup4c'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">The parties would check the newly-offered candidate for connectivity, as described previously. If the parties determine that media can flow over the candidate, they MAY then use the new candidate in subsequent communications.</p>
+  </div>
+  <div class="indent"><h3 id="protocol-restarts">5.10 ICE Restarts<a class="anchor-link" href="#protocol-restarts"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">At any time, either party MAY restart the process of ICE negotiation by sending a candidate with a 'generation' value that is greater than the previous generation of candidates; when it does so, it MUST generate new values for the 'pwd' and 'ufrag' attributes, consistent with the definition of an ICE restart in Section 9 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>] (because an ICE restart is signalled by a change in the 'pwd' and 'ufrag' attributes, strictly speaking the 'generation' attribute is not absolutely necessary). As explained in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">3</a>], typically the ICE negotiation would be restarted to change the media target (e.g., an IP address change for one of the parties) and certain third-party-call-control scenarios.</p>
+    <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Initiator restarts ICE negotiation<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.example/dr4hcr0st3lup4c'
+    id='kl23fs71'
+    to='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='transport-info'
+          initiator='romeo@montague.example/dr4hcr0st3lup4c'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='this-is-the-audio-content'&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:ice:0'
+                 pwd='bv71hdn38hgb39hf6xlk33'
+                 ufrag='g7qs'&gt;
+        &lt;candidate component='1'
+                   foundation='2B78DADC1A9E'
+                   generation='1'
+                   id='y3s2b30v3r'
+                   ip='192.0.2.3'
+                   network='1'
+                   port='45665'
+                   priority='1694498815'
+                   protocol='udp'
+                   type='srflx'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The recipient then acknowledges receipt.</p>
+    <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> Recipient acknowledges transport-info<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    id='kl23fs71'
+    to='romeo@montague.example/dr4hcr0st3lup4c'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">The parties would then exchange new candidates to renegotiate connectivity and would check the new candidates for connectivity, as described previously. If the parties determine that media can flow over one of the new candidates, they can then use the successful candidate in subsequent communications. However, while ICE is being renegotiated the parties can continue to send media with the existing candidate-in-use.</p>
+    <p class="" style="">Note: If a party has already sent ICE restart and receives any transport-info message before &lt;iq/&gt; stanza of type "result", the transport-info messages have to be acknowledged with &lt;iq/&gt; stanzas of type "result" but dropped afterwards. After the restart was acknowledged, the other party MAY send the same candidates again as a part of the new ICE session. It's also possible both parties will send ICE restart simultaneously. In this case session initiator MUST respond with &lt;tie-break/&gt; error (see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0166.html">Jingle (XEP-0166)</a></span>  [<a href="#nt-idm98">2</a>]).</p>
+  </div>
+<h2 id="fallback">6.
+       Fallback to Raw UDP<a class="anchor-link" href="#fallback"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">It can happen that the responder does not support ICE, in which case it can be necessary to fall back to use of the <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0177.html">Jingle Raw UDP Transport Method  (XEP-0177)</a></span>  [<a href="#nt-idm495">17</a>]. One typical scenario is communication between an ICE-aware Jingle endpoint and a non-ICE-aware SIP endpoint through a Jingle-to-SIP gateway, as follows:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">The Jingle endpoint sends a session-initiate request to the SIP endpoint, specifying a transport method of ICE.</li>
+    <li class="" style="">Based on capabilities information, the gateway knows that the SIP endpoint does not support ICE, so it enables the endpoints to use its media relay. It does this by:
+      <ul class="" style="">
+        <li class="" style="">Sending a transport-replace message to the Jingle endpoint on behalf of the SIP endpoint, specifying a transport method of Raw UDP and a candidate whose IP address and port are hosted at the gateway.</li>
+        <li class="" style="">Sending SIP INVITE to the SIP endpoint on behalf of the Jingle endpoint, speciying an IP address and port at the gateway.</li>
+      </ul>
+    </li>
+  </ol>
+  <p class="" style="">The session flow is as follows.</p>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+Romeo                    Gateway                    Juliet
+  |                         |                         |
+  |   session-initiate      |                         |
+  |   (audio definition)    |                         |
+  |------------------------&gt;|                         |
+  |   ack                   |                         |
+  |&lt;------------------------|                         |
+  |   transport-replace     |                         |
+  |   (Raw UDP)             |                         |
+  |&lt;------------------------|                         |
+  |   ack                   |                         |
+  |------------------------&gt;|                         |
+  |   transport-accept      |                         |
+  |------------------------&gt;|                         |
+  |   ack                   |                         |
+  |&lt;------------------------|   SIP INVITE            |
+  |                         |------------------------&gt;|
+  |                         |   200 OK                |
+  |                         |&lt;------------------------|
+  |   session-accept        |                         |
+  |&lt;------------------------|                         |
+  |   ack                   |                         |
+  |------------------------&gt;|                         |
+  |                    MEDIA SESSION                  |
+  |&lt;=================================================&gt;|
+  |                         |   SIP BYE               |
+  |                         |&lt;------------------------|
+  |   session-terminate     |                         |
+  |&lt;------------------------|                         |
+  |   ack                   |                         |
+  |------------------------&gt;|   ack                   |
+  |                         |------------------------&gt;|
+  |                         |                         |
+</pre></figure>
+    <p class="" style="">The protocol flow is as follows, showing only the stanzas sent between Romeo and the gateway (acting on Juliet's behalf).</p>
+    <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> Initiator sends session-initiate<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.example/dr4hcr0st3lup4c'
+    id='p01hf63x'
+    to='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-initiate'
+          initiator='romeo@montague.example/dr4hcr0st3lup4c'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='voice'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:rtp:1' media='audio'&gt;
+        &lt;payload-type id='96' name='speex' clockrate='16000'/&gt;
+        &lt;payload-type id='97' name='speex' clockrate='8000'/&gt;
+        &lt;payload-type id='18' name='G729'/&gt;
+        &lt;payload-type id='103' name='L16' clockrate='16000' channels='2'/&gt;
+        &lt;payload-type id='98' name='x-ISAC' clockrate='8000'/&gt;
+      &lt;/description&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:ice:0'
+                 pwd='asd88fgpdd777uzjYhagZg'
+                 ufrag='8hhy'
+                 ice2='true'&gt;
+        &lt;candidate component='1'
+                   foundation='2B78DADC1A9E'
+                   generation='0'
+                   id='el0747fg11'
+                   ip='10.0.1.1'
+                   network='1'
+                   port='8998'
+                   priority='2130706431'
+                   protocol='udp'
+                   type='host'/&gt;
+        &lt;candidate component='1'
+                   foundation='58AA96B8FA5A'
+                   generation='0'
+                   id='y3s2b30v3r'
+                   ip='192.0.2.3'
+                   network='1'
+                   port='45664'
+                   priority='1694498815'
+                   protocol='udp'
+                   rel-addr='10.0.1.1'
+                   rel-port='8998'
+                   type='srflx'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Responder acknowledges session-initiate<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    id='p01hf63x'
+    to='romeo@montague.example/dr4hcr0st3lup4c'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">Immediately the gateway sends a transport-replace message to Romeo, specifying a transport of Raw UDP with a candidate whose IP address and port identify a media relay at the gateway.</p>
+    <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Gateway sends transport-replace on behalf of responder<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    id='hy2gd714'
+    to='romeo@montague.example/dr4hcr0st3lup4c'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='transport-replace'
+          initiator='romeo@montague.example/dr4hcr0st3lup4c'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='voice1'&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:raw-udp:1'&gt;
+        &lt;candidate generation='0'
+                   id='a9j3mnbtu1'
+                   ip='10.1.1.104'
+                   port='13540'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Romeo then acknowledges the transport-replace message and immediately also sends a transport-accept.</p>
+    <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> Initiator acknowledges transport-replace<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.example/dr4hcr0st3lup4c'
+    id='hy2gd714'
+    to='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    type='result'/&gt;
+</pre></figure>
+    <figure class="code-example" id="example-13"><figcaption><strong>Example 13.</strong> Initiator accepts new transport<a class="anchor-link" href="#example-13"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.example/dr4hcr0st3lup4c'
+    id='rb391gs5'
+    to='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='transport-accept'
+          initiator='romeo@montague.example/dr4hcr0st3lup4c'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='responder' name='voice2'&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:raw-udp:1'&gt;
+        &lt;candidate generation='0'
+                   id='a9j3mnbtu1'
+                   ip='10.1.1.104'
+                   port='13540'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The gateway then acknowledges the acceptance on behalf of Juliet.</p>
+    <figure class="code-example" id="example-14"><figcaption><strong>Example 14.</strong> Gateway acknowledges transport-accept<a class="anchor-link" href="#example-14"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    id='rb391gs5'
+    to='romeo@montague.example/dr4hcr0st3lup4c'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">The responder then sends a session-accept through the gateway.</p>
+    <figure class="code-example" id="example-15"><figcaption><strong>Example 15.</strong> Responder sends session-accept<a class="anchor-link" href="#example-15"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    id='ijf61d43'
+    to='romeo@montague.example/dr4hcr0st3lup4c'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-accept'
+          initiator='romeo@montague.example/dr4hcr0st3lup4c'
+          responder='juliet@capulet.example/yn0cl4bnw0yr3vym'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='voice'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:rtp:1' media='audio'&gt;
+        &lt;payload-type id='18' name='G729'/&gt;
+      &lt;/description&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:raw-udp:1'/&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-16"><figcaption><strong>Example 16.</strong> Initiator acknowledges session-accept<a class="anchor-link" href="#example-16"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.example/dr4hcr0st3lup4c'
+    id='ijf61d43'
+    to='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">The endpoints now begin to exchange session media, and can continue the session as long as desired.</p>
+<h2 id="info">7.
+       Informational Messages<a class="anchor-link" href="#info"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Informational messages can be sent by either party within the context of Jingle to communicate the status of a Jingle ICE "session".  The informational message MUST be an IQ-set containing a &lt;jingle/&gt; element of type "transport-info", where the informational message is a payload element qualified by the 'urn:xmpp:jingle:transports:ice:0' namespace.</p>
+  <p class="" style="">The only payload element defined so far is the &lt;gathering-complete/&gt; element. This element is used only to signal that gathering of ICE candidates has been completed (i.e., to send an "end-of-candidates indication"), as in the following example.</p>
+  <figure class="code-example" id="example-17"><figcaption><strong>Example 17.</strong> Responder sends end-of-candidates indication<a class="anchor-link" href="#example-17"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    id='xv39z423'
+    to='romeo@montague.example/dr4hcr0st3lup4c'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='transport-info'
+          initiator='romeo@montague.example/dr4hcr0st3lup4c'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='this-is-the-audio-content'&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:ice:0'
+                 pwd='asd88fgpdd777uzjYhagZg'
+                 ufrag='8hhy'&gt;
+        &lt;gathering-complete/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <p class="" style="">The &lt;gathering-complete/&gt; element can be combined with remaining candidates or sent alone.</p>
+<h2 id="support">8.
+       Determining Support<a class="anchor-link" href="#support"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="support-ice">8.1 ICE Support<a class="anchor-link" href="#support-ice"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">To advertise its support for the Jingle ICE Transport Method, when replying to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm529">18</a>] information requests an entity MUST return URNs for any version of this protocol that the entity supports -- e.g., "urn:xmpp:jingle:transports:ice:0" for this version (and "urn:xmpp:jingle:transports:ice-udp:1" for the "ICE-UDP" version previously specified in XEP-0176 (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number).</p>
+    <figure class="code-example" id="example-18"><figcaption><strong>Example 18.</strong> Service discovery information request<a class="anchor-link" href="#example-18"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.example/dr4hcr0st3lup4c'
+    id='cv5x41g9'
+    to='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <figure class="code-example" id="example-19"><figcaption><strong>Example 19.</strong> Service discovery information response<a class="anchor-link" href="#example-19"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.example/yn0cl4bnw0yr3vym'
+    id='cv5x41g9'
+    to='romeo@montague.example/dr4hcr0st3lup4c'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;feature var='urn:xmpp:jingle:1'/&gt;
+    &lt;feature var='urn:xmpp:jingle:transports:ice:0'/&gt;
+    &lt;feature var='urn:xmpp:jingle:transports:ice-udp:1'/&gt;
+    &lt;feature var='urn:xmpp:jingle:apps:rtp:1'/&gt;
+    &lt;feature var='urn:xmpp:jingle:apps:rtp:audio'/&gt;
+    &lt;feature var='urn:xmpp:jingle:apps:rtp:video'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">In order for an application to determine whether an entity supports this protocol, where possible it SHOULD use the dynamic, presence-based profile of service discovery defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm537">19</a>]. However, if an application has not received entity capabilities information from an entity, it SHOULD use explicit service discovery instead.</p>
+  </div>
+  <div class="indent"><h3 id="support-sdp">8.2 SDP Offer / Answer Support<a class="anchor-link" href="#support-sdp"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If an entity supports the SDP offer / answer model described in <span class="ref">RFC 3264</span> and therefore prefers to receive multiple candidates in a single transport-info message, it MUST advertise support for the "urn:ietf:rfc:3264" service discovery feature. Typically this feature will be advertised only by gateways between Jingle and SIP.</p>
+    <figure class="code-example" id="example-20"><figcaption><strong>Example 20.</strong> Service discovery information request<a class="anchor-link" href="#example-20"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.example/dr4hcr0st3lup4c'
+    id='ce81f5d6'
+    to='sip.shakespeare.lit'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <figure class="code-example" id="example-21"><figcaption><strong>Example 21.</strong> Service discovery information response<a class="anchor-link" href="#example-21"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='sip.shakespeare.lit'
+    id='ce81f5d6'
+    to='romeo@montague.example/dr4hcr0st3lup4c'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;feature var='urn:ietf:rfc:3264'/&gt;
+    &lt;feature var='urn:xmpp:jingle:1'/&gt;
+    &lt;feature var='urn:xmpp:jingle:transports:ice:0'/&gt;
+    &lt;feature var='urn:xmpp:jingle:transports:ice-udp:1'/&gt;
+    &lt;feature var='urn:xmpp:jingle:apps:rtp:1'/&gt;
+    &lt;feature var='urn:xmpp:jingle:apps:rtp:audio'/&gt;
+    &lt;feature var='urn:xmpp:jingle:apps:rtp:video'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+<h2 id="impl">9.
+       Implementation Notes<a class="anchor-link" href="#impl"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">In order to speed the negotiation process so that media can flow as quickly as possible, the initiator SHOULD gather and prioritize candidates in advance, or as soon as the principal begins the process of initiating a session.</p>
+<h2 id="deploy">10.
+       Deployment Notes<a class="anchor-link" href="#deploy"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This specification applies exclusively to Jingle clients and places no additional requirements on XMPP servers. However, service administrators might wish to deploy a STUN server in order to ease the client-to-client negotiation process and a TURN server for media relaying (see <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-ietf-behave-turn">TURN</a></span>  [<a href="#nt-idm550">20</a>]). Deployment of support for <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0215.html">External Service Discovery (XEP-0215)</a></span>  [<a href="#nt-idm554">21</a>] might also be helpful.</p>
+<h2 id="security">11.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="security-sharing">11.1 Sharing IP Addresses<a class="anchor-link" href="#security-sharing"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">By definition, the exchange of transport candidates results in exposure of the sender's IP addresses, which comprise a form of personally identifying information. A Jingle client MUST enable a user to control which entities will be allowed to receive such information. If a human user explicitly accepts a session request, then the client SHOULD consider that action to imply approval of IP address sharing. However, waiting for a human user to explicitly accept the session request can result in delays during session setup, since it is more efficient to immediately begin sharing transport candidates. Therefore, it is RECOMMENDED for the client to immediately send transport candidates to a contact (without waiting for explicit user approval of the session request) in the following cases:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">The user has permanently and formally authorized the contact to view the user's presence information via a presence subscription as reflected in an XMPP roster item (see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6121">XMPP IM</a></span>  [<a href="#nt-idm563">22</a>]).</li>
+      <li class="" style="">The user has temporarily and dynamically shared presence with the contact via "directed presence" as described in <span class="ref">RFC 3921</span>.</li>
+      <li class="" style="">The user has explicitly added the contact to a "whitelist" of entities who are allowed to access the user's personally-identifying information.</li>
+    </ol>
+  </div>
+  <div class="indent"><h3 id="security-media">11.2 Encryption of Media<a class="anchor-link" href="#security-media"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">A Jingle implementation SHOULD support security preconditions that are enforced before application media is allowed to flow over a UDP association, such as those described in <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption">Jingle XTLS</a></span>  [<a href="#nt-idm572">23</a>].</p>
+    <p class="" style="">Application types that use the Jingle ICE transport method MAY also define their own application-specific encryption methods, such as the Secure Real-time Transport Protocol (SRTP) for RTP exchanges as described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0167.html">Jingle RTP Sessions (XEP-0167)</a></span>  [<a href="#nt-idm577">24</a>].</p>
+  </div>
+<h2 id="iana">12.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm583">25</a>].</p>
+<h2 id="registrar">13.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="registrar-ns">13.1 Protocol Namespaces<a class="anchor-link" href="#registrar-ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:jingle:transports:ice:0</li>
+    </ul>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm593">26</a>] includes the foregoing namespace in its registry at &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;, as governed by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idm598">27</a>].</p>
+  </div>
+  <div class="indent"><h3 id="registrar-versioning">13.2 Protocol Versioning<a class="anchor-link" href="#registrar-versioning"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+  <div class="indent"><h3 id="registrar-features">13.3 Service Discovery Features<a class="anchor-link" href="#registrar-features"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If an entity supports the SDP offer / answer model described in <span class="ref">RFC 3264</span> and therefore prefers to receive one transport-info message with multiple candidates, it MUST advertise support for the "urn:ietf:rfc:3264" feature.</p>
+    <p class="" style="">The registry submission is as follows.</p>
+    <figure class="code"><figcaption>Registry Submission</figcaption><pre class="prettyprint">
+&lt;var&gt;
+  &lt;name&gt;urn:ietf:rfc:3264&lt;/name&gt;
+  &lt;desc&gt;
+    Signals support for the SDP offer / answer model
+    described in RFC 3264
+  &lt;/desc&gt;
+  &lt;doc&gt;XEP-0176&lt;/doc&gt;
+&lt;/var&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="registrar-transports">13.4 Jingle Transport Methods<a class="anchor-link" href="#registrar-transports"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The XMPP Registrar includes "ice" in its registry of Jingle transport methods at &lt;<a href="https://xmpp.org/registrar/jingle-transports.html">https://xmpp.org/registrar/jingle-transports.html</a>&gt;. The registry submission is as follows:</p>
+    <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;transport&gt;
+  &lt;name&gt;ice&lt;/name&gt;
+  &lt;desc&gt;
+    A method for negotiation of out-of-band UDP associations
+    or TCP connections with built-in NAT and firewall traversal
+    using the IETF's Interactive Connectivity Establishment (ICE)
+    methodology.
+  &lt;/desc&gt;
+  &lt;type&gt;datagram or streaming&lt;/type&gt;
+  &lt;doc&gt;XEP-0176&lt;/doc&gt;
+&lt;/transport&gt;
+</pre></figure>
+  </div>
+<h2 id="schema">14.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:jingle:transports:ice:0'
+    xmlns='urn:xmpp:jingle:transports:ice:0'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-0176: http://www.xmpp.org/extensions/xep-0176.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name='transport'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:choice minOccurs='0'&gt;
+        &lt;xs:sequence&gt;
+          &lt;xs:element name='candidate'
+                      type='candidateElementType'
+                      minOccurs='1'
+                      maxOccurs='unbounded'/&gt;
+        &lt;/xs:sequence&gt;
+        &lt;xs:sequence&gt;
+          &lt;xs:element name='remote-candidate'
+                      type='remoteCandidateElementType'
+                      minOccurs='1'
+                      maxOccurs='unbounded'/&gt;
+        &lt;/xs:sequence&gt;
+        &lt;xs:sequence&gt;
+          &lt;xs:any namespace="##other"
+                  processContents="lax"
+                  minOccurs="0"
+                  maxOccurs="unbounded"/&gt;
+        &lt;/xs:sequence&gt;
+      &lt;/xs:choice&gt;
+      &lt;xs:attribute name='pwd' type='xs:string' use='optional'/&gt;
+      &lt;xs:attribute name='ufrag' type='xs:string' use='optional'/&gt;
+      &lt;xs:attribute name='ice2' type='xs:boolean' use='optional' default='false'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:complexType name='candidateElementType'&gt;
+    &lt;xs:simpleContent&gt;
+      &lt;xs:extension base='empty'&gt;
+        &lt;xs:attribute name='component' type='xs:unsignedByte' use='required'/&gt;
+        &lt;xs:attribute name='foundation' type='xs:string' use='required'/&gt;
+        &lt;xs:attribute name='generation' type='xs:unsignedByte' use='optional'/&gt;
+        &lt;xs:attribute name='id' type='xs:NCName' use='optional'/&gt;
+        &lt;xs:attribute name='ip' type='xs:string' use='required'/&gt;
+        &lt;xs:attribute name='network' type='xs:unsignedByte' use='required'/&gt;
+        &lt;xs:attribute name='port' type='xs:unsignedShort' use='required'/&gt;
+        &lt;xs:attribute name='priority' type='xs:positiveInteger' use='required'/&gt;
+        &lt;xs:attribute name='protocol' type='xs:NCName' use='required'/&gt;
+        &lt;xs:attribute name='rel-addr' type='xs:string' use='optional'/&gt;
+        &lt;xs:attribute name='rel-port' type='xs:unsignedShort' use='optional'/&gt;
+        &lt;xs:attribute name='tcptype' use='optional'&gt;
+          &lt;xs:simpleType&gt;
+            &lt;xs:restriction base='xs:NCName'&gt;
+              &lt;xs:enumeration value='active'/&gt;
+              &lt;xs:enumeration value='passive'/&gt;
+              &lt;xs:enumeration value='so'/&gt;
+            &lt;/xs:restriction&gt;
+          &lt;/xs:simpleType&gt;
+        &lt;/xs:attribute&gt;
+        &lt;xs:attribute name='type' use='required'&gt;
+          &lt;xs:simpleType&gt;
+            &lt;xs:restriction base='xs:NCName'&gt;
+              &lt;xs:enumeration value='host'/&gt;
+              &lt;xs:enumeration value='prflx'/&gt;
+              &lt;xs:enumeration value='relay'/&gt;
+              &lt;xs:enumeration value='srflx'/&gt;
+            &lt;/xs:restriction&gt;
+          &lt;/xs:simpleType&gt;
+        &lt;/xs:attribute&gt;
+      &lt;/xs:extension&gt;
+    &lt;/xs:simpleContent&gt;
+  &lt;/xs:complexType&gt;
+
+  &lt;xs:complexType name='remoteCandidateElementType'&gt;
+    &lt;xs:simpleContent&gt;
+      &lt;xs:extension base='empty'&gt;
+        &lt;xs:attribute name='component' type='xs:unsignedByte' use='required'/&gt;
+        &lt;xs:attribute name='ip' type='xs:string' use='required'/&gt;
+        &lt;xs:attribute name='port' type='xs:unsignedShort' use='required'/&gt;
+      &lt;/xs:extension&gt;
+    &lt;/xs:simpleContent&gt;
+  &lt;/xs:complexType&gt;
+
+  &lt;xs:element name='gathering-complete' type='empty'/&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+</pre></figure>
+<h2 id="ack">15.
+       Acknowledgements<a class="anchor-link" href="#ack"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Special thanks to Joe Beda, Scott Ludwig, Joe Hildebrand, Sean Egan, and Robert McQueen for co-authoring XEP-0176, from which this document was forked.</p>
+  <p class="" style="">Thanks also to Diana Cionoiu, Olivier Crête, Philipp Hancke, Tim Julien, Steffen Larsen, Unnikrishnan Vikrama Panicker, Mike Ruprecht, Lance Stout, Justin Uberti, and Paul Witty for their feedback.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="http://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0371</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a></dd><dt>Type</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.3</dd><dt>Last Updated</dt><dd>2020-05-14</dd><dt>Approving Body</dt><dd><a href="http://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, XEP-0166, RFC 8445, RFC 6544, draft-ietf-ice-trickle</dd><dt>Supersedes</dt><dd>XEP-0176</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>jingle-ice</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0371.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0371.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0371.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Peter Saint-Andre</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:xsf@stpeter.im">xsf@stpeter.im</a></dd><dt>JabberID</dt><dd><a href="xmpp:peter@jabber.org">peter@jabber.org</a></dd><dt>URI</dt><dd><a href="http://stpeter.im/">http://stpeter.im/</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="http://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm72">1</a>. RFC 6544: TCP Candidates with Interactive Connectivity Establishment (ICE) &lt;<a href="http://tools.ietf.org/html/rfc6544">http://tools.ietf.org/html/rfc6544</a>&gt;.</p><p><a name="nt-idm98">2</a>. XEP-0166: Jingle &lt;<a href="https://xmpp.org/extensions/xep-0166.html">https://xmpp.org/extensions/xep-0166.html</a>&gt;.</p><p><a name="nt-idm103">3</a>. RFC 8445: Interactive Connectivity Establishment (ICE) &lt;<a href="http://tools.ietf.org/html/rfc8445">http://tools.ietf.org/html/rfc8445</a>&gt;.</p><p><a name="nt-idm107">4</a>. Incremental Provisioning of Candidates for the Interactive Connectivity Establishment (ICE) Protocol &lt;<a href="http://tools.ietf.org/html/draft-ietf-ice-trickle/">http://tools.ietf.org/html/draft-ietf-ice-trickle/</a>&gt;.</p><p><a name="nt-idm119">5</a>. RFC 4566: SDP: Session Description Protocol &lt;<a href="http://tools.ietf.org/html/rfc4566">http://tools.ietf.org/html/rfc4566</a>&gt;.</p><p><a name="nt-idm124">6</a>. RFC 3264: An Offer/Answer Model with the Session Description Protocol (SDP) &lt;<a href="http://tools.ietf.org/html/rfc3264">http://tools.ietf.org/html/rfc3264</a>&gt;.</p><p><a name="nt-idm138">7</a>. XEP-0176: Jingle ICE-UDP Transport Method &lt;<a href="https://xmpp.org/extensions/xep-0176.html">https://xmpp.org/extensions/xep-0176.html</a>&gt;.</p><p><a name="nt-idm142">8</a>. RFC 768: User Datagram Protocol &lt;<a href="http://tools.ietf.org/html/rfc0768">http://tools.ietf.org/html/rfc0768</a>&gt;.</p><p><a name="nt-idm150">9</a>. RFC 793: Transmission Control Protocol &lt;<a href="http://tools.ietf.org/html/rfc0793">http://tools.ietf.org/html/rfc0793</a>&gt;.</p><p><a name="nt-idm206">10</a>. RFC 5245: Interactive Connectivity Establishment (ICE) &lt;<a href="http://tools.ietf.org/html/rfc5245">http://tools.ietf.org/html/rfc5245</a>&gt;.</p><p><a name="nt-idm300">11</a>. In accordance with the rules specified in Section 5.1.2 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">4</a>], the priority values shown in the examples within this document have been calculated as follows. The "type preference" for host candidates is stipulated to be "126", "110" for peer reflexive and for server reflexive candidates "100". The "local preference" for network 0 is stipulated to be "4096", for network 1 "2048", and for network 2 "1024".</p><p><a name="nt-idm370">12</a>. Given in-order delivery as mandated by <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-idm373">13</a>], the responder will receive such transport-info messages after receiving the session-initiate message; if not, it is appropriate for the responder to return &lt;unknown-session/&gt; errors since according to its state machine the session does not exist.</p><p><a name="nt-idm373">13</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm376">14</a>. The fact that both parties send candidates means that Jingle requires each party to be a full implementation of ICE, not a lite implementation as specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8445">RFC 8445</a></span>  [<a href="#nt-idm103">4</a>].</p><p><a name="nt-idm405">15</a>. RFC 5389: Session Traversal Utilities for NAT (STUN) &lt;<a href="http://tools.ietf.org/html/rfc5389">http://tools.ietf.org/html/rfc5389</a>&gt;.</p><p><a name="nt-idm425">16</a>. Thus when Romeo sends a STUN Binding Request to Juliet the credentials will be STUN username "9uB6:8hhy" (ufrag provided by Juliet concatenated with ufrag provided by Romeo) and password "YH75Fviy6338Vbrhrlp8Yh" (pwd provided by Juliet) whereas when Juliet sends a STUN Binding Request to Romeo the credentials will be STUN username "8hhy:9uB6" (ufrag provided by Romeo concatenated with ufrag provided by Juliet) and password "asd88fgpdd777uzjYhagZg" (pwd provided by Romeo).</p><p><a name="nt-idm495">17</a>. XEP-0177: Jingle Raw UDP Transport Method &lt;<a href="https://xmpp.org/extensions/xep-0177.html">https://xmpp.org/extensions/xep-0177.html</a>&gt;.</p><p><a name="nt-idm529">18</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm537">19</a>. XEP-0115: Entity Capabilities &lt;<a href="https://xmpp.org/extensions/xep-0115.html">https://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-idm550">20</a>. Traversal Using Relays around NAT (TURN): Relay Extensions to Session Traversal Utilities for NAT (STUN) &lt;<a href="http://tools.ietf.org/html/draft-ietf-behave-turn">http://tools.ietf.org/html/draft-ietf-behave-turn</a>&gt;. Work in progress.</p><p><a name="nt-idm554">21</a>. XEP-0215: External Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0215.html">https://xmpp.org/extensions/xep-0215.html</a>&gt;.</p><p><a name="nt-idm563">22</a>. RFC 6121: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc6121">http://tools.ietf.org/html/rfc6121</a>&gt;.</p><p><a name="nt-idm572">23</a>. Extensible Messaging and Presence Protocol (XMPP) End-to-End Encryption Using Transport Layer Security ("XTLS") &lt;<a href="http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption">http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption</a>&gt;.</p><p><a name="nt-idm577">24</a>. XEP-0167: Jingle RTP Sessions &lt;<a href="https://xmpp.org/extensions/xep-0167.html">https://xmpp.org/extensions/xep-0167.html</a>&gt;.</p><p><a name="nt-idm583">25</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm593">26</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idm598">27</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.3"><div class="revision-head">Version 0.3 (2020-05-14)<a class="anchor-link" href="#revision-history-v0.3"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Replaced RFC 5245 with RFC 8445</li>
+        <li class="" style="">Introduced ice2 transport attribute for backward compatibility</li>
+        <li class="" style="">Clarified ICE restart procedure</li>
+        <li class="" style="">Clarified remote-candidate usage</li>
+        <li class="" style="">Changed remote-candidate notification procedure (sent all at once now)</li>
+        <li class="" style="">Replaced wrong reference to RFC 6455 with correct one: RFC 6544</li>
+        <li class="" style="">Allow sharing &lt;gathering-complete/&gt; element with remaining candidates</li>
+      </ul>
+    <div class="revision-author">rion</div></li><li id="revision-history-v0.2.1"><div class="revision-head">Version 0.2.1 (2019-07-30)<a class="anchor-link" href="#revision-history-v0.2.1"><abbr title="Link to this point in the document">¶</abbr></a></div>Fix reference to gathering-complete element in text.<div class="revision-author">fippo</div></li><li id="revision-history-v0.2"><div class="revision-head">Version 0.2 (2017-09-11)<a class="anchor-link" href="#revision-history-v0.2"><abbr title="Link to this point in the document">¶</abbr></a></div>Defer due to lack of activity.<div class="revision-author">XEP Editor (jwi)</div></li><li id="revision-history-v0.1"><div class="revision-head">Version 0.1 (2016-01-21)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial published version approved by the XMPP Council.</p><div class="revision-author">XEP Editor (asw)</div></li><li id="revision-history-v0.0.2"><div class="revision-head">Version 0.0.2 (2015-12-30)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Added a 'tcptype' attribute to support ICE-TCP (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6544">RFC 6544</a></span>  [<a href="#nt-idm72">1</a>]) instead of overloading the existing 'type' attribute, with values of "active", "passive", and "so".</li>
+        <li class="" style="">Modified the syntax of the end-of-candidates indication so that it is wrapped in a &lt;transport/&gt; element in the same namespace.</li>
+      </ul>
+    <div class="revision-author">psa</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version 0.0.1 (2015-12-16)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Forked from XEP-0176 (see that specification for older revision history).</li>
+        <li class="" style="">Added support for ICE-TCP (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6544">RFC 6544</a></span>  [<a href="#nt-idm72">1</a>]), specifically by allowing a value of "tcp" for the 'protocol' attribute and values of "tcp-active", "tcp-passive", and "tcp-so" for the 'type' attribute.</li>
+        <li class="" style="">Changed title from ICE-UDP to ICE, but retained namespace name for backward compatibility.</li>
+        <li class="" style="">Corrected data type of foundation attribute from xs:unsignedByte to xs:string.</li>
+        <li class="" style="">Added a note about not mapping ice-options because it is not needed in XMPP.</li>
+        <li class="" style="">Specified that the &lt;transport/&gt; element is extensible by adding xs:any to the schema.</li>
+        <li class="" style="">Changed the normativity of the 'generation' attribute from required to optional because it is not absolutely necessary for ICE restarts.</li>
+        <li class="" style="">Added informational message to indicate completion of sending ICE candidates (the "end-of-candidates indication") as in WebRTC and ORTC.</li>
+        <li class="" style="">Verified compatibility with IETF "Trickle ICE" specification.</li>
+      </ul>
+    <div class="revision-author">psa</div></li></ol><p>END</p></body></html>
