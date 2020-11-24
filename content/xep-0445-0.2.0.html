@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0445: Pre-Authenticated In-Band Registration</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0445";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0"><meta name="DC.Title" content="Pre-Authenticated In-Band Registration"><meta name="DC.Creator" content="Georg Lukas"><meta name="DC.Description" content="This document extends the In-Band-Registration protocol to use
+    invitation tokens, e.g. for registering accounts on non-public
+    servers.
+  "><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2020-11-24"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0445"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0445: Pre-Authenticated In-Band Registration</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This document extends the In-Band-Registration protocol to use
+    invitation tokens, e.g. for registering accounts on non-public
+    servers.
+  </dd><dt>Author</dt><dd>Georg Lukas</dd><dt>Copyright</dt><dd>© 1999 – 2020 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.2.0 (2020-11-24)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Draft</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#sect-idm68">Use Cases</a><ol><li><a href="#sect-idm76">Registration with pre-defined account name</a></li><li><a href="#sect-idm79">Registration on a server</a></li><li><a href="#sect-idm82">Contact Invitation with IBR</a></li></ol></li><li><a href="#discover">Discovery</a></li><li><a href="#preauth-ibr">Pre-Authenticated In-Band Registration</a></li><li><a href="#rules">Business Rules</a></li><li><a href="#impl">Implementation Notes</a><ol><li><a href="#sect-idm118">XMPP Server Suggestion for Invitees</a></li></ol></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">There are two typical mechanisms to register an account on an XMPP server:</p>
+  <ul class="" style="">
+    <li class="" style="">Out-of-band account creation, after which the account JID and password
+      need to be manually entered into an XMPP client, and</li>
+    <li class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0077.html">In-Band Registration (XEP-0077)</a></span>  [<a href="#nt-idm47">1</a>] (IBR) where an account is created and fully configured right
+      from the XMPP client.</li>
+  </ul>
+  <p class="" style="">The IBR mechanism is much more convenient for users, but also opens up
+    the server to abuse, e.g. due to the mass-registration of spam bot
+    accounts. Captchas, while heavily impacting well-intentioned users, are
+    not a reliable mechanism to prevent abuse.  This specification allows to
+    restrict the IBR mechanism by requiring a registration token, e.g. for
+    giving users access to a private server, without exposing their password
+    to the server administrator.</p>
+  <p class="" style="">This specification is part of a series of documents aiming at improving
+    user onboarding:</p>
+  <ul class="" style="">
+    <li class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0379.html">Pre-Authenticated Roster Subscription (XEP-0379)</a></span>  [<a href="#nt-idm55">2</a>] to automatically accept roster subscriptions based on a
+      token.</li>
+    <li class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0401.html">Easy User Onboarding (XEP-0401)</a></span>  [<a href="#nt-idm60">3</a>] to generate tokens that can be used for authenticating IBR.</li>
+  </ul>
+  <p class="" style="">While this specification is designed to work together with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0401.html">Easy User Onboarding (XEP-0401)</a></span>  [<a href="#nt-idm60">3</a>], it
+    can be used with invitation tokens obtained by any other mechanism. XMPP
+    URIs can then be used out-of-band to deliver the invitation to a new user.</p>
+  <p class="" style="">A client that obtains such an XMPP URI should allow the user to register
+    an XMPP account with the server that generated the URI.</p>
+<h2 id="sect-idm68">2.
+       Use Cases<a class="anchor-link" href="#sect-idm68"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">A client that implements this specification needs to understand the
+    <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0147.html">XMPP URI Query Components (XEP-0147)</a></span>  [<a href="#nt-idm72">4</a>] specification, to make use of the <code>register</code> query
+    action and the <code>preauth</code> parameter. Three URI formats
+    are defined.</p>
+  <div class="indent"><h3 id="sect-idm76">2.1 Registration with pre-defined account name<a class="anchor-link" href="#sect-idm76"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An invitation to register an account can contain a specific XMPP
+      address (with a pre-defined user account name) to be registered. A
+      client should populate the address field in the IBR dialog with this
+      address and disallow changing the address.</p>
+    <figure class="code"><figcaption>Registration URI with pre-defined account name</figcaption><pre class="prettyprint">xmpp:juliet@example.com?register;preauth=TOKEN</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="sect-idm79">2.2 Registration on a server<a class="anchor-link" href="#sect-idm79"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An invitation to register an account can contain just the server domain
+      to register on. A client should populate the address field in the IBR
+      dialog with this domain and allow entering the desired account name.</p>
+    <figure class="code"><figcaption>Registration URI without account name</figcaption><pre class="prettyprint">xmpp:example.com?register;preauth=TOKEN</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="sect-idm82">2.3 Contact Invitation with IBR<a class="anchor-link" href="#sect-idm82"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">A contact invitation with a registration token (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0379.html">Pre-Authenticated Roster Subscription (XEP-0379)</a></span>  [<a href="#nt-idm55">2</a>]) might
+      indicate that the token can also be used to register an account on that
+      server (<code>ibr=y</code>). If the receiving client already has an account
+      configured, it may skip account registration and simply add the contact
+      as defined in <span class="ref">XEP-0379</span>. The client may also register a new
+      account on the domain of the proposed contact, allowing the user to
+      enter the desired account name.</p>
+    <figure class="code"><figcaption>Contact URI with Pre-Authenticated IBR support</figcaption><pre class="prettyprint">xmpp:romeo@example.com?roster;preauth=TOKEN;ibr=y</pre></figure>
+  </div>
+<h2 id="discover">3.
+       Discovery<a class="anchor-link" href="#discover"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">While a registration URI is an indication that the respective server
+    supports Pre-Authenticated IBR, a URI might be manipulated and is not
+    guaranteed to be reliable.</p>
+  <p class="" style="">Therefore, when performing the account creation, the client needs to
+    ensure that the server supports the Pre-Authenticated IBR protocol, as denoted by
+    the <strong>&lt;register xmlns='urn:xmpp:ibr-token:0'&gt;</strong>
+    stream feature:</p>
+  <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Stream features of a server that accepts invitations<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:features&gt;
+  &lt;mechanisms xmlns='urn:xmpp:sasl:0'&gt;
+    &lt;mechanism&gt;EXTERNAL&lt;/mechanism&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1-PLUS&lt;/mechanism&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1&lt;/mechanism&gt;
+    &lt;mechanism&gt;PLAIN&lt;/mechanism&gt;
+  &lt;/mechanisms&gt;
+  &lt;register xmlns='urn:xmpp:ibr-token:0'/&gt;
+  &lt;register xmlns='http://jabber.org/features/iq-register'/&gt;
+&lt;/stream:features&gt;
+</pre></figure>
+<h2 id="preauth-ibr">4.
+       Pre-Authenticated In-Band Registration<a class="anchor-link" href="#preauth-ibr"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">In order to allow invited users to register on a server, the
+    registration processs as defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0077.html">In-Band Registration (XEP-0077)</a></span>  [<a href="#nt-idm47">1</a>] needs to be extended. The
+    invited user's client needs to connect to the server and check that the
+    invitation stream feature
+    (<strong>&lt;register xmlns='urn:xmpp:ibr-token:0'&gt;</strong>) is present.
+    After that, the client initiates the registration flow by sending the
+    preauth token to the server:</p>
+  <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Client initiates pre-authenticated IBR<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='set' to='example.com' id='pa1'&gt;
+&lt;preauth xmlns='urn:xmpp:pars:0' token='TOKEN' /&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <p class="" style="">Upon receiving the preauth request, the server must validate that the
+    token is acceptable for account registration. However, single-use tokens
+    MUST NOT be considered used until the actual registration has succeeded.
+  </p>
+  <p class="" style="">In addition, if the token has an expiration time, it MUST only be
+    checked at this point. Subsequent actions performed by the client during
+    the current session that require a valid token MUST NOT be rejected due
+    to token expiry.
+  </p>
+  <p class="" style="">If the token is acceptable, the server responds with success, and
+    indicates the client may now proceed with account registration:
+  </p>
+  <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Server accepts invitation token<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result' from='example.com' id='pa1' /&gt;
+</pre></figure>
+  <p class="" style="">If the token provided by the client was unknown, invalid or expired, the
+    server should return an appropriate error to the client:</p>
+  <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Server rejects invitation token<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type="error" from="example.com" id="pa1"&gt;
+&lt;error type='cancel'&gt;
+  &lt;item-not-found xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;text&gt;The provided token is invalid or expired&lt;/text&gt;
+&lt;/error&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <p class="" style="">In the success case, the client proceeds with registration as defined in
+    <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0077.html">In-Band Registration (XEP-0077)</a></span>  [<a href="#nt-idm47">1</a>]. If the token is rejected by the server, the client still MAY
+    attempt to perform IBR if the server allows that.</p>
+<h2 id="rules">5.
+       Business Rules<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">If a username was specified when creating an invitation token, the
+    server SHOULD NOT create an account on the server until the invitee
+    actually registers it with the corresponding token.
+    The server MUST reserve the username at least until the corresponding
+    token expires.</p>
+<h2 id="impl">6.
+       Implementation Notes<a class="anchor-link" href="#impl"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="sect-idm118">6.1 XMPP Server Suggestion for Invitees<a class="anchor-link" href="#sect-idm118"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If the invitee opens an invitation URI with <strong>ibr=y</strong> and
+      chooses to create a new account, the client SHOULD pre-fill the
+      inviter JID's domain part as the new account's domain. The client MAY
+      provide a mechanism to enter or choose a different server, though.</p>
+  </div>
+<h2 id="security">7.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">See security considerations in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0379.html">Pre-Authenticated Roster Subscription (XEP-0379)</a></span>  [<a href="#nt-idm55">2</a>].</p>
+<h2 id="iana">8.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm131">5</a>].</p>
+<h2 id="registrar">9.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">This document only makes use of the XMPP URI elements defined in
+      <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0401.html">Easy User Onboarding (XEP-0401)</a></span>  [<a href="#nt-idm60">3</a>]</p>
+<h2 id="schema">10.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">REQUIRED for protocol specifications.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="http://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0445</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.2.0</dd><dt>Last Updated</dt><dd>2020-11-24</dd><dt>Approving Body</dt><dd><a href="http://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, XEP-0077, XEP-0147, XEP-0379, XEP-0401</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>ibr-token</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0445.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0445.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0445.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Georg Lukas</h5><dl class="compact"></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm47">1</a>. XEP-0077: In-Band Registration &lt;<a href="https://xmpp.org/extensions/xep-0077.html">https://xmpp.org/extensions/xep-0077.html</a>&gt;.</p><p><a name="nt-idm55">2</a>. XEP-0379: Pre-Authenticated Roster Subscription &lt;<a href="https://xmpp.org/extensions/xep-0379.html">https://xmpp.org/extensions/xep-0379.html</a>&gt;.</p><p><a name="nt-idm60">3</a>. XEP-0401: Easy User Onboarding &lt;<a href="https://xmpp.org/extensions/xep-0401.html">https://xmpp.org/extensions/xep-0401.html</a>&gt;.</p><p><a name="nt-idm72">4</a>. XEP-0147: XMPP URI Query Components &lt;<a href="https://xmpp.org/extensions/xep-0147.html">https://xmpp.org/extensions/xep-0147.html</a>&gt;.</p><p><a name="nt-idm131">5</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.2.0"><div class="revision-head">Version 0.2.0 (2020-11-24)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Accepted by vote of Council on 2020-11-04.<div class="revision-author">XEP Editor (jsc)</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version 0.1.0 (2020-10-28)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>First version based on XEP-0401.<div class="revision-author">gl</div></li></ol><p>END</p></body></html>
