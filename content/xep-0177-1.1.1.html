@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0177: Jingle Raw UDP Transport Method</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0177";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=2.0"><meta name="DC.Title" content="Jingle Raw UDP Transport Method"><meta name="DC.Creator" content="Joe Beda"><meta name="DC.Creator" content="Peter Saint-Andre"><meta name="DC.Creator" content="Scott Ludwig"><meta name="DC.Creator" content="Joe Hildebrand"><meta name="DC.Creator" content="Sean Egan"><meta name="DC.Description" content="This specification defines a Jingle transport method that results in sending media data using raw datagram associations via the User Datagram Protocol (UDP). This simple transport method does not provide NAT traversal, and the ICE-UDP transport method should be used if NAT traversal is required."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2020-12-10"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0177"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0177: Jingle Raw UDP Transport Method</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification defines a Jingle transport method that results in sending media data using raw datagram associations via the User Datagram Protocol (UDP). This simple transport method does not provide NAT traversal, and the ICE-UDP transport method should be used if NAT traversal is required.</dd><dt>Authors</dt><dd><ul class="authors"><li>Joe Beda</li><li>Peter Saint-Andre</li><li>Scott Ludwig</li><li>Joe Hildebrand</li><li>Sean Egan</li></ul></dd><dt>Copyright</dt><dd>© 1999 – 2020 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Draft</p><div id="status-notice" class="draft standards track">NOTICE: The protocol defined herein is a <strong>Draft Standard</strong> of the XMPP Standards Foundation. Implementations are encouraged and the protocol is appropriate for deployment in production systems, but some changes to the protocol are possible before it becomes a Final Standard.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>1.1.1 (2020-12-10)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li>Experimental</li><li>Proposed</li><li class="current">Draft</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#conformance">Jingle Conformance</a></li><li><a href="#protocol">Protocol Description</a><ol><li><a href="#protocol-flow">Flow</a></li><li><a href="#initiate">Transport Initiation</a></li><li><a href="#response">Responder Response</a></li><li><a href="#media">Sending Media</a></li></ol></li><li><a href="#support">Determining Support</a></li><li><a href="#security">Security Considerations</a><ol><li><a href="#security-media">Encryption of Media</a></li></ol></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-ns">Protocol Namespaces</a></li><li><a href="#registrar-versioning">Protocol Versioning</a></li><li><a href="#registrar-transports">Jingle Transport Methods</a></li></ol></li><li><a href="#schema">XML Schema</a></li><li><a href="#ack">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0166.html">Jingle (XEP-0166)</a></span>  [<a href="#nt-idm185">1</a>] defines a framework for negotiating and managing out-of-band data sessions over XMPP. In order to provide a flexible framework, the base Jingle specification defines neither data transport methods nor application formats, leaving that up to separate specifications. The current document defines a transport method for establishing and managing data between XMPP entities using a raw User Datagram Protocol (UDP) association (see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc0768">RFC 768</a></span>  [<a href="#nt-idm189">2</a>]). This "raw-udp" method results in a datagram transport method suitable for use in media applications where some packet loss is tolerable (e.g., audio and video).</p>
+  <p class="" style="">The Raw UDP transport does not provide end-to-end traversal of Network Address Translators (NATs), or even basic connectivity checks; if NAT traversal is needed, Jingle clients SHOULD use <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5245">RFC 5245</a></span>  [<a href="#nt-idm194">3</a>] as described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0176.html">Jingle ICE-UDP Transport Method (XEP-0176)</a></span>  [<a href="#nt-idm198">4</a>]. The Raw UDP transport method is defined only for the purpose of specifying the IP address and port that an entity considers "most likely to succeed" and is a "hit-or-miss" method that might work end-to-end in some circumstances (especially when the sending entity is a gateway or relay, for example when a back-to-back user agent or call manager sends an early media offer to the initiator on behalf of the responder, as described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0167.html">Jingle RTP Sessions (XEP-0167)</a></span>  [<a href="#nt-idm202">5</a>]).</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The Jingle transport method defined herein is designed to meet the following requirements:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">Make it possible to establish and manage out-of-band connections between two XMPP entities over the IP address and port that the parties consider most likely to succeed.</li>
+    <li class="" style="">Make it relatively easy to implement support in standard Jabber/XMPP clients.</li>
+    <li class="" style="">Where communication with non-XMPP entities is needed, push as much complexity as possible onto server-side gateways between the XMPP network and the non-XMPP network.</li>
+  </ol>
+<h2 id="conformance">3.
+       Jingle Conformance<a class="anchor-link" href="#conformance"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+   <p class="" style="">In accordance with Section 10 of <span class="ref">XEP-0166</span>, this document specifies the following information related to the Jingle Raw UDP transport type:</p>
+   <ol start="" class="" style="">
+     <li class="" style=""><p class="" style="">The transport negotiation process is defined in the <a href="#protocol">Protocol Description</a> section of this document.</p></li>
+     <li class="" style=""><p class="" style="">The semantics of the &lt;transport/&gt; element are defined in the <a href="#initiate">Transport Initiation</a> section of this document.</p></li>
+     <li class="" style=""><p class="" style="">Successful negotiation of the Raw UDP method results in use of a datagram transport that is suitable for applications where some packet loss is tolerable, such as audio and video.</p></li>
+     <li class="" style=""><p class="" style="">If multiple components are to be communicated by the application type that uses the transport, the transport shall support those components and assign identifiers for them as described in the specification that defines the application type.</p></li>
+   </ol>
+<h2 id="protocol">4.
+       Protocol Description<a class="anchor-link" href="#protocol"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="protocol-flow">4.1 Flow<a class="anchor-link" href="#protocol-flow"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The overall protocol flow for negotiation of the Jingle Raw UDP Transport Method is as follows.</p>
+    <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+INITIATOR                            RESPONDER
+    |                                    |
+    |  session-initiate (w/candidate)    |
+    |-----------------------------------&gt;|
+    |  ack                               |
+    |&lt;-----------------------------------|
+    |  session-accept (w/candidate)      |
+    |&lt;-----------------------------------|
+    |  ack                               |
+    |-----------------------------------&gt;|
+    |&lt;========MEDIA NOW FLOWS===========&gt;|
+    |                                    |
+</pre></figure>
+    <p class="" style="">The following sections describe the protocol flow in detail.</p>
+  </div>
+
+  <div class="indent"><h3 id="initiate">4.2 Transport Initiation<a class="anchor-link" href="#initiate"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">In order for the initiator in a Jingle exchange to start the negotiation, it sends a Jingle "session-initiate" stanza that includes at least one content type, as described in <span class="ref">XEP-0166</span>. If the initiator wishes to negotiate the Raw UDP transport for a given content type, it MUST include a &lt;transport/&gt; child element qualified by the 'urn:xmpp:jingle:transports:raw-udp:1' namespace (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number), which MUST  [<a href="#nt-idm233">6</a>] include the initiator's Raw UDP candidate via the 'ip', 'port', 'generation', and 'id' attributes of the &lt;candidate/&gt; element. The &lt;transport/&gt; element MAY include more than one &lt;candidate/&gt; element (typically one for RTP and another for RTCP).</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Initiation<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='tp2hd816'
+    to='juliet@capulet.lit/balcony'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-initiate'
+          initiator='romeo@montague.lit/orchard'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='voice'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:rtp:1' media='audio'&gt;
+        &lt;payload-type id='18' name='G729'/&gt;
+      &lt;/description&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:raw-udp:1'&gt;
+        &lt;candidate component='1'
+                   generation='0'
+                   id='a9j3mnbtu1'
+                   ip='10.1.1.104'
+                   port='13540'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">All attributes are REQUIRED. The 'ip' and 'port' attributes are self-explanatory. The 'component' attribute enables the parties to distinguish between different aspects of the media stream that each need to use a separate transport address (e.g., RTP and RTCP). The 'generation' attribute defines which version of this candidate is in force (this is useful if the candidate is redefined mid-stream, for example if the port is changed). The 'id' attribute uniquely identifies this candidate for tracking purposes.</p>
+    <p class="" style="">Note: The "Raw UDP candidate" is the candidate that the entity has reason to believe will be most likely to succeed for that content type, and thus is equivalent to the "default" candidate as described in the ICE specification. This is not necessarily the entity's preferred address for communication, but instead is the "address most likely to succeed", i.e., the address that is assumed to be reachable by the vast majority of target entities. To determine reachability, the sender needs to classify ahead of time the permissiveness of the NAT or firewall it is behind, if any. It then SHOULD assign the Raw UDP candidate as follows, where the candidate types are as described in <span class="ref">ICE</span>:</p>
+    <figure class="table"><figcaption id="table-1"><strong>Table 1:</strong> Raw UDP Candidate Assignment<a class="anchor-link" href="#table-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+      <tr class="body">
+        <th colspan="" rowspan="">NAT Type</th>
+        <th colspan="" rowspan="">Recommended Raw UDP Candidate Type</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">None</td>
+        <td align="" colspan="" rowspan="">Host candidate</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">Symmetric</td>
+        <td align="" colspan="" rowspan="">Relay candidate</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">Permissive</td>
+        <td align="" colspan="" rowspan="">Server reflexive or peer reflexive candidate discovered via STUN (see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5389">RFC 5389</a></span>  [<a href="#nt-idm253">7</a>])</td>
+      </tr>
+    </table></figure>
+    <p class="" style="">If the client is aware of which type of candidate it is sending, the candidate element MAY contain a 'type' attribute. Although this information is merely a hint about the candidate type, this information can help the recipient be aware of how permissive the peer's NAT or firewall is. The values of the 'type' attribute are "host", "prflx", "relay", and "srflx" (as in the ICE specification and <span class="ref">XEP-0176</span>).</p>
+  </div>
+
+  <div class="indent"><h3 id="response">4.3 Responder Response<a class="anchor-link" href="#response"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">As described in <span class="ref">XEP-0166</span>, to acknowledge the session initiation request, the responder returns an IQ-result:</p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Responder acknowledges the session-initiate request<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='tp2hd816'
+    to='romeo@montague.lit/orchard'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">Depending on the application type, a user agent controlled by a human user might need to wait for the user to affirm a desire to proceed with the session before continuing. When the user agent has received such affirmation (or if the user agent can automatically proceed for any reason, e.g. because no human intervention is expected or because a human user has configured the user agent to automatically accept sessions with a given entity), it returns a Jingle session-accept message. This message MUST contain a &lt;transport/&gt; element qualified by the 'urn:xmpp:jingle:transports:raw-udp:1' namespace, which SHOULD in turn contain one &lt;candidate/&gt; element for each Raw UDP candidate generated by or known to the responder.</p>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Responder definitively accepts the session<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='hs81w639'
+    to='romeo@montague.lit/orchard'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-accept'
+          initiator='romeo@montague.lit/orchard'
+          responder='juliet@capulet.lit/balcony'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;content creator='initiator' name='voice'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:rtp:1' media='audio'&gt;
+        &lt;payload-type id='18' name='G729'/&gt;
+      &lt;/description&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:raw-udp:1'&gt;
+        &lt;candidate component='1'
+                   generation='0'
+                   id='z7sdjb01hf'
+                   ip='208.68.163.214'
+                   port='9876'/&gt;
+        &lt;candidate component='2'
+                   generation='0'
+                   id='hg92lsn10b'
+                   ip='208.68.163.214'
+                   port='9877'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">(Notice that the foregoing example includes two &lt;candidate/&gt; elements, one for RTP and the other for RTCP.)</p>
+    <p class="" style="">The initiator then acknowledges the session acceptance.</p>
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Initiator acknowledges session acceptance<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='hs81w639'
+    to='juliet@capulet.lit/balcony'
+    type='result'/&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="media">4.4 Sending Media<a class="anchor-link" href="#media"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Upon sending the session-accept action, the responder MUST immediately attempt to send media to the initiator. Upon receiving the session-accept action, the initiator MUST immediately attempt to send media to the responder. The exact media to send depends on the application type being negotiated and therefore is out of scope for this specification (e.g., for Jingle RTP Sessions it would be appropriate to send comfort noise as specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3389">RFC 3389</a></span>  [<a href="#nt-idm270">8</a>]).</p>
+    <p class="" style="">An implementation SHOULD enforce a timeout on receipt of media, such that if no media is received from the other party within a reasonable period of time, the implementation will consider the session to have failed and therefore send to the other party a Jingle "session-terminate" action with a reason code of &lt;timeout/&gt;.</p>
+    <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Responder terminates the session<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='rig16s95'
+    to='romeo@montague.lit/orchard'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-terminate'
+          initiator='romeo@montague.lit/orchard'
+          sid='a73sjjvkla37jfea'&gt;
+    &lt;reason&gt;&lt;timeout/&gt;&lt;/reason&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The other party then acknowledges termination of the session.</p>
+    <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Initiator acknowledges termination<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='rig16s95'
+    to='juliet@capulet.lit/balcony'
+    type='result'/&gt;
+</pre></figure>
+  </div>
+<h2 id="support">5.
+       Determining Support<a class="anchor-link" href="#support"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">To advertise its support for the Jingle Raw UDP Transport Method, when replying to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm280">9</a>] information requests an entity MUST return URNs for any version of this protocol that the entity supports -- e.g., "urn:xmpp:jingle:transports:raw-udp:1" for this version and "urn:xmpp:jingle:transports:raw-udp:0" for the previous version (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number).</p>
+  <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Service discovery information request<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/orchard'
+    id='uw72g176'
+    to='juliet@capulet.lit/balcony'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> Service discovery information response<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.lit/balcony'
+    id='uw72g176'
+    to='romeo@montague.lit/orchard'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;feature var='urn:xmpp:jingle:1'/&gt;
+    &lt;feature var='urn:xmpp:jingle:transports:raw-udp:0'/&gt;
+    &lt;feature var='urn:xmpp:jingle:transports:raw-udp:1'/&gt;
+    &lt;feature var='urn:xmpp:jingle:apps:rtp:1'/&gt;
+    &lt;feature var='urn:xmpp:jingle:apps:rtp:audio'/&gt;
+    &lt;feature var='urn:xmpp:jingle:apps:rtp:video'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <p class="" style="">In order for an application to determine whether an entity supports this protocol, where possible it SHOULD use the dynamic, presence-based profile of service discovery defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm288">10</a>]. However, if an application has not received entity capabilities information from an entity, it SHOULD use explicit service discovery instead.</p>
+<h2 id="security">6.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="security-media">6.1 Encryption of Media<a class="anchor-link" href="#security-media"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">A Jingle implementation SHOULD support security preconditions that are enforced before application media is allowed to flow over a UDP association, such as those described in <span class="ref" style=""><a href="http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption">Jingle XTLS</a></span>  [<a href="#nt-idm295">11</a>].</p>
+    <p class="" style="">Application types that use the Jingle Raw UDP transport method MAY also define their own application-specific encryption methods, such as the Secure Real-time Transport Protocol (SRTP) for RTP exchanges as described in <span class="ref">XEP-0167: Jingle RTP Sessions</span>.</p>
+  </div>
+<h2 id="iana">7.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm303">12</a>].</p>
+<h2 id="registrar">8.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="registrar-ns">8.1 Protocol Namespaces<a class="anchor-link" href="#registrar-ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:jingle:transports:raw-udp:1</li>
+    </ul>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm313">13</a>] includes the foregoing namespace in its registry at &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;, as governed by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idm318">14</a>].</p>
+  </div>
+  <div class="indent"><h3 id="registrar-versioning">8.2 Protocol Versioning<a class="anchor-link" href="#registrar-versioning"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+  <div class="indent"><h3 id="registrar-transports">8.3 Jingle Transport Methods<a class="anchor-link" href="#registrar-transports"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The XMPP Registrar includes "raw-udp" in its registry of Jingle transport methods at &lt;<a href="https://xmpp.org/registrar/jingle-transports.html">https://xmpp.org/registrar/jingle-transports.html</a>&gt;. The registry submission is as follows:</p>
+    <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;transport&gt;
+  &lt;name&gt;raw-udp&lt;/name&gt;
+  &lt;desc&gt;A method for exchanging data over raw UDP associations.&lt;/desc&gt;
+  &lt;type&gt;datagram&lt;/type&gt;
+  &lt;doc&gt;XEP-0177&lt;/doc&gt;
+&lt;/transport&gt;
+</pre></figure>
+  </div>
+<h2 id="schema">9.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:jingle:transports:raw-udp:1'
+    xmlns='urn:xmpp:jingle:transports:raw-udp:1'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-0177: http://www.xmpp.org/extensions/xep-0177.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name='transport'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element name='candidate'
+                    type='candidateElementType'
+                    minOccurs='0'
+                    maxOccurs='unbounded'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:complexType name='candidateElementType'&gt;
+    &lt;xs:simpleContent&gt;
+      &lt;xs:extension base='empty'&gt;
+        &lt;xs:attribute name='component' type='xs:unsignedByte' use='required'/&gt;
+        &lt;xs:attribute name='generation' type='xs:unsignedByte' use='required'/&gt;
+        &lt;xs:attribute name='id' type='xs:NCName' use='required'/&gt;
+        &lt;xs:attribute name='ip' type='xs:string' use='required'/&gt;
+        &lt;xs:attribute name='port' type='xs:unsignedShort' use='required'/&gt;
+        &lt;xs:attribute name='type' use='optional'&gt;
+          &lt;xs:simpleType&gt;
+            &lt;xs:restriction base='xs:NCName'&gt;
+              &lt;xs:enumeration value='host'/&gt;
+              &lt;xs:enumeration value='prflx'/&gt;
+              &lt;xs:enumeration value='relay'/&gt;
+              &lt;xs:enumeration value='srflx'/&gt;
+            &lt;/xs:restriction&gt;
+          &lt;/xs:simpleType&gt;
+        &lt;/xs:attribute&gt;
+      &lt;/xs:extension&gt;
+    &lt;/xs:simpleContent&gt;
+  &lt;/xs:complexType&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+</pre></figure>
+<h2 id="ack">10.
+       Acknowledgements<a class="anchor-link" href="#ack"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Thanks to Thiago Camargo, Paul Chitescu, Diana Cionoiu, Olivier Crête, Steffen Larsen, Robert McQueen, Mike Ruprecht, Jakob Schroeter, Justin Uberti, Unnikrishnan Vikrama Panicker, and Paul Witty for their feedback.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="http://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0177</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Draft">Draft</a></dd><dt>Type</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>1.1.1</dd><dt>Last Updated</dt><dd>2020-12-10</dd><dt>Approving Body</dt><dd><a href="http://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, XEP-0166</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>jingle-raw-udp</dd><dt>Schema</dt><dd>
+        XML Schema for the 'jingle:transports:raw-udp' namespace: &lt;<a href="http://xmpp.org/schemas/jingle-transports-raw-udp.xsd">http://xmpp.org/schemas/jingle-transports-raw-udp.xsd</a>&gt;<br></dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0177.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0177.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0177.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Joe Beda</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:jbeda@google.com">jbeda@google.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:jbeda@google.com">jbeda@google.com</a></dd></dl><h5>Peter Saint-Andre</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:xsf@stpeter.im">xsf@stpeter.im</a></dd><dt>JabberID</dt><dd><a href="xmpp:peter@jabber.org">peter@jabber.org</a></dd><dt>URI</dt><dd><a href="http://stpeter.im/">http://stpeter.im/</a></dd></dl><h5>Scott Ludwig</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:scottlu@google.com">scottlu@google.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:scottlu@google.com">scottlu@google.com</a></dd></dl><h5>Joe Hildebrand</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:jhildebr@cisco.com">jhildebr@cisco.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:hildjj@jabber.org">hildjj@jabber.org</a></dd></dl><h5>Sean Egan</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:seanegan@google.com">seanegan@google.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:seanegan@google.com">seanegan@google.com</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">There exists a special venue for discussion related to the technology described in this document: the &lt;<a href="http://mail.jabber.org/mailman/listinfo/jingle">jingle@xmpp.org</a>&gt; mailing list.</p><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm185">1</a>. XEP-0166: Jingle &lt;<a href="https://xmpp.org/extensions/xep-0166.html">https://xmpp.org/extensions/xep-0166.html</a>&gt;.</p><p><a name="nt-idm189">2</a>. RFC 768: User Datagram Protocol &lt;<a href="http://tools.ietf.org/html/rfc0768">http://tools.ietf.org/html/rfc0768</a>&gt;.</p><p><a name="nt-idm194">3</a>. RFC 5245: Interactive Connectivity Establishment (ICE) &lt;<a href="http://tools.ietf.org/html/rfc5245">http://tools.ietf.org/html/rfc5245</a>&gt;.</p><p><a name="nt-idm198">4</a>. XEP-0176: Jingle ICE-UDP Transport Method &lt;<a href="https://xmpp.org/extensions/xep-0176.html">https://xmpp.org/extensions/xep-0176.html</a>&gt;.</p><p><a name="nt-idm202">5</a>. XEP-0167: Jingle RTP Sessions &lt;<a href="https://xmpp.org/extensions/xep-0167.html">https://xmpp.org/extensions/xep-0167.html</a>&gt;.</p><p><a name="nt-idm233">6</a>. This is required to avoid a round trip and help expedite the negotiation.</p><p><a name="nt-idm253">7</a>. RFC 5389: Session Traversal Utilities for NAT (STUN) &lt;<a href="http://tools.ietf.org/html/rfc5389">http://tools.ietf.org/html/rfc5389</a>&gt;.</p><p><a name="nt-idm270">8</a>. RFC 3389: Real-time Transport Protocol (RTP) Payload for Comfort Noise (CN) &lt;<a href="http://tools.ietf.org/html/rfc3389">http://tools.ietf.org/html/rfc3389</a>&gt;.</p><p><a name="nt-idm280">9</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm288">10</a>. XEP-0115: Entity Capabilities &lt;<a href="https://xmpp.org/extensions/xep-0115.html">https://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-idm295">11</a>. Extensible Messaging and Presence Protocol (XMPP) End-to-End Encryption Using Transport Layer Security ("XTLS") &lt;<a href="http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption">http://tools.ietf.org/html/draft-meyer-xmpp-e2e-encryption</a>&gt;.</p><p><a name="nt-idm303">12</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm313">13</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idm318">14</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v1.1.1"><div class="revision-head">Version 1.1.1 (2020-12-10)<a class="anchor-link" href="#revision-history-v1.1.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Made type optional in the schema (it’s a MAY in section 4.2), unlike in XEP-0176.</p><div class="revision-author">egp</div></li><li id="revision-history-v1.1"><div class="revision-head">Version 1.1 (2009-12-23)<a class="anchor-link" href="#revision-history-v1.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Added type attribute to candidate element for consistency with XEP-0176.</p><div class="revision-author">psa</div></li><li id="revision-history-v1.0"><div class="revision-head">Version 1.0 (2009-06-10)<a class="anchor-link" href="#revision-history-v1.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Per a vote of the XMPP Council, advanced specification from Experimental to Draft.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.17"><div class="revision-head">Version 0.17 (2009-04-04)<a class="anchor-link" href="#revision-history-v0.17"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Removed security consideration about sending IP address before session acceptance, since that functionality is no longer supported.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.16"><div class="revision-head">Version 0.16 (2009-03-09)<a class="anchor-link" href="#revision-history-v0.16"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Minor changes to track modifications to XEP-0166; updated security considerations for consistency with XEP-0176.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.15"><div class="revision-head">Version 0.15 (2009-02-11)<a class="anchor-link" href="#revision-history-v0.15"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Simplified flow by including responder candidate in session-accept.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.14"><div class="revision-head">Version 0.14 (2008-12-16)<a class="anchor-link" href="#revision-history-v0.14"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Removed the &lt;trying/&gt; info message.</li>
+        <li class="" style="">Because the removal of the &lt;trying/&gt; info message is backwards-incompatible, modified protocol version number from 0 to 1 and changed namespace from urn:xmpp:jingle:transports:raw-udp:0 to urn:xmpp:jingle:transports:raw-udp:1.</li>
+        <li class="" style="">Specified that media must be sent but only after session acceptance.</li>
+      </ul>
+    <div class="revision-author">psa</div></li><li id="revision-history-v0.13"><div class="revision-head">Version 0.13 (2008-12-07)<a class="anchor-link" href="#revision-history-v0.13"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Per list consensus, removed the &lt;received/&gt; info message.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.12"><div class="revision-head">Version 0.12 (2008-10-20)<a class="anchor-link" href="#revision-history-v0.12"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">For consistency with the ICE-UDP transport method, added component attribute to handle RTCP candidates and allowed multiple &lt;candidate/&gt; child elements.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.11"><div class="revision-head">Version 0.11 (2008-09-30)<a class="anchor-link" href="#revision-history-v0.11"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Clarified protocol flow.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.10"><div class="revision-head">Version 0.10 (2008-09-25)<a class="anchor-link" href="#revision-history-v0.10"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Added an ID attribute to the candidate, trying, and received elements for tracking purposes.</li>
+        <li class="" style="">Specified that trying and received messages must be sent.</li>
+        <li class="" style="">Modified namespaces to incorporate namespace versioning.</li>
+        <li class="" style="">Cleaned up XML schemas.</li>
+      </ul>
+    <div class="revision-author">psa</div></li><li id="revision-history-v0.9"><div class="revision-head">Version 0.9 (2007-11-27)<a class="anchor-link" href="#revision-history-v0.9"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Further editorial review.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.8"><div class="revision-head">Version 0.8 (2007-11-15)<a class="anchor-link" href="#revision-history-v0.8"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Editorial review and consistency check.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.7"><div class="revision-head">Version 0.7 (2007-06-25)<a class="anchor-link" href="#revision-history-v0.7"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">More clearly specified the hit-or-miss nature of the transport; corrected informational messages.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.6"><div class="revision-head">Version 0.6 (2007-04-17)<a class="anchor-link" href="#revision-history-v0.6"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Specified Jingle conformance, including definition of transport type as datagram; added section on service discovery.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.5"><div class="revision-head">Version 0.5 (2007-03-23)<a class="anchor-link" href="#revision-history-v0.5"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Updated to reflect changes to XEP-0166; clarified media data checking.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.4"><div class="revision-head">Version 0.4 (2006-12-21)<a class="anchor-link" href="#revision-history-v0.4"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Recommended sending of candidate in initiation request to save a round trip and expedite the negotiation; removed name attribute; clarified flow of negotiation; modified spec to use provisional namespace before advancement to Draft (per XEP-0053).</p><div class="revision-author">psa</div></li><li id="revision-history-v0.3"><div class="revision-head">Version 0.3 (2006-10-31)<a class="anchor-link" href="#revision-history-v0.3"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Added informational messages; clarified connectivity checks and acceptance process; mentioned that the Raw UDP candidate is conceptually equivalent to the concept of an in-use candidate from the ICE specification; added reference to RFC 4347.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.2"><div class="revision-head">Version 0.2 (2006-07-12)<a class="anchor-link" href="#revision-history-v0.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Removed candidate element and specified exchange of address information via transport-info messages; clarified usage of name attribute.</p><div class="revision-author">se/psa</div></li><li id="revision-history-v0.1"><div class="revision-head">Version 0.1 (2006-03-01)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial version (split from XEP-0166).</p><div class="revision-author">psa/jb</div></li></ol><p>END</p></body></html>
