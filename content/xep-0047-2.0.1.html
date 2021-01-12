@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0047: In-Band Bytestreams</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0047";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0"><meta name="DC.Title" content="In-Band Bytestreams"><meta name="DC.Creator" content="Justin Karneges"><meta name="DC.Creator" content="Peter Saint-Andre"><meta name="DC.Description" content="This specification defines an XMPP protocol extension that enables any two entities to establish a one-to-one bytestream between themselves, where the data is broken down into smaller chunks and transported in-band over XMPP."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2021-01-12"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0047"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0047: In-Band Bytestreams</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification defines an XMPP protocol extension that enables any two entities to establish a one-to-one bytestream between themselves, where the data is broken down into smaller chunks and transported in-band over XMPP.</dd><dt>Authors</dt><dd><ul class="authors"><li>Justin Karneges</li><li>Peter Saint-Andre</li></ul></dd><dt>Copyright</dt><dd>© 1999 – 2020 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Final</p><div id="status-notice" class="final standards track">NOTICE: The protocol defined herein is a <strong>Final Standard</strong> of the XMPP Standards Foundation and can be considered a stable technology for implementation and deployment.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>2.0.1 (2021-01-12)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li>Experimental</li><li>Proposed</li><li>Draft</li><li class="current">Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#protocol">Protocol</a><ol><li><a href="#create">Creating a Bytestream</a></li><li><a href="#send">Sending Data</a></li><li><a href="#close">Closing the Bytestream</a></li></ol></li><li><a href="#bidi">Bidirectionality</a></li><li><a href="#message">Use of Message Stanzas</a></li><li><a href="#usage">Usage Guidelines</a></li><li><a href="#sec">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-ns">Protocol Namespaces</a></li></ol></li><li><a href="#schema">XML Schema</a></li><li><a href="#ack">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document describes In-Band Bytestreams (IBB), an XMPP protocol extension that enables two entities to establish a virtual bytestream over which they can exchange Base64-encoded chunks of data over XMPP itself. Because IBB provides a generic bytestream, its usage is open-ended. To date it has been used as a fallback method for sending files (see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0096.html">SI File Transfer (XEP-0096)</a></span>  [<a href="#nt-idm123">1</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0234.html">Jingle File Transfer (XEP-0234)</a></span>  [<a href="#nt-idm127">2</a>]) when out-of-band methods such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0065.html">SOCKS5 Bytestreams (XEP-0065)</a></span>  [<a href="#nt-idm131">3</a>] are not available. However, IBB could also be useful for any kind of relatively low-bandwidth activity, such as games, shell sessions, or encrypted text.</p>
+<h2 id="protocol">2.
+       Protocol<a class="anchor-link" href="#protocol"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">IBB as specified in this document defines two protocol aspects:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">How to set up and tear down an IBB session using &lt;open/&gt; and &lt;close/&gt; elements sent within IQ stanzas.</li>
+    <li class="" style="">How to send chunks of IBB data using IQ (or message) stanzas containing &lt;data/&gt; elements.</li>
+  </ol>
+  <p class="" style="">Other methods can be used for setup and teardown, such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0166.html">Jingle (XEP-0166)</a></span>  [<a href="#nt-idm141">4</a>] as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0261.html">Jingle In-Band Bytestreams Transport Method (XEP-0261)</a></span>  [<a href="#nt-idm145">5</a>].</p>
+  <div class="indent"><h3 id="create">2.1 Creating a Bytestream<a class="anchor-link" href="#create"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">In order to set up an in-band bytestream, the initiator sends an IQ stanza of type "set" containing an &lt;open/&gt; element qualified by the 'http://jabber.org/protocol/ibb' namespace. This element possesses three attributes:</p>
+    <ul class="" style="">
+      <li class="" style="">The REQUIRED 'block-size' attribute defines the maximum size in bytes of each data chunk (which MUST NOT be greater than 65535).</li>
+      <li class="" style="">The REQUIRED 'sid' attribute defines a unique session ID for this IBB session (which MUST match the NMTOKEN datatype).</li>
+      <li class="" style="">The OPTIONAL 'stanza' attribute defines whether the data will be sent using IQ stanzas or message stanzas (the default value is "iq")</li>
+    </ul>
+    <p class="" style="">Note: It is RECOMMENDED to send IBB data using IQ stanzas instead of message stanzas because IQ stanzas provide feedback to the sender regarding delivery to the recipient).</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Initiator requests session<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.net/orchard'
+    id='jn3h8g65'
+    to='juliet@capulet.com/balcony'
+    type='set'&gt;
+  &lt;open xmlns='http://jabber.org/protocol/ibb'
+        block-size='4096'
+        sid='i781hf64'
+        stanza='iq'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">If the responder wishes to proceed with the IBB session, it returns an IQ-result to the initiator.</p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Responder accepts session<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    id='jn3h8g65'
+    to='romeo@montague.net/orchard'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">If the responder does not support IBB, it returns a &lt;service-unavailable/&gt; or &lt;feature-not-implemented/&gt; error.</p>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Responder does not support IBB<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    id='jn3h8g65'
+    to='romeo@montague.net/orchard'
+    type='error'&gt;
+  &lt;error type='cancel'&gt;
+    &lt;service-unavailable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">If the responder supports IBB but would prefer a smaller block-size, it returns a &lt;resource-constraint/&gt; error.</p>
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Responder prefers smaller chunks<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    id='jn3h8g65'
+    to='romeo@montague.net/orchard'
+    type='error'&gt;
+  &lt;error type='modify'&gt;
+    &lt;resource-constraint xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">If the responder supports IBB but does not wish to proceed with the session, it returns a &lt;not-acceptable/&gt; error.</p>
+    <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Responder does not wish to proceed<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    id='jn3h8g65'
+    to='romeo@montague.net/orchard'
+    type='error'&gt;
+  &lt;error type='cancel'&gt;
+    &lt;not-acceptable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="send">2.2 Sending Data<a class="anchor-link" href="#send"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If the responder informs the initiator that it wishes to proceed with the session, the initiator can begin to send data over the bytestream (in addition, because the bytestream is bidirectional, the responder can also send data; see the <a href="#bidi">Bidirectionality</a> section of this document for details).</p>
+    <p class="" style="">Each chunk of data is contained in a &lt;data/&gt; element qualified by the 'http://jabber.org/protocol/ibb' namespace. The data element SHOULD be sent in an IQ stanza to enable proper tracking and throttling, but instead MAY be sent in a message stanza. The data to be sent, prior to base64-encoding and prior to any wrapping in XML, MUST NOT be larger than the 'block-size' determined in the bytestream negotiation.</p>
+    <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Sending data in an IQ stanza<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.net/orchard'
+    id='kr91n475'
+    to='juliet@capulet.com/balcony'
+    type='set'&gt;
+  &lt;data xmlns='http://jabber.org/protocol/ibb' seq='0' sid='i781hf64'&gt;
+    qANQR1DBwU4DX7jmYZnncmUQB/9KuKBddzQH+tZ1ZywKK0yHKnq57kWq+RFtQdCJ
+    WpdWpR0uQsuJe7+vh3NWn59/gTc5MDlX8dS9p0ovStmNcyLhxVgmqS8ZKhsblVeu
+    IpQ0JgavABqibJolc3BKrVtVV1igKiX/N7Pi8RtY1K18toaMDhdEfhBRzO/XB0+P
+    AQhYlRjNacGcslkhXqNjK5Va4tuOAPy2n1Q8UUrHbUd0g+xJ9Bm0G0LZXyvCWyKH
+    kuNEHFQiLuCY6Iv0myq6iX6tjuHehZlFSh80b5BVV9tNLwNR5Eqz1klxMhoghJOA
+  &lt;/data&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Each chunk of data is included as the XML character data of the &lt;data/&gt; element after being encoded as Base64 as specified in Section 4 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4648">RFC 4648</a></span>  [<a href="#nt-idm171">6</a>]. Each block MUST be a valid base64 block with padding at the end if needed.</p>
+    <p class="" style="">The &lt;data/&gt; element MUST possess a 'seq' attribute; this is a 16-bit unsigned integer that acts as a counter for data chunks sent in a particular direction within this session. The 'seq' value starts at 0 (zero) for each sender and MUST be incremented for each packet sent by that entity. Thus, the second chunk sent has a 'seq' value of 1, the third chunk has a 'seq' value of 2, and so on. The counter loops at maximum, so that after value 65535 (2<span class="super" style="">16</span> - 1) the 'seq' MUST start again at 0.</p>
+    <p class="" style="">The &lt;data/&gt; element MUST also possess a 'sid' attribute that ties the data chunk to this particular IBB session.</p>
+    <p class="" style="">In the case of IQ stanzas, if the packet can be processed then the recipient MUST reply with an IQ stanza of type "result".</p>
+    <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Acknowledging data received via IQ<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    id='kr91n475'
+    to='romeo@montague.net/orchard'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">The sender of a data chunk need not wait for these acknowledgements before sending further stanzas. However, it is RECOMMENDED that the sender does wait in order to minimize the potential for rate-limiting penalties or throttling.</p>
+    <p class="" style="">It is possible that delivery of the stanza might fail, in which case the sender's or recipient's server shall return an appropriate error:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">Because the recipient has gone offline, the recipient's server returns a &lt;recipient-unavailable/&gt; error with a type of 'wait'.</li>
+      <li class="" style="">Because a server-to-server link has gone down, the sender's server returns a &lt;remote-server-timeout/&gt; error with a type of 'wait'.</li>
+    </ol>
+    <p class="" style="">Upon receiving an error related to delivery of a &lt;message/&gt; or &lt;iq/&gt; stanza, the sender SHOULD temporarily suspend the stream but either (1) retry sending at a later time or (2) renegotiate the higher-level session (if any) such as a session controlled via <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0234.html">Jingle File Transfer (XEP-0234)</a></span>  [<a href="#nt-idm127">2</a>].</p>
+    <p class="" style="">It is also possible that there is a problem with the data packet itself, in which case the recipient shall return an appropriate error:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">Because the session ID is unknown, the recipient returns an &lt;item-not-found/&gt; error with a type of 'cancel'.</li>
+      <li class="" style="">Because the sequence number has already been used, the recipient returns an &lt;unexpected-request/&gt; error with a type of 'cancel'.</li>
+      <li class="" style="">Because the data is not formatted in accordance with Section 4 of <span class="ref">RFC 4648</span>, the recipient returns a &lt;bad-request/&gt; error with a type of 'cancel'.</li>
+    </ol>
+    <p class="" style="">Upon receiving an error related to the data packet, the sender MUST close the bytestream as described under <a href="#close">Closing the Bytestream</a>.</p>
+    <p class="" style="">Data packets MUST be processed in the order they are received. If an out-of-sequence packet is received for a particular direction within a bytestream (determined by checking the 'seq' attribute), then this indicates that a packet has been lost. The recipient MUST NOT process the data of such an out-of-sequence packet, nor any that follow it within the same bytestream; instead, the recipient MUST close the bytestream as described in the next section.</p>
+  </div>
+
+  <div class="indent"><h3 id="close">2.3 Closing the Bytestream<a class="anchor-link" href="#close"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">To close the bytestream, either party sends an IQ-set containing a &lt;close/&gt; element.</p>
+    <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> Closing the bytestream<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.net/orchard'
+    id='us71g45j'
+    to='juliet@capulet.com/balcony'
+    type='set'&gt;
+  &lt;close xmlns='http://jabber.org/protocol/ibb' sid='i781hf64'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The receiving party then acknowledges that the bytestream has been closed by returning an IQ-result (however, the receiving party might wait until it has had a chance to send any remaining data in the other direction, if the bytestream is bidirectional; in this case, the party that sent the original &lt;close/&gt; element SHOULD wait to receive the IQ response from the receiving party before considering the bytestream to be closed).</p>
+    <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> Success response<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.com/balcony'
+    id='us71g45j'
+    to='romeo@montague.net/orchard'
+    type='result'/&gt;
+</pre></figure>
+    <p class="" style="">It is possible that the recipient of the close notification does not know about the bytestream, in which case it would return an &lt;item-not-found/&gt; error.</p>
+    <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Recipient does not know about the IBB session<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='error'
+    from='juliet@capulet.com/balcony'
+    to='romeo@montague.net/orchard'
+    id='us71g45j'&gt;
+  &lt;error type='cancel'&gt;
+    &lt;item-not-found xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">In either case, both parties MUST consider the bytestream to be closed.</p>
+  </div>
+
+<h2 id="bidi">3.
+       Bidirectionality<a class="anchor-link" href="#bidi"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">An in-band bytestream is bidirectional. Therefore, either party to the bytestream is allowed to send data. Each sender MUST initialize the 'seq' attribute to zero and increment the 'seq' value by one with each chunk of data it sends. Each recipient MUST track chunks based on the 'seq' values it receives. The 'seq' values in each direction are independent of the values in the other direction. Thus there are two data sequences for each Session ID.</p>
+<h2 id="message">4.
+       Use of Message Stanzas<a class="anchor-link" href="#message"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">It is RECOMMENDED to use IQ stanzas when sending data packets. However, an application MAY use message stanzas instead. If message stanzas are used when sending data packets, the sender SHOULD also use <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0079.html">Advanced Message Processing (XEP-0079)</a></span>  [<a href="#nt-idm211">7</a>] or some other stanza flow-control method. For proper tracking of delivery and processing errors related to data packets, the 'id' attribute SHOULD be used with message stanzas.</p>
+  <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Sending data in a message stanza<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='romeo@montague.net/orchard'
+         id='dsw71gj3'
+         to='juliet@capulet.com/balcony'&gt;
+  &lt;data xmlns='http://jabber.org/protocol/ibb' seq='0' sid='i781hf64'&gt;
+    qANQR1DBwU4DX7jmYZnncmUQB/9KuKBddzQH+tZ1ZywKK0yHKnq57kWq+RFtQdCJ
+    WpdWpR0uQsuJe7+vh3NWn59/gTc5MDlX8dS9p0ovStmNcyLhxVgmqS8ZKhsblVeu
+    IpQ0JgavABqibJolc3BKrVtVV1igKiX/N7Pi8RtY1K18toaMDhdEfhBRzO/XB0+P
+    AQhYlRjNacGcslkhXqNjK5Va4tuOAPy2n1Q8UUrHbUd0g+xJ9Bm0G0LZXyvCWyKH
+    kuNEHFQiLuCY6Iv0myq6iX6tjuHehZlFSh80b5BVV9tNLwNR5Eqz1klxMhoghJOA
+  &lt;/data&gt;
+&lt;/message&gt;
+</pre></figure>
+<h2 id="usage">5.
+       Usage Guidelines<a class="anchor-link" href="#usage"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <ul class="" style="">
+    <li class="" style="">Generally, in-band bytestreams SHOULD be used only as a last resort. <strong>SOCKS5 Bytestreams</strong> will almost always be preferable.</li>
+    <li class="" style="">A server MAY rate limit a connection, depending on the size and frequency of data packets.</li>
+    <li class="" style="">A server MAY disconnect a connection that sends overly large packets as defined by its local service policy.</li>
+    <li class="" style="">It is RECOMMENDED to use a 'block-size' of 4096.</li>
+  </ul>
+<h2 id="sec">6.
+       Security Considerations<a class="anchor-link" href="#sec"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The In-Band Bytestreams protocol is as secure as the underlying XMPP transport. The application that uses IBB could have its own security layer, but this is outside of the scope of IBB.</p>
+  <p class="" style="">An entity MUST verify any Base64 data received. An implementation MUST reject (not ignore) any characters that are not explicitly allowed by the Base64 alphabet; this helps to guard against creation of a covert channel that could be used to "leak" information. An implementation MUST NOT break on invalid input and MUST reject any sequence of Base64 characters containing the pad ('=') character if that character is included as something other than the last character of the data (e.g., "=AAA" or "BBBB=CCC"); this helps to guard against buffer overflow attacks and other attacks on the implementation. Base64 encoding visually hides otherwise easily recognized information, such as passwords, but does not provide any computational confidentiality. Base64 encoding MUST follow the definition in Section 4 of RFC 4648.</p>
+<h2 id="iana">7.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm228">8</a>].</p>
+<h2 id="registrar">8.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="registrar-ns">8.1 Protocol Namespaces<a class="anchor-link" href="#registrar-ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm235">9</a>] includes 'http://jabber.org/protocol/ibb' in its registry of XML namespaces at &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;.</p>
+  </div>
+<h2 id="schema">9.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='http://jabber.org/protocol/ibb'
+    xmlns='http://jabber.org/protocol/ibb'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-0047: http://www.xmpp.org/extensions/xep-0047.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+   &lt;xs:element name='open'&gt;
+     &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='block-size' type='xs:unsignedShort' use='required'/&gt;
+          &lt;xs:attribute name='sid' type='xs:NMTOKEN' use='required'/&gt;
+          &lt;xs:attribute name='stanza' use='optional' default='iq'&gt;
+            &lt;xs:simpleType&gt;
+              &lt;xs:restriction base='xs:NCName'&gt;
+                &lt;xs:enumeration value='iq'/&gt;
+                &lt;xs:enumeration value='message'/&gt;
+              &lt;/xs:restriction&gt;
+            &lt;/xs:simpleType&gt;
+          &lt;/xs:attribute&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+     &lt;/xs:complexType&gt;
+   &lt;/xs:element&gt;
+
+   &lt;xs:element name='close'&gt;
+     &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='sid' type='xs:NMTOKEN' use='required'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+     &lt;/xs:complexType&gt;
+   &lt;/xs:element&gt;
+
+   &lt;xs:element name='data'&gt;
+     &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='xs:string'&gt;
+          &lt;xs:attribute name='seq' type='xs:unsignedShort' use='required'/&gt;
+          &lt;xs:attribute name='sid' type='xs:NMTOKEN' use='required'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+     &lt;/xs:complexType&gt;
+   &lt;/xs:element&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+</pre></figure>
+<h2 id="ack">10.
+       Acknowledgements<a class="anchor-link" href="#ack"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Thanks to Sergey Dobrov, Fabio Forno, Todd Herman, Lance Stout, and Matthew Wild for their feedback.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="http://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0047</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Final">Final</a></dd><dt>Type</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>2.0.1</dd><dt>Last Updated</dt><dd>2021-01-12</dd><dt>Approving Body</dt><dd><a href="http://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>ibb</dd><dt>Schema</dt><dd>
+        &lt;<a href="http://www.xmpp.org/schemas/ibb.xsd">http://www.xmpp.org/schemas/ibb.xsd</a>&gt;<br></dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0047.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0047.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0047.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Justin Karneges</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:justin@karneges.com">justin@karneges.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:justin@andbit.net">justin@andbit.net</a></dd></dl><h5>Peter Saint-Andre</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:xsf@stpeter.im">xsf@stpeter.im</a></dd><dt>JabberID</dt><dd><a href="xmpp:peter@jabber.org">peter@jabber.org</a></dd><dt>URI</dt><dd><a href="http://stpeter.im/">http://stpeter.im/</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm123">1</a>. XEP-0096: SI File Transfer &lt;<a href="https://xmpp.org/extensions/xep-0096.html">https://xmpp.org/extensions/xep-0096.html</a>&gt;.</p><p><a name="nt-idm127">2</a>. XEP-0234: Jingle File Transfer &lt;<a href="https://xmpp.org/extensions/xep-0234.html">https://xmpp.org/extensions/xep-0234.html</a>&gt;.</p><p><a name="nt-idm131">3</a>. XEP-0065: SOCKS5 Bytestreams &lt;<a href="https://xmpp.org/extensions/xep-0065.html">https://xmpp.org/extensions/xep-0065.html</a>&gt;.</p><p><a name="nt-idm141">4</a>. XEP-0166: Jingle &lt;<a href="https://xmpp.org/extensions/xep-0166.html">https://xmpp.org/extensions/xep-0166.html</a>&gt;.</p><p><a name="nt-idm145">5</a>. XEP-0261: Jingle In-Band Bytestreams Transport Method &lt;<a href="https://xmpp.org/extensions/xep-0261.html">https://xmpp.org/extensions/xep-0261.html</a>&gt;.</p><p><a name="nt-idm171">6</a>. RFC 4648: The Base16, Base32, and Base64 Data Encodings &lt;<a href="http://tools.ietf.org/html/rfc4648">http://tools.ietf.org/html/rfc4648</a>&gt;.</p><p><a name="nt-idm211">7</a>. XEP-0079: Advanced Message Processing &lt;<a href="https://xmpp.org/extensions/xep-0079.html">https://xmpp.org/extensions/xep-0079.html</a>&gt;.</p><p><a name="nt-idm228">8</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm235">9</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v2.0.1"><div class="revision-head">Version 2.0.1 (2021-01-12)<a class="anchor-link" href="#revision-history-v2.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Fix incorrect max sequence number in the text; it was given as one less than two to the power of 15, but in reality it is one less than two to the power of 16, which is clear from the context).</p><div class="revision-author">sw</div></li><li id="revision-history-v2.0"><div class="revision-head">Version 2.0 (2012-06-22)<a class="anchor-link" href="#revision-history-v2.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Per a vote of the XMPP Council, advanced to Final; in addition, specified that the 'block-size' attribute defines the size of the data chunk before instead of after base64-encoding, to accord with existing implementations.</p><div class="revision-author">psa</div></li><li id="revision-history-v1.3"><div class="revision-head">Version 1.3 (2011-03-01)<a class="anchor-link" href="#revision-history-v1.3"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Clarified error handling, block construction, and bytestream closing.</p><div class="revision-author">psa</div></li><li id="revision-history-v1.2"><div class="revision-head">Version 1.2 (2009-03-17)<a class="anchor-link" href="#revision-history-v1.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Encouraged use of IQ stanzas rather than message stanzas for sending data; clarified bidirectional nature of IBB; more clearly specified data handling, error conditions, XML syntax, and attribute datatypes; added optional stanza attribute as in XEP-0261.</p><div class="revision-author">psa/jk</div></li><li id="revision-history-v1.1"><div class="revision-head">Version 1.1 (2006-11-21)<a class="anchor-link" href="#revision-history-v1.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Allowed IQ for delivery.</p><div class="revision-author">jk</div></li><li id="revision-history-v1.0"><div class="revision-head">Version 1.0 (2003-12-10)<a class="anchor-link" href="#revision-history-v1.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Per a vote of the Jabber Council, advanced status to Draft.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.8"><div class="revision-head">Version 0.8 (2003-12-04)<a class="anchor-link" href="#revision-history-v0.8"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Add 'block-size' attribute and usage guidelines</p><div class="revision-author">jk</div></li><li id="revision-history-v0.7"><div class="revision-head">Version 0.7 (2003-05-23)<a class="anchor-link" href="#revision-history-v0.7"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Use IQ for shutdown, remove XEP-0022 dependency, loop the counter</p><div class="revision-author">jk</div></li><li id="revision-history-v0.6"><div class="revision-head">Version 0.6 (2003-05-14)<a class="anchor-link" href="#revision-history-v0.6"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Use message for delivery</p><div class="revision-author">jk</div></li><li id="revision-history-v0.5"><div class="revision-head">Version 0.5 (2003-04-06)<a class="anchor-link" href="#revision-history-v0.5"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Changed newseq to prevseq, added acks, changed seq size to 32-bit</p><div class="revision-author">jk</div></li><li id="revision-history-v0.4"><div class="revision-head">Version 0.4 (2003-03-22)<a class="anchor-link" href="#revision-history-v0.4"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Changed protocol, added sequence id</p><div class="revision-author">jk</div></li><li id="revision-history-v0.3"><div class="revision-head">Version 0.3 (2002-12-10)<a class="anchor-link" href="#revision-history-v0.3"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Removed the 'comment' block, changed namespace</p><div class="revision-author">jk</div></li><li id="revision-history-v0.2"><div class="revision-head">Version 0.2 (2002-10-10)<a class="anchor-link" href="#revision-history-v0.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Revised the text</p><div class="revision-author">jk</div></li><li id="revision-history-v0.1"><div class="revision-head">Version 0.1 (2002-09-29)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial version.</p><div class="revision-author">jk</div></li></ol><p>END</p></body></html>
