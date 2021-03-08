@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0420: Stanza Content Encryption</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0420";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0"><meta name="DC.Title" content="Stanza Content Encryption"><meta name="DC.Creator" content="Paul Schaub"><meta name="DC.Description" content="The Stanza Content Encryption (SCE) protocol is intended as a way to allow clients to securely exchange arbitrary extension elements using different end-to-end encryption schemes."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2021-03-04"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0420"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0420: Stanza Content Encryption</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>The Stanza Content Encryption (SCE) protocol is intended as a way to allow clients to securely exchange arbitrary extension elements using different end-to-end encryption schemes.</dd><dt>Author</dt><dd>Paul Schaub</dd><dt>Copyright</dt><dd>© 1999 – 2020 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.3.2 (2021-03-04)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Draft</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#affix_elements">Affix Elements</a></li><li><a href="#motivation">Motivation</a></li><li><a href="#usecases">Use Cases</a><ol><li><a href="#use-case-message">Use in &lt;message/&gt; stanzas</a></li><li><a href="#use-case-iq">Use in &lt;iq/&gt; stanzas</a></li></ol></li><li><a href="#sending">Sending an encrypted stanza</a></li><li><a href="#receiving">Receiving an encrypted stanza</a></li><li><a href="#server-processed">Server-processed Elements</a></li><li><a href="#rules">Business Rules</a></li><li><a href="#impl">Implementation Notes</a></li><li><a href="#security">Security Considerations</a><ol><li><a href="#security_profiles">Encryption Profiles</a></li></ol></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#schema">XML Schema</a></li><li><a href="#acknowledgements">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">There is a number of different end-to-end encryption mechanisms that can be used to secure user communication against unauthorized access from malicious third parties. Popular examples for this are <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0384.html">OMEMO Encryption (XEP-0384)</a></span>  [<a href="#nt-idm74">1</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0373.html">OpenPGP for XMPP (XEP-0373)</a></span>  [<a href="#nt-idm78">2</a>].</p>
+
+  <p class="" style="">While the latter allows for encryption of arbitrary extension elements, protocols such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0384.html">OMEMO Encryption (XEP-0384)</a></span>  [<a href="#nt-idm74">1</a>] are limited to only encrypt the body of a message. This approach is not very flexible and prevents the combined usage with XMPP extension protocols such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0385.html">Stateless Inline Media Sharing (XEP-0385)</a></span>  [<a href="#nt-idm87">3</a>] or <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0308.html">Last Message Correction (XEP-0308)</a></span>  [<a href="#nt-idm91">4</a>] as their extension elements cannot be included in the encrypted part of the message, therefore leaking information about the message content.</p>
+
+  <p class="" style="">This extension protocol proposes a solution to aforementioned issues by generalizing the OpenPGP Content Elements (eg. <a href="https://xmpp.org/extensions/xep-0373.html#example-2">&lt;signcrypt&gt;</a>) introduced by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0373.html">OpenPGP for XMPP (XEP-0373)</a></span>  [<a href="#nt-idm78">2</a>] for the use with other encryption protocols.</p>
+
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This proposal widens the scope of the security guarantees given by the used encryption mechanism from just the body of the message to all contents of the &lt;content/&gt; element. It is intended to serve as a "one size fits all" solution for extension element encryption in XMPP.</p>
+
+  <p class="" style="">In order to achieve its goal, Stanza Content Encryption does the following:</p>
+  <ul class="" style="">
+    <li class="" style="">Define elements that hold sensitive information</li>
+    <li class="" style="">Speficy rules about how extension elements are encrypted and embedded in the message</li>
+    <li class="" style="">Specify rules about which elements are allowed inside and outside the protected domain</li>
+  </ul>
+<h2 id="glossary">3.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><dl>
+    <dt><strong>Envelope Element &lt;envelope/&gt;</strong></dt><dd>An XMPP extension element which is used to hold the encrypted &lt;content/&gt; element.</dd>
+    <dt><strong>Content Element &lt;content/&gt;</strong></dt><dd>An element which is used to contain all of those extension elements that need to be encrypted.
+            The XML representation of this element is encrypted and then embedded into the &lt;envelope/&gt; element.</dd>
+  </dl></div>
+<h2 id="affix_elements">4.
+       Affix Elements<a class="anchor-link" href="#affix_elements"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">In order to prevent certain attacks, different affix elements MAY be added into the &lt;content/&gt; element.</p>
+
+  <figure class="table"><figcaption id="table-1"><strong>Table 1:</strong> Overview about different crypto property elements<a class="anchor-link" href="#table-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+    <tr class="body">
+      <th colspan="" rowspan="">Element</th>
+      <th colspan="" rowspan="">Description</th>
+      <th colspan="" rowspan="">Usage</th>
+      <th colspan="" rowspan="">Verification</th>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;rpad/&gt;</td>
+      <td align="" colspan="" rowspan="">Random-length random-content padding</td>
+      <td align="" colspan="" rowspan="">Prevent known ciphertext and message length correlation attacks. The content of this element is a randomly generated sequence of random length between 0 and 200 characters. TODO: sane boundaries?</td>
+      <td align="" colspan="" rowspan="">None. This element is only used to change the length of the ciphertext and doesn't need to be verified</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;time/&gt;</td>
+      <td align="" colspan="" rowspan="">Timestamp</td>
+      <td align="" colspan="" rowspan="">Prevent replay attacks using old messages. This element MUST have one attribute 'stamp', whose value is a timestamp following the format described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles (XEP-0082)</a></span>  [<a href="#nt-idm133">5</a>]. The timestamp represents the time at which the message was encrypted by the sender.</td>
+      <td align="" colspan="" rowspan="">Receiving clients MUST check whether the difference between the timestamp and the sending time derived from the stanza itself lays within a reasonable margin. The client SHOULD use the content of the timestamp element when displaying the send date of the message</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;to/&gt;</td>
+      <td align="" colspan="" rowspan="">Recipient of the message</td>
+      <td align="" colspan="" rowspan="">Prevent spoofing of the recipient. This element MUST have one attribute 'jid', whose value is the JID of the intended recipient.</td>
+      <td align="" colspan="" rowspan="">Receiving clients MUST check, if the JID matches the to attribute of the enclosing stanza and otherwise alert the user/reject the message</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;from/&gt;</td>
+      <td align="" colspan="" rowspan="">Sender of the message</td>
+      <td align="" colspan="" rowspan="">Prevent spoofing of the sender. This element MUST have one attribute 'jid', whose value is the JID of the sender of the message.</td>
+      <td align="" colspan="" rowspan="">Receiving clients MUST check, if the value matches the from attribute of the enclosing stanza and otherwise alert the user/reject the message</td>
+    </tr>
+  </table></figure>
+
+  <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Examples of Affix Elements<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;time stamp='2004-01-25T06:05:00+01:00'/&gt;
+&lt;to jid='missioncontrol@houston.nasa.gov'/&gt;
+&lt;from jid='opportunity@mars.planet'/&gt;
+&lt;rpad&gt;C1DHN9HK-9A25tSmwK4hU!Jji9%GKYK^syIlHJT9TnI4&lt;/rpad&gt;
+
+  </pre></figure>
+
+  <p class="" style="">Encryption protocols that make use of Stanza Content Encryption MUST define their own profiles that describe mandatory behaviour of which of these elements are used. They MAY also define and add their own specific affix elements.</p>
+
+<h2 id="motivation">5.
+       Motivation<a class="anchor-link" href="#motivation"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+  <p class="" style="">Some end-to-end encryption protocols like <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0384.html">OMEMO Encryption (XEP-0384)</a></span>  [<a href="#nt-idm74">1</a>] are historically limited to encryption of the message body only. This approach excludes other extension elements from the protected domain of the payload element, exposing them to potential attackers.</p>
+
+  <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> An imperfectly encrypted message which leaks dangerous information about the conversation through the plaintext OOB extension element<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='narrator@jabber.org'
+         to='viewer@jabber.org'&gt;
+  &lt;encrypted xmlns='eu.siacs.conversations.axolotl'&gt;
+    &lt;header sid='27183'&gt;
+      ...
+    &lt;/header&gt;
+    &lt;payload&gt;
+      SSBnb3QgaW4gZXZlcnlvbmUncyBob3N0aWxlIGxpdHRsZSBmYWNlLiBZZXMsIHRoZXNlIGFyZSBi
+      cnVpc2VzIGZyb20gZmlnaHRpbmcuIFllcywgSSdtIGNvbWZvcnRhYmxlIHdpdGggdGhhdC4gSSBh
+      bSBlbmxpZ2h0ZW5lZC4=
+    &lt;/payload&gt;
+  &lt;/encrypted&gt;
+  &lt;x xmlns='jabber:x:oob'&gt;
+    &lt;url&gt;https://en.wikipedia.org/wiki/Fight_Club#Plot&lt;/url&gt;
+  &lt;/x&gt;
+&lt;/message&gt;
+
+  </pre></figure>
+  <p class="" style="">The example above obviously leaks information about the communication through the unencrypted OOB extension element.</p>
+
+  <p class="" style="">Most end-to-end encryption mechanisms are also focussed solely on message content encryption and do not tackle &lt;iq/&gt; requests/replies at all. Stanza Content Encryption can be applied to those as well.</p>
+
+  <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Unencrypted IQ request<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='doctor@shakespeare.lit/pda'
+    id='get-data-1'
+    to='ladymacbeth@shakespeare.lit/castle'
+    type='get'&gt;
+  &lt;data xmlns='urn:xmpp:bob'
+        cid='sha1+8f35fef110ffc5df08d579a50083ff9308fb6242@bob.xmpp.org'/&gt;
+&lt;/iq&gt;
+
+  </pre></figure>
+
+  <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Likewise unencrypted reply<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='ladymacbeth@shakespeare.lit/castle'
+    id='get-data-1'
+    to='doctor@shakespeare.lit/pda'
+    type='result'&gt;
+  &lt;data xmlns='urn:xmpp:bob'
+        cid='sha1+8f35fef110ffc5df08d579a50083ff9308fb6242@bob.xmpp.org'
+        max-age='86400'
+        type='image/png'&gt;
+    iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAABGdBTUEAALGP
+    C/xhBQAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0SU1FB9YGARc5KB0XV+IA
+    AAAddEVYdENvbW1lbnQAQ3JlYXRlZCB3aXRoIFRoZSBHSU1Q72QlbgAAAF1J
+    REFUGNO9zL0NglAAxPEfdLTs4BZM4DIO4C7OwQg2JoQ9LE1exdlYvBBeZ7jq
+    ch9//q1uH4TLzw4d6+ErXMMcXuHWxId3KOETnnXXV6MJpcq2MLaI97CER3N0
+    vr4MkhoXe0rZigAAAABJRU5ErkJggg==
+  &lt;/data&gt;
+&lt;/iq&gt;
+
+  </pre></figure>
+
+<h2 id="usecases">6.
+       Use Cases<a class="anchor-link" href="#usecases"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="use-case-message">6.1 Use in &lt;message/&gt; stanzas<a class="anchor-link" href="#use-case-message"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The main use case of Stanza Content Encryption is the use of end-to-end encryption protocols in combination with extension protocols that store sensitive information in other places than the message body.</p>
+
+    <p class="" style="">This applies to many extension elements that add additional information to &lt;message/&gt; stanzas, such as those of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0066.html">Out-of-Band Data (XEP-0066)</a></span>  [<a href="#nt-idm165">6</a>].</p>
+
+    <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Content element containing the messages body and the OBB element.<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;content xmlns='urn:xmpp:sce:0'&gt;
+  &lt;payload&gt;
+    &lt;body xmlns='jabber:client'&gt;[...]&lt;/body&gt;
+    &lt;x xmlns='jabber:x:oob'&gt;
+      &lt;url&gt;https://en.wikipedia.org/wiki/Fight_Club#Plot&lt;/url&gt;
+    &lt;/x&gt;
+  &lt;/payload&gt;
+&lt;/content&gt;
+    </pre></figure>
+
+    <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Finished message stanza containing the &lt;content/&gt; element from the previous example encrypted using a hypothetical encryption protocol and SCE.<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='narrator@jabber.org'
+         to='viewer@jabber.org'&gt;
+  &lt;encrypted xmlns='urn:xmpp:encryption:stub:sce:0'&gt;
+    &lt;payload&gt;
+      PGNvbnRlbnQgeG1sbnM9J3Vybjp4bXBwOnNjZTowJz48cGF5bG9hZD48Ym9keSB4bWxucz0namFi
+      YmVyOmNsaWVudCc+SSBnb3QgaW4gZXZlcnlvbmUncyBob3N0aWxlIGxpdHRsZSBmYWNlLiBZZXMs
+      IHRoZXNlIGFyZSBicnVpc2VzIGZyb20gZmlnaHRpbmcuIFllcywgSSdtIGNvbWZvcnRhYmxlIHdp
+      dGggdGhhdC4gSSBhbSBlbmxpZ2h0ZW5lZC48L2JvZHk+PHggeG1sbnM9J2phYmJlcjp4Om9vYic+
+      PHVybD5odHRwczovL2VuLndpa2lwZWRpYS5vcmcvd2lraS9GaWdodF9DbHViI1Bsb3Q8L3VybD48
+      L3g+PC9wYXlsb2FkPjwvY29udGVudD4=
+    &lt;/payload&gt;
+  &lt;/encrypted&gt;
+&lt;/message&gt;
+    </pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="use-case-iq">6.2 Use in &lt;iq/&gt; stanzas<a class="anchor-link" href="#use-case-iq"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Stanza Content Encryption thrives not only to allow for rich content encryption in &lt;message/&gt; stanzas, but is also applicable to &lt;iq/&gt; queries. A resource might want to query sensitive information from another resource capable of Stanza Content Encryption.</p>
+
+    <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Sender prepares a &lt;content/&gt; element containing the query subject.<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;content xmlns='urn:xmpp:sce:0'&gt;
+  &lt;payload&gt;
+    &lt;data xmlns='urn:xmpp:bob'
+        cid='sha1+8f35fef110ffc5df08d579a50083ff9308fb6242@bob.xmpp.org'/&gt;
+  &lt;/payload&gt;
+  &lt;from jid='doctor@shakespeare.lit/pda'/&gt;
+  &lt;to jid='ladymacbeth@shakespear.lit/castle'/&gt;
+&lt;/content&gt;
+
+    </pre></figure>
+
+    <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> The sender then encrypts the &lt;content/&gt; element for the recipient and sends the &lt;iq/&gt; containing the result of the encryption.<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='doctor@shakespeare.lit/pda'
+    id='get-data-1'
+    to='ladymacbeth@shakespeare.lit/castle'
+    type='get'&gt;
+  &lt;encrypted xmlns='urn:xmpp:encryption:stub:sce:0'&gt;
+    &lt;payload&gt;
+      V2FpdCwgd2hhdD8gQXJlIHlvdSBzZXJpb3VzPyBEaWQgeW91IHJlYWxseSBqdXN0IGdyYWIgeW91
+      ciBmYXZvdXJpdGUgYmFzZTY0IGRlY29kZXIganVzdCB0byBjaGVjayB0aGlzIGRvY3VtZW50IGZv
+      ciBoaWRkZW4gbWVzc2FnZXM/IFdoYXQgYXJlIHlvdSBzb21lIGtpbmQgb2YgbmVyZD8gU29tZSBn
+      ZWVrIHdpdGggYSBiaW5hcnkgd3Jpc3Qgd2F0Y2g/
+    &lt;/payload&gt;
+  &lt;/encrypted&gt;
+&lt;/iq&gt;
+    </pre></figure>
+
+    <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> The recipient prepares the reply to the request by assembling the &lt;content/&gt; element.<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;content xmlns='urn:xmpp:sce:0'&gt;
+  &lt;payload&gt;
+    &lt;data xmlns='urn:xmpp:bob'
+        cid='sha1+8f35fef110ffc5df08d579a50083ff9308fb6242@bob.xmpp.org'
+        max-age='86400'
+        type='image/png'&gt;
+    iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAMAAAC67D+PAAAAclBMVEUAAADYZArfaA9GIAoBAAGN
+    QA3MXgniaAiEOgZMIATDXRXZZhHUZBHIXhDrbQ6sUQ7OYA2TRAubRwqMQQq7VQlKHgMAAAK5WRfJ
+    YBOORBFoMBCwUQ/ycA6FPgvbZQpeKglNJQmrTQeOPgQyFwR6MwACAABRPE/oAAAAW0lEQVQI1xXI
+    Rw6EMBTAUP8kJKENnaF37n9FQPLCekAgzklhgCwfrlNHEXhrvCsxaU/SwLGAFuIWZFpBERtKm9Xf
+    JqH+vVWh4POqgHrsAtht095b+geYRSl57QHSPgP3+CwvAAAAAABJRU5ErkJggg==
+    &lt;/data&gt;
+  &lt;/payload&gt;
+  &lt;from jid='ladymacbeth@shakespear.lit/castle'/&gt;
+  &lt;to jid='doctor@shakespeare.lit/pda'/&gt;
+&lt;/content&gt;
+    </pre></figure>
+
+    <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> The &lt;content/&gt; element is then encrypted and sent as a reply to the initiator of the request.<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='ladymacbeth@shakespeare.lit/castle'
+    id='get-data-1'
+    to='doctor@shakespeare.lit/pda'
+    type='result'&gt;
+  &lt;encrypted xmlns='urn:xmpp:encryption:stub:sce:0'&gt;
+    &lt;payload&gt;
+      PGNvbnRlbnQgeG1sbnM9J3Vybjp4bXBwOnNjZTowJz4KICA8cGF5bG9hZD4KICAgIDxkYXRhIHht
+      bG5zPSd1cm46eG1wcDpib2InCiAgICAgICAgY2lkPSdzaGExKzhmMzVmZWYxMTBmZmM1ZGYwOGQ1
+      NzlhNTAwODNmZjkzMDhmYjYyNDJAYm9iLnhtcHAub3JnJwogICAgICAgIG1heC1hZ2U9Jzg2NDAw
+      JwogICAgICAgIHR5cGU9J2ltYWdlL3BuZyc+CiAgICBpVkJPUncwS0dnb0FBQUFOU1VoRVVnQUFB
+      QW9BQUFBS0NBTUFBQUM2N0QrUEFBQUFjbEJNVkVVQUFBRFlaQXJmYUE5R0lBb0JBQUdOCiAgICBR
+      QTNNWGduaWFBaUVPZ1pNSUFURFhSWFpaaEhVWkJISVhoRHJiUTZzVVE3T1lBMlRSQXViUndxTVFR
+      cTdWUWxLSGdNQUFBSzVXUmZKCiAgICBZQk9PUkJGb01CQ3dVUS95Y0E2RlBndmJaUXBlS2dsTkpR
+      bXJUUWVPUGdReUZ3UjZNd0FDQUFCUlBFL29BQUFBVzBsRVFWUUkxeFhJCiAgICBSdzZFTUJUQVVQ
+      OGtKS0VObmFGMzduOUZRUExDZWtBZ3prbGhnQ3dmcmxOSEVYaHJ2Q3N4YVUvU3dMR0FGdUlXWkZw
+      QkVSdEttOVhmCiAgICBKcUgrdlZXaDRQT3FnSHJzQXRodDA5NWIrZ2VZUlNsNTdRSFNQZ1AzK0N3
+      dkFBQUFBQUJKUlU1RXJrSmdnZz09CiAgICA8L2RhdGE+CiAgPC9wYXlsb2FkPgogIDxmcm9tIGpp
+      ZD0nbGFkeW1hY2JldGhAc2hha2VzcGVhci5saXQvY2FzdGxlJy8+CiAgPHRvIGppZD0nZG9jdG9y
+      QHNoYWtlc3BlYXJlLmxpdC9wZGEnLz4KPC9jb250ZW50Pgo=
+    &lt;/payload&gt;
+  &lt;/encrypted&gt;
+&lt;/iq&gt;
+    </pre></figure>
+  </div>
+<h2 id="sending">7.
+       Sending an encrypted stanza<a class="anchor-link" href="#sending"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+  <p class="" style="">In order to send an encrypted message without leaking extension elements the sender prepares the message by placing the sensitive extension elements inside a &lt;payload/&gt; element inside a &lt;content/&gt; element.</p>
+  <p class="" style="">Depending on the encryption-specific SCE-profile, some affix elements are added as child elements of the &lt;content/&gt; element.</p>
+  <p class="" style="">The &lt;content/&gt; element is then serialized into XML and encrypted using the SCE-specific profile of the encryption mechanism in place. The result is appended to the message.</p>
+  <p class="" style="">Since the outer message element does not contain a &lt;body/&gt; element the sender appends an unencrypted &lt;store/&gt; hint as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0334.html">Message Processing Hints (XEP-0334)</a></span>  [<a href="#nt-idm182">7</a>].</p>
+  <p class="" style="">The message can then be sent to the recipient.</p>
+<h2 id="receiving">8.
+       Receiving an encrypted stanza<a class="anchor-link" href="#receiving"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The recipient of the message decrypts the content of the &lt;envelope/&gt; element to retrieve the &lt;content/&gt; element. Depending on the affix profiles specified by the used encryption protocol, the affix elements are verified to prevent certain attacks from taking place.</p>
+  <p class="" style="">Next the extension elements of the &lt;content/&gt; elements &lt;payload/&gt; element are checked against the permitted list and any disallowed elements are discarded.</p>
+  <p class="" style="">As a last step, the original unencrypted stanza is recreated by replacing the &lt;envelope/&gt; element of the stanza with the contents of the &lt;payload/&gt; element.</p>
+<h2 id="server-processed">9.
+       Server-processed Elements<a class="anchor-link" href="#server-processed"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">There are certain extension elements which are required to be available to the server in order to do message routing and processing.
+     Additionally there are some elements that MUST be filtered by the server.
+     Allowing for those elements to be included in, and parsed from the encrypted payload would allow a malicious client to perform a number of attacks.</p>
+  <p class="" style="">Contrary to this, other elements are considered sensitive and MUST NOT be available in plaintext outside the &lt;content/&gt; element.</p>
+  <p class="" style="">It is hard to come up with a complete list of exceptional elements at this point, as there is no practical implementation experience.</p>
+  <p class="" style="">Below is a non-exhaustive list of elements that are definitely forbidden inside the &lt;content/&gt; element and permitted as direct child elements of the message.</p>
+  <figure class="table"><figcaption id="table-2"><strong>Table 2:</strong> Examples for exceptional elements that MUST NOT be included in, or read from the &lt;content/&gt; element and MUST instead be sent traditionally as direct child elements of the stanza.<a class="anchor-link" href="#table-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+    <tr class="body">
+      <th colspan="" rowspan="">Element</th>
+      <th colspan="" rowspan="">Reason</th>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">Elements of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0334.html">Message Processing Hints (XEP-0334)</a></span>  [<a href="#nt-idm182">7</a>]</td>
+      <td align="" colspan="" rowspan="">Message Processing Hints are addressed to the server and MUST therefore be accessible in plaintext. A receiving client MUST ignore any message processing hints encountered inside the encrypted &lt;content/&gt; element</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">Stanza-ID elements of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0359.html">Unique and Stable Stanza IDs (XEP-0359)</a></span>  [<a href="#nt-idm209">8</a>]</td>
+      <td align="" colspan="" rowspan="">Sending clients MUST NOT include Stanza-ID elements inside the &lt;content/&gt; element, as this would prevent the server from filtering it.
+          A client MUST ignore Stanza-ID elements encountered inside &lt;content/&gt; element</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">Elements of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0033.html">Extended Stanza Addressing (XEP-0033)</a></span>  [<a href="#nt-idm216">9</a>]</td>
+      <td align="" colspan="" rowspan="">The server MUST be able to access the &lt;addresses/&gt; and &lt;address/&gt; elements in order to do message routing, so they MUST NOT be encrypted.</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">TODO: Other elements?</td>
+      <td align="" colspan="" rowspan=""></td>
+    </tr>
+  </table></figure>
+
+<h2 id="rules">10.
+       Business Rules<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Unencrypted &lt;content/&gt; elements are NOT ALLOWED as child elements of the stanza and MUST be dropped.</p>
+  <p class="" style="">Elements in the &lt;content/&gt; elements &lt;payload/&gt; element MUST be identified using an element name and namespace.
+     Notably the &lt;body/&gt; element MUST contain a valid namespace (i.e. "jabber:client").</p>
+  <p class="" style="">The recipient must verify that the decrypted &lt;content/&gt; element contains valid XML before processing it any further. Invalid XML must be rejected.</p>
+  <p class="" style="">After verifying the integrity of the &lt;content/&gt; element, the recipient needs to make sure that no server-processed elements are found within the payload.
+     Any forbidden elements MUST be dropped before the message is processed any further.</p>
+  <p class="" style="">Furthermore the receiving client MUST ignore any extension elements considered as sensitive which are found outside of the &lt;content/&gt; element,
+     especially as direct unencrypted child elements of the enclosing stanza.</p>
+  <p class="" style="">Since a chat message encrypted with SCE MUST NOT contain a &lt;body/&gt; element, it is not eligible for MAM message storage (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-idm231">10</a>]).
+     Therefore sending entities MUST append an unencrypted <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0334.html">Message Processing Hints (XEP-0334)</a></span>  [<a href="#nt-idm182">7</a>] &lt;store/&gt; hint as a direct child element to the message.</p>
+<h2 id="impl">11.
+       Implementation Notes<a class="anchor-link" href="#impl"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">As a first, naïve approach a recipient of a message containing an &lt;envelope/&gt; element could simply reinject the reassambled unencrypted stanza into the XML stream.
+     This might introduce some security issues.
+     Most notably, depending on the clients implementation it may become ambiguous which elements were received end-to-end encrypted and which were received unencrypted.</p>
+  <p class="" style="">Implementations should rather handle encrypted elements explicitly.</p>
+<h2 id="security">12.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">For the sake of simplicity, the examples in this document are not encrypted. A real-world implementation MUST make use of real cryptographic protocols.</p>
+  <div class="indent"><h3 id="security_profiles">12.1 Encryption Profiles<a class="anchor-link" href="#security_profiles"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This specification presents a set of affix elements which can be used to counter certain attacks. However it does not dictate any behaviour regarding what elements MUST be used/verified or when.</p>
+    <p class="" style="">Different cryptographic protocols come with different possible attack scenarios which must be taken into consideration, so it is left up to those cryptographic protocols to define profiles that describe the use of affix elements.</p>
+  </div>
+<h2 id="registrar">13.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO: Maybe the Registrar should handle a list of elements that are forbidden as child elements of the &lt;content/&gt; element?</p>
+<h2 id="schema">14.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO.</p>
+<h2 id="acknowledgements">15.
+       Acknowledgements<a class="anchor-link" href="#acknowledgements"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Big thanks to the authors of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0373.html">OpenPGP for XMPP (XEP-0373)</a></span>  [<a href="#nt-idm78">2</a>] (Florian Schmaus, Dominik Schürmann and Vincent Breitmoser) which heavily inspired the idea of this protocol.</p>
+  <p class="" style="">Also thanks to Marvin Wißfeld, Tim Henkes, Daniel Gultsch, Melvin Keskin and Andreas Straub for their feedback.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="http://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0420</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.3.2</dd><dt>Last Updated</dt><dd>2021-03-04</dd><dt>Approving Body</dt><dd><a href="http://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, XEP-0001, Etc.</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>SCE</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0420.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0420.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0420.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Paul Schaub</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:vanitasvitae@riseup.net">vanitasvitae@riseup.net</a></dd><dt>JabberID</dt><dd><a href="xmpp:vanitasvitae@jabberhead.tk">vanitasvitae@jabberhead.tk</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm74">1</a>. XEP-0384: OMEMO Encryption &lt;<a href="https://xmpp.org/extensions/xep-0384.html">https://xmpp.org/extensions/xep-0384.html</a>&gt;.</p><p><a name="nt-idm78">2</a>. XEP-0373: OpenPGP for XMPP &lt;<a href="https://xmpp.org/extensions/xep-0373.html">https://xmpp.org/extensions/xep-0373.html</a>&gt;.</p><p><a name="nt-idm87">3</a>. XEP-0385: Stateless Inline Media Sharing (SIMS) &lt;<a href="https://xmpp.org/extensions/xep-0385.html">https://xmpp.org/extensions/xep-0385.html</a>&gt;.</p><p><a name="nt-idm91">4</a>. XEP-0308: Last Message Correction &lt;<a href="https://xmpp.org/extensions/xep-0308.html">https://xmpp.org/extensions/xep-0308.html</a>&gt;.</p><p><a name="nt-idm133">5</a>. XEP-0082: XMPP Date and Time Profiles &lt;<a href="https://xmpp.org/extensions/xep-0082.html">https://xmpp.org/extensions/xep-0082.html</a>&gt;.</p><p><a name="nt-idm165">6</a>. XEP-0066: Out of Band Data &lt;<a href="https://xmpp.org/extensions/xep-0066.html">https://xmpp.org/extensions/xep-0066.html</a>&gt;.</p><p><a name="nt-idm182">7</a>. XEP-0334: Message Processing Hints &lt;<a href="https://xmpp.org/extensions/xep-0334.html">https://xmpp.org/extensions/xep-0334.html</a>&gt;.</p><p><a name="nt-idm209">8</a>. XEP-0359: Unique and Stable Stanza IDs &lt;<a href="https://xmpp.org/extensions/xep-0359.html">https://xmpp.org/extensions/xep-0359.html</a>&gt;.</p><p><a name="nt-idm216">9</a>. XEP-0033: Extended Stanza Addressing &lt;<a href="https://xmpp.org/extensions/xep-0033.html">https://xmpp.org/extensions/xep-0033.html</a>&gt;.</p><p><a name="nt-idm231">10</a>. XEP-0313: Message Archive Management &lt;<a href="https://xmpp.org/extensions/xep-0313.html">https://xmpp.org/extensions/xep-0313.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.3.2"><div class="revision-head">Version 0.3.2 (2021-03-04)<a class="anchor-link" href="#revision-history-v0.3.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Cross-document editorial adjustments for inclusive language.</p><div class="revision-author">mw</div></li><li id="revision-history-v0.3.1"><div class="revision-head">Version 0.3.1 (2020-11-03)<a class="anchor-link" href="#revision-history-v0.3.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Fix misspelling of 'whose'</p><div class="revision-author">gh/@melvo</div></li><li id="revision-history-v0.3.0"><div class="revision-head">Version 0.3.0 (2020-07-03)<a class="anchor-link" href="#revision-history-v0.3.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <p class="" style="">Allow origin-id elements, disallow stanza-id and extended stanza addressing elements inside the payload element</p>
+      <p class="" style="">Clarify wording on stanza processed elements and improve XEP formatting</p>
+      <p class="" style="">Remove limitation of random padding content to base64 characters alone</p>
+      <p class="" style="">Chat messages MUST contain message processing store hint</p>
+      <p class="" style="">Credit where credit is due</p>
+    <div class="revision-author">ps</div></li><li id="revision-history-v0.2.0"><div class="revision-head">Version 0.2.0 (2019-10-04)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <p class="" style="">Specify IQ encryption</p>
+      <p class="" style="">Add examples and addenda</p>
+    <div class="revision-author">ps</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version 0.1.0 (2019-07-30)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Accepted by vote of Council on 2019-06-26.<div class="revision-author">XEP Editor (jsc)</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version 0.0.1 (2019-06-03)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">ps</div></li></ol><p>END</p></body></html>

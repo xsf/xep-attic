@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0379: Pre-Authenticated Roster Subscription</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0379";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0"><meta name="DC.Title" content="Pre-Authenticated Roster Subscription"><meta name="DC.Creator" content="Georg Lukas"><meta name="DC.Description" content="This document defines a protocol and URI scheme for pre-authenticated roster links that allow a third party to automatically obtain the user's presence subscription. The goal of this is to make onboarding of new XMPP IM contacts as easy as possible."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2021-03-04"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0379"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0379: Pre-Authenticated Roster Subscription</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This document defines a protocol and URI scheme for pre-authenticated roster links that allow a third party to automatically obtain the user's presence subscription. The goal of this is to make onboarding of new XMPP IM contacts as easy as possible.</dd><dt>Author</dt><dd>Georg Lukas</dd><dt>Copyright</dt><dd>© 1999 – 2020 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Deferred</p><div id="status-notice" class="deferred standards track">WARNING: This document has been automatically Deferred after 12 months of inactivity in its previous Experimental state. Implementation of the protocol described herein is not recommended for production systems. However, exploratory implementations are encouraged to resume the standards process.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.3.3 (2021-03-04)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li>Experimental</li><li class="current inserted">Deferred</li><li>Proposed</li><li>Draft</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#pars">Pre-Authenticated Roster Subscription</a><ol><li><a href="#general_idea">General Idea</a></li><li><a href="#link_generation">Generation of Invitation Link</a></li><li><a href="#link_transmission">Out-of-band Transmission and Presentation of the Link</a></li><li><a href="#link_transmission">Subcription Request to the User by the Link Receiver (New Contact)</a></li><li><a href="#sub_approval">Approval by the User and Mutual Subscription Request</a></li><li><a href="#sub_mutual_approval">Approval by the New Contact</a></li></ol></li><li><a href="#rules">Business Rules</a><ol><li><a href="#rules_fallback">Fallback to Manual Process</a></li><li><a href="#rules_expectation">No Expectation of Immediate Approval</a></li></ol></li><li><a href="#security">Security Considerations</a><ol><li><a href="#security_token">Token Generation</a></li><li><a href="#security_validity">Checking Token Validity</a></li><li><a href="#security_intercept">Interception of Links</a></li><li><a href="#security_display">Display Names</a></li></ol></li><li><a href="#usability">Usability Considerations</a><ol><li><a href="#rules_multiclient">Use of Multiple Clients</a></li><li><a href="#rules_multiclient">Opening the Landing Page in an App</a></li><li><a href="#rules_volatile">Invitation Link Volatility</a></li><li><a href="#rules_group">Tagging of Auto-Added Contacts</a></li></ol></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">Romeo is an active XMPP IM (Instant Messaging) user. He convinces Juliet
+      (who doesn't have an XMPP account yet) to install a client and
+      register with some server. Now, Romeo only needs to create a mutual
+      presence subscription with her, without yet knowing her JID.</p>
+    <p class="" style="">This specification allows Romeo to create an out-of-band link (URI) which,
+      when opened in Juliet's (or another user's) client, will:</p>
+    <ul class="" style="">
+      <li class="" style="">Add Romeo to Juliet's roster (with a display name optionally specified by Romeo)</li>
+      <li class="" style="">Add Juliet to Romeo's roster (without a predefined display name)</li>
+      <li class="" style="">Establish a mutual presence subscription between Romeo and Juliet</li>
+    </ul>
+    <p class="" style="">The perceivable effect is that with a single click, Romeo and Juliet
+      become "friends" in terms of XMPP presence subscription.</p>
+  <h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">This specification makes use of XMPP URIs. The basic URI scheme for XMPP
+      is defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5122">RFC 5122</a></span>  [<a href="#nt-idm87">1</a>] and extended in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0147.html">XMPP URI Query Components (XEP-0147)</a></span>  [<a href="#nt-idm91">2</a>] to support different
+      actions like "roster" for roster addition and "subscribe" for presence
+      subscription.
+    </p>
+  <h2 id="pars">3.
+       Pre-Authenticated Roster Subscription<a class="anchor-link" href="#pars"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">The process of mutual roster addition and subscription involves multiple
+      steps:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">Generation of invitation link</li>
+      <li class="" style="">Out-of-band transmission and presentation of the link</li>
+      <li class="" style="">Subscription request to the user by the link receiver (new contact)</li>
+      <li class="" style="">Approval by the user and mutual subscription request</li>
+      <li class="" style="">Approval by the new contact</li>
+    </ol>
+    <p class="" style="">The general idea of the protocol and the details of the individual steps
+      are outlined in the following.</p>
+    <div class="indent"><h3 id="general_idea">3.1 General Idea<a class="anchor-link" href="#general_idea"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">As Romeo doesn't know Juliet's JID, he needs to send an out-of-band
+        invitation. Later, his client needs to match an incoming subscription
+        request to this invitation, so it can perform a secure automatic roster
+        addition and subscription approval. This matching is accomplished by
+        means of an authentication token, which is generated by Romeo's client,
+        added to the invitation link and then carried over into the subscription
+        request eventually made by Juliet's client. Romeo's client can then
+        compare the token received in a subscription request to the list of
+        issued tokens, and automatically approve the subscription.</p>
+<figure class="code"><figcaption>Successful PARS Protocol Flow</figcaption><pre class="prettyprint">
+Romeo          mongatague.net  capulet.net     Juliet
+   |              |               |               |
+   | Send out-of-band invitation link             |
+   | xmpp:romeo@montague.net?roster;preauth=token |
+   |- - - - - - - - - - - - - - - - - - - - - - -&gt;|
+   |              |               |    roster add |
+   |              |               |&lt;--------------|
+   |       presence subscription request w/ token |
+   |  &lt;presence&gt;&lt;preauth token="..."/&gt;&lt;/presence&gt; |
+   |&lt;---------------------------------------------|
+   | (token validation check)     |               |
+   | presence subscribed          |               |
+   |---------------------------------------------&gt;|
+   | roster add   |               |               |
+   |-------------&gt;|               |               |
+   | presence subscription request|               |
+   |---------------------------------------------&gt;|
+   |              |               (auto approval) |
+   |              |           presence subscribed |
+   |&lt;---------------------------------------------|
+</pre></figure>
+    </div>
+    <div class="indent"><h3 id="link_generation">3.2 Generation of Invitation Link<a class="anchor-link" href="#link_generation"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">Whenever Romeo wishes to invite somebody to his roster, his client will
+        generate an invitation link that contains a new authentication token.
+        This document extends the "roster" URI action defined in <span class="ref">XEP-0147</span> with
+        a new key-value parameter named "preauth" to store the generated token.
+        Romeo's client will create an <strong>xmpp:</strong> link containing Romeo's JID, the
+        "roster" action, the "preauth" parameter with the token value, and
+        optionally a "name" parameter with the suggested display name.
+      </p>
+<figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Invitation Link with Roster Action and Authentication Token<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+xmpp:romeo@montague.net?roster;preauth=1tMFqYDdKhfe2pwp;name=Romeo+Montague
+</pre></figure>
+      <p class="" style="">
+        If the "preauth" parameter is present, the processing client is supposed
+        not only to add the user to the roster, but also to automatically send a
+        subscription request containing the authentication token.
+      </p>
+
+      <p class="" style=""></p>
+
+      <p class="" style=""><strong>Server-side implementation:</strong> it is
+        possible (but out-of-scope for this document), to let the user's server
+        handle generation of links as well as automatic approval of qualified
+        subscription requests. One such approach is documented in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0401.html">Easy User Onboarding (XEP-0401)</a></span>  [<a href="#nt-idm116">3</a>].</p>
+
+    </div>
+
+    <div class="indent"><h3 id="link_transmission">3.3 Out-of-band Transmission and Presentation of the Link<a class="anchor-link" href="#link_transmission"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">As Romeo doesn't know Juliet's JID in advance, he needs to use an out-of-band method (like e-mail, QR codes or NFC) to transmit the invitation link to Juliet. While these methods allow transmission of <strong>xmpp:</strong> URIs, there is no mechanism to ensure that Juliet actually has a client installed that can open the URI.</p>
+      <p class="" style="">One way to solve this problem is to present Juliet with a web-based landing page that contains the following elements:</p>
+      <ul class="" style="">
+        <li class="" style="">A short text that this is an XMPP invitation from Romeo.</li>
+	<li class="" style="">A client recommendation (based on the detected web browser/OS) with download links.</li>
+        <li class="" style="">A prominent button that activates the actual <strong>xmpp:</strong> link.</li>
+      </ul>
+      <p class="" style="">There are multiple options where such a landing page could be hosted:</p>
+      <ol start="" class="" style="">
+        <li class="" style=""><strong>XSF:</strong> a central place would provide a common ground
+          for a curated client list and ensure long-term availability. However,
+          the operator would be able to collect metadata and abuse authentication tokens.</li>
+        <li class="" style=""><strong>Client developer:</strong> the developer of Romeo's client can
+          provide a landing page for invitation requests created with this
+          client. This is a feasible short-term solution and allows to recommend
+          the same client as used by the link sender. However, it shares the
+          privacy objections of the XSF solution and can not guarantee
+          long-term availability of the service. If the client development shuts
+          down, invitation links created with the client will cease working.</li>
+        <li class="" style=""><strong>User's server:</strong> this is the optimal long-term
+          solution, as the user's server is already entrusted with the relevant
+          metadata and will exist at least as long as the user's account on that
+          server. However, this requires an additional server component to query
+          for invitation URIs and a web server hosting the landing page.
+          Furthermore, the server operator needs to maintain the list of
+          recommended clients.</li>
+      </ol>
+<figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Developer-Hosted Landing Page Generated with Fictitious JuicyXMPP Client<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+https://juicyxmpp.example/i/#romeo@montague.net?roster;preauth=1tMFqYDdKhfe2pwp;name=Romeo+Montague
+</pre></figure>
+      <p class="" style="">A possible screen representation of the landing page would be:</p>
+      <figure class="example" style="">
+        <p class="" style=""><strong><em>Romeo Montague</em> has invited you to chat</strong></p>
+
+        <p class="" style=""><strong><a href="xmpp:romeo@montague.net?roster;preauth=1tMFqYDdKhfe2pwp;name=Romeo%20Montague">Add "Romeo Montague"</a></strong></p>
+        <p class="" style="">If this link does not work, you need to install and configure
+          an XMPP client. Please visit this page again afterwards. Choose one of
+          these for your <em>Tomato OS</em>:</p>
+        <ul class="" style="">
+          <li class="" style=""><strong>JuicyXMPP</strong> (link to XMPP client)</li>
+          <li class="" style=""><strong>VegetableChat</strong> (link to XMPP client)</li>
+        </ul>
+        <p class="" style="">Check the <a href="http://xmpp.org/software/clients.html">full list of XMPP clients</a>.</p>
+        <p class="" style="">No further action is required if you do not know <em>Romeo Montague</em> or do not want to chat with them.</p>
+        <p class="" style="">XMPP is a provider-independent form of instant messaging. That means
+          you can pick from many different clients and have a free choice of
+          server operators to communicate with <em>Romeo Montague</em>.</p>
+
+      </figure>
+
+    </div>
+
+    <div class="indent"><h3 id="link_transmission">3.4 Subcription Request to the User by the Link Receiver (New Contact)<a class="anchor-link" href="#link_transmission"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">When Juliet opens the <strong>xmpp:</strong> URI (or the according client-supported
+        landing page URI) in her client, the client should perform the usual
+        roster addition action, i.e. display a dialog allowing to edit the entry
+        or to cancel the process. If Juliet completes the roster addition, the
+        client SHOULD also send a subscription request to Romeo. This request
+        SHOULD contain a 'preauth' element containing the authentication token
+        from the invitation link.
+      </p>
+<figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Subscription Request with Pre-Authenticated Roster Subscription Element<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence to='romeo@montague.net' type='subscribe'&gt;
+  &lt;preauth xmlns='urn:xmpp:pars:0' token='1tMFqYDdKhfe2pwp' /&gt;
+&lt;/presence&gt;
+</pre></figure>
+      <p class="" style="">If Juliet's server supports <a href="http://xmpp.org/rfcs/rfc6121.html#sub-preapproval">subscription
+          pre-approval</a>, the client SHOULD additionally pre-approve Romeo:
+      </p>
+<figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Juliet Pre-approves Romeo<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence to='romeo@montague.net' type='subscribed' /&gt;
+</pre></figure>
+      <p class="" style="">If Juliet's server does not indicate pre-approval support, her client
+        SHOULD store Romeo's JID in a local auto-approval list, together
+        with an appropriate expiration time.
+      </p>
+    </div>
+
+    <div class="indent"><h3 id="sub_approval">3.5 Approval by the User and Mutual Subscription Request<a class="anchor-link" href="#sub_approval"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">When Romeo's client receives a subscription request containing a
+        'preauth' element, it needs to extract the authentication token and
+        check if the token is a valid one and was previously issued by the client
+        (see security considerations below).</p>
+<figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Subscription Request With Tokens Received by Romeo<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence to='romeo@montague.net' from='juliet@capulet.net' type='subscribe'&gt;
+  &lt;preauth xmlns='urn:xmpp:pars:0' token='1tMFqYDdKhfe2pwp' /&gt;
+&lt;/presence&gt;
+</pre></figure>
+      <p class="" style="">If the token is considered valid, the client SHOULD automatically approve
+        the subscription request, add the sender of the subscription request to
+        the roster and send a subscription request of its own.</p>
+<figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Automatic Approval and Response Subscription Request<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence to='juliet@capulet.net' type='subscribed' /&gt;
+&lt;presence to='juliet@capulet.net' type='subscribe' /&gt;
+</pre></figure>
+
+    </div>
+
+    <div class="indent"><h3 id="sub_mutual_approval">3.6 Approval by the New Contact<a class="anchor-link" href="#sub_mutual_approval"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">If Juliet's server supports pre-approval, it will automatically handle the
+        incoming subscription request and issue a roster push. Otherwise, Juliet's
+        client will receive the subscription request:</p>
+<figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Mutual Subscription Request<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence from='romeo@montague.net' to='juliet@capulet.net' type='subscribe' /&gt;
+</pre></figure>
+      <p class="" style="">Juliet's client MUST ensure that the sender JID is contained in the
+	auto-approval list before automatically approving the request.
+	Otherwise, it has to fallback to the normal subscription approval
+	process.</p>
+
+    </div>
+  <h2 id="rules">4.
+       Business Rules<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <div class="indent"><h3 id="rules_fallback">4.1 Fallback to Manual Process<a class="anchor-link" href="#rules_fallback"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">An implementation of this protocol MUST allow for a "graceful
+        degradation" to the manual subscription approval process. If a client
+        receives a malformed or unknown 'preauth' token, it MUST ignore it and act
+        as if no preauth token was contained.</p>
+    </div>
+
+    <div class="indent"><h3 id="rules_expectation">4.2 No Expectation of Immediate Approval<a class="anchor-link" href="#rules_expectation"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">When sending a pre-authenticated subscription request, the contact's
+        client MUST NOT expect an immediate successful approval. If the user's
+        issuing client is currently offline, or if the token has expired, a manual
+        approval will be performed. Therefore, the contact's client should use the
+        same mechanism as before to indicate an unidirectional subscription.
+      </p>
+    </div>
+  <h2 id="security">5.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <div class="indent"><h3 id="security_token">5.1 Token Generation<a class="anchor-link" href="#security_token"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">As the authentication token grants automatic addition to
+        Romeo's roster and automatic approval of presence subscription,
+        the token SHOULD be created with a cryptographically secure random
+        number generator  [<a href="#nt-idm182">4</a>] and
+        provide sufficient entropy to make brute-force attacks
+        infeasible. It is suggested to generate at least 80 bits of
+        entropy, and to use an encoding that can be easily encoded as part
+        of an URI (e.g. Base-32).</p> <p class="" style="">It is possible to use a different token
+        generation scheme like <span class="ref" style=""><a href="http://www.oasis-open.org/committees/tc_home.php?wg_abbrev=security">Security Assertion Markup Language</a></span>  [<a href="#nt-idm195">6</a>] or JWT (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc7519">RFC 7519</a></span>  [<a href="#nt-idm199">7</a>]).
+        In such a case, the issuer must ensure a comparable security level and
+        limit token reuse.</p>
+    </div>
+    <div class="indent"><h3 id="security_validity">5.2 Checking Token Validity<a class="anchor-link" href="#security_validity"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">To limit the potential for abuse, the token SHOULD be limited in as follows:</p>
+      <ul class="" style="">
+        <li class="" style=""><strong>Usage:</strong> in the typical scenario, each token may only
+          be used once. While it is possible for a client to generate a token for
+          multiple uses (like for embedding it in a contact card), the
+          conventional manual roster management should be used for public
+          invitation links.</li>
+        <li class="" style=""><strong>Time:</strong> each token MUST have a limited validity time.
+          As the token is transmitted out-of-band, it should provide sufficient
+          reaction time, e.g. one week. This time limit also allows the issuer to
+          delete expired tokens.</li>
+        <li class="" style=""><strong>Identity:</strong> if the JID of the token receiver is known
+          in advance, the token sender MUST NOT allow a different JID to redeem
+          this token.</li>
+      </ul>
+      <p class="" style="">If a token is considered invalid (due to failing any of the above
+        conditions, or for other reasons), a client MUST fall back to manual
+        roster addition and manual subscription approval.
+      </p>
+    </div>
+    <div class="indent"><h3 id="security_intercept">5.3 Interception of Links<a class="anchor-link" href="#security_intercept"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">A Monkey-in-the-Middle attacker who gains access to the invitation link
+        can manipulate its fields or redeem the link themselves. However, this is
+        true for all communication performed using the chosen medium and is out of
+        scope for this document.</p>
+      <p class="" style="">Ideally, Romeo's client should highlight automatically-added roster items
+        and provide an easy mechanism to remove them and cancel their
+        subscription.</p>
+    </div>
+    <div class="indent"><h3 id="security_display">5.4 Display Names<a class="anchor-link" href="#security_display"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">An attacker can lure the user by providing an invitation link with a
+        'name' parameter that does not match the JID. Therefore, a client SHOULD
+        always display both the JID and the proposed display name when adding a
+        roster item.</p>
+      <p class="" style="">When the user's client automatically approves a subscription, it SHOULD
+        add the new contact to the roster without a 'name' or with the 'name'
+        equal to the JID, to prevent impersonation attacks.</p>
+    </div>
+  <h2 id="usability">6.
+       Usability Considerations<a class="anchor-link" href="#usability"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <div class="indent"><h3 id="rules_multiclient">6.1 Use of Multiple Clients<a class="anchor-link" href="#rules_multiclient"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">If a user is logged in with multiple clients, some of their clients will
+        receive a subscription request with an unknown token. In this case, a client
+        MAY delay the user notification for a short time, to allow another logged-in
+        client to automatically handle the subscription request.</p>
+    </div>
+
+    <div class="indent"><h3 id="rules_multiclient">6.2 Opening the Landing Page in an App<a class="anchor-link" href="#rules_multiclient"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">Some mobile device platforms allow an app to register itself as a
+        handler for certain URIs. This allows an XMPP client to register for <strong>xmpp:</strong>
+        URIs, but also to redirect handling of certain HTTP/HTTPS URIs. A mobile
+        client SHOULD register for the associated landing page URIs and properly
+        handle the contained invitations. For example, the JuicyXMPP client should
+        register a handler for <strong>https://juicyxmpp.example/i/*</strong>, and present
+        the "Add to roster" dialog if such a link is opened. A client MAY register
+        for the landing page URIs of other providers after obtaining the
+        operators' approval.
+      </p>
+    </div>
+    <div class="indent"><h3 id="rules_volatile">6.3 Invitation Link Volatility<a class="anchor-link" href="#rules_volatile"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">By default, Romeo's client should generate personal invitation links
+	that can only be redeemed once, and only for a limited time. This fact
+	SHOULD be indicated by the client UI to Romeo.</p>
+      <p class="" style="">If a client allows customization of the validity time or the number of
+	uses for a given invitation token, it SHOULD provide clear language
+	to indicate that.</p>
+    </div>
+    <div class="indent"><h3 id="rules_group">6.4 Tagging of Auto-Added Contacts<a class="anchor-link" href="#rules_group"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">When a new contact is added automatically by the client, it SHOULD
+	indicate this fact to the user, and allow the user to rename / group
+	the contact appropriately. One possible way to achieve this is by
+	putting all auto-added contacts into a special roster group, and by
+	automatically removing this group on the first manual edit of the
+	contact.</p>
+      <p class="" style="">In this case, the roster group should be named by the client according
+	to the user's locale settings. However, this approach might lead to
+	different clients using different group names, resulting in multiple
+	roster groups with the same goal.</p>
+    </div>
+  <h2 id="iana">7.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm234">8</a>].</p>
+  <h2 id="registrar">8.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">Include the "urn:xmpp:pars:0" namespace in the registry of protocol
+      namespaces. Include "preauth" as an additional key-value parameter to the
+      roster query action.</p>
+<figure class="code"><figcaption>New Roster Query Action Parameter</figcaption><pre class="prettyprint">
+&lt;querytype&gt;
+  &lt;name&gt;roster&lt;/name&gt;
+    ...
+    &lt;key&gt;
+      &lt;name&gt;preauth&lt;/name&gt;
+      &lt;desc&gt;the token used to obtain an automatic approval from the target JID&lt;/desc&gt;
+    &lt;/key&gt;
+&lt;/querytype&gt;
+</pre></figure>
+  <h2 id="schema">9.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">REQUIRED for protocol specifications.</p>
+  <hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="http://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0379</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a></dd><dt>Type</dt><dd><a href="http://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.3.3</dd><dt>Last Updated</dt><dd>2021-03-04</dd><dt>Approving Body</dt><dd><a href="http://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, RFC 5122, XEP-0147</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>pars</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0379.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0379.xml">XML</a> 
+          <a class="standardsButton" href="http://xmpp.org/extensions/xep-0379.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Georg Lukas</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:georg@op-co.de">georg@op-co.de</a></dd><dt>JabberID</dt><dd><a href="xmpp:georg@yax.im">georg@yax.im</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="http://xmpp.org/about/discuss.shtml">http://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="http://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="http://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm87">1</a>. RFC 5122: Internationalized Resource Identifiers (IRIs) and Uniform Resource Identifiers (URIs) for the Extensible Messaging and Presence Protocol (XMPP) &lt;<a href="http://tools.ietf.org/html/rfc5122">http://tools.ietf.org/html/rfc5122</a>&gt;.</p><p><a name="nt-idm91">2</a>. XEP-0147: XMPP URI Query Components &lt;<a href="https://xmpp.org/extensions/xep-0147.html">https://xmpp.org/extensions/xep-0147.html</a>&gt;.</p><p><a name="nt-idm116">3</a>. XEP-0401: Easy User Onboarding &lt;<a href="https://xmpp.org/extensions/xep-0401.html">https://xmpp.org/extensions/xep-0401.html</a>&gt;.</p><p><a name="nt-idm182">4</a>. See for example <code><a href="https://lwn.net/Articles/606141/">getrandom(2)</a></code>,
+          <code><a href="https://docs.oracle.com/javase/8/docs/api/java/security/SecureRandom.html">SecureRandom</a></code>
+          or <code>/dev/urandom</code>. More information about the randomness
+          requirements for security can be found in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4086">RFC 4086</a></span>  [<a href="#nt-idm190">5</a>]</p><p><a name="nt-idm190">5</a>. RFC 4086: Randomness Requirements for Security &lt;<a href="http://tools.ietf.org/html/rfc4086">http://tools.ietf.org/html/rfc4086</a>&gt;.</p><p><a name="nt-idm195">6</a>. Security Assertion Markup Language &lt;<a href="http://www.oasis-open.org/committees/tc_home.php?wg_abbrev=security">http://www.oasis-open.org/committees/tc_home.php?wg_abbrev=security</a>&gt;.</p><p><a name="nt-idm199">7</a>. RFC 7519: JSON Web Token (JWT) &lt;<a href="http://tools.ietf.org/html/rfc7519">http://tools.ietf.org/html/rfc7519</a>&gt;.</p><p><a name="nt-idm234">8</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="http://xmpp.org/extensions/attic/">http://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.3.3"><div class="revision-head">Version 0.3.3 (2021-03-04)<a class="anchor-link" href="#revision-history-v0.3.3"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Cross-document editorial adjustments for inclusive language.</p><div class="revision-author">mw</div></li><li id="revision-history-v0.3.2"><div class="revision-head">Version 0.3.2 (2020-01-14)<a class="anchor-link" href="#revision-history-v0.3.2"><abbr title="Link to this point in the document">¶</abbr></a></div>Fix a bunch of typos.<div class="revision-author">licaon-kter</div></li><li id="revision-history-v0.3.1"><div class="revision-head">Version 0.3.1 (2018-11-03)<a class="anchor-link" href="#revision-history-v0.3.1"><abbr title="Link to this point in the document">¶</abbr></a></div>Fix a bunch of typos, batch-style.<div class="revision-author">pep</div></li><li id="revision-history-v0.3.0"><div class="revision-head">Version 0.3.0 (2018-10-01)<a class="anchor-link" href="#revision-history-v0.3.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Defer due to lack of activity.<div class="revision-author">XEP Editor (jsc)</div></li><li id="revision-history-v0.2.0"><div class="revision-head">Version 0.2.0 (2017-03-06)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Change URI format, editing, add reference to XEP-0401.</p><div class="revision-author">gl</div></li><li id="revision-history-v0.1.2"><div class="revision-head">Version 0.1.2 (2017-02-16)<a class="anchor-link" href="#revision-history-v0.1.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Added "Usability Considerations", removed actual XMPP client, some text editing.</p><div class="revision-author">gl</div></li><li id="revision-history-v0.1.1"><div class="revision-head">Version 0.1.1 (2017-01-01)<a class="anchor-link" href="#revision-history-v0.1.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Minor DTD and formatting fixes.</p><div class="revision-author">ssw</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version 0.1.0 (2016-07-20)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">gl (XEP Editor: ssw)</div></li></ol><p>END</p></body></html>
