@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0460: Pubsub Caching Hints</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0460";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0"><meta name="DC.Title" content="Pubsub Caching Hints"><meta name="DC.Creator" content="Jérôme Poisson"><meta name="DC.Description" content="This specification provides a way to get caching information from a Pubsub node"><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2021-08-10"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0460"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0460: Pubsub Caching Hints</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification provides a way to get caching information from a Pubsub node</dd><dt>Author</dt><dd>Jérôme Poisson</dd><dt>Copyright</dt><dd>© 1999 – 2021 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.1.0 (2021-08-10)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Draft</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#metadata">Caching Hints Discovery</a></li><li><a href="#persistence">Node Persistence</a></li><li><a href="#max_items">Max Items and Item Expire</a></li><li><a href="#consistent_items">Consistent Items: items are always identical for all users</a></li><li><a href="#consistent">Consistent Set: All Users Have the Same Series of Items</a></li><li><a href="#stable">Stable Items: Items Won't Appear Out of Order</a></li><li><a href="#always_notify">Always Notify</a></li><li><a href="#public">Public Node</a></li><li><a href="#suggestions">The Node can be used for Suggestions</a></li><li><a href="#purge">Purging a Node</a></li><li><a href="#summary">Summary</a></li><li><a href="#example">Example</a></li><li><a href="#disco">discovering support</a></li><li><a href="#impl">Implementation Notes</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">XMPP Pubsub as described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm44">1</a>] is a very powerful and versatile tool, which is used for numerous XMPP features. For many reasons, notably speed improvement and resources optimisation, XMPP clients may want to cache internally Pubsub nodes and keep cache synchronised with cached pubsub service. Unfortunately the flexibility of Pubsub makes the choice of a good caching strategy complicated and non optimal. This XEP standardize a way for the Pubsub service to give extra information to fix this situation.</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Caching information must be using base XEP-0060 Pubsub features and be easy to obtain for the client, and easy to add for the pubsub service. The desired goals are:</p>
+  <ul class="" style="">
+	  <li class="" style="">use existing XEP-0060 features to get the data</li>
+	  <li class="" style="">avoid duplication of data in cache</li>
+	  <li class="" style="">know if cache can be shared between users</li>
+	  <li class="" style="">know if a data can be re-used in a "discovery" feature</li>
+	  <li class="" style="">know if items are silently removed or modified</li>
+	  <li class="" style="">know if data synchronisation notifications (new items, deletion) are always sent</li>
+  </ul>
+<h2 id="glossary">3.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <ul class="" style="">
+    <li class="" style=""><strong>Dynamic Items</strong> — items which may vary according to parameters like requesting user or time of the day</li>
+    <li class="" style=""><strong>Static Items</strong> — items which don't change dynamically. This is the most common case.</li>
+    <li class="" style=""><strong>Consistent Set</strong> — set of items inside a node is a same whatever allowed user is requesting it.</li>
+    <li class="" style=""><strong>Stable Items</strong> — items are added in order (to the end of the queue).</li>
+    <li class="" style=""><strong>Silently</strong> — in this context, silently means that a modification happens to an item without sending notification to subscribers.</li>
+  </ul>
+<h2 id="metadata">4.
+       Caching Hints Discovery<a class="anchor-link" href="#metadata"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+	<p class="" style="">Pubsub Caching Hints are using the Pubsub node metadata as described in <a href="https://xmpp.org/extensions/xep-0060.html#entity-metadata">Discover Node Metadata</a> section of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm44">1</a>]</p>
+  <p class="" style="">Hints are advertised using well known fields in Pubsub metadata disco extension. If a Pubsub service implements this XEP, and if it also manages a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0163.html">Personal Eventing Protocol (XEP-0163)</a></span>  [<a href="#nt-idm77">2</a>] service, the fields described here MUST be present for both Pubsub and PEP nodes.</p>
+  
+<h2 id="persistence">5.
+       Node Persistence<a class="anchor-link" href="#persistence"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+	<p class="" style="">To properly cache a node, a client must known if they are kept in storage or not. To advertise that fact, a Pubsub node compliant with this standard MUST use a field named <code>{urn:xmpp:pubsub-caching:0}persistence</code> of type <code>list-single</code> and whose value can be one of:</p>
+	<ul class="" style="">
+		<li class="" style=""><strong>persistent</strong> — items are kept in persistent storage</li>
+		<li class="" style=""><strong>semi-persistent</strong> — items are kept in temporary storage (e.g. memory storage), and may disappear without notification (e.g. the server is restarted)</li>
+		<li class="" style=""><strong>transient</strong> — items are not stored, and are only sent to subscribers once published (but they can't be retrieve with a Pubsub Get)</li>
+		<li class="" style=""><strong>transient-with-last-item</strong> — only last item is kept in cache and can be retrieved by a Pubsub Get</li>
+	</ul>
+<h2 id="max_items">6.
+       Max Items and Item Expire<a class="anchor-link" href="#max_items"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+	<p class="" style="">It may be necessary to cache a node, to know how many items the Pubsub Service is keeping before silently deleting them, or when they do expire. This is done by advertising it using the <code>pubsub#max_items</code> and <code>pubsub#item_expire</code> fields of type <code>integer-or-max</code> (this type is defined in <a href="https://xmpp.org/extensions/xep-0060.html#usecase.xdata">XEP-0060</a>).</p>
+	<p class="" style="">Both fields are mentioned in XEP-0060, but as a reminder:</p>
+	<ul class="" style="">
+		<li class="" style=""><strong><code>pubsub#max_items</code></strong> — indicates the maximum number of items that are kept in a node. Above this number items are silently removed. <code>max</code> indicate that server limit is used (if this limit is known, a Pubsub implementation SHOULD indicated it explicitly).</li>
+		<li class="" style=""><strong><code>pubsub#item_expire</code></strong> — indicates the number of seconds before an item is silently removed. <code>max</code> is used if there is not limit</li>
+	</ul>
+	
+<h2 id="consistent_items">7.
+       Consistent Items: items are always identical for all users<a class="anchor-link" href="#consistent_items"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Pubsub is most often used to let allowed users store and retrieve unmodified items. However, nothing in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm44">1</a>] prevents a Pubsub service to return dynamic items with identical IDs depending on factors like the JID of the requestor, time of the day, or something else. For instance, a weather service could return local prevision for following day using item identifier like "tomorrow_forecast", or a machine learning algorithm could return favorite Shakespeare books to a user using "favorite" item id, in which case romeo@montaigu.lit would probably have different results than juliet@capulet.lit</p>
+  <p class="" style="">For obvious reason those items are hard to impossible to cache. Pubsub services SHOULD avoid using dynamic items, unless there is a really good reason for it.</p>
+  <p class="" style="">If a Pubsub service implements Caching Hints and if items are static (i.e. items with the same ID are identical whatever user is requesting them, time of day it is, or any other variable parameter), then it MUST advertise this fact by using the field named <code>{urn:xmpp:pubsub-caching:0}consistent-items</code> of type <code>boolean</code> with the value of <code>true</code>.</p>
+
+<p class="" style="">Note that overwriting an items as specified in <a href="https://xmpp.org/extensions/xep-0060.html#publisher-publish-success">XEP-0060 Publish an Item to a Node</a> is a normal Pubsub use case which SHOULD result in proper notifications being sent to subscribers, if the item is not otherwise different, this is considered as static item and MUST result in a value of true for the <code>{urn:xmpp:pubsub-caching:0}consistent-items</code> field.</p>
+
+<p class="" style="">Respectively, if a Pubsub node delivers one or more dynamic items, it MUST avertise the fact by using the value of <code>false</code> for the same field.</p>
+
+<h2 id="consistent">8.
+       Consistent Set: All Users Have the Same Series of Items<a class="anchor-link" href="#consistent"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+	<p class="" style="">A Pubsub service may have a feature to restrict individual items from a node to some entities (e.g. to have some items only visible to family, friends or coworkers). In this case, we say that the node has inconsistent items set, and this implies that cache must not be shared between users (as some users may have access to some items that other don't).</p>
+	<p class="" style="">If a Pubsub node is always returning the same items ids to all allowed users, it MUST advertise this fact by using the value <code>true</code> for the <code>boolean</code> field <code>{urn:xmpp:pubsub-caching:0}consistent-set</code>.</p>
+	
+	<p class="" style="">On the other hand, if a Pubsub node may return different items according to the requesting entities (assuming that entities are allowed at the node level), it MUST advertise this fact by using the value <code>false</code> for the same field.</p>
+<h2 id="stable">9.
+       Stable Items: Items Won't Appear Out of Order<a class="anchor-link" href="#stable"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+	<p class="" style="">Normally, items are managed like a queue in a node, i.e. new items are appended to one ends, and existing items can only be deleted (or overwritten, in which case an item with the same ID is appended to the end). However, it may be necessary for a Pubsub service to include items out of order (i.e. not appending it at the end), for instance when a Pubsub service is a bridge to a third party protocol which receives items out of order.</p>
+	<p class="" style="">Unstable items doesn't change the fact that node can be shared between users or node, but it may have an impact on client implementation, as the caching implementation may have items in a different order, and items may be missed, thus this fact is valuable to know for a client willing to cache the node. Note that unstable items SHOULD be avoided by a Pubsub service whenever it's possible.</p>
+	<p class="" style="">If items are always appended to the end of the queue, the Pubsub node MUST advertise this fact using the <code>{urn:xmpp:pubsub-caching:0}stable-items</code> field of type <code>boolean</code> with a value of <code>true</code>.</p>
+	<p class="" style="">On the other hand, if items order can't be guaranteed, the Pubsub node MUST advertise this fact by using the value of <code>false</code> for the same field</p>
+<h2 id="always_notify">10.
+       Always Notify<a class="anchor-link" href="#always_notify"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+	<p class="" style="">To synchronize correctly a Pubsub node, an XMPP client must be aware of any modification that happen to its items or to the node itself. This is possible thanks to the <a href="https://xmpp.org/extensions/xep-0060.html#subscriber">subscription mechanism</a> of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm44">1</a>]. However, notification can be skipped, notably <a href="https://xmpp.org/extensions/xep-0060.html#publisher-delete">item retraction</a> notification must be explicitly requested by the client, and thus may be missing, resulting in cache becoming out of sync with the Pubsub service</p>
+	<p class="" style="">To avoid that, the Pubsub service may enforce notifications for all modifying events to a node or its items, even if they are not explicitly requested by the user doing the modification.</p>
+	<p class="" style="">If a node always sends notification, including &lt;retact&gt; notifications even if <em>notify</em> attribute is not set, then it must advertise this fact using the field named <code>{urn:xmpp:pubsub-caching:0}alway-notify</code> of type <code>boolean</code> with the value of <code>true</code>. If notifications may be omitted, then the same field must be used with the value of <code>false</code>.</p>
+	<p class="" style="">A Pubsub service allowing a node to have notifications always sent SHOULD allow the node owners to activate or deactivate this feature through <a href="https://xmpp.org/extensions/xep-0060.html#owner-configure">node configuration</a>, using the well-known field with the same name of <code>{urn:xmpp:pubsub-caching:0}always-notify</code> and the same type of <code>boolean</code>. It's up to the implementation to determine if the default value should be <code>true</code> or <code>false</code>.</p>
+<h2 id="public">11.
+       Public Node<a class="anchor-link" href="#public"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+	<p class="" style="">If the node is public, i.e. if it as an <a href="https://xmpp.org/extensions/xep-0060.html#accessmodels">open access model</a> that means that a client can safely share the cache between users (providing that the <a href="#consistent_items">consistent items</a> and <a href="#consistent_items">consistent set</a> fields are also both <code>true</code>).</p>
+	<p class="" style="">If a Pubsub node is public, it MUST advertise this fact by exposing it in its metadata using the field named <code>pubsub#access_model</code> of type <code>list-single</code> with a value of <code>open</code></p>
+	<p class="" style="">If the node has an other access model, it is up to the Pubsub implementation to advertise publicly or not this data in the node metadata. It may be a privacy concern to expose any other access model than <code>open</code></p>
+<h2 id="suggestions">12.
+       The Node can be used for Suggestions<a class="anchor-link" href="#suggestions"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+	<p class="" style="">An XMPP client may have a feature to suggest new Pubsub nodes to users (for network exploration, and let users find rapidly interesting content). If the discovery feature is not restricted to some users somehow, this SHOULD be done using only <a href="public">public nodes</a>. But even for a public node, the node owner may no be willing to have they node suggested to random users.</p>
+	<p class="" style="">To avoid using inappropriately a public node for suggestion, a Pubsub node MUST announce if the node is usable for suggestion or node by using the field named <code>{urn:xmpp:pubsub-caching:0}allowed-for-suggestions</code> of type <code>boolean</code>. It is up to the Pubsub implementation to decide how this field is set, but it SHOULD have a default value of <code>false</code> and it should be modifiable by node owner through <a href="https://xmpp.org/extensions/xep-0060.html#owner-configure">node configuration</a>, using the well-known field with the same name of <code>{urn:xmpp:pubsub-caching:0}allowed-for-suggestions</code> and the same type of <code>boolean</code>.</p>
+	<p class="" style="">A client MUST NOT use a node with <code>{urn:xmpp:pubsub-caching:0}allowed-for-suggestions</code> set to <code>false</code> for suggestions</p>
+<h2 id="purge">13.
+       Purging a Node<a class="anchor-link" href="#purge"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+	<p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm44">1</a>] wording about <a href="https://xmpp.org/extensions/xep-0060.html#owner-purge">purging all node items</a> is not clear about the last item, and it may or may not be kept.</p>
+	<p class="" style="">To make it explicit, a client implementing this specification MUST use the field named <code>{urn:xmpp:pubsub-caching:0}purge-keep-last-item</code> of type <code>boolean</code> with the value of <code>true</code> if the last item is NOT retracted when a node purge is performed. On the opposite, the value of <code>true</code> MUST be used if ALL items are retracted when a node purge is performed, actually leaving the node empty, with no item at all.</p>
+<h2 id="summary">14.
+       Summary<a class="anchor-link" href="#summary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+	<p class="" style="">Here a is a table summarizing all fields to announce when implementing this XEP. All fields but <code>pubsub#access_model</code> are mandatory if a Pubsub service advertise support for this XEP.</p>
+	<figure class="table"><figcaption id="table-1"><strong>Table 1:</strong> Caching Hints Summary<a class="anchor-link" href="#table-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+		<tr class="body">
+			<th colspan="" rowspan="">name</th>
+			<th colspan="" rowspan="">field</th>
+			<th colspan="" rowspan="">type</th>
+			<th colspan="" rowspan="">meaning</th>
+			<th colspan="" rowspan="">comment</th>
+		</tr>
+		<tr class="body">
+			<td align="" colspan="" rowspan="">Max Items</td>
+			<td align="" colspan="" rowspan="">pubsub#max_items</td>
+			<td align="" colspan="" rowspan="">integer-or-max</td>
+			<td align="" colspan="" rowspan="">How many items are kept in storage</td>
+			<td align="" colspan="" rowspan=""></td>
+		</tr>
+		<tr class="body">
+			<td align="" colspan="" rowspan="">Item Expire</td>
+			<td align="" colspan="" rowspan="">pubsub#item_expire</td>
+			<td align="" colspan="" rowspan="">integer-or-max</td>
+			<td align="" colspan="" rowspan="">How many seconds items are kept</td>
+			<td align="" colspan="" rowspan=""></td>
+		</tr>
+		<tr class="body">
+			<td align="" colspan="" rowspan="">Node Persistence</td>
+			<td align="" colspan="" rowspan="">{urn:xmpp:pubsub-caching:0}persistence</td>
+			<td align="" colspan="" rowspan="">list-single</td>
+			<td align="" colspan="" rowspan="">Items are kept in persistent storage</td>
+			<td align="" colspan="" rowspan=""></td>
+		</tr>
+		<tr class="body">
+			<td align="" colspan="" rowspan="">Consistent Items</td>
+			<td align="" colspan="" rowspan="">{urn:xmpp:pubsub-caching:0}consistent-items</td>
+			<td align="" colspan="" rowspan="">boolean</td>
+			<td align="" colspan="" rowspan="">Items are static</td>
+			<td align="" colspan="" rowspan=""></td>
+		</tr>
+		<tr class="body">
+			<td align="" colspan="" rowspan="">Consistent Set</td>
+			<td align="" colspan="" rowspan="">{urn:xmpp:pubsub-caching:0}consistent-set</td>
+			<td align="" colspan="" rowspan="">boolean</td>
+			<td align="" colspan="" rowspan="">All users have the same items</td>
+			<td align="" colspan="" rowspan=""></td>
+		</tr>
+		<tr class="body">
+			<td align="" colspan="" rowspan="">Stable Items</td>
+			<td align="" colspan="" rowspan="">{urn:xmpp:pubsub-caching:0}stable-items</td>
+			<td align="" colspan="" rowspan="">boolean</td>
+			<td align="" colspan="" rowspan="">Items are not added out of order</td>
+			<td align="" colspan="" rowspan=""></td>
+		</tr>
+		<tr class="body">
+			<td align="" colspan="" rowspan="">Always Notify</td>
+			<td align="" colspan="" rowspan="">{urn:xmpp:pubsub-caching:0}always-notify</td>
+			<td align="" colspan="" rowspan="">boolean</td>
+			<td align="" colspan="" rowspan="">Modifying Notifications are Always sent to subscribers, even if not explicitly requested by publisher.</td>
+			<td align="" colspan="" rowspan=""></td>
+		</tr>
+		<tr class="body">
+			<td align="" colspan="" rowspan="">Public Node</td>
+			<td align="" colspan="" rowspan="">pubsub#access_model</td>
+			<td align="" colspan="" rowspan="">list-single</td>
+			<td align="" colspan="" rowspan="">Items can be retrieved by anybody</td>
+			<td align="" colspan="" rowspan="">if value is not <code>open</code>, it may be omitted</td>
+		</tr>
+		<tr class="body">
+			<td align="" colspan="" rowspan="">Allowed for Suggestions</td>
+			<td align="" colspan="" rowspan="">{urn:xmpp:pubsub-caching:0}allowed-for-suggestions</td>
+			<td align="" colspan="" rowspan="">boolean</td>
+			<td align="" colspan="" rowspan="">Node and its items can be suggested to random users</td>
+			<td align="" colspan="" rowspan="">SHOULD be settable by node owner, and MUST default to <code>false</code></td>
+		</tr>
+		<tr class="body">
+			<td align="" colspan="" rowspan="">Purge Keep Last Item</td>
+			<td align="" colspan="" rowspan="">{urn:xmpp:pubsub-caching:0}purge-keep-last-item</td>
+			<td align="" colspan="" rowspan="">boolean</td>
+			<td align="" colspan="" rowspan="">Last item is always kept when a node purge is performed</td>
+			<td align="" colspan="" rowspan=""></td>
+		</tr>
+	</table></figure>
+<h2 id="example">15.
+       Example<a class="anchor-link" href="#example"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+	<p class="" style="">Here is an example of Pubsub metadata advertised by a node on a service implementing this XEP. This example is a "happy path", i.e. features announced here are cache friendly.</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Entity queries a node for information<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='francisco@denmark.lit/barracks'
+    to='pubsub.shakespeare.lit'
+    id='meta1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'
+         node='princely_musings'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+	<figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Entities Receive Pubsub Node Metadata with Caching Hints<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    from='pubsub.shakespeare.lit'
+    to='francisco@denmark.lit/barracks'
+    id='caching_hints'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'
+         node='princely_musings'&gt;
+    &lt;identity category='pubsub' type='leaf'/&gt;
+    &lt;feature var='http://jabber.org/protocol/pubsub'/&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field var='pubsub#title' label='A short name for the node' type='text-single'&gt;
+        &lt;value&gt;Princely Musings (Atom)&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='pubsub#max_items' label='How many items are kept in storage' type='text-single'&gt;
+        &lt;value&gt;max&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='pubsub#item_expire' label='How many seconds items are kept' type='text-single'&gt;
+        &lt;value&gt;max&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='{urn:xmpp:pubsub-caching:0}persistence' label='How items are stored' type='text-single'&gt;
+        &lt;value&gt;persistent&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='{urn:xmpp:pubsub-caching:0}consistent-items' label='Are items static' type='boolean'&gt;
+        &lt;value&gt;true&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='{urn:xmpp:pubsub-caching:0}consistent-set' label='Are items set consistent' type='boolean'&gt;
+        &lt;value&gt;true&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='{urn:xmpp:pubsub-caching:0}stable-items' label='Are items stable' type='boolean'&gt;
+        &lt;value&gt;true&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='{urn:xmpp:pubsub-caching:0}always-notify' label='Are notifications always sent' type='boolean'&gt;
+        &lt;value&gt;true&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='pubsub#access_model' label='Access model' type='list-single'&gt;
+        &lt;value&gt;open&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='{urn:xmpp:pubsub-caching:0}allowed-for-suggestions' label='Can node be used for suggestions' type='boolean'&gt;
+        &lt;value&gt;true&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='{urn:xmpp:pubsub-caching:0}purge-keep-last-item' label='Is last item kept when a node purge is performed' type='boolean'&gt;
+        &lt;value&gt;false&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+		</pre></figure>
+<h2 id="disco">16.
+       discovering support<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">If a server supports the "Pubsub Caching Hints" protocol, it must advertize it by including the "urn:xmpp:pubsub-caching:0" discovery feature (see <a href="#ns">Protocol Namespaces</a> regarding issuance of one or more permanent namespaces) in response to a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm280">3</a>] information request:</p>
+  <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> service discovery information request<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='example.org'
+    id='disco1'
+    to='example.com'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> service discovery information response<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='example.com'
+    id='disco1'
+    to='example.org'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    …
+    &lt;feature var='urn:xmpp:pubsub-caching:0'/&gt;
+    …
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+<h2 id="impl">17.
+       Implementation Notes<a class="anchor-link" href="#impl"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">As order of insertion and overwriting of items may be relevant to the client, it is recommended for caching-friendly Pubsub service to implement <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0413.html">Order-By (XEP-0413)</a></span>  [<a href="#nt-idm288">4</a>], thus client can cache items using an order by date of creation.</p>
+<h2 id="security">18.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="iana">19.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="registrar">20.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="schema">21.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0460</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.1.0</dd><dt>Last Updated</dt><dd>2021-08-10</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, XEP-0060</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>pubsub-caching</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0460.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0460.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0460.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Jérôme Poisson</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:goffi@goffi.org">goffi@goffi.org</a></dd><dt>JabberID</dt><dd><a href="xmpp:goffi@jabber.fr">goffi@jabber.fr</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/about/discuss.shtml">https://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm44">1</a>. XEP-0060: Publish-Subscribe &lt;<a href="https://xmpp.org/extensions/xep-0060.html">https://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-idm77">2</a>. XEP-0163: Personal Eventing Protocol &lt;<a href="https://xmpp.org/extensions/xep-0163.html">https://xmpp.org/extensions/xep-0163.html</a>&gt;.</p><p><a name="nt-idm280">3</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm288">4</a>. XEP-0413: Order-By &lt;<a href="https://xmpp.org/extensions/xep-0413.html">https://xmpp.org/extensions/xep-0413.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.1.0"><div class="revision-head">Version 0.1.0 (2021-08-10)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Accepted by vote of Council on 2021-07-21.<div class="revision-author">XEP Editor (jsc)</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version 0.0.1 (2021-07-19)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">jp</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{poisson2021pubsub-caching,
+  title = {Pubsub Caching Hints},
+  author = {Poisson, Jérôme},
+  type = {XEP},
+  number = {0460},
+  version = {0.1.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0460.html},
+  date = {2021-07-19/2021-08-10},
+}</pre><p>END</p></body></html>

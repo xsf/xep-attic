@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0227: Portable Import/Export Format for XMPP-IM Servers</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0227";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0"><meta name="DC.Title" content="Portable Import/Export Format for XMPP-IM Servers"><meta name="DC.Creator" content="Magnus Henoch"><meta name="DC.Creator" content="Waqas Hussain"><meta name="DC.Creator" content="Matthew Wild"><meta name="DC.Description" content="This document specifies a file format for importing and exporting user data to and from XMPP-IM servers."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2021-06-02"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0227"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0227: Portable Import/Export Format for XMPP-IM Servers</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This document specifies a file format for importing and exporting user data to and from XMPP-IM servers.</dd><dt>Authors</dt><dd><ul class="authors"><li>Magnus Henoch</li><li>Waqas Hussain</li><li>Matthew Wild</li></ul></dd><dt>Copyright</dt><dd>© 1999 – 2021 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Draft</p><div id="status-notice" class="draft standards track">NOTICE: The protocol defined herein is a <strong>Stable Standard</strong> of the XMPP Standards Foundation. Implementations are encouraged and the protocol is appropriate for deployment in production systems, but some changes to the protocol are possible before it becomes a Final Standard.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>1.1 (2021-06-02)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li>Experimental</li><li>Proposed</li><li class="current">Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#fileformat">File format</a><ol><li><a href="#hosts">Hosts</a></li><li><a href="#users">Users</a></li><li><a href="#scram-credentials">SCRAM credentials</a></li><li><a href="#rosters">Rosters</a></li><li><a href="#offlinemessages">Offline Messages</a></li><li><a href="#privatexmlstorage">Private XML Storage</a></li><li><a href="#vcards">vCards</a></li><li><a href="#privacy-lists">Privacy Lists</a></li><li><a href="#incoming-subscription-requests">Incoming Subscription Requests</a></li><li><a href="#pep">Personal Eventing Protocol</a><ol><li><a href="#pep-config">PEP node configuration</a></li><li><a href="#pep-items">PEP node items</a></li></ol></li><li><a href="#archive">Message Archive</a></li></ol></li><li><a href="#xinclude">Use of XInclude</a><ol><li><a href="#xinclude-layout">File and Directory Layout</a></li></ol></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-ns">Protocol Namespaces</a></li><li><a href="#registrar-versioning">Protocol Versioning</a></li></ol></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Different implementations of XMPP-IM servers store user data in various ways, and many implementations have more than one storage format.  This leads to problems when a server administrator wants to switch to another implementation or storage format -- the implementation is as likely as not to have an import mechanism that can read the user data in its current form.  This document attempts to solve that problem by defining a common file format for import and export of user data in XMPP-IM servers.</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The following constraints are imposed on this standard:</p>
+  <ul class="" style="">
+    <li class="" style="">
+      <p class="" style="">The file format is XML-based.</p>
+      <p class="" style="">XMPP-IM servers already have tools to process XML data.  This also allows extension of the format using namespaces.  Furthermore, some of the data that needs to be stored is by definition already in XML form.</p>
+    </li>
+    <li class="" style="">
+      <p class="" style="">The data layout is flexible.</p>
+      <p class="" style="">The data is contained in a single XML document; however, it can be split into several files using <span class="ref" style=""><a href="http://www.w3.org/TR/xinclude/">XInclude</a></span>  [<a href="#nt-idm91">1</a>].</p>
+    </li>
+    <li class="" style="">
+      <p class="" style="">All user data is stored, but no server configuration data.</p>
+      <p class="" style="">User data has similar form throughout the XMPP world, but server configuration is implementation-specific.  Therefore this specification does not attempt to transfer any aspects of the server configuration from one server to another.</p>
+      <p class="" style="">Furthermore, the contents of MUC, Pubsub and other services are out of scope for this specification.</p>
+    </li>
+    <li class="" style="">
+      <p class="" style="">Multiple virtual hosts are supported.</p>
+      <p class="" style="">Many server implementations can serve several hostnames in a single server instance.  Thus this specification allows storing data from several virtual hosts.</p>
+    </li>
+  </ul>
+<h2 id="glossary">3.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+<div class="indent"><dl>
+  <dt><strong>Exporting server</strong></dt>
+  <dd>The XMPP-IM server writing its user data to files, following this specification.</dd>
+  
+  <dt><strong>Importing server</strong></dt>
+  <dd>The XMPP-IM server reading data from such files.</dd>
+  
+</dl></div>
+<h2 id="fileformat">4.
+       File format<a class="anchor-link" href="#fileformat"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Data is contained in an XML document, whose root element is &lt;server-data/&gt; qualified by the 'urn:xmpp:pie:0' namespace (see <a href="#ns">Protocol Namespaces</a> regarding issuance of one or more permanent namespaces).</p>
+
+<figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> The root element<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;server-data xmlns='urn:xmpp:pie:0'&gt;
+  [ ... ]
+&lt;/server-data&gt;
+
+</pre></figure>
+
+  <p class="" style="">At any point in the file, an exporting server may put elements qualified by a namespace not mentioned in this specification.  The exported data SHOULD be meaningful without the extensions.  An importing server that encounters a namespace that it doesn't understand, or otherwise is unable to import all given data, SHOULD ignore the unknown data, SHOULD notify the operator, and MAY offer to terminate the process.</p>
+
+  <p class="" style="">At any point in the file, an exporting server may put an XInclude &lt;include/&gt; element; see <a href="#xinclude">Use of XInclude</a>.</p>
+
+  <div class="indent"><h3 id="hosts">4.1 Hosts<a class="anchor-link" href="#hosts"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The child elements of the &lt;server-data/&gt; elements are &lt;host/&gt; elements.  Each &lt;host/&gt; element describes a virtual host, and has a 'jid' attribute that contains its JID.</p>
+
+    <p class="" style="">An importing server MAY automatically adjust its list of virtual hosts to fit the ones present in the data being imported.  If it does not, it SHOULD notify the operator about any mismatch.</p>
+
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> The host element<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;server-data xmlns='urn:xmpp:pie:0'&gt;
+  &lt;host jid='capulet.com'&gt;
+    [ ... ]
+  &lt;/host&gt;
+  &lt;host jid='montague.net'&gt;
+    [ ... ]
+  &lt;/host&gt;
+&lt;/server-data&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="users">4.2 Users<a class="anchor-link" href="#users"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Each user is represented by a &lt;user/&gt; element under the &lt;host/&gt; element.  The &lt;user/&gt; element MUST have a 'name' attribute, which contains the node part of the user's JID.</p>
+
+    <p class="" style="">If the plaintext password of the user is known, it MAY be included in the 'password' attribute, although this is not recommended from a security perspective. For more information see <a href="#security">Security Considerations</a>. See also the SCRAM credentials section for an alternative.</p>
+
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> The user element<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;server-data xmlns='urn:xmpp:pie:0'&gt;
+  &lt;host jid='capulet.com'&gt;
+    &lt;user name='juliet'&gt;
+      [ ... ]
+    &lt;/user&gt;
+  &lt;/host&gt;
+  &lt;host jid='montague.net'&gt;
+    &lt;user name='romeo'&gt;
+      [ ... ]
+    &lt;/user&gt;
+  &lt;/host&gt;
+&lt;/server-data&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="scram-credentials">4.3 SCRAM credentials<a class="anchor-link" href="#scram-credentials"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Authentication secrets may be included that allow for authentication using the SCRAM family of mechanisms, as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5802">RFC 5802</a></span>  [<a href="#nt-idm128">2</a>].</p>
+
+    <p class="" style="">Each set of credentials should be encapsulated within a &lt;scram-credentials/&gt; element in the 'urn:xmpp:pie:0#scram' namespace, and contained within the relevant &lt;user/&gt; element. The element should have a 'mechanism' attribute specifying the registered name of the mechanism that the credentials are used for (always without the "-PLUS" suffix), e.g. 'SCRAM-SHA-1'. The element MUST contain a single occurrence of each of the following child elements:</p>
+
+    <ul class="" style="">
+      <li class="" style="">&lt;iter-count/&gt;: containing the SCRAM iteration count, e.g. '10000'. This must be a positive integer without leading zeros.</li>
+      <li class="" style="">&lt;salt/&gt;: containing the base64-encoded salt.</li>
+      <li class="" style="">&lt;server-key/&gt;: containing the base64-encoded ServerKey defined by SCRAM.</li>
+      <li class="" style="">&lt;stored-key/&gt;: containing the base64-encoded StoredKey defined by SCRAM.</li>
+    </ul>
+
+    <p class="" style="">There may be multiple occurrences of &lt;scram-credentials/&gt; for a single user, however they MUST all have a unique 'mechanism' attribute.</p>
+
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Including a user's SCRAM credentials<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;server-data xmlns='urn:xmpp:pie:0'&gt;
+  &lt;host jid='capulet.com'&gt;
+    &lt;user name='juliet'&gt;
+      &lt;scram-credentials xmlns='urn:xmpp:pie:0#scram' mechanism='SCRAM-SHA-1'&gt;
+        &lt;iter-count&gt;100000&lt;/iter-count&gt;
+        &lt;salt&gt;TmFDbE5hQ2xOYUNsTmFDbE5hQ2xOYUNsTmFDbE5hQ2xOYUNsTmFDbE5hQ2wK&lt;/salt&gt;
+        &lt;server-key&gt;0pXWGK0GZJ6TR73AIUN3ITYtA1g=&lt;/server-key&gt;
+        &lt;stored-key&gt;Q6qT/SbybblGCZz8e8eSfCJOQic=&lt;/stored-key&gt;
+      &lt;/scram-credentials&gt;
+    &lt;/user&gt;
+  &lt;/host&gt;
+&lt;/server-data&gt;
+</pre></figure>
+
+    <p class="" style="">Be aware of the <a href="#security">Security Considerations</a> when including credentials in a data export. Even though SCRAM credentials are stored in a hashed form, leaking them still allows an attacker to impersonate the user to other servers employing the same SCRAM parameters, and it also allows for offline dictionary or brute-force attacks.</p>
+
+  </div>
+
+  <div class="indent"><h3 id="rosters">4.4 Rosters<a class="anchor-link" href="#rosters"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Each &lt;user/&gt; element SHOULD contain the user's roster in the form of a &lt;query/&gt; element qualified by the 'jabber:iq:roster' namespace.  This element contains the user's roster in the same format as when retrieving the roster from the server, as described in section 7.3 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6121">XMPP IM</a></span>  [<a href="#nt-idm144">3</a>].</p>
+
+    <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> The roster<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;server-data xmlns='urn:xmpp:pie:0'&gt;
+  &lt;host jid='capulet.com'&gt;
+    &lt;user name='juliet'&gt;
+      &lt;query xmlns='jabber:iq:roster'&gt;
+        &lt;item jid='romeo@montague.net'
+              name='Romeo'
+              subscription='both'&gt;
+          &lt;group&gt;Friends&lt;/group&gt;
+        &lt;/item&gt;
+      &lt;/query&gt;
+    &lt;/user&gt;
+  &lt;/host&gt;
+&lt;/server-data&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="offlinemessages">4.5 Offline Messages<a class="anchor-link" href="#offlinemessages"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If the exporting server stores messages received while the user was offline, it SHOULD include an &lt;offline-messages/&gt; element as a child of the &lt;user/&gt; element.  This element contains all the stored messages to the user, if any, as &lt;message/&gt; elements qualified by the 'jabber:client' namespace, starting with the oldest.</p>
+
+    <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Offline messages<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;server-data xmlns='urn:xmpp:pie:0'&gt;
+  &lt;host jid='capulet.com'&gt;
+    &lt;user name='juliet'&gt;
+      &lt;offline-messages&gt;
+        &lt;message xmlns='jabber:client'
+	         from='romeo@montague.net/orchard'
+	         to='juliet@capulet.com/balcony'
+		 type='chat'&gt;
+	  &lt;body&gt;Neither, fair saint, if either thee dislike.&lt;/body&gt;
+	  &lt;delay xmlns='urn:xmpp:delay'
+	         from='capulet.com'
+		 stamp='1469-07-21T00:32:29Z'&gt;
+	    Offline Storage
+	  &lt;/delay&gt;
+	&lt;/message&gt;
+      &lt;/offline-messages&gt;
+    &lt;/user&gt;
+  &lt;/host&gt;
+&lt;/server-data&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="privatexmlstorage">4.6 Private XML Storage<a class="anchor-link" href="#privatexmlstorage"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Private data stored by the server as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0049.html">Private XML Storage (XEP-0049)</a></span>  [<a href="#nt-idm154">4</a>] is represented in this format by including a &lt;query/&gt; element qualified by the 'jabber:iq:private' namespace as a child of the &lt;user/&gt; element.  This &lt;query/&gt; element in turn contains all elements saved in private XML storage.</p>
+
+    <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Private XML Storage<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;server-data xmlns='urn:xmpp:pie:0'&gt;
+  &lt;host jid='shakespeare.lit'&gt;
+    &lt;user name='hamlet'&gt;
+      &lt;query xmlns="jabber:iq:private"&gt;
+	&lt;exodus xmlns="exodus:prefs"&gt;
+	  &lt;defaultnick&gt;Hamlet&lt;/defaultnick&gt;
+	&lt;/exodus&gt;
+      &lt;/query&gt;
+    &lt;/user&gt;
+  &lt;/host&gt;
+&lt;/server-data&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="vcards">4.7 vCards<a class="anchor-link" href="#vcards"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">By <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0054.html">vcard-temp (XEP-0054)</a></span>  [<a href="#nt-idm161">5</a>], users can store vCards on the server.  In this specification, vCards are child elements of the &lt;user/&gt; element, namely a &lt;vCard/&gt; element qualified by the 'vcard-temp' namespace.</p>
+
+    <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> vCards<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;server-data xmlns='urn:xmpp:pie:0'&gt;
+  &lt;host jid='capulet.com'&gt;
+    &lt;user name='juliet'&gt;
+      &lt;vCard xmlns='vcard-temp'&gt;
+        &lt;FN&gt;Juliet Capulet&lt;/FN&gt;
+      &lt;/vCard&gt;
+    &lt;/user&gt;
+  &lt;/host&gt;
+&lt;/server-data&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="privacy-lists">4.8 Privacy Lists<a class="anchor-link" href="#privacy-lists"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Privacy lists, as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0016.html">Privacy Lists (XEP-0016)</a></span>  [<a href="#nt-idm168">6</a>], are represented in this format by including a &lt;query/&gt; element qualified by the 'jabber:iq:privacy' namespace as a child of the &lt;user/&gt; element. This element should contain all privacy lists associated with the user. A default privacy list, if set, is specified by including a &lt;default/&gt; element as a child of the &lt;query/&gt; element.</p>
+
+    <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> Privacy lists<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;server-data xmlns='urn:xmpp:pie:0'&gt;
+  &lt;host jid='capulet.com'&gt;
+    &lt;user name='juliet'&gt;
+      &lt;query xmlns='jabber:iq:privacy'&gt;
+        &lt;default name='public'/&gt;
+        &lt;list name='public'&gt;
+          &lt;item type='jid'
+                value='tybalt@example.com'
+                action='deny'
+                order='1'/&gt;
+          &lt;item action='allow' order='2'/&gt;
+        &lt;/list&gt;
+        &lt;list name='private'&gt;
+          &lt;item type='subscription'
+                value='both'
+                action='allow'
+                order='10'/&gt;
+          &lt;item action='deny' order='15'/&gt;
+        &lt;/list&gt;
+      &lt;/query&gt;
+    &lt;/user&gt;
+  &lt;/host&gt;
+&lt;/server-data&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="incoming-subscription-requests">4.9 Incoming Subscription Requests<a class="anchor-link" href="#incoming-subscription-requests"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Each &lt;user/&gt; element SHOULD contain pending incoming subscription requests associated with the user's account. Incoming subscription requests are represented by including &lt;presence/&gt; elements qualified by the 'jabber:client' namespace with the 'type' attribute set to a value of 'subscribe' as children of the &lt;user/&gt; element.</p>
+
+    <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Incoming subscription requests<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;server-data xmlns='urn:xmpp:pie:0'&gt;
+  &lt;host jid='capulet.com'&gt;
+    &lt;user name='juliet'&gt;
+      &lt;presence xmlns='jabber:client'
+                type='subscribe'
+                id='xk3h1v69'
+                from='romeo@montague.net'&gt;
+        &lt;nick xmlns="http://jabber.org/protocol/nick"&gt;Romeo&lt;/nick&gt;
+      &lt;/presence&gt;
+      &lt;presence xmlns='jabber:client'
+                type='subscribe'
+                from='mercutio@montague.net'/&gt;
+    &lt;/user&gt;
+  &lt;/host&gt;
+&lt;/server-data&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="pep">4.10 Personal Eventing Protocol<a class="anchor-link" href="#pep"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">A user's PEP data (as defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0163.html">Personal Eventing Protocol (XEP-0163)</a></span>  [<a href="#nt-idm178">7</a>]) SHOULD be included if known.</p>
+
+    <p class="" style="">Node configuration and the actual node data are encapsulated separately, as described below. A typical export that contains both node configuration and the actual data contained within the node, will include two &lt;pubsub/&gt; elements (qualified by different namespaces).</p>
+
+    <p class="" style="">Many server implementations include support for additional pubsub features from <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm184">8</a>] beyond those required by XEP-0163. This specification aims to preserve this additional data also, when it is present and supported by both servers.</p>
+
+    <div class="indent"><h4 id="pep-config">4.10.1 PEP node configuration<a class="anchor-link" href="#pep-config"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">Within the &lt;user/&gt; element there should be a single &lt;pubsub/&gt; element qualified by the 'http://jabber.org/protocol/pubsub#owner' namespace (note the '#owner' suffix). Within this element, there MUST be one &lt;configure/&gt; element for each exported node, with the node's name in the 'node' attribute. There MAY be additional elements included, at most one per node of each kind: &lt;subscriptions/&gt; and &lt;affiliations&gt;, following the syntax defined in XEP-0060.</p>
+
+      <p class="" style="">The format of the &lt;configure/&gt; is a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0004.html">Data Forms (XEP-0004)</a></span>  [<a href="#nt-idm191">9</a>] data form, typically containing the fields documented in XEP-0060, encoding the configuration of the named node.</p>
+
+      <p class="" style="">As a general rule, importers SHOULD ignore node configuration options that the target server implementation doesn't recognise, to allow porting data between different implementations even in the presence of custom extensions. Exceptions to this requirement may be made for imports that are expected to be lossless, for example if the user has specifically requested a lossless import, or if the importer recognises certain configuration fields as critical to protect the node's security or integrity.</p>
+    </div>
+
+    <div class="indent"><h4 id="pep-items">4.10.2 PEP node items<a class="anchor-link" href="#pep-items"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">Within the &lt;user/&gt; element there should be a single &lt;pubsub/&gt; element qualified by the 'http://jabber.org/protocol/pubsub' namespace (note the lack of any suffix). Within this element, there MUST be one &lt;items/&gt; element for each exported node, with the node's name in the 'node' attribute.</p>
+
+      <p class="" style="">Any node listed in this element MUST have a corresponding configuration included as described in the previous section.</p>
+
+      <p class="" style="">Each &lt;items&gt; element MUST contain zero or more &lt;item/&gt; elements as defined by XEP-0060.</p>
+    </div>
+
+    <p class="" style="">This example demonstrates an export for a user who has two nodes: a private bookmarks node with two bookmarks, and a public nickname node containing a single item.</p>
+
+    <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Romeo's exported PEP data<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;server-data xmlns='urn:xmpp:pie:0'&gt;
+  &lt;host jid='capulet.com'&gt;
+    &lt;user name='romeo'&gt;
+      &lt;pubsub xmlns='http://jabber.org/protocol/pubsub#owner'&gt;
+        &lt;configure node='urn:xmpp:bookmarks:1'&gt;
+          &lt;x xmlns='jabber:x:data' type='form'&gt;
+            &lt;field var='FORM_TYPE' type='hidden'&gt;
+              &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+            &lt;/field&gt;
+            &lt;field var='pubsub#access_model'&gt;
+              &lt;value&gt;whitelist&lt;/value&gt;
+            &lt;/field&gt;
+          &lt;/x&gt;
+        &lt;/configure&gt;
+        &lt;affiliations node='urn:xmpp:bookmarks:1'&gt;
+          &lt;affiliation jid='mercutio@example.net' affiliation='member'/&gt;
+        &lt;/affiliations&gt;
+        &lt;subscriptions node='urn:xmpp:bookmarks:1'&gt;
+          &lt;subscription jid='mercutio@example.net' subscription='subscribed' subid='123-abc'/&gt;
+        &lt;/subscriptions&gt;
+        &lt;configure node='http://jabber.org/protocol/nick'&gt;
+          &lt;x xmlns='jabber:x:data' type='form'&gt;
+            &lt;field var='FORM_TYPE' type='hidden'&gt;
+              &lt;value&gt;http://jabber.org/protocol/pubsub#node_config&lt;/value&gt;
+            &lt;/field&gt;
+            &lt;field var='pubsub#access_model'&gt;
+              &lt;value&gt;open&lt;/value&gt;
+            &lt;/field&gt;
+          &lt;/x&gt;
+        &lt;/configure&gt;
+      &lt;/pubsub&gt;
+      &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+        &lt;items node='urn:xmpp:bookmarks:1'&gt;
+          &lt;item id='theplay@conference.shakespeare.lit'&gt;
+            &lt;conference xmlns='urn:xmpp:bookmarks:1'
+                      name='The Play&amp;apos;s the Thing'
+                      autojoin='true'&gt;
+              &lt;nick&gt;Romeo&lt;/nick&gt;
+            &lt;/conference&gt;
+          &lt;/item&gt;
+          &lt;item id='orchard@conference.shakespeare.lit'&gt;
+            &lt;conference xmlns='urn:xmpp:bookmarks:1'
+                      name='The Orchard'
+                      autojoin='1'&gt;
+              &lt;nick&gt;Romeo&lt;/nick&gt;
+            &lt;/conference&gt;
+          &lt;/item&gt;
+        &lt;/items&gt;
+        &lt;items node='http://jabber.org/protocol/nick'&gt;
+          &lt;item id='current'&gt;
+            &lt;nick xmlns='http://jabber.org/protocol/nick'&gt;Romy&lt;/nick&gt;
+          &lt;/item&gt;
+        &lt;/items&gt;
+      &lt;/pubsub&gt;
+    &lt;/user&gt;
+  &lt;/host&gt;
+&lt;/server-data&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="archive">4.11 Message Archive<a class="anchor-link" href="#archive"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">A user's <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-idm204">10</a>] message archive MAY be included in an export. If included, they MUST be formatted as a series of XEP-0313 &lt;result/&gt; elements within an &lt;archive/&gt; element qualified by the 'urn:xmpp:pie:0#mam' namespace. The result elements MUST be in chronological order (from oldest to newest).</p>
+
+    <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> Juliet's exported message archive<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;server-data xmlns='urn:xmpp:pie:0'&gt;
+  &lt;host jid='capulet.com'&gt;
+    &lt;user name='juliet'&gt;
+      &lt;archive xmlns='urn:xmpp:pie:0#mam'&gt;
+        &lt;result xmlns='urn:xmpp:mam:2' id='28482-98726-73623'&gt;
+            &lt;forwarded xmlns='urn:xmpp:forward:0'&gt;
+              &lt;delay xmlns='urn:xmpp:delay' stamp='2010-07-10T23:08:25Z'/&gt;
+              &lt;message xmlns='jabber:client'
+                to='juliet@capulet.lit/balcony'
+                from='romeo@montague.lit/orchard'
+                type='chat'&gt;
+                &lt;body&gt;Call me but love, and I'll be new baptized; Henceforth I never will be Romeo.&lt;/body&gt;
+              &lt;/message&gt;
+            &lt;/forwarded&gt;
+          &lt;/result&gt;
+          &lt;result xmlns='urn:xmpp:mam:2' id='5d398-28273-f7382'&gt;
+            &lt;forwarded xmlns='urn:xmpp:forward:0'&gt;
+              &lt;delay xmlns='urn:xmpp:delay' stamp='2010-07-10T23:09:32Z'/&gt;
+              &lt;message xmlns='jabber:client'
+                 to='romeo@montague.lit/orchard'
+                 from='juliet@capulet.lit/balcony'
+                 type='chat' id='8a54s'&gt;
+                &lt;body&gt;What man art thou that thus bescreen'd in night so stumblest on my counsel?&lt;/body&gt;
+              &lt;/message&gt;
+            &lt;/forwarded&gt;
+          &lt;/result&gt;
+      &lt;/archive&gt;
+    &lt;/user&gt;
+  &lt;/host&gt;
+&lt;/server-data&gt;
+</pre></figure>
+
+  </div>
+<h2 id="xinclude">5.
+       Use of XInclude<a class="anchor-link" href="#xinclude"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+  <p class="" style="">An exporting server may split the data in several files by using the XInclude &lt;include/&gt; element. An importing server MUST support &lt;include/&gt; elements having an 'href' attribute containing a relative URI, having no 'parse' attribute, and having no 'xpointer' attribute; it MAY support other kinds of &lt;include/&gt; elements. An exporting server SHOULD NOT include and an importing server SHOULD NOT process &lt;include/&gt; elements which are descendants, but not children of the &lt;user/&gt; element (since these may be part of user data).</p>
+
+  <div class="indent"><h3 id="xinclude-layout">5.1 File and Directory Layout<a class="anchor-link" href="#xinclude-layout"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If an exporting server chooses to split the data into several files, it SHOULD use the following scheme:</p>
+
+    <p class="" style="">The main file contains the &lt;server-data/&gt; element, which contains nothing but one &lt;include/&gt; element for each host.  The file included for a certain host is placed in the same directory as the main file, and is named by appending ".xml" to the JID of the host, e.g. "capulet.com.xml".</p>
+
+    <figure class="code-example" id="example-13"><figcaption><strong>Example 13.</strong> The main file, which includes host files<a class="anchor-link" href="#example-13"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;server-data xmlns='urn:xmpp:pie:0'
+             xmlns:xi='http://www.w3.org/2001/XInclude'&gt;
+  &lt;xi:include href='capulet.com.xml'/&gt;
+  &lt;xi:include href='montague.net.xml'/&gt;
+&lt;/server-data&gt;
+</pre></figure>
+
+    <p class="" style="">Each host file contains a &lt;host/&gt; element, which contains nothing but one &lt;include/&gt; element for each user of the host.  The file included for a certain user is placed in a subdirectory whose name is the JID of the host, and is named by appending ".xml" to the node part of the user's JID, e.g. "capulet.com/juliet.xml".</p>
+
+    <figure class="code-example" id="example-14"><figcaption><strong>Example 14.</strong> The host file, which includes user files<a class="anchor-link" href="#example-14"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;host xmlns='urn:xmpp:pie:0'
+      xmlns:xi='http://www.w3.org/2001/XInclude'
+      jid='capulet.com'&gt;
+  &lt;xi:include href='capulet.com/juliet.xml'/&gt;
+  &lt;xi:include href='capulet.com/mercutio.xml'/&gt;
+&lt;/host&gt;
+</pre></figure>
+
+    <p class="" style="">Each user file contains a &lt;user/&gt; element, and includes all data relating to that user.</p>
+
+    <figure class="code-example" id="example-15"><figcaption><strong>Example 15.</strong> The user file<a class="anchor-link" href="#example-15"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;user xmlns='urn:xmpp:pie:0'
+      name='juliet'&gt;
+  &lt;query xmlns='jabber:iq:roster'&gt;
+    &lt;item jid='romeo@montague.net'
+	  name='Romeo'
+	  subscription='both'&gt;
+      &lt;group&gt;Friends&lt;/group&gt;
+    &lt;/item&gt;
+  &lt;/query&gt;
+  &lt;vCard xmlns='vcard-temp'&gt;
+    &lt;FN&gt;Juliet Capulet&lt;/FN&gt;
+  &lt;/vCard&gt;
+  &lt;offline-messages&gt;
+    &lt;message xmlns='jabber:client'
+	     from='romeo@montague.net/orchard'
+	     to='juliet@capulet.com/balcony'
+	     type='chat'&gt;
+      &lt;body&gt;Neither, fair saint, if either thee dislike.&lt;/body&gt;
+      &lt;delay xmlns='urn:xmpp:delay'
+	     from='capulet.com'
+	     stamp='1469-07-21T00:32:29Z'&gt;
+	Offline Storage
+      &lt;/delay&gt;
+    &lt;/message&gt;
+  &lt;/offline-messages&gt;
+&lt;/user&gt;
+
+    </pre></figure>
+
+    <p class="" style="">The definition of JIDs ensures that this generates valid file names on traditional Unix-like file systems, except for possible length constraints.  However, various constraints may force an exporting server to alter this scheme.  In any case, the importing server MUST NOT rely on this layout, but MUST do proper XInclude processing.</p>
+
+  </div>
+
+<h2 id="security">6.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Exported data files are to be handled with care, since they contain data that users expect to be protected, in particular passwords. An exporting server SHOULD make sure that the generated file is not accessible to unauthorized persons, e.g. by enforcing strict file permissions. It may also apply suitable encryption before storing or transmitting the data.</p>
+  <p class="" style="">XInclude &lt;include/&gt; elements which are indirect descendants of the &lt;user/&gt; element SHOULD be treated as opaque user data, and SHOULD NOT be processed.</p>
+<h2 id="iana">7.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm225">11</a>].</p>
+<h2 id="registrar">8.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="registrar-ns">8.1 Protocol Namespaces<a class="anchor-link" href="#registrar-ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:pie:0</li>
+    </ul>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm235">12</a>] includes the foregoing namespace in its registry at &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idm240">13</a>].</p>
+  </div>
+  <div class="indent"><h3 id="registrar-versioning">8.2 Protocol Versioning<a class="anchor-link" href="#registrar-versioning"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+<h2 id="schema">9.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='urn:xmpp:pie:0'
+    xmlns='urn:xmpp:pie:0'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-0227: http://xmpp.org/extensions/xep-0227.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name='server-data'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element ref='host' maxOccurs='unbounded'/&gt;
+        &lt;xs:any namespace='##other' minOccurs='0' maxOccurs='unbounded'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='host'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+	&lt;xs:element ref='user' maxOccurs='unbounded'/&gt;
+	&lt;xs:any namespace='##other' minOccurs='0' maxOccurs='unbounded'/&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name='jid' type='xs:string' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='user'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+	&lt;xs:element ref='offline-messages' minOccurs='0' maxOccurs='1'/&gt;
+	&lt;xs:any namespace='##other' minOccurs='0' maxOccurs='unbounded'/&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name='name' type='xs:string' use='required'/&gt;
+      &lt;xs:attribute name='password' type='xs:string' use='optional'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='offline-messages'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+	&lt;xs:any namespace='##other' minOccurs='0' maxOccurs='unbounded'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+&lt;/xs:schema&gt;
+</pre></figure>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0227</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Draft">Draft</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>1.1</dd><dt>Last Updated</dt><dd>2021-06-02</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP IM, XEP-0049, XEP-0054</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>pie</dd><dt>Schema</dt><dd>
+        &lt;<a href="http://xmpp.org/schemas/pie.xsd">http://xmpp.org/schemas/pie.xsd</a>&gt;<br></dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0227.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0227.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0227.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Magnus Henoch</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:henoch@dtek.chalmers.se">henoch@dtek.chalmers.se</a></dd><dt>JabberID</dt><dd><a href="xmpp:legoscia@jabber.cd.chalmers.se">legoscia@jabber.cd.chalmers.se</a></dd></dl><h5>Waqas Hussain</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:waqas20@gmail.com">waqas20@gmail.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:waqas@jaim.at">waqas@jaim.at</a></dd></dl><h5>Matthew Wild</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:mwild1@gmail.com">mwild1@gmail.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:me@matthewwild.co.uk">me@matthewwild.co.uk</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/about/discuss.shtml">https://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm91">1</a>. XML Inclusions (XInclude) 1.0 &lt;<a href="http://www.w3.org/TR/xinclude/">http://www.w3.org/TR/xinclude/</a>&gt;.</p><p><a name="nt-idm128">2</a>. RFC 5802: Salted Challenge Response Authentication Mechanism (SCRAM) SASL and GSS-API Mechanisms &lt;<a href="http://tools.ietf.org/html/rfc5802">http://tools.ietf.org/html/rfc5802</a>&gt;.</p><p><a name="nt-idm144">3</a>. RFC 6121: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc6121">http://tools.ietf.org/html/rfc6121</a>&gt;.</p><p><a name="nt-idm154">4</a>. XEP-0049: Private XML Storage &lt;<a href="https://xmpp.org/extensions/xep-0049.html">https://xmpp.org/extensions/xep-0049.html</a>&gt;.</p><p><a name="nt-idm161">5</a>. XEP-0054: vcard-temp &lt;<a href="https://xmpp.org/extensions/xep-0054.html">https://xmpp.org/extensions/xep-0054.html</a>&gt;.</p><p><a name="nt-idm168">6</a>. XEP-0016: Privacy Lists &lt;<a href="https://xmpp.org/extensions/xep-0016.html">https://xmpp.org/extensions/xep-0016.html</a>&gt;.</p><p><a name="nt-idm178">7</a>. XEP-0163: Personal Eventing Protocol &lt;<a href="https://xmpp.org/extensions/xep-0163.html">https://xmpp.org/extensions/xep-0163.html</a>&gt;.</p><p><a name="nt-idm184">8</a>. XEP-0060: Publish-Subscribe &lt;<a href="https://xmpp.org/extensions/xep-0060.html">https://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-idm191">9</a>. XEP-0004: Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0004.html">https://xmpp.org/extensions/xep-0004.html</a>&gt;.</p><p><a name="nt-idm204">10</a>. XEP-0313: Message Archive Management &lt;<a href="https://xmpp.org/extensions/xep-0313.html">https://xmpp.org/extensions/xep-0313.html</a>&gt;.</p><p><a name="nt-idm225">11</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm235">12</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idm240">13</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v1.1"><div class="revision-head">Version 1.1 (2021-06-02)<a class="anchor-link" href="#revision-history-v1.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Discourage use of 'password', provide a way to include SCRAM credentials, PEP nodes and message archives.</p><div class="revision-author">mw</div></li><li id="revision-history-v1.0"><div class="revision-head">Version 1.0 (2010-03-12)<a class="anchor-link" href="#revision-history-v1.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Per a vote of the XMPP Council, advanced specification from Experimental to Draft; simultaneously the XMPP Registrar issued a namespace of "urn:xmpp:pie:0".</p><div class="revision-author">psa</div></li><li id="revision-history-v0.3"><div class="revision-head">Version 0.3 (2009-10-16)<a class="anchor-link" href="#revision-history-v0.3"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Modified to include feedback received during the initial Last Call. Added sections for privacy lists and incoming subscriptions, as well as text on XInclude security.</p><div class="revision-author">wh</div></li><li id="revision-history-v0.2"><div class="revision-head">Version 0.2 (2007-12-13)<a class="anchor-link" href="#revision-history-v0.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Use XInclude.</p><div class="revision-author">mh</div></li><li id="revision-history-v0.1"><div class="revision-head">Version 0.1 (2007-08-08)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial published version.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version 0.0.1 (2007-07-27)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial version.</p><div class="revision-author">mh</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{henoch2007pie,
+  title = {Portable Import/Export Format for XMPP-IM Servers},
+  author = {Henoch, Magnus and Hussain, Waqas and Wild, Matthew},
+  type = {XEP},
+  number = {0227},
+  version = {1.1},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0227.html},
+  date = {2007-07-27/2021-06-02},
+}</pre><p>END</p></body></html>
