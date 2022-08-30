@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0356: Privileged Entity</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0356";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0"><meta name="DC.Title" content="Privileged Entity"><meta name="DC.Creator" content="Jérôme Poisson"><meta name="DC.Description" content="This specification provides a way for XMPP entities to have a privileged access to some other entities data"><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2022-04-01"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0356"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0356: Privileged Entity</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification provides a way for XMPP entities to have a privileged access to some other entities data</dd><dt>Author</dt><dd>Jérôme Poisson</dd><dt>Copyright</dt><dd>© 1999 – 2021 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.4 (2022-04-01)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#access_roster">Accessing Roster</a><ol><li><a href="#server_roster">Server Allows Roster Access</a></li><li><a href="#advertise_roster">Server Advertises Entity Of Allowed Permission</a></li><li><a href="#priv_manage_roster">Privileged Entity Manage Roster</a></li><li><a href="#roster_pushes">Server Sends Roster Pushes</a></li></ol></li><li><a href="#message">Message Permission</a><ol><li><a href="#auth_mess">Authorizing Messages</a></li><li><a href="#advertise_mess">Advertising Permission</a></li><li><a href="#sending_mess">Sending Messages</a></li></ol></li><li><a href="#iq">IQ permission</a><ol><li><a href="#iq_stanzas">IQ Stanzas on Behalf of a Server User</a></li><li><a href="#advertise_iq">Avertising Permission</a></li><li><a href="#sending_iq">Sending IQ Stanzas</a></li></ol></li><li><a href="#presence">Presence Permission</a><ol><li><a href="#managed_ent_presence">Managed Entity Presence</a></li><li><a href="#advertise_managed_presence">Advertising Permission</a></li><li><a href="#server_send_presence">Server Send presence informations</a></li><li><a href="#roster_presence">Roster Presence</a></li><li><a href="#advertise_roster_presence">Advertising Permission</a></li><li><a href="#priv_rec_roster_presence">Privileged Entity Receive Roster Presences</a></li></ol></li><li><a href="#rules">Business Rules</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#ns">Protocol Namespaces</a></li><li><a href="#registrar-versioning">Protocol Versioning</a></li></ol></li><li><a href="#schema">XML Schema</a></li><li><a href="#acks">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">XMPP components are used for long through <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0114.html">Jabber Component Protocol (XEP-0114)</a></span>  [<a href="#nt-idm112">2</a>], but are quite limited: they have a restricted access to other entities data, similar to what a client can do. This is sufficient for components like gateways, but very limiting for more complex components like a PubSub service. The goal of this XEP is to allow a component or any entity to have a "privileged" status, and access some other entity data with the same privileges than the entity itself, that means manage an entity roster on its behalf, send &lt;message/&gt;, &lt;iq/&gt; or receive &lt;presence/&gt; stanzas in the name of the server.</p>
+    <p class="" style="">Privileged entities have numerous advantages, including:</p>
+        <ul class="" style="">
+            <li class="" style="">a step forward in decentralization: it is possible for an entity to do tasks which were before reserved to server itself. For example, a privileged pubsub component can offer access model based on publisher's roster</li>
+            <li class="" style="">better integration of components: a gateway can add items to an entity roster itself</li>
+            <li class="" style="">possibility to overpass a server limitation (typically: incomplete <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0163.html">Personal Eventing Protocol (XEP-0163)</a></span>  [<a href="#nt-idm121">3</a>] implementation)</li>
+            <li class="" style="">quick development cycle: developers can implement the components they need without waiting for a new server release</li>
+            <li class="" style="">server agnostic</li>
+        </ul>
+        <p class="" style="">Privileged entity has been created with the main goal to create an external, server agnostic, PEP  service. It is restricted to only a couple of features, see <a href="#acks">Acknowledgements section</a> for more details.</p>
+        <p class="" style="">This XEP is complementary to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0355.html">Namespace Delegation (XEP-0355)</a></span>  [<a href="#nt-idm130">4</a>] (and works in a similar way), although they can be used together or separately. To build something like an external PEP service, it is necessary to use both XEPs.</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">A privileged entity must be able to do what a PEP service can do and to access roster, so it must be able to (according to configuration):</p>
+        <ul class="" style="">
+            <li class="" style="">get and modify the roster of any entity managed by the server, and optionally get roster pushes</li>
+            <li class="" style="">send a &lt;message/&gt; stanza on behalf of the server</li>
+            <li class="" style="">send a &lt;iq/&gt; stanza on behalf of a server user</li>
+            <li class="" style="">access &lt;presence/&gt; informations for entities in a managed entity's roster (and for managed entity itself)</li>
+        </ul>
+    <p class="" style="">The privilege mechanism MUST be totally transparent for the managed entities.</p>
+<h2 id="glossary">3.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <ul class="" style="">
+    <li class="" style=""><strong>Privileged entity</strong> — the entity which has a privileged status.</li>
+    <li class="" style=""><strong>Managed entity</strong> — the entity that is managed by a privileged entity.</li>
+  </ul>
+<h2 id="access_roster">4.
+       Accessing Roster<a class="anchor-link" href="#access_roster"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+    <div class="indent"><h3 id="server_roster">4.1 Server Allows Roster Access<a class="anchor-link" href="#server_roster"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">Roster access is granted in the server configuration. Roster access can have 4 types:</p>
+            <ul class="" style="">
+                <li class="" style=""><strong>none</strong> — the entity is not allowed to access managed entity roster at all. This is usually the default value.</li>
+                <li class="" style=""><strong>get</strong> — the entity is allowed to send &lt;iq/&gt; stanzas of type <em>'get'</em> for the namespace 'jabber:iq:roster'.</li>
+                <li class="" style=""><strong>set</strong> — the entity is allowed to send &lt;iq/&gt; stanzas of type <em>'set'</em> for namespace 'jabber:iq:roster'.</li>
+                <li class="" style=""><strong>both</strong> — the entity is allowed to send &lt;iq/&gt; stanzas of type <em>'get'</em> and <em>'set'</em> for namespace 'jabber:iq:roster'.</li>
+            </ul>
+            <p class="" style="">Roster access MAY have an optional "push" argument which can be set to "true" or "false" and SHOULD default to "true" if roster permission access type is either "get" or "both", and to "false" otherwise.</p>
+
+            <p class="" style="">If set to "true", the server will send roster pushes as explained <a href="#roster_pushes">below.</a>. If set to "false", the server MUST NOT send roster pushes. The "false" value is mostly there to save resources if the managing entity knows that it doesn't need to be notified of roster updates. Roster pushes MUST NOT be sent if roster permission type is either "none" or "set".</p>
+    </div>
+
+    <div class="indent"><h3 id="advertise_roster">4.2 Server Advertises Entity Of Allowed Permission<a class="anchor-link" href="#advertise_roster"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">Once a privileged entity is authenticated and stream is started, the server send it a &lt;message/&gt; stanza with a &lt;privilege/&gt; elements which MUST have the namespace 'urn:xmpp:privilege:2'.</p>
+
+      <p class="" style="">This element contains &lt;perm/&gt; elements which MUST contain a 'access' attribute of the value "roster" and a 'type' attribute which must correspond to the type configured as specified in <a href="#server_roster">"Server Allows Roster Access" section</a>.</p>
+
+      <p class="" style="">The &lt;perm&gt; element MAY contain a 'push' attribute with a value of either "true" or "false" according to configuration. If the 'push' attribute is omitted, it defaults to "true" if "roster" permission is "get" or "both", otherwise it's set to "false". If 'push' is "true", roster pushes MUST be transmitted, if 'push' is "false" they MUST NOT be transmitted.</p>
+
+            <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Server Advertises Roster Privilege<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='capulet.net' to='pubub.capulet.lit' id='12345'&gt;
+  &lt;privilege xmlns='urn:xmpp:privilege:2'&gt;
+    &lt;perm access='roster' type='both' push='true'/&gt;
+  &lt;/privilege&gt;
+&lt;/message&gt;
+</pre></figure>
+<p class="" style="">Here <em>pubsub.capulet.lit</em> is allowed to do <em>get</em> and <em>set</em> operations on all entities managed by capulet.lit</p>
+    </div>
+
+    <div class="indent"><h3 id="priv_manage_roster">4.3 Privileged Entity Manage Roster<a class="anchor-link" href="#priv_manage_roster"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">Doing a <em>get</em> or <em>set</em> operation on the roster of a managed entity is done in the usual way (as described in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6121">RFC 6121</a></span>  [<a href="#nt-idm181">5</a>]  section 2), except that the 'to' attribute is set to the attribute of the managed entity. The server MUST check that the privileged entity has right to <em>get</em> or <em>set</em> the roster of managed entity, and MUST return a &lt;forbidden/&gt; error if it is not the case:</p>
+            <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Privileged Entity Get Managed Entity Roster<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq id='roster1'
+    from='pubsub.capulet.lit'
+    to='juliet@example.com'
+    type='get'
+    id='roster1'&gt;
+      &lt;query xmlns='jabber:iq:roster'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+        <p class="" style="">The server then answers normally, as it would have done to the managed entity:</p>
+        <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Server Answers To Privileged Entity<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq id='roster1'
+  from='juliet@example.com'
+  to='pubsub.capulet.net'
+  type='result'&gt;
+  &lt;query xmlns='jabber:iq:roster' ver='ver7'&gt;
+    &lt;item jid='nurse@example.com'/&gt;
+    &lt;item jid='romeo@example.net'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+    </div>
+
+    <div class="indent"><h3 id="roster_pushes">4.4 Server Sends Roster Pushes<a class="anchor-link" href="#roster_pushes"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+      <p class="" style="">If "push" attribute is unset or set to "true" and roster permission type is either "get" or "both", the server MUST send roster pushes when there is a newly created, updated or deleted roster item for roster of any managed entity. A roster push is built as explained in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6121">XMPP IM</a></span>  [<a href="#nt-idm181">5</a>] with a 'from' attribute explicitely set to the bare jid of the managed entity.</p>
+
+        <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Server Send Roster Push of Juliet to Privileged Entity<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq id='roster_push_1'
+  from='juliet@capulet.lit'
+  to='pubsub.capulet.lit'
+  type='set'&gt;
+  &lt;query xmlns='jabber:iq:roster'&gt;
+    &lt;item jid='nurse@example.com'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+    </div>
+
+<h2 id="message">5.
+       Message Permission<a class="anchor-link" href="#message"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <div class="indent"><h3 id="auth_mess">5.1 Authorizing Messages<a class="anchor-link" href="#auth_mess"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">In some cases, it can be desirable to send notifications (e.g. PEP service), so the privileged entity must be able to send &lt;message/&gt; stanzas. This is allowed in server configuration in the same way as for roster permission. The permission type can have the following values:</p>
+            <ul class="" style="">
+                <li class="" style=""><strong>none</strong> — the entity is not allowed to send &lt;message/&gt; stanza in the name of the server. This is usually the default value.</li>
+                <li class="" style=""><strong>outgoing</strong> — the entity is allowed to send &lt;message/&gt; stanzas in the name of the server, according to following restrictions.</li>
+            </ul>
+            <p class="" style="">A privileged entity can then send message on the behalf either of the server or of a bare JID of an entity managed by the server (i.e. a bare jid with the same domain as the server), using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0297.html">Stanza Forwarding (XEP-0297)</a></span>  [<a href="#nt-idm206">6</a>]. The &lt;forwarded/&gt; element MUST be a child of a &lt;privilege/&gt; element with a namespace of <em>'urn:xmpp:privilege:2'</em>, with the following restriction:</p>
+        <ol start="" class="" style="">
+            <li class="" style="">forwarded &lt;message/&gt; 'from' attribute MUST be a bare JID from the server, no resource is allowed</li>
+        </ol>
+        <p class="" style="">If this rule is violated, the server MUST return a &lt;message/&gt; error with condition  &lt;forbidden/&gt;, as in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm214">7</a>] section 8.3.3.4.</p>
+    </div>
+
+    <div class="indent"><h3 id="advertise_mess">5.2 Advertising Permission<a class="anchor-link" href="#advertise_mess"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">Server advertises "message" permission in the same way as for "roster" permission, except that 'access' attribute has the value of "message", and the 'type' attribute as a value of 'outgoing':</p>
+        <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Server Advertises Roster And Message Privileges<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='capulet.net' to='pubub.capulet.lit' id='54321'&gt;
+    &lt;privilege xmlns='urn:xmpp:privilege:2'&gt;
+        &lt;perm access='roster' type='both' push='true'/&gt;
+        &lt;perm access='message' type='outgoing'/&gt;
+    &lt;/privilege&gt;
+&lt;/message&gt;
+</pre></figure>
+    </div>
+
+    <div class="indent"><h3 id="sending_mess">5.3 Sending Messages<a class="anchor-link" href="#sending_mess"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">Now that <em>pubsub.capulet.lit</em> is allowed, it can send messages using &lt;forwarded/&gt; elements.</p>
+        <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> privileged entity send a notificaction message<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='pubsub.capulet.lit' to='capulet.lit' id='notif1'&gt;
+  &lt;privilege xmlns='urn:xmpp:privilege:2'&gt;
+    &lt;forwarded xmlns='urn:xmpp:forward:0'&gt;
+      &lt;message from='juliet@capulet.lit'
+        id='foo'
+        to='romeo@montague.lit/orchard'
+        xmlns='jabber:client'&gt;
+        &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+          &lt;items node='http://jabber.org/protocol/tune'&gt;
+            &lt;item&gt;
+              &lt;tune xmlns='http://jabber.org/protocol/tune'&gt;
+                &lt;artist&gt;Gerald Finzi&lt;/artist&gt;
+                &lt;length&gt;255&lt;/length&gt;
+                &lt;source&gt;Music for "Love's Labors Lost" (Suite for small orchestra)&lt;/source&gt;
+                &lt;title&gt;Introduction (Allegro vigoroso)&lt;/title&gt;
+                &lt;track&gt;1&lt;/track&gt;
+              &lt;/tune&gt;
+            &lt;/item&gt;
+          &lt;/items&gt;
+        &lt;/event&gt;
+        &lt;delay xmlns='urn:xmpp:delay' stamp='2014-11-25T14:34:32Z'/&gt;
+      &lt;/message&gt;
+    &lt;/forwarded&gt;
+  &lt;/privilege&gt;
+&lt;/message&gt;
+</pre></figure>
+        <p class="" style="">The server sees that forwarded message 'from' attribute (<em>juliet@capulet.lit</em>) is a bare JID of the server, and that outgoing message permission was granted; it can now send the notification:</p>
+        <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> server sends the notification as if it was originating from him<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='juliet@capulet.lit'
+  id='bar'
+  to='romeo@montague.lit/orchard'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='http://jabber.org/protocol/tune'&gt;
+      &lt;item&gt;
+        &lt;tune xmlns='http://jabber.org/protocol/tune'&gt;
+          &lt;artist&gt;Gerald Finzi&lt;/artist&gt;
+          &lt;length&gt;255&lt;/length&gt;
+          &lt;source&gt;Music for "Love's Labors Lost" (Suite for small orchestra)&lt;/source&gt;
+          &lt;title&gt;Introduction (Allegro vigoroso)&lt;/title&gt;
+          &lt;track&gt;1&lt;/track&gt;
+        &lt;/tune&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+  &lt;delay xmlns='urn:xmpp:delay' stamp='2014-11-25T14:34:32Z'/&gt;
+&lt;/message&gt;
+</pre></figure>
+    </div>
+<h2 id="iq">6.
+       IQ permission<a class="anchor-link" href="#iq"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+    <div class="indent"><h3 id="iq_stanzas">6.1 IQ Stanzas on Behalf of a Server User<a class="anchor-link" href="#iq_stanzas"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">It may be necessary for a component to send &lt;iq/&gt; stanzas on behalf of a server user. This is, for instance, the case for a pubsub component willing to implement <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0376.html">Pubsub Account Management (XEP-0376)</a></span>  [<a href="#nt-idm37">1</a>].</p>
+
+      <p class="" style="">To do this, an "iq" permission must be granted in server configuration.</p>
+        <p class="" style="">To grant an "iq" permission, authorised namespaces must be specified and associated to a value indicating the type of &lt;iq/&gt; request which are allowed. The value is similar to the roster access type, there are 4 values possible:</p>
+            <ul class="" style="">
+                <li class="" style=""><strong>none</strong> — the entity is not allowed to send &lt;iq/&gt; stanzas for this namespace.</li>
+                <li class="" style=""><strong>get</strong> — the entity is allowed to send &lt;iq/&gt; stanzas of type <em>'get'</em> for this namespace.</li>
+                <li class="" style=""><strong>set</strong> — the entity is allowed to send &lt;iq/&gt; stanzas of type <em>'set'</em> for this namespace.</li>
+                <li class="" style=""><strong>both</strong> — the entity is allowed to send &lt;iq/&gt; stanzas of type <em>'get'</em> and <em>'set'</em> for this namespace.</li>
+            </ul>
+    </div>
+
+    <div class="indent"><h3 id="advertise_iq">6.2 Avertising Permission<a class="anchor-link" href="#advertise_iq"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">Server adversites "iq" permission by using a &lt;perm&gt; element with an 'access' attribute of the value "iq" and wihout 'type' attribute. This element MAY contain any number of &lt;namespace&gt; elements with a 'ns' attribute of the value of the granted namespace, and a 'type' attribute with one of the value indicated in <a href="#iq_stanzas">previous section</a></p>
+      <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> Server Advertises IQ Privilege<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='capulet.net' to='pubub.capulet.lit' id='iq_perm_1'&gt;
+  &lt;privilege xmlns='urn:xmpp:privilege:2'&gt;
+    &lt;perm access='iq'&gt;
+      &lt;namespace ns='http://jabber.org/protocol/pubsub' type='set' /&gt;
+    &lt;/perm&gt;
+  &lt;/privilege&gt;
+&lt;/message&gt;
+        </pre></figure>
+      <p class="" style="">Here <em>pubsub.capulet.lit</em> is allowed to send &lt;iq/&gt; stanza of type <em>set</em> with the namespace 'http://jabber.org/protocol/pubsub' on behalf of any entity managed by capulet.lit</p>
+    </div>
+
+    <div class="indent"><h3 id="sending_iq">6.3 Sending IQ Stanzas<a class="anchor-link" href="#sending_iq"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">Sending an &lt;iq/&gt; stanza on behalf of a user is done by following those steps:</p>
+      <ul class="" style="">
+        <li class="" style="">generate the &lt;iq/&gt; stanza which much be sent on behalf of the user, we call it "encapsulated &lt;iq/&gt; stanza". The 'type' attribute and the namespace of the payload element must match the "iq" permission granted by the server. This &lt;iq/&gt; stanza MUST have a namespace of "jabber:client"</li>
+        <li class="" style="">the encapsulated &lt;iq/&gt; stanza MUST either have no 'from' attribute, or a 'from' attribute set to the bare jid of the entity on behalf of who the privileged entity is doing the request</li>
+        <li class="" style="">encapsulate the &lt;iq/&gt; request in a &lt;privileged_iq&gt; element with a namespace of 'urn:xmpp:privilege:2'</li>
+        <li class="" style="">use the &lt;privileged_iq&gt; element as payload of a top-level &lt;iq/&gt; request adressed to the bare JID of the managed entity</li>
+        <li class="" style="">use the same type for top-level &lt;iq/&gt; request as for the encapsulated &lt;iq/&gt; request</li>
+      </ul>
+
+      <p class="" style="">The server MUST refuse the request with a &lt;forbidden/&gt; error if any of the following condition happens:</p>
+      <ul class="" style="">
+        <li class="" style="">the 'to' attribute of the top-level &lt;iq/&gt; stanza is not a bare JID of a managed entity</li>
+        <li class="" style="">the requesting entity has not the permission granted for the namespace used in payload of the encapsulated &lt;iq/&gt; stanza</li>
+        <li class="" style="">the requesting entity has not the permission granted for the type of &lt;iq/&gt; request used in the encapsulated &lt;iq/&gt; stanza for the namespace used in its payload</li>
+        <li class="" style="">the namespace of the encapsulated &lt;iq/&gt; stanza is not "jabber:client"</li>
+        <li class="" style="">the 'from' attribute of the encapsulated &lt;iq/&gt; stanza exists and is set to a JID which doesn't match the 'to' attribute of the top-level &lt;iq/&gt; stanza.</li>
+        <li class="" style="">the 'type' attribute of the top-level &lt;iq/&gt; stanza does not match the 'type' attribute of the encapsulated &lt;iq/&gt; stanza</li>
+      </ul>
+      <p class="" style="">Once the server gets the &lt;iq/&gt; response, it sends it back to privileged entity using a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0297.html">Stanza Forwarding (XEP-0297)</a></span>  [<a href="#nt-idm206">6</a>] &lt;forward&gt; element encapsulated in a &lt;privilege&gt; element with a namespace of 'urn:xmpp'.</p>
+      <p class="" style="">In following example, the pubsub component <em>pubsub.capulet.lit</em> handles <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0376.html">Pubsub Account Management (XEP-0376)</a></span>  [<a href="#nt-idm37">1</a>]. After getting a pubsub subscribe request, from Juliet to subscribe to Romeo's blog, it forward it to Romeo's server:</p>
+      <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> Privileged Entity Send an &lt;iq/&gt; Stanza on Behalf of Juliet<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+      &lt;iq
+        from='pubsub.capulet.lit'
+        to='juliet@capulet.lit'
+        type='set'
+        id='priv_iq_1'&gt;
+      &lt;privileged_iq xmlns='urn:xmpp:privilege:2'&gt;
+        &lt;iq
+          xmlns='jabber:client'
+          type='set'
+          to='romeo@montaigu.lit'
+          id='sub_1'&gt;
+          &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+            &lt;subscribe
+              node='urn:xmpp:microblog:0'
+              jid='juliet@capulet.lit'/&gt;
+          &lt;/pubsub&gt;
+      &lt;/iq&gt;
+    &lt;/privileged_iq&gt;
+  &lt;/iq&gt;
+      </pre></figure>
+    <p class="" style="">When receiving this stanza, the server does a couple of things:</p>
+    <ul class="" style="">
+      <li class="" style="">It checks that top-level &lt;iq/&gt; stanza is addressed to the bare JID of a managed entity: it's the case for <em>juliet@capulet.lit</em>.</li>
+    	<li class="" style="">It decapsulate the encapsulated &lt;iq/&gt; stanza, check that it's namespace is 'jabber:client' and that its 'type' attribute has the same value as the top-level &lt;iq/&gt; stanza. It's "set" in both case, so it's good.</li>
+    	<li class="" style="">It gets the payload of the encapsulated &lt;iq/&gt; stanza, and checks that <em>pubsub.capulet.lit</em> is authorised to send priviled &lt;iq/&gt; for its namespace with the given &lt;iq/&gt; type. Here the payload has a namespace of 'http://jabber.org/protocol/pubsub' and the &lt;iq/&gt; a type of "set", this combination is authorised for <em>pubsub.capulet.lit</em>, it's good.</li>
+    	<li class="" style="">It checks that the encapsulated &lt;iq/&gt; stanza either has no 'from' attribute or has a 'from' attribute mathing the bare JID set in 'to' attribute of the top-level &lt;iq/&gt; stanza. Here no 'from' attribute is set, it's good.</li>
+      <li class="" style="">It sets the 'from' attribute of the encapsulated &lt;iq/&gt; stanza to same value as the 'to' attribute of the top-level &lt;iq/&gt; stanza (i.e. the bare JID of the managed entity).</li>
+    	<li class="" style="">Once everything is checked, it can then send the encapsulated &lt;iq/&gt; as if it were sent by Juliet herself (the only difference is that the 'from' attribute has no resource while it would have the resource of Juliet's client if she was sending it herself).</li>
+    </ul>
+
+    <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Server Send the Encapsulated &lt;iq/&gt; Stanza<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq
+  xmlns='jabber:client'
+  type='set'
+  from='juliet@capulet.lit'
+  to='romeo@montaigu.lit'
+  id='sub_1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;subscribe
+      node='urn:xmpp:microblog:0'
+      jid='juliet@capulet.lit'/&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></figure>
+
+    <p class="" style="">The server will then get the response with a type of either "result" or "error" as specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-idm214">7</a>]. It sends it back to <em>pubsub.capulet.lit</em> using a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0297.html">Stanza Forwarding (XEP-0297)</a></span>  [<a href="#nt-idm206">6</a>] &lt;forward&gt; element:</p>
+
+    <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Server Gets the &lt;iq/&gt; Response and Forward it to Privileged Entity<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    from='romeo@montaigu.lit'
+    to='juliet@capulet.lit'
+    id='sub_1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;subscription
+        node='urn:xmpp:microblog:0'
+        jid='juliet@capulet.lit'
+        subid='some_id'
+        subscription='subscribed'/&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+
+&lt;iq
+  type='result'
+  from='juliet@capulet.lit'
+  to='pubsub.capulet.lit'
+  id='priv_iq_1'&gt;
+  &lt;privilege xmlns="urn:xmpp:privilege:2"&gt;
+    &lt;forwarded xmlns='urn:xmpp:forward:0'&gt;
+      &lt;iq type='result'
+        from='romeo@montaigu.lit'
+        to='juliet@capulet.lit'
+        id='sub_1'&gt;
+        &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+          &lt;subscription
+            node='urn:xmpp:microblog:0'
+            jid='juliet@capulet.lit'
+            subid='some_id'
+            subscription='subscribed'/&gt;
+        &lt;/pubsub&gt;
+      &lt;/iq&gt;
+    &lt;/forwarded&gt;
+  &lt;/privilege&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+<p class="" style=""><em>pubsub.capulet.lit</em> has now subscribed to Romeo's blog on behalf of Juliet.</p>
+
+</div>
+<h2 id="presence">7.
+       Presence Permission<a class="anchor-link" href="#presence"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+    <div class="indent"><h3 id="managed_ent_presence">7.1 Managed Entity Presence<a class="anchor-link" href="#managed_ent_presence"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">It can be often desirable for a privileged entity to have presence information of the managed entities (e.g. to know when to send them notificiations). As privileges must be transparent for the managed entity, this presence has to be sent by the server without modifying managed entity roster.</p>
+        <p class="" style="">This is allowed in server configuration in the same way as for <em>roster</em> and <em>message</em> permissions. The "presence" type can have the following values:</p>
+            <ul class="" style="">
+                <li class="" style=""><strong>none</strong> — the entity is not allowed to access &lt;presence/&gt; informations at all. This is usually the default value.</li>
+                <li class="" style=""><strong>managed_entity</strong> — the entity is allowed to receive managed entity presence (see below).</li>
+                <li class="" style=""><strong>roster</strong> — the entity is allowed to receive presence informations of managed entity contacts, see <a href="#roster_presence">Roster Presence section</a>.</li>
+            </ul>
+            <p class="" style="">If the privilege is granted, the server MUST use a directed presence from the full jid of the managed entity, to the privileged entity, as specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6121">RFC 6121</a></span>  [<a href="#nt-idm181">5</a>] section 4.6, on the behalf of managed entity each time its presence information change.</p>
+            <p class="" style="">Only initial &lt;presence/&gt; stanzas and &lt;presence/&gt; stanzas with a 'type' attribute with the value "unavailable" are transmitted to the privileged entity, the server MUST NOT transmit any other &lt;presence/&gt; stanza.</p>
+    </div>
+
+    <div class="indent"><h3 id="advertise_managed_presence">7.2 Advertising Permission<a class="anchor-link" href="#advertise_managed_presence"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">Server advertises "presence" permission in the same way as for "roster" or "message" permissions, except that 'access' attribute has the value of "presence", and the 'type' attribute has a value of "managed_entity"</p>
+    </div>
+
+    <div class="indent"><h3 id="server_send_presence">7.3 Server Send presence informations<a class="anchor-link" href="#server_send_presence"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">Once the "presence" permission is granted, the server send presence informations:</p>
+<figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> Server Receives Initial &lt;presence/&gt; from Juliet<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence from='juliet@capulet.lit/balcony'
+  id='presence1'
+  xml:lang='en'&gt;
+  &lt;show&gt;chat&lt;/show&gt;
+  &lt;status&gt;Staying on the balcony&lt;/status&gt;
+&lt;/presence&gt;
+</pre></figure>
+
+<figure class="code-example" id="example-13"><figcaption><strong>Example 13.</strong> server redirects presence to privileged entity<a class="anchor-link" href="#example-13"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence from='juliet@capulet.lit/balcony'
+  to='pubsub.capulet.lit'
+  id='presence1'
+  xml:lang='en'&gt;
+  &lt;show&gt;chat&lt;/show&gt;
+  &lt;status&gt;Staying on the balcony&lt;/status&gt;
+&lt;/presence&gt;
+</pre></figure>
+
+    </div>
+
+    <div class="indent"><h3 id="roster_presence">7.4 Roster Presence<a class="anchor-link" href="#roster_presence"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">In addition to "<a href="#managed_ent_presence">managed entity presence</a>", a privileged entity may need to know when a contact in managed entity roster is online (for example, it's necessary for a PEP service because of the presence default access model).</p>
+        <p class="" style="">As for other permissions, the access is granted in server's configuration, but there is an additional restriction: the privileged entity MUST have read permission on roster namespace (i.e. 'type' attribute in allowed &lt;perm&gt; of access <em>roster</em> MUST have a value of either <strong>get</strong> or <strong>both</strong>).</p>
+        <p class="" style="">If the privilege is granted, the server MUST send to the privileged entity every presence information with no 'type' attribute or with a 'type' with a value of 'unavailable' that the privileged entity is receiving or would receive if it were available. It do it in the same way as for <a href="#managed_ent_presence">managing entity</a> by using directed &lt;presence/&gt; from the full jid of the entity from which presence information has changed, to the privileged entity. If the managed entity is unavailable but the privileged entity is available, the server MUST send &lt;presence/&gt; stanza to the later anyway.</p>
+        <p class="" style="">Having "roster" type for "presence" permission imply that you have also implicitly "managed_entity" type.</p><p class="" style="">The server MUST reject the permission if the privileged entity doesn't have read permission on roster namespace.</p>
+
+    <p class="" style="">Note: this permission should be given carefully, as it gives access to presence of potentially a lot of entities to the privileged entity (see <a href="#security">security considerations</a>).</p>
+    </div>
+
+    <div class="indent"><h3 id="advertise_roster_presence">7.5 Advertising Permission<a class="anchor-link" href="#advertise_roster_presence"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">Server advertises roster "presence" permission in the same way as for other permissions, except that the 'access' attribute has the value of "presence", and the 'type' attribute has a value of "roster"</p>
+        <figure class="code-example" id="example-14"><figcaption><strong>Example 14.</strong> Server Advertises Roster, Message, Managed Entity Presence and Roster Presence Privileges<a class="anchor-link" href="#example-14"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='capulet.net' to='pubub.capulet.lit' id='54321'&gt;
+  &lt;privilege xmlns='urn:xmpp:privilege:2'&gt;
+    &lt;perm access='roster' type='both' push='true'/&gt;
+    &lt;perm access='message' type='none'/&gt;
+    &lt;perm access='iq'&gt;
+      &lt;namespace ns='http://jabber.org/protocol/pubsub' type='set' /&gt;
+    &lt;/perm&gt;
+    &lt;perm access='presence' type='roster'/&gt;
+  &lt;/privilege&gt;
+&lt;/message&gt;
+</pre></figure>
+<p class="" style="">Note the presence of <em>roster</em> permission request.</p>
+    </div>
+
+    <div class="indent"><h3 id="priv_rec_roster_presence">7.6 Privileged Entity Receive Roster Presences<a class="anchor-link" href="#priv_rec_roster_presence"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+<figure class="code-example" id="example-15"><figcaption><strong>Example 15.</strong> server receives new presence from Romeo, which is in Juliet's roster<a class="anchor-link" href="#example-15"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence from='romeo@montaigu.lit/orchard'/&gt;
+</pre></figure>
+<figure class="code-example" id="example-16"><figcaption><strong>Example 16.</strong> server sends the presence as usually, but also to the privileged entity<a class="anchor-link" href="#example-16"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence from='romeo@montaigu.lit/orchard'
+          to='juliet@capulet.lit'/&gt;
+&lt;presence from='romeo@montaigu.lit/orchard'
+          to='pubsub.capulet.lit'/&gt;
+</pre></figure>
+</div>
+<h2 id="rules">8.
+       Business Rules<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <ol start="" class="" style="">
+        <li class="" style="">For "presence" access, if a privileged entity is connected after first &lt;presence/&gt; stanzas have been received, the server MUST send it all the &lt;presence/&gt; stanzas with no 'type' attribute it would have had if it was connected first (in other words: all the presences informations for connected entities it has access to).</li>
+        <li class="" style="">For "presence" access, if a privileged entity is supposed to received several time the same &lt;presence/&gt; stanza, the server SHOULD send it only once. For example: if <em>pubsub.capulet.lit</em> has a "presence" access with a "roster" type for <em>capulet.lit</em>, and <em>juliet@capulet.lit</em> and <em>nurse@capulet.it</em> both have <em>romeo@montague.lit</em> in their roster. When romeo is available, <em>pubsub.capulet.lit</em> shoud have its &lt;presence/&gt; stanza only once (instead of 2 times).</li>
+    </ol>
+<h2 id="security">9.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <ol start="" class="" style="">
+        <li class="" style="">Privileged entitiy has access to sensitive data, and can act as the server itself, permissions should be granted carefuly, only if you absolutely trust the entity.</li>
+        <li class="" style=""><a href="#roster_presence">Roster presence</a> is particulary sensitive, because presence informations of whole rosters are shared.</li>
+        <li class="" style=""><a href="#iq_stanzas">IQ permission</a> namespaces and types must be granted carefuly, as they allow component to act on behalf of any user of the server.</li>
+        <li class="" style="">Generaly, the server MUST NOT allow the privileged entity to do anything that the managed entity could not do.</li>
+    </ol>
+<h2 id="iana">10.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm377">8</a>].</p>
+<h2 id="registrar">11.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="ns">11.1 Protocol Namespaces<a class="anchor-link" href="#ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm384">9</a>] includes 'urn:xmpp:privilege:2' in its registry of protocol namespaces (see &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;).</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:privilege:2</li>
+    </ul>
+  </div>
+  <div class="indent"><h3 id="registrar-versioning">11.2 Protocol Versioning<a class="anchor-link" href="#registrar-versioning"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+<h2 id="schema">12.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+  xmlns:xs='http://www.w3.org/2001/XMLSchema'
+  targetNamespace='urn:xmpp:privilege:2'
+  xmlns='urn:xmpp:privilege:2'
+  elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='privilege'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:element name='perm'
+        maxOccurs='unbounded'&gt;
+        &lt;xs:complexType&gt;
+          &lt;xs:attribute name='access' use='required' type='xs:string'/&gt;
+          &lt;xs:simpleType base='xs:NMTOKEN'&gt;
+            &lt;xs:enumeration value='roster'/&gt;
+            &lt;xs:enumeration value='message'/&gt;
+            &lt;xs:enumeration value='presence'/&gt;
+          &lt;/xs:simpleType&gt;
+          &lt;xs:attribute name='type' use='optional'&gt;
+            &lt;xs:simpleType base='xs:NMTOKEN'&gt;
+              &lt;xs:enumeration value='none'/&gt;
+              &lt;xs:enumeration value='get'/&gt;
+              &lt;xs:enumeration value='set'/&gt;
+              &lt;xs:enumeration value='both'/&gt;
+              &lt;xs:enumeration value='outgoing'/&gt;
+              &lt;xs:enumeration value='managed_entity'/&gt;
+              &lt;xs:enumeration value='roster'/&gt;
+            &lt;/xs:simpleType&gt;
+          &lt;/xs:attribute&gt;
+          &lt;xs:attribute name='push' type='xs:boolean' use='optional' default='true' /&gt;
+          &lt;xs:element name='namespace'
+            maxOccurs='unbounded'
+            use='optional'&gt;
+            &lt;xs:complexType&gt;
+              &lt;xs:attribute name='ns' use='required' type='xs:string'/&gt;
+              &lt;xs:attribute name='type' use='required'&gt;
+                &lt;xs:simpleType base='xs:NMTOKEN'&gt;
+                  &lt;xs:enumeration value='none'/&gt;
+                  &lt;xs:enumeration value='get'/&gt;
+                  &lt;xs:enumeration value='set'/&gt;
+                  &lt;xs:enumeration value='both'/&gt;
+                &lt;/xs:simpleType&gt;
+              &lt;/xs:attribute&gt;
+            &lt;/xs:complexType&gt;
+          &lt;/xs:element&gt;
+        &lt;/xs:complexType&gt;
+      &lt;/xs:element&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='privileged_iq' /&gt;
+
+  &lt;/xs:schema&gt;
+</pre></figure>
+<h2 id="acks">13.
+       Acknowledgements<a class="anchor-link" href="#acks"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Thanks to Sergey Dobrov, Dave Cridland, Steven Lloyd Watkin, Lance Stout, Johannes Hund, Kurt Zeilenga and Kevin Smith for their feedbacks. Thanks to Adrien Cossa for his typos/style corrections.</p>
+  <p class="" style="">Privileged entity was initialy written to be a generic identity based access control (IBAC) which allows an entity to access sensitive data. After <a href="http://mail.jabber.org/pipermail/standards/2014-December/029378.html">a discussion on standard mailing list</a>, it has been decided to restrict the current XEP to immediate needs to build an external PEP service, and to implement separately an Attribute Based Access Control (ABAC) which is more modern, generic and flexible. This XEP is still interesting for being easy to implement and doing the job.</p>
+
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0356</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.4</dd><dt>Last Updated</dt><dd>2022-04-01</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>NOT_YET_ASSIGNED</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0356.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0356.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0356.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Jérôme Poisson</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:goffi@goffi.org">goffi@goffi.org</a></dd><dt>JabberID</dt><dd><a href="xmpp:goffi@jabber.fr">goffi@jabber.fr</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/about/discuss.shtml">https://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm37">1</a>. XEP-0376: Pubsub Account Management &lt;<a href="https://xmpp.org/extensions/xep-0376.html">https://xmpp.org/extensions/xep-0376.html</a>&gt;.</p><p><a name="nt-idm112">2</a>. XEP-0114: Jabber Component Protocol &lt;<a href="https://xmpp.org/extensions/xep-0114.html">https://xmpp.org/extensions/xep-0114.html</a>&gt;.</p><p><a name="nt-idm121">3</a>. XEP-0163: Personal Eventing Protocol &lt;<a href="https://xmpp.org/extensions/xep-0163.html">https://xmpp.org/extensions/xep-0163.html</a>&gt;.</p><p><a name="nt-idm130">4</a>. XEP-0355: Namespace Delegation &lt;<a href="https://xmpp.org/extensions/xep-0355.html">https://xmpp.org/extensions/xep-0355.html</a>&gt;.</p><p><a name="nt-idm181">5</a>. RFC 6121: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc6121">http://tools.ietf.org/html/rfc6121</a>&gt;.</p><p><a name="nt-idm206">6</a>. XEP-0297: Stanza Forwarding &lt;<a href="https://xmpp.org/extensions/xep-0297.html">https://xmpp.org/extensions/xep-0297.html</a>&gt;.</p><p><a name="nt-idm214">7</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm377">8</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm384">9</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.4"><div class="revision-head">Version 0.4 (2022-04-01)<a class="anchor-link" href="#revision-history-v0.4"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Add "iq" privilege (necessary to implement XEPs such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0376.html">Pubsub Account Management (XEP-0376)</a></span>  [<a href="#nt-idm37">1</a>]).</li>
+        <li class="" style="">Roster pushes are now transmitted to privileged entity with "roster" permission of "get" or "both". This can be disabled.</li>
+        <li class="" style="">Reformulate to specify than only initial stanza and "unavailable" &lt;presence/&gt; stanzas are transmitted with "presence" pemission.</li>
+        <li class="" style="">Namespace bump.</li>
+      </ul>
+    <div class="revision-author">jp</div></li><li id="revision-history-v0.3"><div class="revision-head">Version 0.3 (2017-09-11)<a class="anchor-link" href="#revision-history-v0.3"><abbr title="Link to this point in the document">¶</abbr></a></div>Defer due to lack of activity.<div class="revision-author">XEP Editor (jwi)</div></li><li id="revision-history-v0.2"><div class="revision-head">Version 0.2 (2015-03-23)<a class="anchor-link" href="#revision-history-v0.2"><abbr title="Link to this point in the document">¶</abbr></a></div>
+        <p class="" style="">Several updates according to feedbacks + review:</p>
+        <ul class="" style="">
+            <li class="" style="">added links to PEP and namespace delegation XEPs</li>
+            <li class="" style="">removed MUST for default values in configuration</li>
+            <li class="" style="">&lt;forwarded/&gt; element is now a child of a &lt;privilege/&gt; element</li>
+            <li class="" style="">&lt;perm/&gt; "namespace" attribute has been renamed to "access"</li>
+            <li class="" style="">"headline" type restriction for "message" privilege has been removed</li>
+            <li class="" style="">"message" permission violation now result in a "forbidden" message error</li>
+            <li class="" style="">for "presence" permission, only &lt;presence/&gt; stanza with no type or with a "unavailable" type are sent to privileged entity</li>
+            <li class="" style="">added specifitation for "presence" if a managed entity is unavailable and if a privileged entity is available after first &lt;presence/&gt; stanzas have been received</li>
+            <li class="" style="">added Business Rules section</li>
+            <li class="" style="">Updated namespace to reflect incompatible changes</li>
+        </ul>
+    <div class="revision-author">jp</div></li><li id="revision-history-v0.1"><div class="revision-head">Version 0.1 (2015-01-27)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial published version approved by the XMPP Council.</p><div class="revision-author">XEP Editor (mam)</div></li><li id="revision-history-v0.0.4"><div class="revision-head">Version 0.0.4 (2014-12-18)<a class="anchor-link" href="#revision-history-v0.0.4"><abbr title="Link to this point in the document">¶</abbr></a></div><ul class="" style="">
+                <li class="" style="">Big simplification and restriction following council's veto and standard@ discussions</li>
+                <li class="" style="">Configuration is now done only on server own configuration</li>
+                <li class="" style="">No more client mode</li>
+                <li class="" style="">Permissions are adverised using &lt;message/&gt;</li>
+                <li class="" style="">The only &lt;iq/&gt; privilege still available is jabber:iq:roster</li>
+            </ul>
+    <div class="revision-author">jp</div></li><li id="revision-history-v0.0.3"><div class="revision-head">Version 0.0.3 (2014-11-13)<a class="anchor-link" href="#revision-history-v0.0.3"><abbr title="Link to this point in the document">¶</abbr></a></div><ul class="" style="">
+                <li class="" style="">giving permission to manage this XEP namespace is forbidden</li>
+                <li class="" style="">Added configuration section; with well-defined command node</li>
+                <li class="" style="">better specification of persistent permissions</li>
+                <li class="" style="">fixed erroneous example (server returns bookmarks)</li>
+                <li class="" style="">added special permissions</li>
+                <li class="" style="">better specification of &lt;query/&gt; element</li>
+            </ul>
+    <div class="revision-author">jp</div></li><li id="revision-history-v0.0.2"><div class="revision-head">Version 0.0.2 (2014-09-17)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a></div><ul class="" style="">
+                <li class="" style="">changed for privileged entity</li>
+                <li class="" style="">fixes after feedbacks on standard mailing list</li>
+                <li class="" style="">completed missing required parts</li>
+            </ul>
+    <div class="revision-author">jp</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version 0.0.1 (2014-05-09)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">jp</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{poisson2014xep0356,
+  title = {Privileged Entity},
+  author = {Poisson, Jérôme},
+  type = {XEP},
+  number = {0356},
+  version = {0.4},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0356.html},
+  date = {2014-05-09/2022-04-01},
+}</pre><p>END</p></body></html>

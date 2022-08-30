@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0465: Pubsub Public Subscriptions</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0465";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0"><meta name="DC.Title" content="Pubsub Public Subscriptions"><meta name="DC.Creator" content="Jérôme Poisson"><meta name="DC.Description" content="This specification provides a way to make subscriptions to a node public"><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2022-07-25"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0465"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0465: Pubsub Public Subscriptions</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification provides a way to make subscriptions to a node public</dd><dt>Author</dt><dd>Jérôme Poisson</dd><dt>Copyright</dt><dd>© 1999 – 2021 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.1.1 (2022-07-25)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#usecases">Use Cases</a><ol><li><a href="#public_subscription">Public Subscription</a></li><li><a href="#retrieving_subs">Retrieving Public Subscriptions</a></li><li><a href="#retracting_public_subs">Retracting Public Subscriptions</a></li><li><a href="#retrieving_public_subscribers">Retrieving Public Subscribers to a node</a></li></ol></li><li><a href="#rules">Business Rules</a></li><li><a href="#disco">discovering support</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm51">1</a>] as its name states has a mechanism to subscribe to a node. Only the owner of the node can retrieve the list of subscribers</p>
+    <p class="" style="">It may be interesting for users to share publicly the nodes they have subscribed to, or who is subscribed to theirs: it's a quick way to discover center of interest of a user, or to discover new accounts/nodes related to a specific center of interest. This kind of feature is common in modern social networks and often named "following" and "followers". This XEP proposes a solution to implement this feature in XMPP while respecting privacy of users.</p>
+    <p class="" style="">There is currently a XEP partially covering this problem with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0330.html">Pubsub Subscription (XEP-0330)</a></span>  [<a href="#nt-idm57">2</a>]. This XEP has the advantage to be usable with a generic Pubsub service, but it has 2 flaws:</p>
+    <ul class="" style="">
+        <li class="" style="">it's only covering half of the problem: we get the pubsub nodes to which an entity is subscribed, but we don't know who is subscribed to a node</li>
+        <li class="" style="">clients need to keep the 'urn:xmpp:pubsub:subscription' node synchronized with subscriptions: if a subscription is removed from a node, it may stay present by mistake in 'urn:xmpp:pubsub:subscription' node.</li>
+    </ul>
+    <p class="" style="">This XEP fixes both issues.</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The design goal of this XEP are:</p>
+  <ul class="" style="">
+      <li class="" style="">let a user discover to which node an other user is publicly subscribed</li>
+      <li class="" style="">let a user discover who is publicly subscribed to a node</li>
+      <li class="" style="">take care of privacy: a user must declare a subscription public on purpose</li>
+      <li class="" style="">keep public subscription synchronized with nodes subscriptions</li>
+  </ul>
+  <p class="" style="">This XEP uses <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0376.html">Pubsub Account Management (XEP-0376)</a></span>  [<a href="#nt-idm73">3</a>] as only way to subscribe to a node and unsubscribe from a node, as it is necessary to keep track of subscriptions.</p>
+<h2 id="glossary">3.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">In this documentation, <strong>PAM service</strong> refers to a PEP service implementing <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0376.html">Pubsub Account Management (XEP-0376)</a></span>  [<a href="#nt-idm73">3</a>].</p>
+<h2 id="usecases">4.
+       Use Cases<a class="anchor-link" href="#usecases"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <div class="indent"><h3 id="public_subscription">4.1 Public Subscription<a class="anchor-link" href="#public_subscription"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">Romeo wants to subscribe to the blog of his cousin Benvolio and he wants to make it public, so other peoples can discover Benvolio blog more easily.</p>
+        <p class="" style="">He does that as usual by sending a subscription request as explained in <a href="https://xmpp.org/extensions/xep-0376.html#subs">XEP-0376 §Subscribing</a> but he adds a &lt;public&gt; element with the 'urn:xmpp:pps:0' namespace:</p>
+        <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Romeo Makes a Public Subscription to Benvolio Blog<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint"> 
+&lt;iq type='set' id='sub1'&gt;
+  &lt;pam xmln='urn:xmpp:pam:0' jid='benvolio@montague.lit'&gt;
+    &lt;subscribe xmlns='http://jabber.org/protocol/pubsub'
+        node='urn:xmpp:microblog:0'
+        jid='romeo@montague.lit'&gt;
+        &lt;public xmlns='urn:xmpp:pps:0'/&gt;
+    &lt;/subscribe&gt;
+  &lt;/pam&gt;
+&lt;/iq&gt;
+    </pre></figure>
+<p class="" style="">Romeo also wants to follow the blog of this girl that he met at the ball, however, he doesn't want yet to make it public for political reasons. He then does the subscription as usual and <strong>does not</strong> include the &lt;public&gt; element:</p>
+        <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Romeo Makes a Non Public Subscription to Juliet Blog<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint"> 
+&lt;iq type='set' id='sub2'&gt;
+  &lt;pam xmln='urn:xmpp:pam:0' jid='juliet@capulet.lit'&gt;
+    &lt;subscribe xmlns='http://jabber.org/protocol/pubsub'
+        node='urn:xmpp:microblog:0'
+        jid='romeo@montague.lit'/&gt;
+  &lt;/pam&gt;
+&lt;/iq&gt;
+    </pre></figure>
+    </div>
+
+    <div class="indent"><h3 id="retrieving_subs">4.2 Retrieving Public Subscriptions<a class="anchor-link" href="#retrieving_subs"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">Mercutio is a friend of Romeo and he wants to know which nodes Romeo is subscribed to, as it may be a way to discover new and interesting peoples. To do this, Romeo's PAM service manages a special node named 'urn:xmpp:pps:subscriptions:0'. This node is created and managed by the PAM service itself, it can be subscribed to and unsubscribed from as an usual PubSub node, and it contains an item for each public subscription that has been made by node owner (Romeo in our example). Each items payload is a &lt;subscription&gt; element with the 'urn:xmpp:pps:0' namespace containing a 'node' attribute with the name of the subscribed node, and a 'jid' attribute with the JID of the pubsub service containing the subscribed node.</p>
+
+        <p class="" style="">The node owner can't add or retract items directly on the node: if Romeo wants to add or public subscription, it does this by doing a public subscription as explained in <a href="public_subscription">Public Subscription</a>, and if he wants to retract a public subscription, he can do as explained in the <a href="#retracting_public_subs">next section</a>. <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0059.html">Result Set Management (XEP-0059)</a></span>  [<a href="#nt-idm98">4</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0442.html">Pubsub Message Archive Management (XEP-0442)</a></span>  [<a href="#nt-idm102">5</a>] apply normally if they are implemented.</p>
+
+        <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Mercutio Get Public Subscriptions of Romeo<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint"> 
+&lt;iq type='get'
+    from='mercutio@escalus.lit/play.456'
+    to='romeo@montague.lit'
+    id='get_pub_sub1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='urn:xmpp:pps:subscriptions:0'/&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></figure>
+        <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Romeo's PAM Service Replies With Public Subscriptions<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint"> 
+&lt;iq type='result'
+    from='romeo@montague.lit'
+    to='mercutio@escalus.lit/play.456'
+    id='get_pub_sub1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='urn:xmpp:pps:subscriptions:0'&gt;
+      &lt;item id='abcd'&gt;
+          &lt;subscription xmlns='urn:xmpp:pps:0' node='urn:xmpp:microblog:0' jid='benvolio@montague.lit' /&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></figure>
+    </div>
+
+    <div class="indent"><h3 id="retracting_public_subs">4.3 Retracting Public Subscriptions<a class="anchor-link" href="#retracting_public_subs"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">Romeo can retract a public subscription in 2 ways:</p>
+        <ul class="" style="">
+            <li class="" style="">by unsubscribing entirely from the node as explained in <a href="https://xmpp.org/extensions/xep-0376.html#unsub">XEP-0376 §Unsubscribing</a>. In this case the PAM service remove the node from public subscriptions (it won't appear anymore if somebody <a href="#retrieving_subs">retrieves subscriptions</a>) and unsubscribe from the node.</li>
+            <li class="" style="">by subscribing again to the node <strong>without</strong> the &lt;public&gt; element, as explained in <a href="XEP-0376%20%C2%A7Subscribing">https://xmpp.org/extensions/xep-0376.html#subs</a>. In this case the PAM service remove the node from public subscriptions, and forward the request to the pubsub service (so the pubsub service also knows that the subscription is not public anymore).</li>
+        </ul>
+    </div>
+
+    <div class="indent"><h3 id="retrieving_public_subscribers">4.4 Retrieving Public Subscribers to a node<a class="anchor-link" href="#retrieving_public_subscribers"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">If Mercutio wants to know who is publicly subscribing to Romeo's blog, he request the PAM Service by using a special node managed by the service in a similar way as 'urn:xmpp:pps:0' node from <a href="retrieving_subs">Retrieving Public Subscriptions section</a> (i.e. a node which can be subscribed to normally, but whose items can't be publised or retracted directly). This node is named by prefixing the name of the target node with 'urn:xmpp:pps:subscribers:0/'. So to check who is subscribed to Romeo's blog, Mercutio must request 'urn:xmpp:pps:subscribers:0/urn:xmpp:microblog:0' node. The service will answer with items whose payload is a &lt;subscriber&gt; element with the 'urn:xmpp:pps:0' namespace, and a 'jid' attribute whose value is the JID of the public subscriber:</p>
+        <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Mercutio Get Public Subscribers of Romeo's blog<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint"> 
+&lt;iq type='get'
+    from='mercutio@escalus.lit/play.456'
+    to='romeo@montague.lit'
+    id='get_pub_sub2'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+      &lt;items node='urn:xmpp:pps:subscribers:0/urn:xmpp:microblog:0'/&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></figure>
+        <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Romeo's PAM Service Replies With Public Subscribers<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint"> 
+&lt;iq type='result'
+    from='romeo@montague.lit'
+    to='mercutio@escalus.lit/play.456'
+    id='get_pub_sub2'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node=''urn:xmpp:pps:subscribers:0/urn:xmpp:microblog:0&gt;
+      &lt;item id='defg'&gt;
+          &lt;subscriber xmlns='urn:xmpp:pps:0' jid='benvolio@montague.lit' /&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+    </pre></figure>
+<p class="" style=""><strong>note:</strong>Public subscribers is not restricted to PAM service, if a generic pubsub service implements this XEP, it MUST also returns the public subscribers when the special node is requested.</p>
+    </div>
+
+<h2 id="rules">5.
+       Business Rules<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">If a user wants to create, purge or delete a special node used in this XEP, or if they want to manually publish or retract items, the service MUST return a &lt;forbidden/&gt; error to the user.</p>
+<h2 id="disco">6.
+       discovering support<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">If a PEP or Pubsub service supports the "Pubsub Public Subscriptions" protocol, it must advertize it by including the "urn:xmpp:pps:0" discovery feature (see <a href="#ns">Protocol Namespaces</a> regarding issuance of one or more permanent namespaces) in response to a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm129">6</a>] information request:</p>
+  <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> service discovery information request<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='example.org'
+    id='disco1'
+    to='example.com'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> service discovery information response<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='example.com'
+    id='disco1'
+    to='example.org'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    …
+    &lt;feature var='urn:xmpp:pps:0'/&gt;
+    …
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+<h2 id="security">7.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">Publishing publicly subscriptions of a user has pricacy implications: those public subscriptions may be used by someone to get a user interests or to know they network of contacts.</p>
+    <p class="" style="">It may be used by bad actors for many reasons like advertising, or it may even be life threating in some countries/situation as it may be used to known political opinion, religion, sexual orientation, etc. A client SHOULD make the subscription public only if there is no doubt that this is what the user wants, by using an opt-in system, and SHOULD display a well visible warning about the consequences of making a subscription public.</p>
+    <p class="" style="">By having subscription public, an entity JID can be checked or harvested by doing a request on the public subscriptions node. A client SHOULD display a warning clearly indicating that making subscriptions public makes its JID discoverable.</p>
+    <p class="" style="">For the same reason, a server SHOULD respond identically to a pubsub request to public subscriptions node if the user doesn't exist or if they exist but they don't have any public subscriptions.</p>
+<h2 id="iana">8.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="registrar">9.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="schema">10.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0465</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.1.1</dd><dt>Last Updated</dt><dd>2022-07-25</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, <a href="xep-0001.html">XEP-0001</a>, <a href="xep-0060.html">XEP-0060</a>, <a href="xep-0376.html">XEP-0376</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>pps</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0465.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0465.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0465.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Jérôme Poisson</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:goffi@goffi.org">goffi@goffi.org</a></dd><dt>JabberID</dt><dd><a href="xmpp:goffi@jabber.fr">goffi@jabber.fr</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/about/discuss.shtml">https://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm51">1</a>. XEP-0060: Publish-Subscribe &lt;<a href="https://xmpp.org/extensions/xep-0060.html">https://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-idm57">2</a>. XEP-0330: Pubsub Subscription &lt;<a href="https://xmpp.org/extensions/xep-0330.html">https://xmpp.org/extensions/xep-0330.html</a>&gt;.</p><p><a name="nt-idm73">3</a>. XEP-0376: Pubsub Account Management &lt;<a href="https://xmpp.org/extensions/xep-0376.html">https://xmpp.org/extensions/xep-0376.html</a>&gt;.</p><p><a name="nt-idm98">4</a>. XEP-0059: Result Set Management &lt;<a href="https://xmpp.org/extensions/xep-0059.html">https://xmpp.org/extensions/xep-0059.html</a>&gt;.</p><p><a name="nt-idm102">5</a>. XEP-0442: Pubsub Message Archive Management &lt;<a href="https://xmpp.org/extensions/xep-0442.html">https://xmpp.org/extensions/xep-0442.html</a>&gt;.</p><p><a name="nt-idm129">6</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.1.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0465-0.1.1.html">0.1.1</a> (2022-07-25)<a class="anchor-link" href="#revision-history-v0.1.1"><abbr title="Link to this point in the document">¶</abbr></a></div>Update Security Considerations according to council feedback.<div class="revision-author">Jérôme Poisson (jp)</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0465-0.1.0.html">0.1.0</a> (2022-05-17)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Accepted by vote of Council on 2022-04-13.<div class="revision-author">XEP Editor (jsc)</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0465-0.0.1.html">0.0.1</a> (2022-03-30)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">jp</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{poisson2022pps,
+  title = {Pubsub Public Subscriptions},
+  author = {Poisson, Jérôme},
+  type = {XEP},
+  number = {0465},
+  version = {0.1.1},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0465.html},
+  date = {2022-03-30/2022-07-25},
+}</pre><p>END</p></body></html>

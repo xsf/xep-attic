@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0463: MUC Affiliations Versioning</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0463";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0"><meta name="DC.Title" content="MUC Affiliations Versioning"><meta name="DC.Creator" content="Maxime Buquet"><meta name="DC.Creator" content="Marvin Wißfeld"><meta name="DC.Description" content="This specification provides a way to reduce the amount of queries necessary to stay up-to-date with affiliations in a MUC room."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2022-03-08"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0463"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0463: MUC Affiliations Versioning</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification provides a way to reduce the amount of queries necessary to stay up-to-date with affiliations in a MUC room.</dd><dt>Authors</dt><dd><ul class="authors"><li>Maxime Buquet</li><li>Marvin Wißfeld</li></ul></dd><dt>Copyright</dt><dd>© 1999 – 2021 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.1.0 (2022-03-08)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#disco">Discovering Support</a></li><li><a href="#usage">Usage Flow</a><ol><li><a href="#request">Client request</a></li><li><a href="#response">Server Response</a><ol><li><a href="#self">On Join</a></li><li><a href="#changes">Affiliation Changes</a></li><li><a href="#errors">Error Cases</a></li></ol></li></ol></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#design">Design Considerations</a></li><li><a href="#schema">XML Schema</a></li><li><a href="#registrar">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Affiliations are a way in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm49">1</a>] to handle permissions (ownership, membership, etc.). Currently, an observer gets the data in presence of online participants at the time of join, of new participants when they join, or when affiliation is changed. This observer has to send in one query per category (owner, admin, member, outcast) if they want to get a full view.</p>
+  <p class="" style="">Caching this data can be tricky, as any member removed when the observer is offline is not likely to be caught until the 4 queries are run again. Having multiple queries can also produce race conditions where an occupant is moved out of a group (e.g., owners) to another group (e.g., members) while an observer queries, and they end up not seeing this occupant at all, or twice, or not in the correct group.</p>
+  <p class="" style="">Affiliations have become more and more used lately, for example in so-called private groupchats, that is, a non-public, non-anonymous (visible JIDs), members-only room. Having to run all queries is particularly annoying in these private rooms where some implementations prefer to display all participants instead of online participants only, and where the affiliations list is used to know whom to encrypt to in an e2ee context.</p>
+  <p class="" style="">This specification sets a versioning mechanism in place, allowing an observer in a room to get the latest changes from a known version, and to reduce the amount of round-trips to handle affiliations.</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <ul class="" style="">
+    <li class="" style="">Reduce the number of round-trips necessary to get the list of affiliations.</li>
+    <li class="" style="">Allow an implementation to request a diff of affiliations since a known version.</li>
+  </ul>
+<h2 id="glossary">3.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><dl>
+    
+      <dt><strong>Full response</strong></dt>
+      <dd>A response including the complete affiliation list.</dd>
+    
+    
+      <dt><strong>Boostrap request</strong></dt>
+      <dd>A request asking for a full reponse.</dd>
+    
+  </dl></div>
+<h2 id="disco">4.
+       Discovering Support<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">A server implementing this specification MUST advertise the <code>urn:xmpp:muc:affiliations:0</code> as a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm71">2</a>] feature on the <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm49">1</a>] room JID itself.</p>
+<h2 id="usage">5.
+       Usage Flow<a class="anchor-link" href="#usage"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="request">5.1 Client request<a class="anchor-link" href="#request"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">When sending a join presence to a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm49">1</a>] room, a client may include a <code>since</code> attribute in the <code>urn:xmpp:muc:affiliations:0</code> namespace on the <code>&lt;x xmlns='http://jabber.org/protocol/muc'&gt;</code> element. This attribute, a unique and opaque string, indicates the last affiliation version sent by the server that the client has seen, and cached. Sending an empty <code>since</code> attribute is a called bootstrap request, which asks the server for a full response.</p>
+
+    <p class="" style="">This <code>since</code> attribute MUST NOT be broadcasted by the server to other participants. A room not stripping the attribute may disclose information about an occupant to other participants, even though this information is not intended for them.</p>
+
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Bootstrap request to get the full list.<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence to='news@chat.commons.example' from='louise@commons.example/desktop'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc'
+     xmlns:mav='urn:xmpp:muc:affiliations:0'
+     mav:since='' /&gt;
+&lt;/presence&gt;</pre></figure>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Request since specific version.<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence to='news@chat.commons.example' from='rosa@commons.example/toaster'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc'
+     xmlns:mav='urn:xmpp:muc:affiliations:0'
+     mav:since='9pacabr2q1' /&gt;
+&lt;/presence&gt;</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="response">5.2 Server Response<a class="anchor-link" href="#response"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <div class="indent"><h4 id="self">5.2.1 On Join<a class="anchor-link" href="#self"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">Returning the list of affiliation changes is done as a <code>&lt;message/&gt;</code> stanza inside the <code>&lt;x xmlns='http://jabber.org/protocol/muc#user'&gt;</code> element to which <code>since</code> and/or <code>until</code> attributes of namespace <code>urn:xmpp:muc:affiliations:0</code> MAY be added. Each affiliation is to be sent as an <code>&lt;item&gt;</code> element in the same namespace as its x parent, and MUST at least contain a <code>jid</code> attribute and an <code>affiliation</code> attribute, similarly to what is specified in <a href="https://xmpp.org/extensions/xep-0045.html#affil">MUC Affiliations</a>.</p>
+      <p class="" style="">The <code>since</code> attribute is used to reflect the version sent by the client and is the starting point of the diff that will be computed. The <code>until</code> attribute is the latest version the server has. When these attributes are present they MUST contain a valid version string (unique and opaque).</p>
+      <p class="" style="">The reponse MUST be sent during the join process before any <code>&lt;presence/&gt;</code> is sent to the joining user.</p>
+      <p class="" style="">If a client sends a version that the server doesn't know, (e.g., because it only stores the last N versions, or the client made a mistake), the response MUST be a full response, with the <code>since</code> attribute not present, and the <code>until</code> attribute filled with the latest version.</p>
+      <p class="" style="">If both attributes have the same value, meaning a client already has the latest version, the x element MUST be empty, only containing the two filled attributes.</p>
+      <p class="" style="">There can be no empty diff but there can be empty full reponses (no affiliations).</p>
+
+      <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Room full response for a version that it didn't know.<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='news@chat.commons.example'
+         to='louise@commons.example/desktop'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'
+     xmlns:mav='urn:xmpp:muc:affiliations:0'
+     mav:until='ruz41312vw'&gt;
+    &lt;item jid='louise@commons.example' affiliation='owner' /&gt;
+    &lt;item jid='peter@commons.example' affiliation='owner' /&gt;
+    &lt;item jid='rosa@commons.example' affiliation='owner' /&gt;
+  &lt;/x&gt;
+&lt;/message&gt;</pre></figure>
+      <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Room versioned response.<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='news@chat.commons.example'
+         to='louise@commons.example/desktop'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'
+     xmlns:mav='urn:xmpp:muc:affiliations:0'
+     mav:since='9pacabr2q1'
+     mav:until='ruz41312vw'&gt;
+    &lt;item jid='vladimir@commons.example' affiliation='none' /&gt;
+    &lt;item jid='rosa@commons.example' affiliation='owner' /&gt;
+  &lt;/x&gt;
+&lt;/message&gt;</pre></figure>
+      <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Room full response with no affiliation<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='news@chat.commons.example'
+         to='louise@commons.example/desktop'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'
+     xmlns:mav='urn:xmpp:muc:affiliations:0'
+     mav:until='ruz41312vw'/&gt;
+&lt;/message&gt;</pre></figure>
+    </div>
+
+    <div class="indent"><h4 id="changes">5.2.2 Affiliation Changes<a class="anchor-link" href="#changes"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">A new unique (to the room) version string MUST be generated for every affiliation change and included in the broadcast of this change.</p>
+      <p class="" style="">When broadcasting an affiliation change (as a &lt;presence/&gt; or &lt;message/&gt;), on the <code>&lt;x xmlns='http://jabber.org/protocol/muc#user'&gt;</code>, a MUC room MUST add the <code>since</code> attribute in the <code>urn:xmpp:muc:affiliations:0</code> namespace, containing the original version string (before the affiliation change), and the new version string (after the affiliation change) in the <code>until</code> attribute (of the same namespace).</p>
+    <p class="" style="">Affiliation changes broadcasted to room occupants as &lt;message/&gt; defined as a MAY in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm49">1</a>], for example in <a href="https://xmpp.org/extensions/xep-0045.html#grantowner">Granting Owner Status</a>, <a href="https://xmpp.org/extensions/xep-0045.html#grantadmin">Granting Admin Status</a>, or <a href="https://xmpp.org/extensions/xep-0045.html#revokeadmin">Revoking Admin Status</a>, MUST be supported by the MUC room when implementing this specification.</p>
+
+      <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Room broadcasts an affiliation change for a user not in the room.<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='news@chat.commons.example'
+         to='louise@commons.example/desktop'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'
+     xmlns:mav='urn:xmpp:muc:affiliations:0'
+     mav:since='9pacabr2q1'
+     mav:until='ruz41312vw'&gt;
+    &lt;item jid='peter@commons.example/mobile' affiliation='none' role='none'/&gt;
+  &lt;/x&gt;
+&lt;/message&gt;</pre></figure>
+    </div>
+
+    <div class="indent"><h4 id="errors">5.2.3 Error Cases<a class="anchor-link" href="#errors"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">Permissions are handled as with affiliation iq queries in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm49">1</a>], the same rules should be applied by the server when deciding who can use this protocol.</p>
+      <p class="" style="">Some notes regarding permissions can be find in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm49">1</a>], for example in <a href="https://xmpp.org/extensions/xep-0045.html#affil-priv">Affiliations</a>, or <a href="https://xmpp.org/extensions/xep-0045.html#modifymember">Modifying the member list</a>.</p>
+      <p class="" style="">An <code>auth forbidden</code> error MUST be returned in a <code>&lt;message/&gt;</code> stanza if an observer doesn't have the necessary permissions to request affiliations.</p>
+
+      <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> This observer isn't allowed to query affiliations in the room<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='news@chat.commons.example'
+         to='vladimir@commons.example/web'
+         id='foo' type='error'&gt;
+  &lt;error by='news@chat.commons.example' type='auth'&gt;
+    &lt;forbidden xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+  &lt;/error&gt;
+&lt;/message&gt;</pre></figure>
+    </div>
+  </div>
+<h2 id="security">6.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">An observer has to join the MUC room to use the protocol as the <code>since</code> element must be included in the join presence. This makes this specification less prone to vulnerabilities that may have happened with protocols such as MAM in the past (i.e., scraping information without being joined).</p>
+  <p class="" style="">A server should be careful not to disclose past affiliation states. If an observer requests a version of which they weren't a part of, a server MUST return an error as specified in <a href="#errors">Error Cases</a>.</p>
+  <p class="" style="">When caching server responses, a client should make sure to associate the received version string to the room JID and not have a global cache for affiliation versions to prevent any cache poisoning issues.</p>
+<h2 id="iana">7.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm160">3</a>].</p>
+<h2 id="registrar">8.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The XMPP Registrar includes the <code>urn:xmpp:muc:affiliations:0</code> namespace in its registry of protocol namespaces at <a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>.</p>
+<h2 id="design">9.
+       Design Considerations<a class="anchor-link" href="#design"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This specification is based on the design of roster versioning, with the difference of since and until attributes, to ensure clients stay in sync because unlike roster versioning this may be running over c2s, <strong>and</strong> s2s which may break.</p>
+  <p class="" style="">The <code>&lt;x xmlns='http://jabber.org/protocol/muc[#user]/&gt;</code> elements are not defined extensible in the <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-idm49">1</a>] specification, but as this is a negociated change there shouldn't be any issue.</p>
+  <p class="" style=""><strong>TODO? RSM.</strong> Pagination may have been useful for large rooms, when receiving a full response. Versioning will reduce the amount of bandwidth used for further queries though.</p>
+<h2 id="schema">10.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+  xmlns:xs='http://www.w3.org/2001/XMLSchema'
+  targetNamespace='urn:xmpp:muc:affiliations:0'
+  xmlns='urn:xmpp:muc:affiliations:0'
+  elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotations&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined
+      in XEP-xxxx: https://xmpp.org/extensions/xep-xxxx.html.
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotations&gt;
+
+  &lt;!-- TODO: How do I schematize standalone attributes? --&gt;
+  &lt;/xs:element&gt;
+&lt;/xs:schema&gt;</pre></figure>
+<h2 id="registrar">11.
+       Acknowledgements<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Thanks to Emmanuel Gil Peyrot and Matthew Wild for the valuable feedback.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0463</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.1.0</dd><dt>Last Updated</dt><dd>2022-03-08</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd><a href="xep-0030.html">XEP-0030</a>, <a href="xep-0045.html">XEP-0045</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>NOT_YET_ASSIGNED</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0463.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0463.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0463.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Maxime Buquet</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:pep@bouah.net">pep@bouah.net</a></dd><dt>JabberID</dt><dd><a href="xmpp:pep@bouah.net">pep@bouah.net</a></dd></dl><h5>Marvin Wißfeld</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:xmpp@larma.de">xmpp@larma.de</a></dd><dt>JabberID</dt><dd><a href="xmpp:jabber@larma.de">jabber@larma.de</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/about/discuss.shtml">https://xmpp.org/about/discuss.shtml</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm49">1</a>. XEP-0045: Multi-User Chat &lt;<a href="https://xmpp.org/extensions/xep-0045.html">https://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-idm71">2</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm160">3</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.1.0"><div class="revision-head">Version 0.1.0 (2022-03-08)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Accepted by vote of Council on 2022-02-16.<div class="revision-author">XEP Editor (jsc)</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version 0.0.1 (2022-02-12)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">pep</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{buquet2022xep0463,
+  title = {MUC Affiliations Versioning},
+  author = {Buquet, Maxime and Wißfeld, Marvin},
+  type = {XEP},
+  number = {0463},
+  version = {0.1.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0463.html},
+  date = {2022-02-12/2022-03-08},
+}</pre><p>END</p></body></html>
