@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0473: OpenPGP for XMPP Pubsub</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0473";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0"><meta name="DC.Title" content="OpenPGP for XMPP Pubsub"><meta name="DC.Creator" content="Jérôme Poisson"><meta name="DC.Description" content="Specifies an OpenPGP for XMPP (XEP-0373) profile for the pubsub use case."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2022-12-13"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0473"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0473: OpenPGP for XMPP Pubsub</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>Specifies an OpenPGP for XMPP (XEP-0373) profile for the pubsub use case.</dd><dt>Author</dt><dd>Jérôme Poisson</dd><dt>Copyright</dt><dd>© 1999 – 2021 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.1.0 (2022-12-13)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#overview">Overview</a></li><li><a href="#usecases">Use Cases</a><ol><li><a href="#encrypt">Encrypting Pubsub Item</a></li><li><a href="#transmit_secret">Transmit Shared Secret</a></li><li><a href="#revocation_rotation">Revocation and Shared Secret Rotation</a></li></ol></li><li><a href="#rules">Business Rules</a></li><li><a href="#impl">Implementation Notes</a></li><li><a href="#disco">Discovering Support</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#schema">XML Schema</a></li><li><a href="#acks">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm86">1</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0163.html">Personal Eventing Protocol (XEP-0163)</a></span>  [<a href="#nt-idm90">2</a>] are widely used XMPP features. However, items are published in plain text, making them readable by server administrators or anybody having administrator level access on the pubsub/PEP services.</p>
+  <p class="" style="">Although this is not a problem for data intended to be published publicly, there are many cases where it may be desirable to make the data inaccessible to anybody but the selected recipients, or in other words to end-to-end encrypt the data.</p>
+  <p class="" style="">This specification aims to provide an easy way to e2e encrypt items of a pubsub node, and to share access with other entities. It is compatible with all existing pubsub/PEP features, which makes it possible to use securily features such a geolocation, private blogs, private calendar events, data forms, etc.</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The design goals of this XEP are:</p>
+  <ul class="" style="">
+    <li class="" style="">work with basic standard pubsub/PEP service, no extra feature needed;</li>
+    <li class="" style="">be generic and work with any protocol using pubsub: once decrypted, the items should be parsable as if they were plain text;</li>
+    <li class="" style="">be able to share with other entities the means to decipher the elements;</li>
+    <li class="" style="">be able to easily share the means of decrypting items with new entities, even after the items have been published;</li>
+    <li class="" style="">be able to modify the means of decryption to make the new elements inaccessible to certain entities even if they have had access to the previous elements;</li>
+  </ul>
+<h2 id="glossary">3.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <ul class="" style="">
+    <li class="" style=""><strong>e2ee</strong>: end-to-end encryption</li>
+    <li class="" style=""><strong>Shared Secret</strong>: a cryptographically strong random string used to symmetrically encrypt items</li>
+    <li class="" style=""><strong>Encrypted Node</strong>: pubsub node whose items are end-2-end encrypted using this protocol.</li>
+  </ul>
+<h2 id="overview">4.
+       Overview<a class="anchor-link" href="#overview"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">To encrypt a pubsub node, each item is symmetrically encrypted with a shared secret using OpenPGP symmetric encryption. The secret is shared with other entities using e2e encrypted messages with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0373.html">OpenPGP for XMPP (XEP-0373)</a></span>  [<a href="#nt-idm114">3</a>]. If an entity's access is revoked or a shared secret may have been compromised, a new shared secret is generated and new items are encrypted with it.</p>
+<h2 id="usecases">5.
+       Use Cases<a class="anchor-link" href="#usecases"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+  <div class="indent"><h3 id="encrypt">5.1 Encrypting Pubsub Item<a class="anchor-link" href="#encrypt"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Juliet wants to create a private blog (using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0277.html">Microblogging Over XMPP (XEP-0277)</a></span>  [<a href="#nt-idm121">4</a>]) that she only share with her confidante and her lover. To make sure that her family, who manages her XMPP server, can't read the content, she want to use end-to-end encryption.</p>
+    <p class="" style="">To do so, her client creates a "shared secret" by generating a cryptographically strong key that will be used to symmetrically encrypt new items. This key MUST be associated with an ID, which MUST be an unique sequence of characters usable in an XML attribute. She will later share this key with entities allowed to access or publish on the blog as explained below.</p>
+    <p class="" style="">From now on, all items that Juliet publishes on the node SHOULD be symmetrically encrypted with the shared secret by using OpenPGP symmetric encryption.</p>
+    <p class="" style="">To publish an encrypted item, an &lt;encrypted/&gt; element qualified by the 'urn:xmpp:openpgp:pubsub:0' namespace MUST be used as payload. This element MUST contain a 'secret' attribute whose value is the ID of the shared secret used. The content of the element is a base64 encoded Symmetric-Key Encrypted Session Key Packet as specified at <span class="ref">RFC 4880</span> <a href="http://tools.ietf.org/html/rfc4880#section-5.3">§ 5.3</a> (in a similar way as <a href="https://xmpp.org/extensions/xep-0373.html#backup-encryption">secret key backup is encoded in XEP-0373</a>). The encrypted content is the item payload that would normally be used.</p>
+    <p class="" style="">The encrypted node SHOULD have a "whitelist" access model as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-idm86">1</a>]. Juliet's client ensure that either by creating a new node with suitable access model, or by changing the access model of existing node.</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Juliet publish an encrypted item<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq
+  type='set'
+  from='juliet@capulet.lit/chamber'
+  to='pubsub.capulet.lit'
+  id='encrypted1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='123abc'&gt;
+      &lt;item id="encrypt_123"&gt;
+        &lt;encrypted xmlns='urn:xmpp:openpgp:pubsub:0' key='1234-abcd-5678-efgh'&gt;
+          &lt;!-- BASE64_OPENPGP_SYMMETRICALLY_ENCRYPTED_ITEM --&gt;
+        &lt;/encrypted&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;</pre></figure>
+
+  </div>
+
+  <div class="indent"><h3 id="transmit_secret">5.2 Transmit Shared Secret<a class="anchor-link" href="#transmit_secret"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Now that Juliet has started to publish encrypted items on a blog, she wants to share the secret key with her confidante and her lover. To do so she uses a e2ee &lt;message/&gt; stanza by using an &lt;openpgp/&gt; element wrapping a &lt;signcrypt/&gt; as specified in <a href="https://xmpp.org/extensions/xep-0373.html#exchange">XEP-0373 "Exchanging OpenPGP Encrypted and Signed Data"</a>. The encrypted payload of the &lt;signcrypt/&gt; MUST contain a &lt;shared-secret/&gt; element qualified by the 'urn:xmpp:openpgp:pubsub:0' namespace. This element MUST have the following attributes:</p>
+    <ul class="" style="">
+      <li class="" style="">a 'timestamp' attribute whose value is the datetime of the shared key generation. Datetime format is specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles (XEP-0082)</a></span>  [<a href="#nt-idm142">5</a>].</li>
+      <li class="" style="">a 'jid' attribute with bare JID of the pubsub/PEP service;</li>
+      <li class="" style="">a 'node' attribute with the name of the encrypted node;</li>
+      <li class="" style="">an 'id' attribute with the ID of the shared secret;</li>
+      <li class="" style="">if the key is revoked (due to <a href="#revocation_rotation">shared secret rotation</a>), it must have a 'revoked' attribute with the value "true".</li>
+    </ul>
+      <p class="" style="">The &lt;shared-secret/&gt; SHOULD have a 'type' attribute whose value is the pubsub#type that the node would have if it were plain text (i.e. the semantic type information of decrypted data in the node, usually the namespace of the decrypted payload). </p>
+    <p class="" style="">The content of the &lt;shared-secret/&gt; element MUST be the shared secret (i.e. the passphrase used to symmetrically encode items).</p>
+    <p class="" style="">She send messages with the encrypted shared secret to her nurse, Romeo and herself (so her other devices get the shared secret too).</p>
+    <p class="" style="">Entities MUST always use the most recently generated shared secret to encrypt new items (the 'timestamp' attribute is used to check generation date and time).</p>
+
+  <p class="" style="">
+    Following example only show the &lt;shared-secret/&gt; element, as it is normally put as an encrypted payload of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0373.html">OpenPGP for XMPP (XEP-0373)</a></span>  [<a href="#nt-idm114">3</a>] &lt;signcrypt/&gt; payload.
+</p>
+  <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> shared-secret element (normally encrypted as part of XEP-0373's signcrypt payload)<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+  &lt;shared-secret
+    xmlns='urn:xmpp:openpgp:pubsub:0'
+    jid='pubsub.capulet.lit'
+    node='123abc'
+    id='1234-abcd-5678-efgh'
+    timestamp='2022-10-10T13:24:31Z'
+    type='http://www.w3.org/2005/Atom'
+    &gt;
+    ZSRD5lK9mz-5VHNyu2N1XLiJZ8I87jkv85ceZkVrOGA
+  &lt;/shared-secret&gt;
+  </pre></figure>
+
+  <p class="" style=""><strong>note:</strong> we use &lt;message/&gt; instead of PEP or Pubsub to transmit the shared secret for several reasons:</p>
+  <ul class="" style="">
+    <li class="" style="">Shared secret would have to be encrypted for all entities allowed to decrypt the items, and re-encrypted each time there is a new entity. While acceptable for a small number of entities, this doesn't scale as well as separated &lt;message/&gt;;</li>
+    <li class="" style="">The item containing the shared secret would need to keep all previous shared secrets in case of secret rotation (see <a href="#revocation_rotation">below</a>). At some point, there would be a risk to reach stanza maximum size limit of one server;</li>
+    <li class="" style="">Using a well-known pubsub node or pubsub item id would mean than the location of the encrypted shared secret would be known. While not enough to get the secret, that's better to hide it in encrypted messages flow;</li>
+  </ul>
+  </div>
+
+  <div class="indent"><h3 id="revocation_rotation">5.3 Revocation and Shared Secret Rotation<a class="anchor-link" href="#revocation_rotation"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If there is any doubt about the compromise of a shared secret or if access to the encrypted node is revoked for an entity, the shared secret SHOULD BE rotated.</p>
+    <p class="" style="">To rotate a key, a &lt;message/&gt; must be sent to all people which got the shared secret. The &lt;message/&gt; MUST contain a XEP-0373 &lt;openpgp/&gt; element with a &lt;signcrypt/&gt; element whose payload is an encrypted &lt;revoke/&gt; element qualified by the 'urn:xmpp:openpgp:pubsub:0' namespace, which MUST have a 'jid' attribute whose value is the JID of the pubsub/PEP service where the node is, a 'node' attribute whose value is the name of the node, and an 'id' attribute whose value is the shared secret ID.</p>
+    <p class="" style="">Optionally, the &lt;revoke/&gt; element MAY have one or more &lt;reason/&gt; child element(s) which contain a human readable message explaining the reason of the revocation. The &lt;reason/&gt; element MAY contain an 'xml:lang' attribute with the language code of the text, and there MAY be several &lt;reason/&gt; elements if and only if they have distinct xml:lang. A revoked key MUST NOT be used to encrypt new items.</p>
+    <p class="" style="">Then a new shared secret MUST be generated and transmitted to all participants (excluding those who have seen their access revoked) as explained in <a href="#transmit_secret">Transmit Shared Secret.</a></p>
+    <p class="" style="">Note that if an entity's access is revoked, it SHOULD also be removed from the node's whitelist (if "whitelist" has been used as access model as recommended).</p>
+  <p class="" style="">
+    Following example only show the &lt;revoke/&gt; element, as it is normally put as an encrypted payload of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0373.html">OpenPGP for XMPP (XEP-0373)</a></span>  [<a href="#nt-idm114">3</a>] &lt;signcrypt/&gt; payload.
+</p>
+  <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> revoke element (normally encrypted as part of XEP-0373's signcrypt payload)<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+  &lt;revoke xmlns='urn:xmpp:openpgp:pubsub:0' jid='pubsub.capulet.lit' node='123abc' id='1234-abcd-5678-efgh'&gt;
+    &lt;reason&gt;Revoked access from an entity&lt;/reason&gt;
+  &lt;/revoke&gt;
+  </pre></figure>
+    <p class="" style="">Items published before the key rotation SHOULD NOT be re-encrypted as it would be resource intensive, and revoked entities may have made a copy anyway.</p>
+    <p class="" style="">When access to the shared secret is granted to a new entity, all previously used keys SHOULD be transmitted (with their 'revoked' attribute set to "true" as explained in <a href="#transmit_secret">Transmit Shared Secret.</a>) along with the currently used shared secret. This allows the new entity to decrypt the items encrypted with the old keys. The &lt;shared-secret/&gt; elements can either be sent in the same encrypted payload of a single &lt;message/&gt;, or split into multiple encrypted &lt;message/&gt;, it's up to the implementation to decide which is better (keep in mind that too many shared secrets in a single message may reach the maximum stanza size limit at some point, even if this limit is not likely to be reached for most usual cases).</p>
+  </div>
+
+<h2 id="rules">6.
+       Business Rules<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The shared secret and revocation SHOULD be generated by node owner.</p>
+  <p class="" style="">&lt;message/&gt; with encrypted &lt;shared-secret/&gt; or &lt;revoke/&gt; elements MUST be sent to everybody who must have access to the node. At least one of the encrypted payload SHOULD be encrypted for the sender themselves (either by sending the &lt;message/&gt; directly to the sender, or to decrypt a copy received with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0280.html">Message Carbons (XEP-0280)</a></span>  [<a href="#nt-idm187">6</a>]), so other devices of the sender can get the shared secret too.</p>
+  <p class="" style="">When <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0470.html">Pubsub Attachments (XEP-0470)</a></span>  [<a href="#nt-idm192">7</a>] are used, the attachment node SHOULD have the same access model (i.e. whitelist as recommended in <a href="#security">Security Considerations</a>) as the encrypted node, with authorized entities synchronized (this should be done automatically for <a href="https://xmpp.org/extensions/xep-0470.html#full-compliance">fully compliant services</a>). The items published to attachment node itself MUST be encrypted using this protocol. Due to <a href="https://xmpp.org/extensions/xep-0470.html#validity-check">validity check of attachment items</a>, the encrypted element MUST be a child of a XEP-0470's &lt;attachments/&gt; element, instead of being the &lt;item/&gt; payload as usual. Note that this will prevent the <a href="https://xmpp.org/extensions/xep-0470.html#summary-node">summary feature</a> to work with encrypted elements, and the end-user client will have to do the summary itself, this is an inevitable trade-off when using e2ee.</p>
+  <p class="" style="">The "pubsub#type" of an encrypted item is always "urn:xmpp:openpgp:pubsub:0", thus no information is leaked on the content of the node, and all encrypted nodes can easily be retrieved by using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0462.html">PubSub Type Filtering (XEP-0462)</a></span>  [<a href="#nt-idm201">8</a>].</p>
+  <p class="" style="">Note that encrypted items MAY be mixed with plain text items: for instance if a blog is public, but some of its items are private. However the proper handling of this use case is out of scope of this specification.</p>
+<h2 id="impl">7.
+       Implementation Notes<a class="anchor-link" href="#impl"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This specification uses <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0373.html">OpenPGP for XMPP (XEP-0373)</a></span>  [<a href="#nt-idm114">3</a>] independently of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0374.html">OpenPGP for XMPP Instant Messaging (XEP-0374)</a></span>  [<a href="#nt-idm212">9</a>], implementations SHOULD avoid double encryption (e.g. by excluding &lt;openpgp/&gt; element qualified by 'urn:xmpp:openpgp:0' namespace from encryption by XEP-0374 implementation), and MUST ensure that element is correctly decrypted. Double encryption should be checked, and the &lt;openpgp/&gt; element MUST be decrypted even if OXIM (XEP-0374) is not being used.</p>
+<h2 id="disco">8.
+       Discovering Support<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">If a client supports the protocol specified in this XEP, it MUST advertise it by including the "urn:xmpp:openpgp:pubsub:0" discovery feature in response to a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm218">10</a>] information request:</p>
+
+  <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Service Discovery information request<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='juliet@example.org/balcony'
+    to='romeo@example.org/orchard'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;</pre></figure>
+  <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Service Discovery information response<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    from='romeo@example.org/orchard'
+    to='juliet@example.org/balcony'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;feature var='urn:xmpp:openpgp:pubsub:0'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></figure>
+<h2 id="security">9.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <ul class="" style="">
+    <li class="" style="">When receiving a &lt;shared-secret/&gt; or a &lt;revoke/&gt; element, the receiving client MUST ensure that the signing sender is the same as the one for all known shared secrets of this pubsub node (usually a node owner). This prevents a malicious actor for misleading the client into using a non-legitimate secret.</li>
+    <li class="" style="">To limit the surface of attack, the access model of an encrypted node should be set to "whitelist" and only people having the shared key should be allowed to retrieve encrypted items.</li>
+    <li class="" style="">If the shared key is compromised, or a user access is revoked, the key MUST be rotated. However, only new items are encrypted with the new key, any previous item should be considered as compromised too.</li>
+    <li class="" style="">Sometimes client may use metadata to construct item ID, this is notably the case for some <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0277.html">Microblogging Over XMPP (XEP-0277)</a></span>  [<a href="#nt-idm121">4</a>] implementation, as the resulting item ID is used to generate user friendly URLs. To avoid metadata leakage, clients SHOULD NOT derivate the item ID from any data of the item when pubsub encryption is used.</li>
+    <li class="" style="">Some protocols define prefixes for nodes, this is for instance the case for <a href="https://xmpp.org/extensions/xep-0277.html#comments">XEP-0277 Comments</a>. If the prefix is not essential to make the feature work (which is the case for XEP-0277 comments), the client SHOULD NOT use the usual prefix to avoid leaking informations on the content of the node. The prefix defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0470.html">Pubsub Attachments (XEP-0470)</a></span>  [<a href="#nt-idm192">7</a>] MUST be used as usually, as it is essential to retrieve the attachment node, and it's generic and thus doesn't leak information on the node content.</li>
+    <li class="" style="">To decrypt archives and future items, clients most probably cache plain text version of items, and shared secret. If one device with access to an encrypted node is compromised, all items from the node should be considered compromised, and shared secret should be rotated.</li>
+    <li class="" style="">For the same reason, client SHOULD encrypt data at rest (even if the device is stolen, data should not be accessible without some cryptographic key).</li>
+    <li class="" style="">Note that only the shared key sender is authenticated (by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0373.html">OpenPGP for XMPP (XEP-0373)</a></span>  [<a href="#nt-idm114">3</a>]'s &lt;signcrypt/&gt;), not the items publishers, meaning that encrypted items could be published by anybody in possession of the shared secret. Pubsub items authentication will be treated in a separated XEP.</li>
+    <li class="" style="">The shared secret should be long enough to avoid brute force attacks. A secret of at least 32 characters is recommended.</li>
+  </ul>
+<h2 id="iana">10.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="registrar">11.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="schema">12.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="acks">13.
+       Acknowledgements<a class="anchor-link" href="#acks"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Thanks to Tim Henkes for his advices and NLNet foundation/NGI0 Discovery for funding.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0473</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.1.0</dd><dt>Last Updated</dt><dd>2022-12-13</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, <a href="xep-0001.html">XEP-0001</a>, <a href="xep-0004.html">XEP-0004</a>, <a href="xep-0060.html">XEP-0060</a>, <a href="xep-0373.html">XEP-0373</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>oxps</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0473.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0473.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0473.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Jérôme Poisson</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:goffi@goffi.org">goffi@goffi.org</a></dd><dt>JabberID</dt><dd><a href="xmpp:goffi@jabber.fr">goffi@jabber.fr</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm86">1</a>. XEP-0060: Publish-Subscribe &lt;<a href="https://xmpp.org/extensions/xep-0060.html">https://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-idm90">2</a>. XEP-0163: Personal Eventing Protocol &lt;<a href="https://xmpp.org/extensions/xep-0163.html">https://xmpp.org/extensions/xep-0163.html</a>&gt;.</p><p><a name="nt-idm114">3</a>. XEP-0373: OpenPGP for XMPP &lt;<a href="https://xmpp.org/extensions/xep-0373.html">https://xmpp.org/extensions/xep-0373.html</a>&gt;.</p><p><a name="nt-idm121">4</a>. XEP-0277: Microblogging over XMPP &lt;<a href="https://xmpp.org/extensions/xep-0277.html">https://xmpp.org/extensions/xep-0277.html</a>&gt;.</p><p><a name="nt-idm142">5</a>. XEP-0082: XMPP Date and Time Profiles &lt;<a href="https://xmpp.org/extensions/xep-0082.html">https://xmpp.org/extensions/xep-0082.html</a>&gt;.</p><p><a name="nt-idm187">6</a>. XEP-0280: Message Carbons &lt;<a href="https://xmpp.org/extensions/xep-0280.html">https://xmpp.org/extensions/xep-0280.html</a>&gt;.</p><p><a name="nt-idm192">7</a>. XEP-0470: Pubsub Attachments &lt;<a href="https://xmpp.org/extensions/xep-0470.html">https://xmpp.org/extensions/xep-0470.html</a>&gt;.</p><p><a name="nt-idm201">8</a>. XEP-0462: PubSub Type Filtering &lt;<a href="https://xmpp.org/extensions/xep-0462.html">https://xmpp.org/extensions/xep-0462.html</a>&gt;.</p><p><a name="nt-idm212">9</a>. XEP-0374: OpenPGP for XMPP Instant Messaging &lt;<a href="https://xmpp.org/extensions/xep-0374.html">https://xmpp.org/extensions/xep-0374.html</a>&gt;.</p><p><a name="nt-idm218">10</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0473-0.1.0.html">0.1.0</a> (2022-12-13)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Accepted by vote of Council on 2022-10-19.<div class="revision-author">XEP Editor (jsc)</div></li><li id="revision-history-v0.0.6"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0473-0.0.6.html">0.0.6</a> (2022-10-12)<a class="anchor-link" href="#revision-history-v0.0.6"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">add forgotten "jid" and "node" attribute to &lt;revoke/&gt;</li>
+        <li class="" style="">clarify that &lt;openpgp/&gt; wrapper is used</li>
+      </ul>
+    <div class="revision-author">jp</div></li><li id="revision-history-v0.0.5"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0473-0.0.5.html">0.0.5</a> (2022-10-12)<a class="anchor-link" href="#revision-history-v0.0.5"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">add forgotten "timestamp" in example</li>
+        <li class="" style="">add implementation node on double encryption</li>
+        <li class="" style="">add clarification that sender should be a node owner</li>
+      </ul>
+    <div class="revision-author">jp</div></li><li id="revision-history-v0.0.4"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0473-0.0.4.html">0.0.4</a> (2022-10-11)<a class="anchor-link" href="#revision-history-v0.0.4"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">add a security note to indicate that &lt;shared-secret/&gt; and &lt;revoke/&gt; sender must be checked.</li>
+      </ul>
+    <div class="revision-author">jp</div></li><li id="revision-history-v0.0.3"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0473-0.0.3.html">0.0.3</a> (2022-10-10)<a class="anchor-link" href="#revision-history-v0.0.3"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Base64 is not needed for the key (it's a passphrase)</li>
+        <li class="" style="">Specify that as least on &lt;message/&gt; should be encrypted for sender other devices</li>
+        <li class="" style="">Recommend minimum length for shared secret</li>
+      </ul>
+    <div class="revision-author">jp</div></li><li id="revision-history-v0.0.2"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0473-0.0.2.html">0.0.2</a> (2022-10-10)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Remove useless references to XEP-0374 + acknowledgements</p><div class="revision-author">jp</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0473-0.0.1.html">0.0.1</a> (2022-10-09)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">jp</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{poisson2022oxps,
+  title = {OpenPGP for XMPP Pubsub},
+  author = {Poisson, Jérôme},
+  type = {XEP},
+  number = {0473},
+  version = {0.1.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0473.html},
+  date = {2022-10-09/2022-12-13},
+}</pre><p>END</p></body></html>
