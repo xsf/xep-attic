@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0386: Bind 2</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0386";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0"><meta name="DC.Title" content="Bind 2"><meta name="DC.Creator" content="Kevin Smith"><meta name="DC.Creator" content="Matthew Wild"><meta name="DC.Description" content="This specification provides a single-request replacement for several activities an XMPP client needs to do at startup."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2022-10-07"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0386"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0386: Bind 2</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification provides a single-request replacement for several activities an XMPP client needs to do at startup.</dd><dt>Authors</dt><dd><ul class="authors"><li>Kevin Smith</li><li>Matthew Wild</li></ul></dd><dt>Copyright</dt><dd>© 1999 – 2021 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Deferred</p><div id="status-notice" class="deferred standards track">WARNING: This document has been automatically Deferred after 12 months of inactivity in its previous Experimental state. Implementation of the protocol described herein is not recommended for production systems. However, exploratory implementations are encouraged to resume the standards process.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.4.0 (2022-10-07)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li>Experimental</li><li class="current inserted">Deferred</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#usecases">Use Cases</a><ol><li><a href="#sect-idm92">Discovering support</a></li><li><a href="#bind-request">Performing the bind</a><ol><li><a href="#identifiers">Resource identifier generation</a></li></ol></li></ol></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#acknowledgements">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Every session on XMPP generally has a unique routable identifier, known as a "resource". Many details and rules about resources in XMPP can be found in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm68">1</a>]. This core RFC also describes how to "bind" a resource identifier to a session. This is a key part of session establishment for practically all XMPP clients. This specification describes an alternative protocol for resource binding than the one described in RFC 6120, based on <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-idm72">2</a>].</p>
+
+  <p class="" style="">As XMPP has grown more feature-rich over time, more steps have been introduced that clients are likely to perform at startup, e.g. resource binding, archive synchronisation, enabling Carbons. Some of these introduce race conditions - e.g. if a client synchronises the archive before enabling Carbons, it can miss stanzas sent between these events, or if it enables Carbons before synchronising the archive it can receive duplicate messages. It may also cause duplicate messages by combining archive synchronisation and receipt of offline messages, or by receipt of messages addressed to the full JID between resource binding and archive synchronisation. Therefore, this document provides a mechanism for atomically performing these operations to avoid these race conditions. It also allows the server to provide information to a client that is generally useful about the state of the user's account.</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <ul class="" style="">
+    <li class="" style="">Reduce round-trips and race conditions by providing a single atomic session establishment operation, with support for common session features such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0280.html">Message Carbons (XEP-0280)</a></span>  [<a href="#nt-idm80">3</a>], <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-idm84">4</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0198.html">Stream Management (XEP-0198)</a></span>  [<a href="#nt-idm88">5</a>]. It should also be extensible to additional protocols as needed.</li>
+    <li class="" style="">Integrate with SASL2 (XEP-0388) for further round-trip reduction and simpler session establishment.</li>
+  </ul>
+<h2 id="usecases">3.
+       Use Cases<a class="anchor-link" href="#usecases"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="sect-idm92">3.1 Discovering support<a class="anchor-link" href="#sect-idm92"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If a server supports Bind 2, it MUST advertise this within the SASL2 &lt;inline/&gt; element in the stream features, with a feature named 'bind' in the namespace 'urn:xmpp:bind:0'.</p>
+    <p class="" style="">Clients do not advertise support for Bind 2.</p>
+    <p class="" style="">Bind 2 supports inline negotiation of certain features specific to a session. The features supported by the server for such inline negotiation MUST be included in an &lt;inline/&gt; child element within the bind feature element. Each feature is listed as a &lt;feature/&gt; child element with a 'var' attribute indicating the extension's defined service discovery feature name or namespace.</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Server advertises support in stream features<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:features&gt;
+  &lt;authentication xmlns='urn:xmpp:sasl:2'&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1&lt;/mechanism&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1-PLUS&lt;/mechanism&gt;
+    &lt;inline&gt;
+      &lt;bind xmlns='urn:xmpp:bind:0'&gt;
+        &lt;inline&gt;
+          &lt;feature var="urn:xmpp:carbons:2" /&gt;
+          &lt;feature var="urn:xmpp:csi:0" /&gt;
+          &lt;feature var="urn:xmpp:sm:3" /&gt;
+        &lt;/inline&gt;
+      &lt;/bind&gt;
+      &lt;sm xmlns='urn:xmpp:sm:3'/&gt;
+    &lt;/inline&gt;
+  &lt;/authentication&gt;
+&lt;/stream:features&gt;
+</pre></figure>
+
+  <p class="" style="">Bind 2 is never supported without SASL2, and so servers without support for SASL2 MUST NOT advertise the feature. Servers supporting SASL2 and Bind 2 may continue to offer legacy resource binding to clients.</p>
+  </div>
+
+  <div class="indent"><h3 id="bind-request">3.2 Performing the bind<a class="anchor-link" href="#bind-request"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">To request resource binding, the client MUST include a &lt;bind/&gt; element, qualified by the 'urn:xmpp:bind:0' namespace, in its SASL2 &lt;authenticate/&gt; request.</p>
+    <p class="" style="">The &lt;bind/&gt; element MAY contain the following child elements:</p>
+    <ul class="" style="">
+      <li class="" style="">&lt;tag/&gt;: This element contains a short text string that typically identifies the software the user is using, mostly useful for diagnostic purposes for users, operators and developers. This tag may be visible to other entities on the XMPP network (see <a href="#security">Security Considerations</a>).</li>
+    </ul>
+    
+    <p class="" style="">Additionally, the &lt;bind/&gt; element MAY contain one or more child elements in other namespaces, representing features that the client requests to be automatically enabled for its new session.</p>
+
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Client provides a resource bind request<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;authenticate xmlns='urn:xmpp:sasl:2' mechanism='SCRAM-SHA-1'&gt;
+  &lt;initial-response&gt;[base64 encoded SASL data]&lt;/initial-response&gt;
+  &lt;bind xmlns='urn:xmpp:bind:0'&gt;
+    &lt;tag&gt;AwesomeXMPP&lt;/tag&gt;
+  &lt;/bind&gt;
+&lt;/authenticate&gt;
+</pre></figure>
+
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Client provides a resource bind request, additionally requesting some session features<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;authenticate xmlns='urn:xmpp:sasl:2' mechanism='SCRAM-SHA-1'&gt;
+  &lt;initial-response&gt;[base64 encoded SASL data]&lt;/initial-response&gt;
+  &lt;bind xmlns='urn:xmpp:bind:0'&gt;
+    &lt;tag&gt;AwesomeXMPP&lt;/tag&gt;
+    &lt;enable xmlns='urn:xmpp:carbons:2'/&gt;
+    &lt;enable xmlns='urn:xmpp:sm:3'/&gt;
+    &lt;inactive xmlns='urn:xmpp:csi:0'/&gt;
+  &lt;/bind&gt;
+&lt;/authenticate&gt;
+</pre></figure>
+
+    <p class="" style="">If the client included a &lt;bind/&gt; element in its SASL2 &lt;authenticate/&gt; then the server MUST process the bind request after authentication is successful (including any necessary subsequent SASL2 tasks), but before sending the &lt;success/&gt; response. Following the usual rules of SASL2, the bind request MUST NOT be processed (i.e. it should be ignored) if the authentication is not successful.</p>
+    <p class="box" style="">Note: If the client included a &lt;resume/&gt; element in its SASL2 negotiation, that MUST be processed first by the server. If that resumption is successful, the server MUST skip resource binding (a resumed session already has a resource bound) and MUST entirely ignore the &lt;bind/&gt; request. If resumption of the previous stream fails, the server MUST include the XEP-0198 failure in the response, and then MUST proceed to process the bind request to establish a new session for the client.</p>
+    <p class="" style="">Upon processing the bind request, the server MUST perform several operations, including:</p>
+    <ul class="" style="">
+      <li class="" style="">Clear the offline messages for this user, if any, without sending them (as they will be provided by MAM).</li>
+      <li class="" style="">Generate a resource identifier (per the rules below) and bind it to the current stream</li>
+      <li class="" style="">Get the archive id of the newest stanza in the user's MAM archive</li>
+      <li class="" style="">Enable any additional features requested by the client for this session</li>
+    </ul>
+
+    <p class="" style="">Upon successful binding of a resource, the server SHOULD terminate any earlier sessions from the same client (identified by the &lt;user-agent&gt; 'id' attribute in its SASL2 authentication request).</p>
+
+    <div class="indent"><h4 id="identifiers">3.2.1 Resource identifier generation<a class="anchor-link" href="#identifiers"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">If the client provided a &lt;tag/&gt; element in its bind request, the text content of that element SHOULD be included as-is in the final resource identifier, subject to the necessary validation for resource identifiers. This tag can help with client identification and debugging. The RECOMMENDED format is to include the client tag as a prefix of the server-generated identifier, separated by a single '/' character: <code>[client tag]/[server generated identifier]</code>. For example, <code>AwesomeXMPP/rQ7Lwut0CcxW6</code>.</p>
+      <p class="" style="">Servers MAY choose to assign stable resource identifiers to clients, i.e. ensuring the same client will receive the same resource identifier for every bind request it makes. If a server or deployment provides resource identifier stability, the generated identifier SHOULD remain stable for every bind request with the same &lt;tag/&gt; and SASL2 &lt;user-agent&gt; id. The SASL2 &lt;user-agent&gt; id itself MUST NOT be exposed by the server in the generated resource identifier.</p>
+    </div>
+    
+    <p class="" style="">After processing the bind request as described above, the server MUST respond with the SASL &lt;success/&gt; element, including the client's full JID in the &lt;authorization-identity/&gt; element, and a &lt;bound/&gt; element qualified by the 'urn:xmpp:bind:0' namespace, as in the following example:</p>
+  <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Server responds after processing the bind<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;success xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;authorization-identity&gt;user@example.com/AwesomeXMPP.4232f4d4&lt;/authorization-identity&gt;
+  &lt;bound xmlns='urn:xmpp:bind:0'&gt;
+    &lt;metadata xmlns='urn:xmpp:mam:2'&gt;
+      &lt;start id='YWxwaGEg' timestamp='2008-08-22T21:09:04Z' /&gt;
+      &lt;end id='b21lZ2Eg' timestamp='2020-04-20T14:34:21Z' /&gt;
+    &lt;/metadata&gt;
+  &lt;/bound&gt;
+&lt;/success&gt;
+</pre></figure>
+
+    <p class="" style="">The server SHOULD include a &lt;metadata/&gt; element as defined by XEP-0313, describing the state of the user's message archive at the precise time of resource binding. This helps the client determine what queries it may need to perform to synchronise messages.</p>
+
+    <p class="" style="">Interactions with certain other extensions are hereby defined in this document:</p>
+
+    <ul class="" style="">
+      <li class="" style="">If the client included a XEP-0198 &lt;enable/&gt; element in the requested features, Stream Management should be enabled at this point. The &lt;bound/&gt; response MUST contain the resulting XEP-0198 &lt;enabled/&gt; (or &lt;failed/&gt;) element. For full business rules, syntax  and examples, see XEP-0198.</li>
+      <li class="" style="">If the client included a XEP-0280 &lt;enable/&gt; element in the requested features, Message Carbons MUST be enabled at this point. As this operation MUST succeed, no response is necessary.</li>
+      <li class="" style="">If the client included a XEP-0352 &lt;active/&gt; or &lt;inactive/&gt; element, the session must begin in that state.</li>
+    </ul>
+
+    <p class="" style="">The &lt;bound/&gt; response MUST also contain any defined responses to other enabled features, if any, though details of these are beyond the scope of this specification.</p>
+  </div>
+<h2 id="security">4.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This specification mostly combines existing protocols together. Security considerations defined in those XEPs should be heeded as normal.</p>
+  <p class="" style="">The additional facility provided here to provide information on the user's archive is provided post-authentication and is only providing the user's data to the user.</p>
+  <p class="" style="">Implementations must adhere to the security considerations defined in XEP-0388 regarding the inclusion of SASL2 requests and inline feature negotiation in TLS 0-RTT ("early data") extensions. That is, they MUST NOT be sent or processed, except when appropriate mitigations are in place (which are beyond the scope of this document, but may be defined by others).</p>
+  <p class="" style="">As it forms part of the resource identifier and therefore the full JID of the session, the 'tag' value provided by the client (if any), may be visible to other XMPP entities on the network that the client communicates with or that have access to the user's presence. The simple name of the client can provide value to users, operators and developers diagnosing issues, and it generally will not reveal more information than would be already available through service discovery. Unless they are operating in fully trusted environments, clients MUST NOT use identifiers that might reveal private information about a user or their system (such as hostnames).</p>
+<h2 id="iana">5.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">None.</p>
+<h2 id="registrar">6.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The urn:xmpp:bind:0 namespace must be registered..</p>
+<h2 id="acknowledgements">7.
+       Acknowledgements<a class="anchor-link" href="#acknowledgements"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Thanks to Daniel Gultsch, Philipp Hörist, Thilo Molitor and Andrzej Wójcik for their valuable support with feedback, suggestions and implementations.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0386</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Deferred">Deferred</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.4.0</dd><dt>Last Updated</dt><dd>2022-10-07</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, XMPP IM, <a href="xep-0313.html">XEP-0313</a>, <a href="xep-0280.html">XEP-0280</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>bind2</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0386.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0386.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0386.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Kevin Smith</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:kevin.smith@isode.com">kevin.smith@isode.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:kevin.smith@isode.com">kevin.smith@isode.com</a></dd></dl><h5>Matthew Wild</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:mwild1@gmail.com">mwild1@gmail.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:me@matthewwild.co.uk">me@matthewwild.co.uk</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm68">1</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm72">2</a>. XEP-0388: Extensible SASL Profile &lt;<a href="https://xmpp.org/extensions/xep-0388.html">https://xmpp.org/extensions/xep-0388.html</a>&gt;.</p><p><a name="nt-idm80">3</a>. XEP-0280: Message Carbons &lt;<a href="https://xmpp.org/extensions/xep-0280.html">https://xmpp.org/extensions/xep-0280.html</a>&gt;.</p><p><a name="nt-idm84">4</a>. XEP-0313: Message Archive Management &lt;<a href="https://xmpp.org/extensions/xep-0313.html">https://xmpp.org/extensions/xep-0313.html</a>&gt;.</p><p><a name="nt-idm88">5</a>. XEP-0198: Stream Management &lt;<a href="https://xmpp.org/extensions/xep-0198.html">https://xmpp.org/extensions/xep-0198.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.4.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0386-0.4.0.html">0.4.0</a> (2022-10-07)<a class="anchor-link" href="#revision-history-v0.4.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <p class="" style="">Various changes, made in parallel with working client and server implementation experience, and SASL2 updates.</p>
+      <p class="" style="">More tightly define the integration with XEP-0388 and several session feature XEPs: XEP-0198, XEP-0280, XEP-0352.</p>
+      <p class="" style="">Replace the custom latest-id element with the new metadata element from XEP-0313, which also provides richer information.</p>
+      <p class="" style="">Drop unread tracking, as this is a deep topic not directly related to resource binding. Instead the details of integration with other extensions have been better defined and demonstrated, to allow such functionality when it is fully defined and exists.</p>
+      <p class="" style="">Adjust proposed namespace on aesthetic grounds and consistency with SASL2's approach. As this protocol may become part of the new preferred connection flow for a long time to come, it makes no sense to include the redundant and potentially confusing '2' when there is no conflict without it. Similarly, the '.0' has been dropped from the XEP's title, as it isn't really a version number.</p>
+      <p class="" style="">Allow the client some influence over the resulting resource identifier, and define a standard format for these combined identifiers.</p>
+      <p class="" style="">Specify that servers should terminate old sessions from a client when it binds a new resource.</p>
+    <div class="revision-author">mw</div></li><li id="revision-history-v0.3.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0386-0.3.0.html">0.3.0</a> (2019-01-31)<a class="anchor-link" href="#revision-history-v0.3.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Begrudingly allow non-unread-tracking servers, mention SASL2.<div class="revision-author">kis</div></li><li id="revision-history-v0.2.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0386-0.2.0.html">0.2.0</a> (2018-02-08)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Defer due to lack of activity.<div class="revision-author">XEP Editor (jc)</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0386-0.1.0.html">0.1.0</a> (2017-02-08)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft accepted by the XMPP Council.</p><div class="revision-author">XEP Editor: ssw</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{smith2017bind2,
+  title = {Bind 2},
+  author = {Smith, Kevin and Wild, Matthew},
+  type = {XEP},
+  number = {0386},
+  version = {0.4.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0386.html},
+  date = {2017-02-08/2022-10-07},
+}</pre><p>END</p></body></html>

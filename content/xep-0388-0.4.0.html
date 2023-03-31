@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0388: Extensible SASL Profile</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0388";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0"><meta name="DC.Title" content="Extensible SASL Profile"><meta name="DC.Creator" content="Dave Cridland"><meta name="DC.Creator" content="Thilo Molitor"><meta name="DC.Creator" content="Matthew Wild"><meta name="DC.Description" content="This document describes a replacement for the SASL profile documented in RFC 6120 which allows for greater extensibility."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2022-11-16"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0388"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0388: Extensible SASL Profile</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This document describes a replacement for the SASL profile documented in RFC 6120 which allows for greater extensibility.</dd><dt>Authors</dt><dd><ul class="authors"><li>Dave Cridland</li><li>Thilo Molitor</li><li>Matthew Wild</li></ul></dd><dt>Copyright</dt><dd>© 1999 – 2021 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.4.0 (2022-11-16)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a><ol><li><a href="#sect-idm112">Terminology</a></li></ol></li><li><a href="#overview">Overview</a><ol><li><a href="#feature">SASL mechanism negotiation</a></li><li><a href="#sect-idm141">SASL Data Encoding</a></li><li><a href="#initiation">Initiation</a></li><li><a href="#sect-idm159">During Authentication</a></li><li><a href="#challenge">Challenges and Responses</a></li><li><a href="#outcome">Completing Authentication</a><ol><li><a href="#success">Success</a></li><li><a href="#failure">Failure</a></li><li><a href="#continue">Continue</a></li></ol></li></ol></li><li><a href="#security">Security Considerations</a></li><li><a href="#sect-idm219">SASL Profile Definition</a><ol><li><a href="#sect-idm222">Service Name</a></li><li><a href="#sect-idm224">Mechanism negotiation</a></li><li><a href="#sect-idm227">Message Definitions</a><ol><li><a href="#sect-idm228">Initiation</a></li><li><a href="#sect-idm231">Server Challenges and Client Responses</a></li><li><a href="#sect-idm234">Outcome</a></li></ol></li><li><a href="#sect-idm237">Non-Empty Authorization Strings</a></li><li><a href="#sect-idm240">Aborting</a></li><li><a href="#sect-idm244">Security Layer Effect</a></li><li><a href="#sect-idm248">Security Layer Order</a></li><li><a href="#sect-idm250">Multiple Authentication</a></li></ol></li><li><a href="#sect-idm253">Example Flows</a><ol><li><a href="#sect-idm255">Syntactic Equivalence</a></li><li><a href="#sect-idm259">Once More, This Time With CRAM</a></li><li><a href="#sect-idm262">Advanced Usage</a></li></ol></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#sect-idm274">XML Schema</a></li><li><a href="#ack">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">While SASL provides an excellent framework that has served us well over the past 18 years, a number of shortcomings in the profile - the syntax binding to XMPP - that is in use.</p>
+  <p class="" style="">This specification addresses a number of shortfalls:</p>
+  <ul class="" style="">
+    <li class="" style="">Number of round trips</li>
+    <li class="" style="">Extensibility</li>
+    <li class="" style="">Support for second factor</li>
+    <li class="" style="">Support for mandatory password changes</li>
+  </ul>
+  <p class="" style="">The new SASL profile documented herein is primarily a syntactic change to allow extensibility, combined with removal of the (largely) redundant stream restart, and additional results beyond total success or abject failure.</p>
+  <div class="indent"><h3 id="sect-idm112">1.1 Terminology<a class="anchor-link" href="#sect-idm112"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Although initiating entities, in general, use SASL, and receiving entities offer it, the SASL specification and common parlance both use "Client " and "Server"; this specification uses Client and Server and assumes C2S links. This is not intended to preclude use of this SASL profile on S2S links. The term "SASL2" is used to mean the new SASL profile specified in this document; however the same RFC 4422 definition of SASL (and SASL profiles) applies.</p>
+    <p class="" style="">Examples often use hypothetical SASL mechanisms and sub-extensions; this specification does not intend to make a position on any particular SASL mechanism, and the Mandatory To Implement mechanisms are unaffected.</p>
+  </div>
+<h2 id="overview">2.
+       Overview<a class="anchor-link" href="#overview"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="feature">2.1 SASL mechanism negotiation<a class="anchor-link" href="#feature"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Servers capable of SASL2 offer a stream feature of &lt;authentication/&gt;, qualified by the "urn:xmpp:sasl:2" namespace. This in turn contains one or more &lt;mechanism/&gt; elements in the same namespace, and potentially other elements (for example, the &lt;hostname/&gt; element defined within <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0233.html">Use of Domain-Based Service Names in XMPP SASL Negotiation (XEP-0233)</a></span>  [<a href="#nt-idm120">3</a>]). The mechanism elements MUST only offer mechanisms the server can offer for the JID provided by the client in the "from" attribute of the stream-header. If that atrribute is omitted or does not contain a recognised bare JID, the server SHOULD only offer mechanisms it can provide independently of the JID. Note that varying responses based on whether an account exists or not may leak the existence of accounts to unauthorized parties. See the security considerations section for more information. If the "from" attribute is not empty and the domain used in this attribute does not match the domain used in the "to" attribute the server SHOULD respond with an invalid-from error as defined in §4.9.3.9 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm124">4</a>].</p>
+    <p class="" style="">The feature so advertised, and its child content, SHOULD be stable for the given stream to and from attributes and encryption state, and therefore MAY be cached by clients for later connections.</p>
+    <p class="" style="">Note that SASL2 is impossible for clients to initiate without at least one mechanism being available, and therefore MUST NOT be offered if not at least one mechanism can be provided.</p>
+    <p class="" style="">The Service Name used by XMPP is unchanged from <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm124">4</a>].</p>
+    <p class="" style="">All servers and clients supporting channel-binding MUST implement <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0440.html">SASL Channel-Binding Type Capability (XEP-0440)</a></span>  [<a href="#nt-idm50">1</a>].</p>
+    <p class="" style="">Additional stream features that can be negotiated as part of a successful SASL authentication can be included in the &lt;inline/&gt; element which is an immediate child of &lt;authentication/&gt;.</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Client sending stream header<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0'?&gt;
+&lt;stream:stream
+  from='user@example.org'
+  to='example.org'
+  version='1.0'
+  xml:lang='en'
+  xmlns='jabber:client'
+  xmlns:stream='http://etherx.jabber.org/streams'&gt;
+</pre></figure>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Server responding with stream header and features<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0'?&gt;
+&lt;stream:stream
+  from='example.org'
+  id='++TR84Sm6A3hnt3Q065SnAbbk3Y='
+  to='user@example.org'
+  version='1.0'
+  xml:lang='en'
+  xmlns='jabber:client'
+  xmlns:stream='http://etherx.jabber.org/streams'&gt;
+&lt;stream:features&gt;
+  &lt;authentication xmlns='urn:xmpp:sasl:2'&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1&lt;/mechanism&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1-PLUS&lt;/mechanism&gt;
+    &lt;inline&gt;
+      &lt;!-- Server indicates that XEP-0198 stream resumption can be done "inline" --&gt;
+      &lt;resume xmlns='urn:xmpp:sm:3'/&gt;
+      &lt;!-- Server indicates support for XEP-0386 Bind 2 --&gt;
+      &lt;bind xmlns='urn:xmpp:bind2:1'/&gt;
+    &lt;/inline&gt;
+  &lt;/authentication&gt;
+  &lt;!-- Channel-binding information provided by XEP-0440 --&gt;
+  &lt;sasl-channel-binding xmlns='urn:xmpp:sasl-cb:0'&gt;
+    &lt;channel-binding type='tls-server-end-point'/&gt;
+    &lt;channel-binding type='tls-exporter'/&gt;
+  &lt;/sasl-channel-binding&gt;
+&lt;/stream:features&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="sect-idm141">2.2 SASL Data Encoding<a class="anchor-link" href="#sect-idm141"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">In all cases, both Clients and Servers encode SASL exchanges using Base 64 encoding. This SHOULD NOT include any line wrapping or other whitespace. As the form &lt;element/&gt; is equivalent to &lt;element&gt;&lt;/element&gt;, these both indicate an empty string. Challenges and responses with no data do not occur in SASL, and so require no special handling. To indicate the absence of an initial response, or the absence of success data, the element is simply not included.</p>
+  </div>
+  <div class="indent"><h3 id="initiation">2.3 Initiation<a class="anchor-link" href="#initiation"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Clients, upon observing this stream feature, initiate the authentication by the use of the &lt;authenticate/&gt; top-level element within the same namespace. The nature of this element is to inform the server about properties of the final stream state, as well as initiate authentication itself. To achieve this, it has a single mandatory attribute of "mechanism", with a string value of a mechanism name offered by the Server in the stream feature and an optional child element of &lt;initial-response/&gt;, containing a base64-encoded SASL Initial Response. If the "mechanism" attribute contains a string not previously announced by the server in in the stream feature, the server MUST fail the authentication.</p>
+    <p class="" style="">If the stream's from attribute (if present) does not match the non-empty authorization string, the server MUST fail the authentication as defined in <a href="#failure">Failure</a>.</p>
+    <p class="" style="">Clients SHOULD also include a &lt;user-agent/&gt; element, informing the server about the connecting client. The 'id' attribute is RECOMMENDED, and if present contains a unique stable identifier for the client installation. The contents of the 'id' attribute MUST be a UUID v4. This allows the server to provide functionality such as deriving stable resource identifiers (see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0386.html">Bind 2.0 (XEP-0386)</a></span>  [<a href="#nt-idm150">5</a>]). The child elements &lt;software/&gt; and &lt;device/&gt; MAY be supplied by clients and contain text descriptions of the client software and the device it is installed on. These allow the server to keep the user informed about what devices are connected to their account. Servers MUST NOT expose this information to other entities (such functionality is available in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0092.html">Software Version (XEP-0092)</a></span>  [<a href="#nt-idm154">6</a>] if required).</p>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> An authentication request<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;authenticate xmlns='urn:xmpp:sasl:2' mechanism='SCRAM-SHA-1-PLUS'&gt;
+  &lt;!-- Base64 of: 'p=tls-exporter,,n=user,r=12C4CD5C-E38E-4A98-8F6D-15C38F51CCC6' --&gt;
+  &lt;initial-response&gt;cD10bHMtZXhwb3J0ZXIsLG49dXNlcixyPTEyQzRDRDVDLUUzOEUtNEE5OC04RjZELTE1QzM4RjUxQ0NDNg==&lt;/initial-response&gt;
+  &lt;user-agent id='d4565fa7-4d72-4749-b3d3-740edbf87770'&gt;
+    &lt;software&gt;AwesomeXMPP&lt;/software&gt;
+    &lt;device&gt;Kiva's Phone&lt;/device&gt;
+  &lt;/user-agent&gt;
+&lt;/authenticate&gt;
+</pre></figure>
+    <p class="" style="">In order to provide support for other desired stream states beyond authentication, additional child elements are used. For example, a hypothetical XEP-0198 session resumption element might be included, and/or Resource Binding requests.</p>
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> An authentication request with a (hypothetical) bind request<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;authenticate xmlns='urn:xmpp:sasl:2' mechanism='BLURDYBLOOP'&gt;
+  &lt;initial-response&gt;
+    SSBzaG91bGQgbWFrZSB0aGlzIGEgY29tcGV0aXRpb24=
+  &lt;/initial-response&gt;
+  &lt;user-agent id='d4565fa7-4d72-4749-b3d3-740edbf87770'&gt;
+    &lt;software&gt;AwesomeXMPP&lt;/software&gt;
+    &lt;device&gt;Kiva's Phone&lt;/device&gt;
+  &lt;/user-agent&gt;
+  &lt;bind xmlns='urn:xmpp:bind:example'/&gt;
+&lt;/authenticate&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="sect-idm159">2.4 During Authentication<a class="anchor-link" href="#sect-idm159"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">At any time while authentication is in progress, neither Client nor Server sends any element (including stanzas) or other data except the top-level elements defined herein. Clients MUST NOT send whitespace, and MUST send only &lt;response/&gt; elements as appropriate or an &lt;abort/&gt; element to immediately cause an error. Servers MUST disconnect Clients immediately if any other traffic is received. Servers are similarly REQUIRED to send no whitespace, and only the &lt;response/&gt; and completion elements from the section below.</p>
+  </div>
+  <div class="indent"><h3 id="challenge">2.5 Challenges and Responses<a class="anchor-link" href="#challenge"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Server Challenges MAY then be sent. Each Challenge MUST be responded to by a Client in a Client Response. These are not extensible, and contain the corresponding base64 encoded SASL data:</p>
+        <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> A challenge and response exchange (SCRAM-SHA-1-PLUS)<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;!--
+  SCRAM-SHA-1-PLUS challenge issued by the server as defined in RFC 5802.
+  Base64 of: 'r=12C4CD5C-E38E-4A98-8F6D-15C38F51CCC6a09117a6-ac50-4f2f-93f1-93799c2bddf6,s=QSXCR+Q6sek8bf92,i=4096'
+--&gt;
+&lt;challenge xmlns='urn:xmpp:sasl:2'&gt;
+  cj0xMkM0Q0Q1Qy1FMzhFLTRBOTgtOEY2RC0xNUMzOEY1MUNDQzZhMDkxMTdhNi1hYzUwLTRmMmYtOTNmMS05Mzc5OWMyYmRkZjYscz1RU1hDUitRNnNlazhiZjkyLGk9NDA5Ng==
+&lt;/challenge&gt;
+
+&lt;!--
+  The client responds with the base64 encoded SCRAM-SHA-1-PLUS client-final-message (password: 'pencil').
+  Base64 of: 'c=cD10bHMtZXhwb3J0ZXIsLMcoQvOdBDePd4OswlmAWV3dg1a1Wh1tYPTBwVid10VU,r=12C4CD5C-E38E-4A98-8F6D-15C38F51CCC6a09117a6-ac50-4f2f-93f1-93799c2bddf6,p=UApo7xo6Pa9J+Vaejfz/dG7BomU='
+  The c-attribute contains the GS2-header and channel-binding data blob (32 bytes) as defined in RFC 5802.
+--&gt;
+&lt;response xmlns='urn:xmpp:sasl:2'&gt;
+  Yz1jRDEwYkhNdFpYaHdiM0owWlhJc0xNY29Rdk9kQkRlUGQ0T3N3bG1BV1YzZGcxYTFXaDF0WVBUQndWaWQxMFZVLHI9MTJDNENENUMtRTM4RS00QTk4LThGNkQtMTVDMzhGNTFDQ0M2YTA5MTE3YTYtYWM1MC00ZjJmLTkzZjEtOTM3OTljMmJkZGY2LHA9VUFwbzd4bzZQYTlKK1ZhZWpmei9kRzdCb21VPQ==
+&lt;/response&gt;</pre></figure>
+
+    <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> A challenge and response exchange (hypothetical)<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;!-- A server might send: --&gt;
+&lt;challenge xmlns='urn:xmpp:sasl:2'&gt;
+  U28sIG5leHQgRk9TREVNIC0gMjAxOCwgdGhhdCBpcy4uLg==
+&lt;/challenge&gt;
+
+&lt;!-- A client might respond: --&gt;
+&lt;response xmlns='urn:xmpp:sasl:2'&gt;
+  Li4uSSdsbCBidXkgYSBiZWVyIGZvciB0aGUgZmlyc3QgcGVyc29uIHdoby4uLg==
+&lt;/response&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="outcome">2.6 Completing Authentication<a class="anchor-link" href="#outcome"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Authentication may complete in one of three ways. It may complete successfully, in which case the client is authenticated. It may also fail, in which case the client is not authenticated and the stream and session state remain entirely unchanged.</p>
+    <p class="" style="">Finally, it may have completed successfully, but further interaction is required - for example, a password change or second-factor authentication.</p>
+    <div class="indent"><h4 id="success">2.6.1 Success<a class="anchor-link" href="#success"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">If the Client is now authenticated, the Server sends a &lt;success/&gt; element, which contains an &lt;authorization-identity/&gt; element containing the negotiated identity - this is a bare JID, unless resource binding has occurred, in which case it is a full JID.</p>
+      <p class="" style="">If the &lt;success/&gt; element it the response to a SASL mechanism exchange, it MAY contain an &lt;additional-data&gt; element, containing additional data from the SASL mechanism that has just completed.</p>
+      <p class="" style="">If the &lt;success/&gt; element is the response to a task exchange <a href="#continue">initiated by a &lt;continue/&gt; element</a>, it MAY contain any other element defined in a future protocol containing additional data from the task that has just completed</p>
+      <p class="" style="">If the client requested any stream features inline as part of the SASL negotiation, they are processed by the server at this point.</p>
+      <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Successful authentication with SCRAM-SHA-1-PLUS<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;success xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;!-- Base64 of: 'v=msVHs/BzIOHDqXeVH7EmmDu9id8=' --&gt;
+  &lt;additional-data&gt;
+    dj1tc1ZIcy9CeklPSERxWGVWSDdFbW1EdTlpZDg9
+  &lt;/additional-data&gt;
+  &lt;authorization-identifier&gt;user@example.org&lt;/authorization-identifier&gt;
+&lt;/success&gt;
+</pre></figure>
+      <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> Successful authentication with BLURDYBLOOP<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;success xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;additional-data&gt;
+    ip/AeIOfZXKBV+fW2smE0GUB3I//nnrrLCYkt0Vj
+  &lt;/additional-data&gt;
+  &lt;authorization-identifier&gt;juliet@montague.example/Balcony/a987dsh9a87sdh&lt;/authorization-identifier&gt;
+&lt;/success&gt;
+</pre></figure>
+      <p class="" style="">The results of activating any requested inline stream features are included in the server's &lt;success/&gt; response.</p>
+      <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> Successful re-authentication and resumption using BLURDYBLOOP<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;success xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;additional-data&gt;
+    SGFkIHlvdSBnb2luZywgdGhlcmUsIGRpZG4ndCBJPw==
+  &lt;/additional-data&gt;
+  &lt;authorization-identifier&gt;juliet@montague.example&lt;/authorization-identifier&gt;
+  &lt;resumed xmlns='urn:xmpp:sm:3' h='345' previd='124'/&gt;
+&lt;/success&gt;
+</pre></figure>
+      <p class="" style="">Any security layer negotiated SHALL take effect after the "&gt;" octet of the closing tag (ie, immediately after "&lt;/success&gt;"), if it has not already taken effect at a &lt;continue&gt; - see <a href="#continue">Continue</a> below.</p>
+      <p class="" style="">The &lt;success&gt; element is immediately followed by a &lt;features&gt; element in the "http://etherx.jabber.org/streams" namespace containing the applicable stream features of the newly authenticated stream. Note that no stream restart occurs.</p>
+    </div>
+    <div class="indent"><h4 id="failure">2.6.2 Failure<a class="anchor-link" href="#failure"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">A &lt;failure/&gt; element is used by the server to terminate the authentication attempt. It MAY contain application-specific error codes, and MAY contain a textual error. It MUST contain one of the SASL error codes from RFC 6120 Section 6.5.</p>
+      <p class="" style="">The server MUST NOT process any inline features requested by the client in a failed authentication request, if any.</p>
+      <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Failure<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;failure xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;aborted xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/&gt;
+  &lt;optional-application-specific xmlns='urn:something:else'/&gt;
+  &lt;text&gt;This is a terrible example.&lt;/text&gt;
+&lt;/failure&gt;
+</pre></figure>
+    </div>
+    <div class="indent"><h4 id="continue">2.6.3 Continue<a class="anchor-link" href="#continue"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">A &lt;continue/&gt; element is used to indicate that while the SASL exchange was successful, it is insufficient to allow authentication at this time. This can be used to indicate, for example, that the Client needs to perform a Second Factor Authentication ("2FA"), or is required to change password (this list is not meant to be exhaustive in any way).</p>
+      <p class="" style="">Such tasks are presented within a &lt;tasks&gt; element, which contains a sequence of &lt;task&gt; elements, each containing a name. These tasks are analogous to a SASL mechanism, but have a number of differences - they may never attempt to negotiate a new authorization identifier, nor a new security layer.</p>
+      <p class="" style="">Like the &lt;success/&gt; element, the &lt;continue/&gt; element MAY contain an &lt;additional-data/&gt; element containing additional data from the SASL mechanism that has completed.</p>
+      <p class="" style="">A client MAY choose any one of the offered tasks; if multiple are required a sequence of &lt;continue&gt; exchanges will occur until all mandatory tasks are complete.</p>
+      <p class="" style="">The &lt;continue element therefore always contains a &lt;tasks/&gt; element, as defined above. It MAY contain an &lt;additional-data/&gt; element, as the &lt;success/&gt; element does.</p>
+      <p class="" style="">Finally, it MAY contain a &lt;text/&gt; element, which can contain human-readable data explaining the nature of the step required.</p>
+      <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Continue Required<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;continue xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;additional-data&gt;
+    SSdtIGJvcmVkIG5vdy4=
+  &lt;/additional-data&gt;
+  &lt;tasks&gt;
+    &lt;task&gt;HOTP-EXAMPLE&lt;/task&gt;
+    &lt;task&gt;TOTP-EXAMPLE&lt;/task&gt;
+  &lt;/tasks&gt;
+  &lt;text&gt;This account requires 2FA&lt;/text&gt;
+&lt;/continue&gt;
+</pre></figure>
+      <p class="" style="">After the final octet of the first &lt;continue&gt; element, any SASL security layer negotiated in the preceding exchange SHALL be immediately in effect.</p>
+      <p class="" style="">Clients respond with a &lt;next/&gt; element, which has a single mandatory attribute of "task", containing the selected task name, and MAY contain any other element as defined in a future protocol defining this task.</p>
+      <p class="" style="">The concrete elements exchanged for each task after the &lt;next/&gt; reside inside a &lt;task-data/&gt; wrapper element in the namespace "urn:xmpp:sasl:2". Each wrapper element can contain any other element as defined in a future protocol defining this concrete task. Each task MUST end either by the server sending a &lt;failure/&gt; element, if the task failed, a &lt;continue/&gt; element, if the task was completed successfully and the server requests the client to perform a new task, or a &lt;success/&gt; element, indicating that the task was completed successfully and no further tasks are needed.</p>
+      <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> Fictional TOTP task<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;!-- Client starts TOTP-EXAMPLE task --&gt;
+&lt;next xmlns='urn:xmpp:sasl:2' task='TOTP-EXAMPLE'&gt;
+  &lt;totp xmlns="urn:totp:example"&gt;
+    SSd2ZSBydW4gb3V0IG9mIGlkZWFzIGhlcmUu
+  &lt;/totp&gt;
+&lt;/next&gt;
+
+&lt;!-- Server provides needed data to Client --&gt;
+&lt;task-data xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;totp xmlns="urn:totp:example"&gt;
+    94d27acffa2e99a42ba7786162a9e73e7ab17b9d
+  &lt;/totp&gt;
+&lt;/task-data&gt;
+
+&lt;!-- Client responds with requested TOP data --&gt;
+&lt;task-data xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;totp xmlns="urn:totp:example"&gt;
+    OTRkMjdhY2ZmYTJlOTlhNDJiYTc3ODYxNjJhOWU3M2U3YWIxN2I5ZAo=
+  &lt;/totp&gt;
+&lt;/task-data&gt;
+
+&lt;!-- Server indicates successful completion of TOTP-EXAMPLE task --&gt;
+&lt;success xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;totp xmlns="urn:totp:example"&gt;
+    SGFkIHlvdSBnb2luZywgdGhlcmUsIGRpZG4ndCBJPw==
+  &lt;/totp&gt;
+  &lt;authorization-identifier&gt;juliet@montague.example&lt;/authorization-identifier&gt;
+&lt;/success&gt;</pre></figure>
+    </div>
+  </div>
+<h2 id="security">3.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Relative to the SASL profile documented in RFC 6120, this introduces more data unprotected by any security layer negotiated by SASL itself. While no actual exchanges are introduced that are unprotected, the nature of this exchange might allow for (for example) a resource binding extension to be introduced. SASL security layers are sparingly used in the field, however, so this is thought to be a theoretical, rather than practical, concern. TLS, if negotiated before authentication, could mitigate these risks further.</p>
+  <p class="" style="">As explained in § 13.8.3 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm124">4</a>], servers and clients SHOULD NOT support SASL PLAIN. Usage of PLAIN allows for trivial downgrade atacks by Man-In-The-Middle attackers circumventing any possible channel-binding or mutual authentication and even allowing the attacker to gain access to the cleartext password. If possible, PLAIN should be disabled by default on servers and clients and only be enabled when configured by the admin respective client user (if at all).</p>
+  <p class="" style="">This protocol makes use of the hint of its identity contained in the stream "from" attribute as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm124">4</a>] prior to authentication. This value MUST NOT be trusted to contain the real identity of the connecting client. Varying pre-authentication responses (such as supported SASL mechanisms) based on this value may allow unauthorized parties to discover whether an account exists, and even guess at what software might be used with that account (e.g. by observing which SASL mechanisms can be used on this account). Minimizing differences between the default response for unregistered JIDs and registered JIDs, as well as rate-limiting (to prevent enumeration attempts), are possible countermeasures. If the server does not know the client-identity it is RECOMMENDED to randomize the list of provided SASL mechanisms to reduce these risks even further.</p>
+  <p class="" style="">SASL2 MUST only be used by Clients or offered by Servers after TLS negotiation, see § 5.2 and § 5.3.4 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-idm124">4</a>].</p>
+  <p class="" style="">Clients MUST NOT send, and servers MUST NOT process, authentication requests included in the TLS 0-RTT ("early data") extension. Such data is vulnerable to replay attacks, and without adequate protection this could allow an attacker to disrupt established sessions or cause other side-effects depending on the inline features negotiated. This rule may be overridden by later specifications, provided they define appropriate protocols to mitigate these issues. Examples of these attacks and mitigations are discussed in Section 8 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8446">RFC 8446</a></span>  [<a href="#nt-idm217">7</a>].</p>
+<h2 id="sect-idm219">4.
+       SASL Profile Definition<a class="anchor-link" href="#sect-idm219"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This provides pointers and/or clarifications to the <a href="#overview">Overview</a> in the order and manner defined in RFC 4422, section 4.</p>
+  <div class="indent"><h3 id="sect-idm222">4.1 Service Name<a class="anchor-link" href="#sect-idm222"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The service name SHALL be "xmpp", as defined by RFC 6120.</p>
+  </div>
+  <div class="indent"><h3 id="sect-idm224">4.2 Mechanism negotiation<a class="anchor-link" href="#sect-idm224"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Servers list mechanisms in the &lt;mechanisms/&gt; list in response to a &lt;request/&gt; by the client. (See <a href="#initiation">Initiation</a>).</p>
+  </div>
+  <div class="indent"><h3 id="sect-idm227">4.3 Message Definitions<a class="anchor-link" href="#sect-idm227"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <div class="indent"><h4 id="sect-idm228">4.3.1 Initiation<a class="anchor-link" href="#sect-idm228"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+        <p class="" style="">Clients initiate using the &lt;authenticate/&gt; top level element (See <a href="#initiation">Initiation</a>.</p>
+    </div>
+    <div class="indent"><h4 id="sect-idm231">4.3.2 Server Challenges and Client Responses<a class="anchor-link" href="#sect-idm231"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+        <p class="" style="">See <a href="#challenge">Challenges and Responses</a>.</p>
+    </div>
+    <div class="indent"><h4 id="sect-idm234">4.3.3 Outcome<a class="anchor-link" href="#sect-idm234"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+        <p class="" style="">See <a href="#outcome">Completing Authentication</a>.</p>
+    </div>
+  </div>
+  <div class="indent"><h3 id="sect-idm237">4.4 Non-Empty Authorization Strings<a class="anchor-link" href="#sect-idm237"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If a Client specifies an authorization string which is non-empty, the identifier is normalized by treating it as a JID, and performing normalization as described in RFC 7622.</p>
+    <p class="" style="">Any non-empty authorization string MUST be considered an error if the stream's from attribute (if present) does not match.</p>
+  </div>
+  <div class="indent"><h3 id="sect-idm240">4.5 Aborting<a class="anchor-link" href="#sect-idm240"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Clients MAY abort unilaterally at any time before the authentication completed by sending an &lt;abort/&gt; element. This element MAY contain a &lt;text/&gt; element containing a textual representation of the reason as well as any other element defined in some future protocol.</p>
+    <p class="" style="">Servers MAY abort unliterally by sending &lt;failure/&gt; with the &lt;aborted/&gt; error code as defined in <a href="#failure">Failure</a>.</p>
+  </div>
+  <div class="indent"><h3 id="sect-idm244">4.6 Security Layer Effect<a class="anchor-link" href="#sect-idm244"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Security Layers take effect after the SASL mechanism itself (ie, the first negotiation) has completed successfully, after the final octet of the server's &lt;success&gt; or &lt;continue&gt;. See <a href="#success">Success</a> and <a href="#continue">Continue</a>.</p>
+  </div>
+  <div class="indent"><h3 id="sect-idm248">4.7 Security Layer Order<a class="anchor-link" href="#sect-idm248"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Option (a) is used - any SASL Security Layer is applied first to data being sent, and TLS applied last.</p>
+  </div>
+  <div class="indent"><h3 id="sect-idm250">4.8 Multiple Authentication<a class="anchor-link" href="#sect-idm250"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Although the &lt;continue/&gt; concept does use tasks analogous to multiple SASL sequences, only the first SASL mechanism used is considered an authentication, and only the first can negotiate a security layer.</p>
+    <p class="" style="">In particular, once &lt;success/&gt; or &lt;continue/&gt; has been sent by the server, any further &lt;authenticate/&gt; element MUST result in a stream error.</p>
+  </div>
+<h2 id="sect-idm253">5.
+       Example Flows<a class="anchor-link" href="#sect-idm253"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This section provides some example flows. It aims to demonstrate the structure of SASL2 negotiation, but it does not definitively describe any of the additional extensions shown here.</p>
+  <div class="indent"><h3 id="sect-idm255">5.1 Syntactic Equivalence<a class="anchor-link" href="#sect-idm255"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Where no additional features that SASL2 makes available are used, the flow of information is identical to the original SASL profile. This example shows the new syntax and draws the reader's attention to the differences.</p>
+    <figure class="code-example" id="example-13"><figcaption><strong>Example 13.</strong> PLAIN Authentication<a class="anchor-link" href="#example-13"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;!--
+  Client sends stream header
+--&gt;
+&lt;stream:stream
+  from='alice@example.org'
+  to='example.org'
+  version='1.0'
+  xml:lang='en'
+  xmlns='jabber:client'
+  xmlns:stream='http://etherx.jabber.org/streams'&gt;
+
+&lt;!--
+  Server sends stream features.
+  These are identical to SASL1, but within a different namespace.
+--&gt;
+&lt;stream:features&gt;
+  &lt;authentication xmlns='urn:xmpp:sasl:2'&gt;
+    &lt;mechanism&gt;PLAIN&lt;/mechanism&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1&lt;/mechanism&gt;
+  &lt;/authentication&gt;
+&lt;/stream:features&gt;
+
+&lt;!--
+  Client intiates authentication.
+  Beyond the element local name and namespace,
+  the main distinction is that initial-response data is held within an element,
+  so the "=" special case no longer applies.
+--&gt;
+&lt;authenticate xmlns='urn:xmpp:sasl:2' mechanism='PLAIN'&gt;
+  &lt;initial-response&gt;AGFsaWNlQGV4YW1wbGUub3JnCjM0NQ==&lt;/initial-response&gt;
+  &lt;user-agent id='d4565fa7-4d72-4749-b3d3-740edbf87770'&gt;
+    &lt;software&gt;AwesomeXMPP&lt;/software&gt;
+    &lt;device&gt;Kiva's Phone&lt;/device&gt;
+  &lt;/user-agent&gt;
+&lt;/authenticate&gt;
+
+&lt;!--
+  This completes in one step, so the Server sends a success.
+  A SASL2 success always includes the authorization identifier:
+--&gt;
+&lt;success xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;authorization-identifier&gt;alice@example.org&lt;/authorization-identifier&gt;
+&lt;/success&gt;
+
+&lt;!--
+  The server immediately sends a new set of stream features at this point.
+  There is no stream restart.
+--&gt;
+&lt;stream:features&gt;
+  &lt;bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'&gt;
+    &lt;required/&gt;
+  &lt;/bind&gt;
+&lt;/stream:features&gt;
+
+&lt;!--
+  The client now continues with resource binding.
+--&gt;
+</pre></figure>
+    <p class="" style="">Use of SASL2 in this simple scenario saves one round-trip (due to the lack of stream restart).</p>
+  </div>
+  <div class="indent"><h3 id="sect-idm259">5.2 Once More, This Time With CRAM<a class="anchor-link" href="#sect-idm259"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">In this example, multiple potential round-trips are saved by negotiating resource binding and stream management inline.</p>
+    <figure class="code-example" id="example-14"><figcaption><strong>Example 14.</strong> CRAM-MD5 Authentication<a class="anchor-link" href="#example-14"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;!--
+  Client sends stream header
+--&gt;
+&lt;stream:stream
+  from='tim@example.org'
+  to='example.org'
+  version='1.0'
+  xml:lang='en'
+  xmlns='jabber:client'
+  xmlns:stream='http://etherx.jabber.org/streams'&gt;
+
+&lt;!--
+  Server sends stream features.
+--&gt;
+&lt;stream:features&gt;
+  &lt;mechanisms xmlns='urn:xmpp:sasl:2'&gt;
+    &lt;mechanism&gt;PLAIN&lt;/mechanism&gt;
+    &lt;mechanism&gt;CRAM-MD5&lt;/mechanism&gt;
+  &lt;/mechanisms&gt;
+&lt;/stream:features&gt;
+
+&lt;!--
+  Client intiates authentication.
+  Here, no initial response is needed, so none is sent.
+--&gt;
+&lt;authenticate xmlns='urn:xmpp:sasl:2' mechanism='CRAM-MD5'&gt;
+  &lt;user-agent id='d4565fa7-4d72-4749-b3d3-740edbf87770'&gt;
+    &lt;software&gt;AwesomeXMPP&lt;/software&gt;
+    &lt;device&gt;Kiva's Phone&lt;/device&gt;
+  &lt;/user-agent&gt;
+&lt;/authenticate&gt;
+
+&lt;!--
+  CRAM-MD5 starts with a server challenge:
+--&gt;
+&lt;challenge xmlns='urn:xmpp:sasl:2'&gt;
+  PDE4OTYuNjk3MTcwOTUyQHBvc3RvZmZpY2UucmVzdG9uLm1jaS5uZXQ+
+&lt;/challenge&gt;
+
+&lt;!--
+  And the client responds:
+--&gt;
+&lt;response xmlns='urn:xmpp:sasl:2&gt;
+  dGltIGI5MTNhNjAyYzdlZGE3YTQ5NWI0ZTZlNzMzNGQzODkw
+&lt;/response&gt;
+
+&lt;!--
+  This completes, so the Server sends a success.
+--&gt;
+&lt;success xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;authorization-identifier&gt;tim@example.org&lt;/authorization-identifier&gt;
+&lt;/success&gt;
+
+&lt;!--
+  The server immediately sends a new set of stream features at this point.
+  There is no stream restart.
+--&gt;
+&lt;stream:features&gt;
+  &lt;bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'&gt;
+    &lt;required/&gt;
+  &lt;/bind&gt;
+&lt;/stream:features&gt;
+
+&lt;!--
+  The client now continues with resource binding.
+--&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="sect-idm262">5.3 Advanced Usage<a class="anchor-link" href="#sect-idm262"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This moves into the deeply hypothetical. A binding extension is posited, alongside an unrealistic 2FA mechanism which somehow mutually authenticates because why not.</p>
+    <figure class="code-example" id="example-15"><figcaption><strong>Example 15.</strong> BLURDYBLOOP and UNREALISTIC-2FA<a class="anchor-link" href="#example-15"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;!--
+  Client sends stream header
+--&gt;
+&lt;stream:stream
+  from='alice@example.org'
+  to='example.org'
+  version='1.0'
+  xml:lang='en'
+  xmlns='jabber:client'
+  xmlns:stream='http://etherx.jabber.org/streams'&gt;
+
+&lt;!--
+  Server sends stream features.
+  Note that whilst megabind is advertised, the unrealistic 2FA mechanism is not.
+--&gt;
+&lt;stream:features&gt;
+  &lt;authentication xmlns='urn:xmpp:sasl:2'&gt;
+    &lt;mechanism&gt;BLURDYBLOOP&lt;/mechanism&gt;
+    &lt;inline&gt;
+      &lt;megabind xmlns='urn:example:megabind'/&gt;
+    &lt;/inline&gt;
+  &lt;/authentication&gt;
+&lt;/stream:features&gt;
+
+&lt;!--
+  Client intiates authentication.
+--&gt;
+&lt;authenticate xmlns='urn:xmpp:sasl:2' mechanism='BLURDYBLOOP'&gt;
+  &lt;initial-response&gt;
+    SW5pdGlhbCBSZXNwb25zZQ==
+  &lt;/initial-response&gt;
+  &lt;user-agent id='d4565fa7-4d72-4749-b3d3-740edbf87770'&gt;
+    &lt;software&gt;AwesomeXMPP&lt;/software&gt;
+    &lt;device&gt;Kiva's Phone&lt;/device&gt;
+  &lt;/user-agent&gt;
+  &lt;megabind xmlns='urn:example:megabind'&gt;
+    &lt;resource&gt;this-one-please&lt;/resource&gt;
+  &lt;/megabind&gt;
+&lt;/authenticate&gt;
+
+&lt;!--
+  Maybe BLURDYBLOOP does this:
+--&gt;
+&lt;challenge xmlns='urn:xmpp:sasl:2'&gt;
+  PDE4OTYuNjk3MTcwOTUyQHBvc3RvZmZpY2UucmVzdG9uLm1jaS5uZXQ+
+&lt;/challenge&gt;
+
+&lt;!--
+  And the client responds:
+--&gt;
+&lt;response xmlns='urn:xmpp:sasl:2&gt;
+  dGltIGI5MTNhNjAyYzdlZGE3YTQ5NWI0ZTZlNzMzNGQzODkw
+&lt;/response&gt;
+
+&lt;!--
+  This completes, so the Server sends a continue, with the
+  success data (probably mutual auth) from BLURDYBLOOP.
+  The next task required is the unrealistic-2FA.
+  Note that the session is - probably - bound at this point, but
+  the authorization-identifier is not passed to the client until
+  the full authentication sequence is completed.
+--&gt;
+&lt;continue xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;additional-data&gt;
+    QWRkaXRpb25hbCBEYXRh
+  &lt;/additional-data&gt;
+  &lt;tasks&gt;
+    &lt;task&gt;UNREALISTIC-2FA&lt;/task&gt;
+  &lt;/tasks&gt;
+&lt;/continue&gt;
+
+&lt;!--
+  The client supports the unrealistic-2FA, so can move onto the next task:
+--&gt;
+&lt;next xmlns='urn:xmpp:sasl:2' task='UNREALISTIC-2FA'&gt;
+  &lt;parameters xmlns='urn:example:unrealistic2fa'&gt;
+    VW5yZWFsaXN0aWMgMkZBIElS
+  &lt;/parameters&gt;
+&lt;/next&gt;
+
+&lt;!--
+  This 2FA process is both unrealistic and also uses multiple round-trips.
+--&gt;
+&lt;task-data xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;question xmlns='urn:example:unrealistic2fa'&gt;
+    PDE4OTYuNjk3MTcwOTUyQHBvc3RvZmZpY2UucmVzdG9uLm1jaS5uZXQ+
+  &lt;/question&gt;
+&lt;/task&gt;
+
+&lt;!--
+  The client responds here.
+--&gt;
+&lt;task-data xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;response xmlns='urn:example:unrealistic2fa'&gt;
+    dGltIGI5MTNhNjAyYzdlZGE3YTQ5NWI0ZTZlNzMzNGQzODkw
+  &lt;/respons&gt;
+&lt;/task&gt;
+
+&lt;!--
+  Finally, the server sends a success.
+  Here, we have an authzid which is a full jid, since the session is now bound.
+  The result element here contains the mutual authentication data for the
+  unrealistic 2FA, and doesn't refer back to the BLURDYBLOOP exchange.
+--&gt;
+&lt;success xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;result xmlns='urn:example:unrealistic2fa'&gt;
+    VW5yZWFsaXN0aWMgMkZBIG11dHVhbCBhdXRoIGRhdGE=
+  &lt;/result&gt;
+  &lt;authorization-identifier&gt;
+    alice@example.org/this-one-please
+  &lt;/authorization-identifier&gt;
+&lt;/success&gt;
+</pre></figure>
+    <p class="" style="">Although the unrealistic 2FA here uses 2 round-trips (real ones will probably use one), the embedding of resource binding as shown here means that a second RTT is saved by SASL2, and there's no net change. A more realistic example would see RTTs saved, and additional negotiations could be added to further reduce RTTs.</p>
+  </div>
+<h2 id="iana">6.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This XEP requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm270">8</a>]. </p>
+<h2 id="registrar">7.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">None.</p>
+<h2 id="sect-idm274">8.
+       XML Schema<a class="anchor-link" href="#sect-idm274"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='utf-8'?&gt;
+&lt;xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'
+           targetNamespace="urn:xmpp:sasl:2"
+           xmlns="urn:xmpp:sasl:2"
+           elementFormDefault="qualified"&gt;
+
+    &lt;xs:element name="authentication"&gt;
+        &lt;xs:complexType&gt;
+            &lt;xs:sequence&gt;
+                &lt;xs:element name="mechanism" type="SaslMechName" minOccurs="1" maxOccurs="unbounded"/&gt;
+                &lt;xs:element name="inline" minOccurs="0" maxOccurs="1"&gt;
+                  &lt;xs:complexType&gt;
+                      &lt;xs:sequence&gt;
+                          &lt;xs:any/&gt;
+                      &lt;/xs:sequence&gt;
+                  &lt;/xs:complexType&gt;
+                &lt;/xs:element&gt;
+            &lt;/xs:sequence&gt;
+        &lt;/xs:complexType&gt;
+    &lt;/xs:element&gt;
+    
+    &lt;xs:element name="abort"&gt;
+        &lt;xs:complexType&gt;
+            &lt;xs:sequence&gt;
+                &lt;xs:element name="text" type="xs:string" minOccurs="0" maxOccurs="1"/&gt;
+                &lt;xs:any/&gt;
+            &lt;/xs:sequence&gt;
+        &lt;/xs:complexType&gt;
+    &lt;/xs:element&gt;
+
+    &lt;xs:element name="authenticate"&gt;
+        &lt;xs:complexType&gt;
+            &lt;xs:attribute name="mechanism" type="SaslMechName"/&gt;
+            &lt;xs:sequence&gt;
+                &lt;xs:element name="initial-response" type="SaslData" minOccurs="0" maxOccurs="1"/&gt;
+                &lt;xs:any/&gt;
+            &lt;/xs:sequence&gt;
+        &lt;/xs:complexType&gt;
+    &lt;/xs:element&gt;
+
+    &lt;xs:element name="challenge" type="SaslData"/&gt;
+
+    &lt;xs:element name="response" type="SaslData"/&gt;
+
+    &lt;xs:element name="success"&gt;
+        &lt;xs:complexType&gt;
+            &lt;xs:sequence&gt;
+                &lt;xs:element name="additional-data" type="SaslData" minOccurs="0" maxOccurs="1"/&gt;
+                &lt;xs:element name="authorization-identifier" type="Jid" minOccurs="1" maxOccurs="1"/&gt;
+                &lt;xs:any/&gt;
+            &lt;/xs:sequence&gt;
+        &lt;/xs:complexType&gt;
+    &lt;/xs:element&gt;
+
+    &lt;xs:element name="continue"&gt;
+        &lt;xs:complexType&gt;
+            &lt;xs:sequence&gt;
+                &lt;xs:element name="additional-data" type="SaslData"/&gt;
+                &lt;xs:element name="tasks"&gt;
+                    &lt;xs:complexType&gt;
+                        &lt;xs:sequence&gt;
+                            &lt;xs:element name="tasK" type="SaslMechName"/&gt;
+                        &lt;/xs:sequence&gt;
+                    &lt;/xs:complexType&gt;
+                &lt;/xs:element&gt;
+            &lt;/xs:sequence&gt;
+        &lt;/xs:complexType&gt;
+    &lt;/xs:element&gt;
+
+    &lt;xs:element name="next"&gt;
+      &lt;xs:complexType&gt;
+          &lt;xs:attribute name="task" type="SaslMechName"/&gt;
+          &lt;xs:sequence&gt;
+              &lt;xs:any/&gt;
+          &lt;/xs:sequence&gt;
+      &lt;/xs:complexType&gt;
+    &lt;/xs:element&gt;
+
+    &lt;xs:simpleType name="Jid"&gt;
+        &lt;xs:restriction base="xs:string"&gt;
+            &lt;xs:maxLength value="3071"/&gt;
+        &lt;/xs:restriction&gt;
+    &lt;/xs:simpleType&gt;
+
+    &lt;xs:simpleType name="SaslMechName"&gt;
+        &lt;xs:restriction base="xs:string"&gt;
+            &lt;xs:minLength value="1"/&gt;
+            &lt;xs:maxLength value="20"/&gt;
+        &lt;/xs:restriction&gt;
+    &lt;/xs:simpleType&gt;
+
+    &lt;xs:simpleType name="SaslData"&gt;
+        &lt;xs:restriction base="xs:base64Binary"/&gt;
+    &lt;/xs:simpleType&gt;
+&lt;/xs:schema&gt;
+</pre></figure>
+  <h2 id="ack">9.
+       Acknowledgements<a class="anchor-link" href="#ack"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The authors wish to share any credit with many members of the community, including Lance Stout, Ralph Meijer, Phil Roberts and Florian Schmaus.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0388</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.4.0</dd><dt>Last Updated</dt><dd>2022-11-16</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, rfc5802, <a href="xep-0440.html">XEP-0440</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>sasl2</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0388.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0388.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0388.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Dave Cridland</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:dave@hellopando.com">dave@hellopando.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:dwd@dave.cridland.net">dwd@dave.cridland.net</a></dd></dl><h5>Thilo Molitor</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:thilo+xmpp@eightysoft.de">thilo+xmpp@eightysoft.de</a></dd><dt>JabberID</dt><dd><a href="xmpp:thilo.molitor@juforum.de">thilo.molitor@juforum.de</a></dd></dl><h5>Matthew Wild</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:mwild1@gmail.com">mwild1@gmail.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:me@matthewwild.co.uk">me@matthewwild.co.uk</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm50">1</a>. XEP-0440: SASL Channel-Binding Type Capability &lt;<a href="https://xmpp.org/extensions/xep-0440.html">https://xmpp.org/extensions/xep-0440.html</a>&gt;.</p><p><a name="nt-idm54">2</a>. RFC 5802: Salted Challenge Response Authentication Mechanism (SCRAM) SASL and GSS-API Mechanisms &lt;<a href="http://tools.ietf.org/html/rfc5802">http://tools.ietf.org/html/rfc5802</a>&gt;.</p><p><a name="nt-idm120">3</a>. XEP-0233: Use of Domain-Based Service Names in XMPP SASL Negotiation &lt;<a href="https://xmpp.org/extensions/xep-0233.html">https://xmpp.org/extensions/xep-0233.html</a>&gt;.</p><p><a name="nt-idm124">4</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-idm150">5</a>. XEP-0386: Bind 2.0 &lt;<a href="https://xmpp.org/extensions/xep-0386.html">https://xmpp.org/extensions/xep-0386.html</a>&gt;.</p><p><a name="nt-idm154">6</a>. XEP-0092: Software Version &lt;<a href="https://xmpp.org/extensions/xep-0092.html">https://xmpp.org/extensions/xep-0092.html</a>&gt;.</p><p><a name="nt-idm217">7</a>. RFC 8446: The Transport Layer Security (TLS) Protocol Version 1.3 &lt;<a href="http://tools.ietf.org/html/rfc8446">http://tools.ietf.org/html/rfc8446</a>&gt;.</p><p><a name="nt-idm270">8</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.4.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0388-0.4.0.html">0.4.0</a> (2022-11-16)<a class="anchor-link" href="#revision-history-v0.4.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Bump namespace</li>
+        <li class="" style="">Add reference to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0440.html">SASL Channel-Binding Type Capability (XEP-0440)</a></span>  [<a href="#nt-idm50">1</a>] and <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5802">RFC 5802</a></span>  [<a href="#nt-idm54">2</a>]</li>
+        <li class="" style="">Update security considerations and business rules</li>
+        <li class="" style="">Clarify &lt;continue/&gt; and tasks</li>
+        <li class="" style="">Add expansion point to inline stream resumption and BIND2 (and possibly others)</li>
+        <li class="" style="">Add optional &lt;user-agent/&gt; element</li>
+        <li class="" style="">Move from Deferred to Experimental</li>
+      </ul>
+    <div class="revision-author">tm</div></li><li id="revision-history-v0.3.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0388-0.3.0.html">0.3.0</a> (2018-10-01)<a class="anchor-link" href="#revision-history-v0.3.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Defer due to lack of activity.<div class="revision-author">XEP Editor (jsc)</div></li><li id="revision-history-v0.2.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0388-0.2.1.html">0.2.1</a> (2017-08-24)<a class="anchor-link" href="#revision-history-v0.2.1"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+          <li class="" style="">That's a lot of XML errors. Sorry.</li>
+          <li class="" style="">Clarified whose additional-data this is.</li>
+          <li class="" style="">&lt;next&gt; uses &lt;initial-response&gt;.</li>
+          <li class="" style="">Added a bunch of example flows.</li>
+      </ul>
+    <div class="revision-author">dwd</div></li><li id="revision-history-v0.2.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0388-0.2.0.html">0.2.0</a> (2017-08-14)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <p class="" style="">Updated according to implementation experience:</p>
+      <ul class="" style="">
+	      <li class="" style="">Updated namespace</li>
+	      <li class="" style="">Continue "mechanisms" are not; changed these to "tasks".</li>
+	      <li class="" style="">Added stream features after Success.</li>
+	      <li class="" style="">Don't need complexity of "=" encoding; removed.</li>
+	      <li class="" style="">Fixed internal links.</li>
+	      <li class="" style="">Updated examples.</li>
+      </ul>
+    <div class="revision-author">dwd</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0388-0.1.0.html">0.1.0</a> (2017-03-16)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Move to experimental.</li>
+      </ul>
+    <div class="revision-author">XEP Editor (ssw)</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0388-0.0.1.html">0.0.1</a> (2017-02-07)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Initial Revision</li>
+      </ul>
+    <div class="revision-author">dwd</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{cridland2017sasl2,
+  title = {Extensible SASL Profile},
+  author = {Cridland, Dave and Molitor, Thilo and Wild, Matthew},
+  type = {XEP},
+  number = {0388},
+  version = {0.4.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0388.html},
+  date = {2017-02-07/2022-11-16},
+}</pre><p>END</p></body></html>
