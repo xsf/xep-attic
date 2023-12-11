@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0483: HTTP Online Meetings</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0483";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="HTTP Online Meetings"><meta name="DC.Creator" content="Dele Olajide"><meta name="DC.Creator" content="Guus der Kinderen"><meta name="DC.Description" content="This specification defines a protocol extension to request URLs from an external HTTP entity usable to initiate and invite participants to an online meeting."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2023-12-11"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0483"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0483: HTTP Online Meetings</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification defines a protocol extension to request URLs from an external HTTP entity usable to initiate and invite participants to an online meeting.</dd><dt>Authors</dt><dd><ul class="authors"><li>Dele Olajide</li><li>Guus der Kinderen</li></ul></dd><dt>Copyright</dt><dd>© 1999 – 2021 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.1.0 (2023-12-11)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#disco">Discovering Support</a><ol><li><a href="#disco-initiation">Meeting Initiation</a></li><li><a href="#disco-server">Invitation</a></li></ol></li><li><a href="#request">Requesting a Meeting</a></li><li><a href="#errors">Error conditions</a></li><li><a href="#meeting-invitation">Meeting Invitation</a></li><li><a href="#impl">Implementation Notes</a></li><li><a href="#security">Security Considerations</a><ol><li><a href="#general">General</a></li></ol></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-ns">Protocol Namespaces</a></li><li><a href="#registrar-type">Meeting Serviced Type Registry</a></li></ol></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">XMPP protocol extensions already defines a method for initiating peer-to-peer media sessions such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0166.html">Jingle (XEP-0166)</a></span>  [<a href="#nt-idm77">1</a>] however due to its very nature of being peer-to-peer it does not work very well in scenarios with online meetings. It also does not work alongside offline storage, MUC history and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-idm81">2</a>].</p>
+  <p class="" style="">Using a web browser to manually request a URL from an HTTP server and sharing the link has been a workaround for this for a long time now. While users have a variety of services to choose from, the downside of this manual approach is that an XMPP client can not automate this process on behalf of the user since these services don’t share a common API.</p>
+  <p class="" style="">This XEP defines an approach to request initiation of an online meeting via an HTTP server and receive a URL can be used to join and invite others to the meeting.</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <ul class="" style="">
+    <li class="" style="">Be as easy to implement as possible. This is grounded on the idea that most programming languages already have HTTP libraries available.</li>
+    <li class="" style="">Usable with Meeting service providers that have no XMPP integration.</li>
+    <li class="" style="">Anyone who knows the URL SHOULD be able to access it.</li>
+  </ul>
+<h2 id="disco">3.
+       Discovering Support<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="disco-initiation">3.1 Meeting Initiation<a class="anchor-link" href="#disco-initiation"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An entity advertises support for meeting initiation, as specified by this protocol, by including the "urn:xmpp:http:online-meetings:initiate:0" namespace, as well as "urn:xmpp:http:online-meetings#xxxxxx" (where xxxxx is the name of the supported meeting service) namespaces in its service discovery information features as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm95">3</a>] or section 6.3 of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm99">4</a>].</p>
+    <p class="" style="">A user’s server SHOULD include itself as a services provider for this protocol in its service discovery items.</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Client sends service discovery request to server<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.tld/garden'
+    to='montague.tld'
+    id='disco_01'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;</pre></figure>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Server replies to service discovery request and reports capability to initiate online meetings for Jitsi and Galene<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='montague.tld'
+    to='romeo@montague.tld/garden'
+    id='disco_01'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity
+        category='server'
+        type='im'
+        name='Openfire Server'/&gt;
+    &lt;feature var='urn:xmpp:http:online-meetings:initiate:0'/&gt;
+    &lt;feature var='urn:xmpp:http:online-meetings#jitsi'/&gt;
+    &lt;feature var='urn:xmpp:http:online-meetings#galene'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></figure>
+  </div>
+  <div class="indent"><h3 id="disco-server">3.2 Invitation<a class="anchor-link" href="#disco-server"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If an entity supports receiving meeting invitations as specified by this protocol, it advertises support by including the "urn:xmpp:http:online-meetings:invite:0" in its service discovery information features as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-idm95">3</a>] or section 6.3 of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm99">4</a>]. Support for specific meeting services can be specified by including the corresponding "urn:xmpp:http:online-meetings#xxxxxx" namespaces.</p>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Client sends service discovery request to invitee<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.tld/garden'
+    to='juliet@capulet.example/balcony'
+    id='disco_02'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;</pre></figure>
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Client replies to service discovery request and reports capability to accept invitations for online meeting for Jitsi.<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@capulet.example/balcony'
+    to='romeo@montague.tld/garden'
+    id='disco_02'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity
+        category='client'
+        type='im'
+        name='Spark'/&gt;
+    &lt;feature var='urn:xmpp:http:online-meetings:invite:0'/&gt;
+    &lt;feature var='urn:xmpp:http:online-meetings#jitsi'/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></figure>
+    <p class="" style="">In order for an application to determine whether an entity supports this protocol, where possible it SHOULD use the dynamic, presence-based profile of service discovery defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-idm99">4</a>]. However, if an application has not received entity capabilities information from an entity, it SHOULD use explicit service discovery instead.</p>
+  </div>
+<h2 id="request">4.
+       Requesting a Meeting<a class="anchor-link" href="#request"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">A client requests an online new meeting to be initiated by sending an IQ-get to the server containing a &lt;query&gt; child element qualified by the 'urn:xmpp:http:online-meetings:invite:0' namespace.</p>
+  <p class="" style="">This 'query' MUST include the type attribute specifying the Meeting Service type, which SHOULD be registered as described in the <a href="#registrar-type">Meeting Service Type Registry</a> section of this document.</p>
+  <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Client requests the server to initiate a new online meeting.<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.tld/garden'
+    to='montague.tld'
+    id='initiate_01'
+    type='get'&gt;
+  &lt;query xmlns='urn:xmpp:http:online-meetings:0'
+         type='jitsi'/&gt;
+&lt;/iq&gt;</pre></figure>
+  <p class="" style="">If the requesting entity desires to (re)initiate a meeting with a specific identifier, the optional 'id' attribute can be used to specify the identity of the online meeting requested. When the provided value cannot be used, for example when it does not match the format used by a meeting provider, or a meeting with that particular value is already in use, the server SHOULD return an error.</p>
+  <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Client requests a URL for a meeting with a specific ID from the server<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.tld/garden'
+    to='montague.tld'
+    id='initiate_02'
+    type='get'&gt;
+  &lt;query xmlns='urn:xmpp:http:online-meetings:0'
+         type='jitsi'
+         id='my_meeting'/&gt;
+&lt;/iq&gt;</pre></figure>
+  <p class="" style="">An optional 'desc' child element can be used to assign a human-readable description to the meeting. The server MAY use this value when configuring the online meeting with the service provider, and SHOULD use this value in its response, but otherwise treat this as an opaque value.</p>
+  <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Client uses the optional 'desc' when requesting a meeting to be initiated.<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.tld/garden'
+    to='montague.tld'
+    id='initiate_03'
+    type='get'&gt;
+  &lt;query xmlns='urn:xmpp:http:online-meetings:0'
+         type='jitsi'&gt;
+    &lt;desc&gt;Meeting room for Open Standards discussion&lt;/desc&gt;
+&lt;/iq&gt;</pre></figure>
+  <p class="" style="">The XMPP server responds with one or two child elements: a 'initiate' element that contains a URL to be used to create and configure the meeting, and an 'invite' element that contains a URL suitable to invite others into the meeting.</p>
+  <p class="" style="">In the URLs that it returns, the server MAY specify a web-based protocol handler if available and registered by the user. Otherwise, standard HTTPS protocol will be specified. In any case, the fully resolved URL provided by the host MUST provide Transport Layer Security (<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5246">RFC 5246</a></span>  [<a href="#nt-idm134">5</a>]). The HTTPS URL MUST adhere to <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc3986">RFC 3986</a></span>  [<a href="#nt-idm138">6</a>]. Non ASCII characters MUST be percent-encoded.</p>
+  <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> The server responds with an out of band URI specifying the jitsi web-based protocol handler<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='montague.tld'
+    to='romeo@montague.tld/garden'
+    id='initiate_03'
+    type='result'&gt;
+  &lt;query xmlns='urn:xmpp:http:online-meetings:0'&gt;
+    &lt;initiate type='jitsi'&gt;
+      &lt;url&gt;web+jitsi:https://meet.jit.si/OpenStandardsMuchGreatness&lt;/url&gt;
+      &lt;desc&gt;Meeting room for Open Standards discussion&lt;/desc&gt;
+    &lt;/initiate&gt;
+    &lt;invite type='jitsi'&gt;
+      &lt;url&gt;web+jitsi:https://meet.jit.si/OpenStandardsMuchGreatness&lt;/url&gt;
+      &lt;desc&gt;Meeting room for Open Standards discussion&lt;/desc&gt;
+    &lt;/invite&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></figure>
+  <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> The server responds with an out of band URI using standard HTTPS<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='montague.tld'
+    to='romeo@montague.tld/garden'
+    id='initiate_03'
+    type='result'&gt;
+  &lt;query xmlns='urn:xmpp:http:online-meetings:0'&gt;
+    &lt;initiate type='jitsi'&gt;
+      &lt;url&gt;https://meet.jit.si/OpenStandardsMuchGreatness&lt;/url&gt;
+      &lt;desc&gt;Meeting room for Open Standards discussion&lt;/desc&gt;
+    &lt;/initiate&gt;
+    &lt;invite type='jitsi'&gt;
+      &lt;url&gt;https://meet.jit.si/OpenStandardsMuchGreatness&lt;/url&gt;
+      &lt;desc&gt;Meeting room for Open Standards discussion&lt;/desc&gt;
+    &lt;/invite&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></figure>
+  <p class="" style="">The XMPP server MAY be tightly integrated with the Meeting Provider and facilitate registration, configuration and association of a web-based protocol handler, but the protocol to implement such integration is out of scope of this document.</p>
+  <p class="" style="">If the XMPP server is tightly integrated with the Meeting Provider, and no other data is needed for a meeting to be initiated, the XMPP server MAY initiate a meeting on behalf of the requester and leave out the 'initiate' element from the response. Note that a server SHOULD include a 'initiate' URL in its response if it cannot initiate a meeting on behalf of the requesting entity, even if it knows that no additional data is needed for a meeting to be automatically initiated upon joining the meeting URL. Inclusion of the 'initiate' element signals that the requesting entity may need join the meeting as the first participant, in order to be assigned 'creator' or 'moderator' privileges.</p>
+<h2 id="errors">5.
+       Error conditions<a class="anchor-link" href="#errors"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Instead of providing the client with a URL the server MAY respond with an error if the request fails. In addition, the HTTP entity MAY inform the requester about the reason for the failure.</p>
+  <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Alternative response by the server if the meeting initiation request includes unsupported type<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='montague.tld'
+    to='romeo@montague.tld/garden'
+    id='initiate_01'
+    type='error'&gt;
+  &lt;query xmlns='urn:xmpp:http:online-meetings:0'
+         type='jitsi'/&gt;
+  &lt;error type='cancel'&gt;
+    &lt;service-unavailable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+    &lt;text xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'&gt;The 'jitsi' meeting service provider type is not supported.&lt;/text&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;</pre></figure>
+  <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Alternative response by the server if the meeting initiation request fails due to meeting ID collision<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='montague.tld'
+    to='romeo@montague.tld/garden'
+    id='initiate_02'
+    type='error'&gt;
+  &lt;query xmlns='urn:xmpp:http:online-meetings:0'
+         type='jitsi'
+         id='my-meeting'/&gt;
+  &lt;error type='modify'&gt;
+    &lt;not-acceptable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+    &lt;text xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'&gt;Meeting is in use&lt;/text&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;</pre></figure>
+  <p class="" style="">For any other type of error the service SHOULD respond with appropriate error types to indicate temporary or permanent errors.</p>
+  <p class="" style="">For temporary errors such as exceeding a personal quota the service MAY include a &lt;retry/&gt; element qualified by the 'urn:xmpp:http:online-meetings:0' namespace as a child of the &lt;error/&gt; element. The retry element MUST include an attribute 'stamp' which indicates the time at which the requesting entity may try again. The format of the timestamp MUST adhere to the date-time format specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles (XEP-0082)</a></span>  [<a href="#nt-idm152">7</a>] and MUST be expressed in UTC.</p>
+  <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> Alternative response by the server to indicate a temporary error after the client exceeded a quota<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='montague.tld'
+    to='romeo@montague.tld/garden'
+    id='initiate_01'
+    type='error'&gt;
+  &lt;query xmlns='urn:xmpp:http:online-meetings:0'
+         type='jitsi'/&gt;
+  &lt;error type='wait'&gt;
+    &lt;resource-constraint xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+    &lt;text xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'&gt;Quota reached. You can only request 5 meetings a day&lt;/text&gt;
+    &lt;retry xmlns='urn:xmpp:http:online-meetings:0' stamp='2017-12-03T23:42:05Z'/&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;</pre></figure>
+  <figure class="code-example" id="example-13"><figcaption><strong>Example 13.</strong> Alternative response by the server to indicate an auth error to a client that is not allowed to initiate an online meeting<a class="anchor-link" href="#example-13"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='montague.tld'
+    to='romeo@montague.tld/garden'
+    id='initiate_01'
+    type='error'&gt;
+  &lt;query xmlns='urn:xmpp:http:online-meetings:0'
+         type='jitsi'/&gt;
+  &lt;error type='auth'&gt;
+    &lt;forbidden xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+    &lt;text xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'&gt;Only premium members are allowed to initiate meetings&lt;/text&gt;
+  &lt;/error&gt;
+&lt;/iq&gt;</pre></figure>
+<h2 id="meeting-invitation">6.
+       Meeting Invitation<a class="anchor-link" href="#meeting-invitation"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">After the requesting entity has successfully initiated a meeting, it MAY invite other entities to join the meeting. It does so by sending invitees a message stanza containing an 'invite' child element, qualified by the online-meetings namespace, as was sent by the server in response to the initiation request.</p>
+  <p class="" style="">To allow users of clients that do not support this XEP to receive the invitation, a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0066.html">Out-of-Band Data (XEP-0066)</a></span>  [<a href="#nt-idm161">8</a>] element and/or a 'body' element containing the meeting details MAY be included.</p>
+  <figure class="code-example" id="example-14"><figcaption><strong>Example 14.</strong> User sends meeting invitation<a class="anchor-link" href="#example-14"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message
+    from='romeo@montague.tld/garden'
+    to='juliet@capulet.example/balcony'&gt;
+  &lt;invite xmlns='urn:xmpp:http:online-meetings:0'
+          type='jitsi'&gt;
+    &lt;url&gt;https://meet.jit.si/OpenStandardsMuchGreatness&lt;/url&gt;
+    &lt;desc&gt;Meeting room for Open Standards discussion&lt;/desc&gt;
+  &lt;/invite&gt;
+  &lt;x xmlns='jabber:x:oob'&gt;
+    &lt;url&gt;https://meet.jit.si/OpenStandardsMuchGreatness&lt;/url&gt;
+    &lt;desc&gt;Meeting room for Open Standards discussion&lt;/desc&gt;
+  &lt;/x&gt;
+  &lt;body&gt;You are invited to join 'Meeting room for Open Standards discussion' at https://meet.jit.si/OpenStandardsMuchGreatness&lt;/body&gt;
+&lt;/message&gt;</pre></figure>
+  <p class="" style="">There is no further XMPP communication required between the server and the client for the client to join the meeting. The actual online meeting engagement with the provided URL is out of scope of this document.</p>
+<h2 id="impl">7.
+       Implementation Notes<a class="anchor-link" href="#impl"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The server SHOULD choose an appropriate timeout for the validity of the URL. Since there is no reason for a client to wait between requesting the URL and joining the meeting via the URL before dispatching invitations, relatively low timeout values of around 300s are RECOMMENDED.</p>
+<h2 id="security">8.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="general">8.1 General<a class="anchor-link" href="#general"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <ul class="" style="">
+      <li class="" style="">Service implementors SHOULD use long randomized parts in their URLs making it impossible to guess the location of arbitrary meeting url.</li>
+      <li class="" style="">Implementors should keep in mind, that without additional end-to-end-encryption, online meetings may not be secure. Client implementors are advised to either use this only for semi public meetings (for example meetings hosted on a public MUC) or implement appropriate end-to-end encryption.</li>
+      <li class="" style="">Joining an HTTP Online Meeting will leak the client’s IP address to the HTTP service. The HTTP service might not be the same service as the XMPP service the client is currently connected to.</li>
+  </ul>
+  </div>
+<h2 id="iana">9.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-idm177">9</a>]</p>
+<h2 id="registrar">10.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="registrar-ns">10.1 Protocol Namespaces<a class="anchor-link" href="#registrar-ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This specification defines the following XML namespaces:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:http:online-meetings:0</li>
+      <li class="" style="">urn:xmpp:http:online-meetings:initiate:0</li>
+      <li class="" style="">urn:xmpp:http:online-meetings:invite:0</li>
+      <li class="" style="">urn:xmpp:http:online-meetings#jitsi</li>
+      <li class="" style="">urn:xmpp:http:online-meetings#galene</li>
+    </ul>
+    <p class="" style="">Upon advancement of this specification from a status of Experimental to a status of Draft, the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-idm191">10</a>] shall add the foregoing namespace to the registry located at &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-idm196">11</a>].</p>
+  </div>
+  <div class="indent"><h3 id="registrar-type">10.2 Meeting Serviced Type Registry<a class="anchor-link" href="#registrar-type"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The XMPP Registrar maintains a registry of Meeting provider types at TBD.</p>
+  </div>
+<h2 id="schema">11.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;xml version="1.0" encoding="utf8"&gt;
+&lt;!-- TBD --&gt;
+</pre></figure>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0483</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.1.0</dd><dt>Last Updated</dt><dd>2023-12-11</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>
+                None
+              </dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>http_online-meetings</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0483.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0483.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0483.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Dele Olajide</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:dele@olajide.net">dele@olajide.net</a></dd><dt>JabberID</dt><dd><a href="xmpp:dele.olajide@igniterealtime.org">dele.olajide@igniterealtime.org</a></dd></dl><h5>Guus der Kinderen</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:guus.der.kinderen@gmail.com">guus.der.kinderen@gmail.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:guus.der.kinderen@igniterealtime.org">guus.der.kinderen@igniterealtime.org</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-idm77">1</a>. XEP-0166: Jingle &lt;<a href="https://xmpp.org/extensions/xep-0166.html">https://xmpp.org/extensions/xep-0166.html</a>&gt;.</p><p><a name="nt-idm81">2</a>. XEP-0313: Message Archive Management &lt;<a href="https://xmpp.org/extensions/xep-0313.html">https://xmpp.org/extensions/xep-0313.html</a>&gt;.</p><p><a name="nt-idm95">3</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-idm99">4</a>. XEP-0115: Entity Capabilities &lt;<a href="https://xmpp.org/extensions/xep-0115.html">https://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-idm134">5</a>. RFC 5246: The Transport Layer Security (TLS) Protocol Version 1.2 &lt;<a href="http://tools.ietf.org/html/rfc5246">http://tools.ietf.org/html/rfc5246</a>&gt;.</p><p><a name="nt-idm138">6</a>. RFC 3986: Uniform Resource Identifiers (URI): Generic Syntax &lt;<a href="http://tools.ietf.org/html/rfc3986">http://tools.ietf.org/html/rfc3986</a>&gt;.</p><p><a name="nt-idm152">7</a>. XEP-0082: XMPP Date and Time Profiles &lt;<a href="https://xmpp.org/extensions/xep-0082.html">https://xmpp.org/extensions/xep-0082.html</a>&gt;.</p><p><a name="nt-idm161">8</a>. XEP-0066: Out of Band Data &lt;<a href="https://xmpp.org/extensions/xep-0066.html">https://xmpp.org/extensions/xep-0066.html</a>&gt;.</p><p><a name="nt-idm177">9</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-idm191">10</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-idm196">11</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0483-0.1.0.html">0.1.0</a> (2023-12-11)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Promoted to Experimental.</li>
+      </ul>
+    <div class="revision-author">XEP Editor: kis</div></li><li id="revision-history-v0.0.3"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0483-0.0.3.html">0.0.3</a> (2023-09-12)<a class="anchor-link" href="#revision-history-v0.0.3"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Modified wording of abstract.</li>
+        <li class="" style="">Specified distribution of URL / add meeting invitation</li>
+        <li class="" style="">Differentiate between Meeting service providers that are integrated with XMPP server, and those that are not.</li>
+        <li class="" style="">Differentiate between URL to create and join meeting</li>
+        <li class="" style="">Replaced textual references with XML entities</li>
+        <li class="" style="">Introduced distinct namespaces for create and invite, retaining type-specific namespaces for feature discovery</li>
+        <li class="" style="">Introduced Meeting Service type registry</li>
+        <li class="" style="">Removed CORS-related implementation note</li>
+        <li class="" style="">Meeting ID in request now optional</li>
+        <li class="" style="">Add optional 'desc' in the meeting request.</li>
+        <li class="" style="">Moved IQ child elements into a wrapper, renamed 'create' element to 'initiate'</li>
+        <li class="" style="">Add fall-back body element to invite message stanza.</li>
+        <li class="" style="">Removed dependency on XEP-0066.</li>
+      </ul>
+    <div class="revision-author">gdk</div></li><li id="revision-history-v0.0.2"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0483-0.0.2.html">0.0.2</a> (2023-08-22)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Remove base URL attribute.</li>
+        <li class="" style="">Add support for a web-based protocol handler in OOB data result.</li>
+      </ul>
+    <div class="revision-author">do</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0483-0.0.1.html">0.0.1</a> (2023-08-21)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Initial version.</li>
+      </ul>
+    <div class="revision-author">do</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{olajide2023http_online-meetings,
+  title = {HTTP Online Meetings},
+  author = {Olajide, Dele and der Kinderen, Guus},
+  type = {XEP},
+  number = {0483},
+  version = {0.1.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/attic/xep-0483-0.1.0.html},
+  date = {2023-08-21/2023-12-11},
+}</pre><p>END</p></body></html>
