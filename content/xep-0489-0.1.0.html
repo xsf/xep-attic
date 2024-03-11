@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0489: Reporting Account Affiliations</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0489";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="Reporting Account Affiliations"><meta name="DC.Creator" content="Matthew Wild"><meta name="DC.Description" content="This specification documents a way for an XMPP server to report to other entities the relationship it has with a user on its domain."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2024-03-11"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0489"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2020 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0489: Reporting Account Affiliations</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification documents a way for an XMPP server to report to other entities the relationship it has with a user on its domain.</dd><dt>Author</dt><dd>Matthew Wild</dd><dt>Copyright</dt><dd>© 2023 – 2024 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.1.0 (2024-03-11)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#introduction">Introduction</a></li><li><a href="#requirements">Requirements</a><ol><li><a href="#related-work">Related work</a></li></ol></li><li><a href="#affiliations">Affiliations</a></li><li><a href="#protocol">Protocol</a><ol><li><a href="#info-element">Info element</a></li><li><a href="#query">Query</a></li><li><a href="#embedding">Embedding</a></li></ol></li><li><a href="#business-rules">Business rules</a></li><li><a href="#discovery">Discovery</a></li><li><a href="#security-considerations">Security Considerations</a><ol><li><a href="#account-age-privacy">Account age privacy</a></li><li><a href="#spoofing">Spoofing</a></li></ol></li><li><a href="#iana-considerations">IANA Considerations</a></li><li><a href="#xmpp-registrar-considerations">XMPP Registrar Considerations</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="introduction">1.
+       Introduction<a class="anchor-link" href="#introduction"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">This specification documents a way for an XMPP server to report to other entities the relationship it has with a user on its domain.</p>
+
+<p class="" style="">In practice, a server may not trust all accounts equally. For example, if a server offers anonymous access or open registration, it may have very little trust in such users. Meanwhile a user account that was provisioned by a server administrator for an employee or a family member would naturally have a higher level of trust.</p>
+
+<p class="" style="">Even if a server alters its own behaviour based on how much it trusts a user account (such as preventing anonymous users from performing certain actions), other entities on the network have no way of knowing what trust to place in JIDs they have not encountered before - they can only judge the server as a whole.</p>
+
+<p class="" style="">This lack of insight can result in the negative actions (spam, abuse, etc.) by untrusted users on a domain causing the whole domain to be sanctioned by other servers.</p>
+
+<h2 id="requirements">2.
+       Requirements<a class="anchor-link" href="#requirements"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">This protocol will allow:</p>
+
+<ul class="" style="">
+<li class="" style="">Servers to communicate the affiliation of the end user that sent a stanza</li>
+<li class="" style="">Remote servers to query a user’s affiliation on demand</li>
+</ul>
+
+<p class="" style="">By providing this high-level information to other entities on the network, it
+allows them to make informed decisions about how to handle traffic at the
+account level rather than the server level.</p>
+
+<p class="" style="">For example, during a spam wave, a public MUC service may choose not to grant
+the 'participant' role by default to accounts that were very recently
+registered.</p>
+
+<p class="" style="">It aims to achieve this while preserving the privacy of the user themselves,
+and ensuring the user’s server has full discretion over what data to provide
+and to which entities it is provided.</p>
+
+<div class="indent"><h3 id="related-work">2.1 Related work<a class="anchor-link" href="#related-work"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">This specification has similar goals to that of <a href="https://xmpp.org/extensions/xep-0275.html">XEP-0275: Entity Reputation</a>. It differs in the following ways:</p>
+
+<ul class="" style="">
+<li class="" style="">Rather than attempting to define a semi-standardized scale, it reports qualitative actionable account status information. This makes implementation simpler, and servers don’t have to guess at appropriate thresholds on a universal quantitative scale.</li>
+<li class="" style="">This specification can be extended in the future if necessary. The scoring algorithm in XEP-0275 is coded into the document, and changing the value assignments may impact existing deployments that have defined thresholds based on the current specification.</li>
+<li class="" style="">The 'trust' level in this specification is superficially similar to the Entity Reputation score, however with notable differences: trust levels are calculated only by a server for its own users, and we make no attempt to standardize an algorithm.</li>
+</ul>
+
+<p class="" style="">Some of this information may also be discovered through <a href="https://xmpp.org/extensions/xep-0030.html">XEP-0030: Service Discovery</a>. This specification provides more detailed information than is currently exposed via service discovery, and it is also push-based, removing the need for recipients to separately query an account’s status while determining how to handle a stanza.</p>
+
+</div><h2 id="affiliations">3.
+       Affiliations<a class="anchor-link" href="#affiliations"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">An affiliation is what we call the relationship that a user has with a service. Different affiliations
+imply different levels of trust. The affiliations defined in this specification are as follows:</p>
+
+<ul class="" style="">
+<li class="" style=""><strong>anonymous:</strong> the address belongs to an anonymous, temporary or guest account. The user is not known to the server.</li>
+<li class="" style=""><strong>registered:</strong> the address belongs to an account that self-registered, e.g. using XEP-0077</li>
+<li class="" style=""><strong>member:</strong> the address belongs to a trusted member of the server - e.g. accounts that are provisioned for known users.</li>
+<li class="" style=""><strong>admin:</strong> the address belongs to a server administrator</li>
+</ul>
+
+<p class="" style="">It should be noted that these affiliations extend the account types defined
+in the <a href="https://xmpp.org/registrar/disco-categories.html#account">Service Discovery Identities registry</a>. Notably, this document adds an additional affiliation type: 'member'.</p>
+
+<h2 id="protocol">4.
+       Protocol<a class="anchor-link" href="#protocol"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<div class="indent"><h3 id="info-element">4.1 Info element<a class="anchor-link" href="#info-element"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">An affiliation element looks like this:</p>
+
+<figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> The affiliation info element<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">&lt;info xmlns='urn:xmpp:raa:0'
+      affiliation='member'
+      since='2023-06-27T00:00:00Z'
+      trust='57' /&gt;</pre></figure>
+
+<p class="" style="">The 'affiliation' attribute MUST be present, and the value MUST be one of the affiliations listed in the previous section. The 'since' attribute is optional, and contains a XEP-0082 DateTime profile string representing the date and time at which the account was approximately created. Please see the <a href="#security-considerations">security considerations</a> for advice on preserving privacy before exposing this information.</p>
+
+</div><div class="indent"><h3 id="query">4.2 Query<a class="anchor-link" href="#query"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">An entity may directly query for affiliation information about a JID.</p>
+
+<figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Service at example.com sends a query for information about a JID<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">&lt;iq type="get" to="mr.nobody@service.example" from="example.com" id="123"&gt;
+    &lt;query xmlns='urn:xmpp:raa:0'/&gt;
+&lt;/iq&gt;</pre></figure>
+
+<p class="" style="">The server SHOULD respond successfully with as much information as it permits the requesting entity to see:</p>
+
+<figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Service responds with affiliation information<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">&lt;iq type="result" to="example.com" from="mr.nobody@service.example" id="123"&gt;
+    &lt;info xmlns='urn:xmpp:raa:0' affiliation='registered' since='2023-06-27T00:00:00Z' trust='47'/&gt;
+&lt;/iq&gt;</pre></figure>
+
+<p class="" style="">Alternatively, the server MAY respond with a 'forbidden' error if it does not permit the requesting entity to view any information about account affiliations:</p>
+
+<figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Service forbids entity from querying this information<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">&lt;iq type="error" to="example.com" from="mr.nobody@service.example" id="123"&gt;
+    &lt;error type='auth'&gt;
+        &lt;forbidden xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/&gt;
+    &lt;/error&gt;
+&lt;/iq&gt;</pre></figure>
+
+</div><div class="indent"><h3 id="embedding">4.3 Embedding<a class="anchor-link" href="#embedding"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">Alternatively the &lt;info/&gt; element can be embedded into outgoing stanzas, such as presence or messages:</p>
+
+<figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Embedding affiliation information<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">&lt;presence to="user@example.com"
+          from="mr.nobody@service.example"
+          type="subscribe"&gt;
+    &lt;info xmlns='urn:xmpp:raa:0'
+          affiliation='registered'
+          since='2023-06-27T00:00:00Z' /&gt;
+&lt;/presence&gt;</pre></figure>
+
+<p class="" style="">The above stanza demonstrates a subscription request sent by a recently-registered user to a user on another server. When embedding, a server MUST announce which stanzas it supports embedding in. In such
+stanzas it MUST strip any existing &lt;info/&gt; elements that may have been sent by the client.</p>
+
+<p class="" style="">Receiving servers MUST only trust embedded &lt;info/&gt; elements when the origin
+server has announced support for them.</p>
+
+</div><h2 id="business-rules">5.
+       Business rules<a class="anchor-link" href="#business-rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">A server may exercise discretion over when it includes affiliation information. For example, it MAY choose to only reveal this information when sending stanzas to trusted servers, or withold it when sending stanzas to untrusted servers (the definition of trusted servers is beyond this specification - it may be implementation-specific or based on a protocol such as <a href="https://xmpp.org/extensions/xep-0267.html">XEP-0267: Server Buddies</a>).</p>
+
+<p class="" style="">Similarly, the information does not need to be included for every type of stanza. For example, a server SHOULD only include this information for stanzas that are sent to non-contacts. For example, messages and presence to JIDs that have not granted a presence subscription to the sender yet (i.e. absent from the sender’s roster, or with a subscription state of 'none' or 'from').</p>
+
+<p class="" style="">A server MAY also withold or reduce the information for certain affiliations - e.g. by reporting server administrators as simply 'member' if the server does not want to expose this information to the recipient.</p>
+
+<p class="" style="">The inclusion of the 'since' attribute is optional, but it SHOULD be included for accounts with the affiliation 'registered' accounts that were created within the past 30 days. It MAY be approximate (e.g. rounded to the nearest day) for performance or privacy reasons (the latter is discussed in the <a href="#security-considerations">security considerations</a> section).</p>
+
+<p class="" style="">The inclusion of the 'trust' attribute is optional, but it SHOULD be included for 'registered' accounts if 'since' is not included. That is, at least one of 'since' or 'trust' SHOULD be present for accounts with affiliation 'registered' to ensure a recipient has sufficient information to act on. The value of the 'trust' attribute MUST be an integer from 0 to 100 (inclusive). The value may be calculated by the server using any algorithm it deems appropriate. However, the same algorithm MUST be used for all users of the same affiliation, so that comparison between them is meaningful.</p>
+
+<h2 id="discovery">6.
+       Discovery<a class="anchor-link" href="#discovery"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">If a server supports this protocol and the query functionality, it MUST
+advertise the 'urn:xmpp:raa:0' feature in response to service discovery
+queries on its domain JID.</p>
+
+<p class="" style="">If the server also supports embedding affiliation into stanzas, it MUST also
+advertise the appropriate features from this list:</p>
+
+<div class="indent"><dl>
+<dt><strong>urn:xmpp:raa:0#embed-presence-sub</strong></dt>
+<dd>&lt;info/&gt; may be embedded in presence subscription requests originating from the user’s <strong>bare JID</strong>.</dd>
+<dt><strong>urn:xmpp:raa:0#embed-presence-directed</strong></dt>
+<dd>&lt;info/&gt; may be embedded in directed presence (including e.g. XEP-0045 join requests) from the user’s full JID.</dd>
+<dt><strong>urn:xmpp:raa:0#embed-message</strong></dt>
+<dd>&lt;info/&gt; may be embedded in message stanzas.</dd>
+</dl></div>
+
+<h2 id="security-considerations">7.
+       Security Considerations<a class="anchor-link" href="#security-considerations"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">This specification describes a protocol that can be used to help enhance the
+security of the XMPP network. However, some considerations do apply.</p>
+
+<div class="indent"><h3 id="account-age-privacy">7.1 Account age privacy<a class="anchor-link" href="#account-age-privacy"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">If a server chooses to expose an account’s creation timestamp to untrusted
+entities, the reported value SHOULD be approximate - e.g. rounded to the day
+on which the account registered - to preserve privacy. Providing a value with
+a high precision may allow entities to correlate the account registration with
+other actions performed by the user, or determine a user’s likely time zone.</p>
+
+<p class="" style="">In particular, and in accordance with the security considerations of XEP-0082,
+the 'since' value MUST be reported in UTC.</p>
+
+</div><div class="indent"><h3 id="spoofing">7.2 Spoofing<a class="anchor-link" href="#spoofing"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">The payloads described in this specification may be embedded by the server in
+stanzas originating from a user’s JID. This makes it trivial for clients to
+send spoofed &lt;info/&gt; elements if the server does not remove them. To
+protect against such spoofing:</p>
+
+<ul class="" style="">
+<li class="" style="">Origin servers MUST advertise the correct features according to the stanza types they embed the &lt;info/&gt; element within.</li>
+<li class="" style="">Origin servers MUST strip client-originating &lt;info/&gt; elements from any stanza types they have advertised support for.</li>
+<li class="" style="">Receiving servers MUST ignore &lt;info/&gt; elements embedded within stanzas from other servers unless that server advertises support for embedding within that specific stanza type.</li>
+</ul>
+
+</div><h2 id="iana-considerations">8.
+       IANA Considerations<a class="anchor-link" href="#iana-considerations"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">None.</p>
+
+<h2 id="xmpp-registrar-considerations">9.
+       XMPP Registrar Considerations<a class="anchor-link" href="#xmpp-registrar-considerations"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">This document extends the 'Identity Categories and Types Registry' defined by
+XEP-0030 with the following addition to the 'account' category:</p>
+
+<figure class="code"><figcaption></figcaption><pre class="prettyprint">&lt;type&gt;
+  &lt;name&gt;member&lt;/name&gt;
+  &lt;desc&gt;The user@host is a trusted member of the server - e.g. an account that was provisioned for known user&lt;/desc&gt;
+  &lt;doc&gt;XEP-xxxx&lt;/doc&gt;
+&lt;/type&gt;</pre></figure>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0489</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.1.0</dd><dt>Last Updated</dt><dd>2024-03-11</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>
+                None
+              </dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>raa</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0489.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0489.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0489.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Matthew Wild</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:mwild1@gmail.com">mwild1@gmail.com</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2020 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0489-0.1.0.html">0.1.0</a> (2024-03-11)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Promoted to Experimental</li>
+      </ul>
+    <div class="revision-author">XEP Editor: dg</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0489-0.0.1.html">0.0.1</a> (2023-06-28)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div>
+<div class="revision-author">mjw</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{wild2023raa,
+  title = {Reporting Account Affiliations},
+  author = {Wild, Matthew},
+  type = {XEP},
+  number = {0489},
+  version = {0.1.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0489.html},
+  date = {2023-06-28/2024-03-11},
+}</pre><p>END</p></body></html>
