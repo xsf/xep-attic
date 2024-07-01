@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0484: Fast Authentication Streamlining Tokens</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0484";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="Fast Authentication Streamlining Tokens"><meta name="DC.Creator" content="Matthew Wild"><meta name="DC.Description" content="This specification defines a token-based method to streamline authentication in XMPP, allowing fully authenticated stream establishment within a single round-trip."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2024-06-30"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0484"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0484: Fast Authentication Streamlining Tokens</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification defines a token-based method to streamline authentication in XMPP, allowing fully authenticated stream establishment within a single round-trip.</dd><dt>Author</dt><dd>Matthew Wild</dd><dt>Copyright</dt><dd>© 2022 – 2024 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.2.0 (2024-06-30)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a><ol><li><a href="#why-tokens">Why tokens?</a></li></ol></li><li><a href="#reqs">Requirements</a><ol><li><a href="#sect-id4">Differences from XEP-0397 Instant Stream Resumption</a></li></ol></li><li><a href="#usecases">Use Cases</a><ol><li><a href="#support">Server advertises support for FAST</a></li><li><a href="#initial-auth">Client performs initial authentication</a></li><li><a href="#token-response">Server provides token to client</a></li><li><a href="#fast-auth">Client authenticates using FAST</a></li><li><a href="#token-rotation">Server initiates token rotation</a></li><li><a href="#invalidation">Client requests token invalidation</a></li></ol></li><li><a href="#rules">Business Rules</a><ol><li><a href="#rules-clients">Client responsibilities</a></li><li><a href="#rules-servers">Server responsibilities</a></li></ol></li><li><a href="#impl">Implementation Notes</a><ol><li><a href="#impl-tokens">Server-side handling of multiple active tokens</a></li></ol></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#acks">Acknowledgements</a></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This specification defines a protocol that allows a client that successfully authenticates using one mechanism (e.g. a password-based authentication mechanism) to exchange it for a server-generated token. Such tokens can be used on subsequent connections to quickly and efficiently authenticate to the server. They also exclude the client from interactive authentication steps, such as multi-factor authentication.</p>
+  <p class="" style="">This allows clients, especially those operating in shared or less secure environments (such as web browsers), to avoid storing a password locally at all. It also enables a user to selectively revoke a client's access to their account.</p>
+  <div class="indent"><h3 id="why-tokens">1.1 Why tokens?<a class="anchor-link" href="#why-tokens"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">XMPP streams are most commonly authenticated using passwords today. Unfortunately, passwords may not be unique to the service that the user is authenticating to, may be optimized for memorability rather than security, and may contain sensitive information. Therefore, secure password authentication mechanisms (such as SCRAM and OPAQUE) necessarily involve multiple round-trips and more resource-intensive cryptography to protect the password during authentication and at rest.</p>
+    <p class="" style="">Using server-issued secret tokens can improve security in many ways - such tokens can be longer, more random (unguessable) and can be rotated much more frequently than passwords. They are also useless outside the scope of the service that they were issued by and for, and easily invalidated, reducing consequences of accidental or malicious exposure.</p>
+    <p class="" style="">Without the same weaknesses as passwords, it is appropriate to use simpler and faster authentication mechanisms when authenticating using tokens. That is how this protocol reduces authentication overhead while maintaining an equivalent (or higher) level of account security.</p>
+  </div>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <ul class="" style="">
+    <li class="" style="">Authenticate security without introducing any extra round-trips.</li>
+    <li class="" style="">Integrate with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-id22">1</a>].</li>
+    <li class="" style="">Support rotation and revocation of tokens.</li>
+    <li class="" style="">Allow channel binding for clients that can support it, while resisting downgrade attacks.</li>
+    <li class="" style="">Safe to use in TLS 1.3 0-RTT ("early data") extensions.</li>
+  </ul>
+  <div class="indent"><h3 id="sect-id4">2.1 Differences from XEP-0397 Instant Stream Resumption<a class="anchor-link" href="#sect-id4"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">A XEP with very similar goals already exists, <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0397.html">Instant Stream Resumption (XEP-0397)</a></span>  [<a href="#nt-id23">2</a>]. While inspired by several aspects of that protocol, FAST has a number of differences:</p>
+    <ul class="" style="">
+      <li class="" style="">This protocol does not link tokens to the lifetime of a XEP-0198 session. In fact it does not depend on XEP-0198 at all, though that can be negotiated alongside using the usual SASL2 methods for that.</li>
+      <li class="" style="">In particular, the above means that session establishment can still be accomplished in a single round-trip even if a XEP-0198 session has expired.</li>
+      <li class="" style="">Channel binding is not required, thus making this protocol suitable for clients that cannot support it, such as web clients.</li>
+      <li class="" style="">Token rotation is resilient over unreliable links.</li>
+    </ul>
+  </div>
+<h2 id="usecases">3.
+       Use Cases<a class="anchor-link" href="#usecases"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="support">3.1 Server advertises support for FAST<a class="anchor-link" href="#support"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Servers that support FAST MUST advertise this as a SASL2 inline feature. The &lt;fast/&gt; feature element is qualified by the ‘urn:xmpp:fast:0’ namespace.</p>
+    <p class="" style="">The &lt;fast/&gt; element MUST contain one or more compatible authentication mechanisms. These mechanisms MUST support authenticating with a token (instead of a password) and MUST result in success or failure within a single round-trip. There SHOULD be at least one mechanism capable of channel binding, and there SHOULD be at least one mechanism without channel binding. A set of compatible mechanisms can be found in <span class="ref" style=""><a href="https://datatracker.ietf.org/doc/draft-schmaus-kitten-sasl-ht/09/">draft-schmaus-sasl-ht-09</a></span> [<a href="#nt-id24">3</a>].</p>
+    <p class="" style="">If the server allows the client to include authentication data in a TLS 0-RTT extension payload, it MUST indicate this with a 'tls-0rtt' attribute on the element set to '1' or 'true'.</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Server advertises support for FAST<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:features&gt;
+  &lt;authentication xmlns='urn:xmpp:sasl:2'&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1&lt;/mechanism&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1-PLUS&lt;/mechanism&gt;
+    &lt;inline&gt;
+      &lt;fast xmlns='urn:xmpp:fast:0' tls-0rtt='true'&gt;
+        &lt;mechanism&gt;HT-SHA-256-ENDP&lt;/mechanism&gt;
+        &lt;mechanism&gt;HT-SHA-256-EXPR&lt;/mechanism&gt;
+        &lt;mechanism&gt;HT-SHA-256-NONE&lt;/mechanism&gt;
+      &lt;/fast&gt;
+    &lt;/inline&gt;
+  &lt;/authentication&gt;
+&lt;/stream:features&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="initial-auth">3.2 Client performs initial authentication<a class="anchor-link" href="#initial-auth"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Initially, the client won't have any FAST token to authenticate with. To obtain a token, it MUST first authenticate using another method, e.g. using a password.</p>
+    <p class="" style="">To request a FAST token, a client MUST include a &lt;request-token/&gt; element qualified by the 'urn:xmpp:fast:0' namespace. The element MUST contain a 'mechanism' attribute, the value of which MUST be one of the FAST mechanisms advertised by the server.</p>
+    <p class="" style="">In the following example, the client authenticates with SCRAM-SHA-1-PLUS using a password, but requests a token for fast reauthentication in the future, using the HT-SHA-256-ENDP mechanism.</p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> <a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;authenticate xmlns='urn:xmpp:sasl:2' mechanism='SCRAM-SHA-1-PLUS'&gt;
+  &lt;initial-response&gt;[base64 encoded SASL data]&lt;/initial-response&gt;
+  &lt;bind xmlns='urn:xmpp:bind:0'&gt;
+    &lt;tag&gt;AwesomeXMPP&lt;/tag&gt;
+  &lt;/bind&gt;
+  &lt;request-token xmlns='urn:xmpp:fast:0' mechanism='HT-SHA-256-ENDP'/&gt;
+&lt;/authenticate&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="token-response">3.3 Server provides token to client<a class="anchor-link" href="#token-response"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Upon receiving a token request and successfully authenticating the client, the server generates a new unique token, valid for the requested mechanism, and includes it in the SASL2 &lt;success/&gt; response in a &lt;token/&gt; element qualified by the 'urn:xmpp:fast:0' namespace.</p>
+    <p class="" style="">The server MUST NOT provide a token unless the client has been successfully and fully authenticated, including any necessary post-authentication tasks (such as multi-factor authentication).</p>
+    <p class="" style="">The &lt;token/&gt; element MUST possess the following attributes:</p>
+    <div class="indent"><dl>
+      
+        <dt><strong>'token'</strong></dt>
+        <dd>The secret token to be used for authentication.</dd>
+      
+      
+        <dt><strong>'expiry'</strong></dt>
+        <dd>The timestamp at which the token will expire, in the DateTime profile defined by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles (XEP-0082)</a></span>  [<a href="#nt-id25">4</a>].</dd>
+      
+    </dl></div>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Server provides a new token to the client<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;success xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;authorization-identity&gt;user@example.com/AwesomeXMPP.4232f4d4&lt;/authorization-identity&gt;
+  &lt;bound xmlns='urn:xmpp:bind:0'&gt;
+    &lt;metadata xmlns='urn:xmpp:mam:2'&gt;
+      &lt;start id='YWxwaGEg' timestamp='2008-08-22T21:09:04Z' /&gt;
+      &lt;end id='b21lZ2Eg' timestamp='2020-04-20T14:34:21Z' /&gt;
+    &lt;/metadata&gt;
+  &lt;/bound&gt;
+  &lt;token xmlns='urn:xmpp:fast:0'
+         expiry='2020-03-12T14:36:15Z'
+         token='WXZzciBwYmFmdmZnZiBqdmd1IGp2eXFhcmZm' /&gt;
+&lt;/success&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="fast-auth">3.4 Client authenticates using FAST<a class="anchor-link" href="#fast-auth"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The client authenticates normally using SASL2, using the FAST SASL mechanism it previously selected, and the token provided by the server. To indicate that it is providing a token, the client MUST include a &lt;fast/&gt; element qualified by the 'urn:xmpp:fast:0' namespace, within its SASL2 authentication request.</p>
+    <p class="" style="">If the server indicated support for TLS 0-RTT data, the client MAY send its authentication request within the TLS 0-RTT payload of its handshake. If it does this, it MUST also include a 'count' attribute on the &lt;fast/&gt; element. The value of this attribute MUST be a positive integer, which is incremented by the client on every authentication attempt with this token (it SHOULD be reset to zero when the token changes).</p>
+    <p class="" style="">Servers MUST reject any authentication requests received via TLS 0-RTT payloads that do not include a 'count' attribute, or where the count is less than or equal to a count that has already been processed for this token. This protects against replay attacks that 0-RTT is susceptible to.</p>
+    <p class="" style="">Servers MUST bind tokens to the mechanism selected by the client in its original request, and reject attempts to use them with other mechanisms. For example, if the client selected a mechanism capable of channel binding, an attempt to use a mechanism without channel binding MUST fail even if the token would otherwise be accepted by that mechanism.</p>
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Client authenticates successfully using a FAST token<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;authenticate xmlns='urn:xmpp:sasl:2' mechanism='HT-SHA-256-ENDP'&gt;
+  &lt;initial-response&gt;[base64 encoded SASL data]&lt;/initial-response&gt;
+  &lt;bind xmlns='urn:xmpp:bind:0'&gt;
+    &lt;tag&gt;AwesomeXMPP&lt;/tag&gt;
+  &lt;/bind&gt;
+  &lt;fast xmlns='urn:xmpp:fast:0' count='123' /&gt;
+&lt;/authenticate&gt;
+
+&lt;success xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;authorization-identity&gt;user@example.com/AwesomeXMPP.4232f4d4&lt;/authorization-identity&gt;
+  &lt;bound xmlns='urn:xmpp:bind:0'&gt;
+    &lt;metadata xmlns='urn:xmpp:mam:2'&gt;
+      &lt;start id='YWxwaGEg' timestamp='2008-08-22T21:09:04Z' /&gt;
+      &lt;end id='b21lZ2Eg' timestamp='2020-04-20T14:34:21Z' /&gt;
+    &lt;/metadata&gt;
+  &lt;/bound&gt;
+&lt;/success&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="token-rotation">3.5 Server initiates token rotation<a class="anchor-link" href="#token-rotation"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If the authentication succeeded, but the token is due for rotation (e.g. it is close to expiry), the server will generate a new token and provide it to the client in the &lt;success/&gt; response (even if the client did not explicitly request a token):</p>
+    <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Server provides an updated token to the client<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;success xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;authorization-identity&gt;user@example.com/AwesomeXMPP.4232f4d4&lt;/authorization-identity&gt;
+  &lt;bound xmlns='urn:xmpp:bind:0'&gt;
+    &lt;metadata xmlns='urn:xmpp:mam:2'&gt;
+      &lt;start id='YWxwaGEg' timestamp='2008-08-22T21:09:04Z' /&gt;
+      &lt;end id='b21lZ2Eg' timestamp='2020-04-20T14:34:21Z' /&gt;
+    &lt;/metadata&gt;
+  &lt;/bound&gt;
+  &lt;token xmlns='urn:xmpp:fast:0'
+         expiry='2020-03-31T14:36:15Z'
+         token='R3VyIHpiZmcgbnl2aXIgdmYgZ3VyIGp2eXFyZmcu' /&gt;
+&lt;/success&gt;
+</pre></figure>
+    <p class="" style="">When the server provides a new token to the client in this way, it MUST NOT invalidate the existing token until the new token is actually used by the client. This ensures that if the client gets disconnected before receiving the newer token from the server, it can still successfully authenticate on its next connection attempt.</p>
+    <p class="" style="">Upon successful use of any token, the server MUST invalidate all tokens issued to the same client with an earlier expiry than the current token (even if those tokens have not yet reached their expiry time).</p>
+    <p class="" style="">Additionally, upon providing a new token to the client, the server SHOULD invalidate any tokens previously generated that have not been used.</p>
+  </div>
+  <div class="indent"><h3 id="invalidation">3.6 Client requests token invalidation<a class="anchor-link" href="#invalidation"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">A client can choose to invalidate a token before its expiry.</p>
+    <p class="" style="">For example, a client might implement a "log out" mechanism for people sharing a web browser or system. Explicitly invalidating the token with the server ensures that even if an unauthorized user managed to recover the token from the system, it would be useless.</p>
+    <p class="" style="">To invalidate the token, the client MUST successfully authenticate using the token as normal, but include an 'invalidate' attribute on the &lt;fast/&gt; element with a value of '1' or 'true'.</p>
+    <p class="" style="">Upon successful authentication with the 'invalidate' attribute set, the server MUST immediately invalidate the token and prevent its use for future authentication attempts. The server MUST NOT include a new token in the response (even if the token was due for rotation), unless the client also included a FAST &lt;request-token/&gt; element in its authentication request.</p>
+    <p class="" style="">The client MAY close the stream after the server acknowledges successful authentication, or it MAY proceed with the session as normal.</p>
+    <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Client requests token invalidation<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;authenticate xmlns='urn:xmpp:sasl:2' mechanism='HT-SHA-256-ENDP'&gt;
+    &lt;initial-response&gt;[base64 encoded SASL data]&lt;/initial-response&gt;
+    &lt;fast xmlns='urn:xmpp:fast:0' count='123' invalidate='true'/&gt;
+&lt;/authenticate&gt;
+</pre></figure>
+  </div>
+<h2 id="rules">4.
+       Business Rules<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="rules-clients">4.1 Client responsibilities<a class="anchor-link" href="#rules-clients"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <ul class="" style="">
+      <li class="" style="">Tokens are issued on a per-client basis. Clients MUST treat tokens as sensitive information, equivalent to passwords. For example, they should not be exposed in user interfaces or included in backups and other data exports.</li>
+      <li class="" style="">Clients wishing to use FAST authentication MUST provide the authenticating JID in the secure stream's 'from' attribute. They MUST also provide the a SASL2 &lt;user-agent&gt; element with an 'id' attribute (both of these values are discussed in more detail in XEP-0388).</li>
+     <li class="" style="">If a client attempts authentication using a token, but the server returns a SASL &lt;failure/&gt;, the client SHOULD discard the token and automatically fall back to alternative authentication mechanisms.</li>
+    </ul>
+  </div>
+  <div class="indent"><h3 id="rules-servers">4.2 Server responsibilities<a class="anchor-link" href="#rules-servers"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <ul class="" style="">
+      <li class="" style="">Tokens should be issued with a reasonable lifetime, reflective of a deployment's policy on inactive devices. Shorter lifetimes require more frequent rotation and increase the chances that a device will get "logged out" if it is offline during a token expiry. Longer lifetimes put tokens at greater risk of exposure in the event a device or its data becomes lost, stolen or compromised.</li>
+      <li class="" style="">Servers MUST NOT require interactive authentication steps (such as multi-factor authentication) when authenticating via a FAST token. If the server no longer trusts a token, it MUST instead fail the authentication (returning the SASL 'credentials-expired' error condition), and then allow the client to authenticate using other mechanisms (e.g. password based).</li>
+    </ul>
+  </div>
+<h2 id="impl">5.
+       Implementation Notes<a class="anchor-link" href="#impl"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="impl-tokens">5.1 Server-side handling of multiple active tokens<a class="anchor-link" href="#impl-tokens"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">As noted in the section on token rotation, this specification requires a server to sometimes accept multiple tokens for the same client. This can be achieved with the following algorithm:</p>
+    <ul class="" style="">
+      <li class="" style="">For every client using FAST, have two token slots - 'current' and 'new'.</li>
+      <li class="" style="">Whenever generating a new token, always place it into the 'new' slot.</li>
+      <li class="" style="">During authentication, first check against the token in the 'new' slot (if any). If successful, move the token from the 'new' slot to the 'current' slot (overwrite any existing token in that slot).</li>
+      <li class="" style="">If the client's provided token does not match the token in the 'new' slot, or if the 'new' slot is empty, compare against the token in the 'current' slot (if any).</li>
+    </ul>
+    <p class="" style="">This method ensures servers do not need to check against an unbounded number of active tokens, while still allowing safe rollover on unreliable connections. It also ensures that tokens are invalidated as soon as later tokens are used by the client.</p>
+    <p class="" style="">Note that anywhere in this flow where the server verifies the client's token against a stored token, it needs to check not just the token itself, but also that the token has not expired, that the correct mechanism was used, and the replay counter (if applicable). Token hash comparison itself MUST be performed using constant-time comparison functions, as already available in most environments and cryptography libraries.</p>
+  </div>
+<h2 id="security">6.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">FAST authentication MUST only be performed over a secure connection (e.g. using TLS with verified certificates). Due to the lack of a challenge/response step, it is generally true that any attacker able to passively observe the authentication exchange can replay the authentication and gain access to the account. Channel binding mechanisms mitigate certain attacks, and MUST be preferred by the client. However they do not mitigate all attacks, and are not available in all environments.</p>
+  <p class="" style="">When the SASL payload is included in the TLS 0-RTT payload and combined with the single round-trip property of FAST SASL mechanisms, an attacker may be able to replay the same authentication multiple times, including the negotiation of features requested by the client (resumption and/or resource binding, for example). Such feature negotiations may have side-effects, such as (but not necessarily limited to) the disruption of established sessions. The per-token counter described in this document mitigates this issue.</p>
+  <p class="" style="">Mechanisms that communicate using hashes (including HMACs) MUST be compared by the server using constant-time comparison functions, to prevent leaking secrets via timing attacks.</p>
+<h2 id="iana">7.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">None.</p>
+<h2 id="registrar">8.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This specification defines the following XML namespace:</p>
+  <ul class="" style="">
+    <li class="" style="">urn:xmpp:fast:0</li>
+  </ul>
+<h2 id="acks">9.
+       Acknowledgements<a class="anchor-link" href="#acks"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Many thanks to Daniel Gultsch and Thilo Molitor for their input, support, and implementations. Thanks also to Florian Schmaus for prior work on Instant Stream Resumption and the HT family of SASL mechanisms, which inspired and influenced this specification.</p>
+<h2 id="schema">10.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    xmlns='urn:xmpp:fast:0'
+    targetNamespace='urn:xmpp:fast:0'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-0484: https://xmpp.org/extensions/xep-0484.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name='fast'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element ref='mechanism' minOccurs='0' maxOccurs='unbounded'/&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name='tls-0rtt' type='xs:boolean' use='optional'/&gt;
+      &lt;xs:attribute name='count' type='xs:int' use='optional'/&gt;
+      &lt;xs:attribute name='invalidate' type='xs:boolean' use='optional'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='mechanism' type='xs:string'/&gt;
+
+  &lt;xs:element name='request-token'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:attribute name='mechanism' type='xs:string'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='token'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:attribute name='expiry' type='xs:dateTime'/&gt;
+      &lt;xs:attribute name='token' type='xs:string'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+&lt;/xs:schema&gt;
+</pre></figure>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0484</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.2.0</dd><dt>Last Updated</dt><dd>2024-06-30</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, <a href="xep-0388.html">XEP-0388</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>fast</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0484.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0484.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0484.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Matthew Wild</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:mwild1@gmail.com">mwild1@gmail.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:me@matthewwild.co.uk">me@matthewwild.co.uk</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id22">1</a>. XEP-0388: Extensible SASL Profile &lt;<a href="https://xmpp.org/extensions/xep-0388.html">https://xmpp.org/extensions/xep-0388.html</a>&gt;.</p><p><a name="nt-id23">2</a>. XEP-0397: Instant Stream Resumption &lt;<a href="https://xmpp.org/extensions/xep-0397.html">https://xmpp.org/extensions/xep-0397.html</a>&gt;.</p><p><a name="nt-id24">3</a>. draft-schmaus-sasl-ht-09: The Hashed Token SASL Mechanism &lt;<a href="https://datatracker.ietf.org/doc/draft-schmaus-kitten-sasl-ht/09/">https://datatracker.ietf.org/doc/draft-schmaus-kitten-sasl-ht/09/</a>&gt;.</p><p><a name="nt-id25">4</a>. XEP-0082: XMPP Date and Time Profiles &lt;<a href="https://xmpp.org/extensions/xep-0082.html">https://xmpp.org/extensions/xep-0082.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.2.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0484-0.2.0.html">0.2.0</a> (2024-06-30)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Added an XML Schema.</li>
+        <li class="" style="">Fixed text where 'count' was assumed to be an element, not an attribute.</li>
+        <li class="" style="">Fixed indentation in a few examples.</li>
+      </ul>
+    <div class="revision-author">egp</div></li><li id="revision-history-v0.1.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0484-0.1.1.html">0.1.1</a> (2024-05-24)<a class="anchor-link" href="#revision-history-v0.1.1"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Link to latest draft version (09) of the HT SASL mechanism.</li>
+      </ul>
+    <div class="revision-author">lnj</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0484-0.1.0.html">0.1.0</a> (2023-12-11)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Promoted to Experimental.</li>
+      </ul>
+    <div class="revision-author">XEP Editor: kis</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0484-0.0.1.html">0.0.1</a> (2022-10-19)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">mw</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{wild2022fast,
+  title = {Fast Authentication Streamlining Tokens},
+  author = {Wild, Matthew},
+  type = {XEP},
+  number = {0484},
+  version = {0.2.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0484.html},
+  date = {2022-10-19/2024-06-30},
+}</pre><p>END</p></body></html>
