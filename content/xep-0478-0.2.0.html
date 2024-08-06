@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0478: Stream Limits Advertisement</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0478";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="Stream Limits Advertisement"><meta name="DC.Creator" content="Kim Alvefur"><meta name="DC.Creator" content="Matthew Wild"><meta name="DC.Description" content="This specification defines a way for an XMPP entity to announce the limits it will enforce for data received on a stream."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2024-08-02"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0478"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0478: Stream Limits Advertisement</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification defines a way for an XMPP entity to announce the limits it will enforce for data received on a stream.</dd><dt>Authors</dt><dd><ul class="authors"><li>Kim Alvefur</li><li>Matthew Wild</li></ul></dd><dt>Copyright</dt><dd>© 2022 – 2024 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.2.0 (2024-08-02)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a><ol><li><a href="#intro-problem">Problem statement</a></li></ol></li><li><a href="#reqs">Requirements</a></li><li><a href="#usecases">Use Cases</a><ol><li><a href="#advertise">Server advertises limits to connecting entity</a></li><li><a href="#advertise-bidi">Connecting server announces limits on bidirectional stream</a></li></ol></li><li><a href="#rules">Business Rules</a></li><li><a href="#impl">Implementation Notes</a></li><li><a href="#access">Accessibility Considerations</a></li><li><a href="#i18n">Internationalization Considerations</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#design">Design Considerations</a></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This documents describes a mechanism for communicating limits, such as stanza size limits that is in effect on a particular stream, in order to allow the sending party to avoid reaching those limits.</p>
+  <div class="indent"><h3 id="intro-problem">1.1 Problem statement<a class="anchor-link" href="#intro-problem"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Where stanza size limits have been deployed, very often this leads to problems with large stanzas causing connection outages, most often <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0084.html">User Avatar (XEP-0084)</a></span>  [<a href="#nt-id16">1</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-id17">2</a>] result stanzas, which can be very large due to embedded images.</p>
+    <p class="" style="">If stanza size limit violations are met with stream errors then this may lead to temporary connection outage, which may take a few seconds to recover from.</p>
+  </div>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <ul class="" style="">
+    <li class="" style="">Enable discovery of the stanza size limit in use on a stream.</li>
+    <li class="" style="">Support for bi-directional streams.</li>
+  </ul>
+  <p class="" style="">These requirements will enable XMPP clients and servers to adapt data they generate, such that it will fit within the limits required by the recipient, or reject overly large stanzas early, rather than following a trial-and-error approach.</p>
+<h2 id="usecases">3.
+       Use Cases<a class="anchor-link" href="#usecases"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="advertise">3.1 Server advertises limits to connecting entity<a class="anchor-link" href="#advertise"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">For any XMPP stream, there is an "initiating entity" (a client or server) and a "responding entity" that they are connecting to. The responding entity advertises its limits in the &lt;stream:features/&gt; element that it sends at the start of the stream.</p>
+    <p class="" style="">The limits are enclosed in a &lt;limits/&gt; element qualified by the 'urn:xmpp:stream-limits:0' namespace. This element MAY contain the following child elements:</p>
+    <div class="indent"><dl>
+      
+        <dt><strong>&lt;max-bytes/&gt;</strong></dt>
+        <dd>Contains an integer representing the maximum size of any first-level stream elements (including stanzas), in bytes the announcing entity is willing to accept. Guidance on acceptable limits is provided in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-id18">3</a>] section 13.12. If the responding entity is unable to determine its limits, this child can be absent.</dd>
+      
+      
+        <dt><strong>&lt;idle-seconds/&gt;</strong></dt>
+        <dd>Contains an integer representing the number of seconds without any traffic from the iniating entity after which the server may consider the stream idle, and either perform liveness checks (using e.g. <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0198.html">Stream Management (XEP-0198)</a></span>  [<a href="#nt-id19">4</a>] or <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0199.html">XMPP Ping (XEP-0199)</a></span>  [<a href="#nt-id20">5</a>]) or terminate the stream. Guidance on handling idle connections is provided in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-id18">3</a>] section 4.6. If the responding entity is unable to determine its limits, this child can be absent.</dd>
+      
+    </dl></div>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Advertising limits to connecting entity<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;stream:features&gt;
+  &lt;mechanisms xmlns="urn:ietf:params:xml:ns:xmpp-sasl"&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1&lt;/mechanism&gt;
+    &lt;mechanism&gt;PLAIN&lt;/mechanism&gt;
+  &lt;/mechanisms&gt;
+  &lt;limits xmlns="urn:xmpp:stream-limits:0"&gt;
+    &lt;max-bytes&gt;10000&lt;/max-bytes&gt;
+    &lt;idle-seconds&gt;1800&lt;/idle-seconds&gt;
+  &lt;/limits&gt;
+&lt;/stream:features&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="advertise-bidi">3.2 Connecting server announces limits on bidirectional stream<a class="anchor-link" href="#advertise-bidi"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Servers using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0288.html">Bidirectional Server-to-Server Connections (XEP-0288)</a></span>  [<a href="#nt-id21">6</a>] to establish a bidirectional stream with another server do not get an opportunity to send &lt;stream:features/&gt; to the responding entity. For a server to advertise the limits about what it is willing to accept on such a stream, the &lt;limits/&gt; element can be included in the &lt;bidi/&gt; element.</p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Advertising limits to responding entity over bidirectional stream<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;bidi xmlns='urn:xmpp:bidi'&gt;
+  &lt;limits xmlns="urn:xmpp:stream-limits:0"&gt;
+    &lt;max-bytes&gt;10000&lt;/max-bytes&gt;
+    &lt;idle-seconds&gt;1800&lt;/idle-seconds&gt;
+  &lt;/limits&gt;
+&lt;/bidi&gt;
+</pre></figure>
+  </div>
+<h2 id="rules">4.
+       Business Rules<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">If, after serialization, a stanza exceeds the limits that have been advertised on a stream, it SHOULD NOT be sent on that stream. Instead, a server SHOULD return an error to the sender. Such an error SHOULD contain the &lt;policy-violation/&gt; error condition, and SHOULD NOT contain a 'by' attribute (as the policy being violated is not the current entity's). A &lt;text/&gt; may also be included, explaining the limit that would be exceeded.</p>
+  <p class="" style="">It is acceptable for the limits on a stream to change whenever new stream features are announced - such as before and after authentication of the connecting entity.</p>
+<h2 id="impl">5.
+       Implementation Notes<a class="anchor-link" href="#impl"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">OPTIONAL.</p>
+<h2 id="access">6.
+       Accessibility Considerations<a class="anchor-link" href="#access"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">OPTIONAL.</p>
+<h2 id="i18n">7.
+       Internationalization Considerations<a class="anchor-link" href="#i18n"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">OPTIONAL.</p>
+<h2 id="security">8.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">REQUIRED.</p>
+  <p class="" style="">Very large stanzas may incur memory and processing costs on the receiving entity. Advertising the actual limits could inform an attacker of how large a stanza to construct in order to maximize e.g. DoS effectiveness. Best combined with network level rate limits on raw bytes.</p>
+<h2 id="iana">9.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">None.</p>
+<h2 id="registrar">10.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This specification defines the following namespace:</p>
+  <ul class="" style="">
+    <li class="" style="">urn:xmpp:stream-limits:0</li>
+  </ul>
+  <p class="" style="">Also, the following stream feature:</p>
+  <ul class="" style="">
+    <li class="" style=""><figure class="code"><figcaption></figcaption><pre class="prettyprint">&lt;limits xmlns='urn:xmpp:stream-limits:0'/&gt;</pre></figure></li>
+  </ul>
+<h2 id="design">11.
+       Design Considerations<a class="anchor-link" href="#design"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The ability for a client to announce limits on what it will receive on a client-to-server stream is deliberately not provided by this specification. This vastly simplifies discovery of the maximum limits between any two JIDs, and it avoids situations where the server is unable to deliver incoming stanzas to some or all of an account's connected clients. Clients will already be protected from denial-of-service through excessive stanza sizes due to the server's own limits.</p>
+<h2 id="schema">12.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    xmlns='urn:xmpp:stream-limits:0'
+    targetNamespace='urn:xmpp:stream-limits:0'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-0478: https://xmpp.org/extensions/xep-0478.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:element name='limits'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element ref='max-bytes' minOccurs='0'/&gt;
+        &lt;xs:element ref='idle-seconds' minOccurs='0'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='max-bytes' type='xs:unsignedInt'/&gt;
+
+  &lt;xs:element name='idle-seconds' type='xs:unsignedInt'/&gt;
+
+&lt;/xs:schema&gt;
+</pre></figure>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0478</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.2.0</dd><dt>Last Updated</dt><dd>2024-08-02</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>sla</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0478.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0478.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0478.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Kim Alvefur</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:zash@zash.se">zash@zash.se</a></dd><dt>JabberID</dt><dd><a href="xmpp:zash@zash.se">zash@zash.se</a></dd></dl><h5>Matthew Wild</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:mwild1@gmail.com">mwild1@gmail.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:me@matthewwild.co.uk">me@matthewwild.co.uk</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id16">1</a>. XEP-0084: User Avatar &lt;<a href="https://xmpp.org/extensions/xep-0084.html">https://xmpp.org/extensions/xep-0084.html</a>&gt;.</p><p><a name="nt-id17">2</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p><p><a name="nt-id18">3</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-id19">4</a>. XEP-0198: Stream Management &lt;<a href="https://xmpp.org/extensions/xep-0198.html">https://xmpp.org/extensions/xep-0198.html</a>&gt;.</p><p><a name="nt-id20">5</a>. XEP-0199: XMPP Ping &lt;<a href="https://xmpp.org/extensions/xep-0199.html">https://xmpp.org/extensions/xep-0199.html</a>&gt;.</p><p><a name="nt-id21">6</a>. XEP-0288: Bidirectional Server-to-Server Connections &lt;<a href="https://xmpp.org/extensions/xep-0288.html">https://xmpp.org/extensions/xep-0288.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.2.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0478-0.2.0.html">0.2.0</a> (2024-08-02)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Add the XML Schema.</li>
+        <li class="" style="">Clarify that both children can be optional.</li>
+        <li class="" style="">Fix indentation and one typo.</li>
+      </ul>
+    <div class="revision-author">egp</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0478-0.1.0.html">0.1.0</a> (2023-05-04)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <p class="" style="">Promote to Experimental.</p>
+    <div class="revision-author">XEP Editor: ks</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0478-0.0.1.html">0.0.1</a> (2022-10-20)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">ka, mw</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{alvefur2022sla,
+  title = {Stream Limits Advertisement},
+  author = {Alvefur, Kim and Wild, Matthew},
+  type = {XEP},
+  number = {0478},
+  version = {0.2.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0478.html},
+  date = {2022-10-20/2024-08-02},
+}</pre><p>END</p></body></html>
