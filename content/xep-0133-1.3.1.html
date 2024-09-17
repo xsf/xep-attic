@@ -1,0 +1,2499 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0133: Service Administration</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0133";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="Service Administration"><meta name="DC.Creator" content="Peter Saint-Andre"><meta name="DC.Description" content="This document defines recommended best practices for service-level administration of servers and components using Ad-Hoc Commands."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2024-09-01"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0133"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0133: Service Administration</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This document defines recommended best practices for service-level administration of servers and components using Ad-Hoc Commands.</dd><dt>Author</dt><dd>Peter Saint-Andre</dd><dt>Copyright</dt><dd>© 2004 – 2024 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Active</p><div id="status-notice" class="active informational">NOTICE: This Informational specification defines a best practice or protocol profile that has been approved by the XMPP Council and/or the XSF Board of Directors. Implementations are encouraged and the best practice or protocol profile is appropriate for deployment in production systems.</div></dd><dt>Type</dt><dd>Informational</dd><dt>Version</dt><dd>1.3.1 (2024-09-01)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li>Experimental</li><li>Proposed</li><li class="current">Active</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#disco">Discovery</a></li><li><a href="#usecases">Use Cases</a><ol><li><a href="#add-user">Add User</a></li><li><a href="#delete-user">Delete User</a></li><li><a href="#disable-user">Disable User</a></li><li><a href="#reenable-user">Re-Enable User</a></li><li><a href="#end-user-session">End User Session</a></li><li><a href="#get-user-password">Get User Password (retracted)</a></li><li><a href="#change-user-password">Change User Password</a></li><li><a href="#get-user-roster">Get User Roster</a></li><li><a href="#get-user-lastlogin">Get User Last Login Time</a></li><li><a href="#get-user-stats">Get User Statistics</a></li><li><a href="#edit-blacklist">Edit Blacklist</a></li><li><a href="#edit-whitelist">Edit Whitelist</a></li><li><a href="#get-registered-users-num">Get Number of Registered Users</a></li><li><a href="#get-disabled-users-num">Get Number of Disabled Users</a></li><li><a href="#get-online-users-num">Get Number of Online Users</a></li><li><a href="#get-active-users-num">Get Number of Active Users</a></li><li><a href="#get-idle-users-num">Get Number of Idle Users</a></li><li><a href="#get-registered-users-list">Get List of Registered Users</a></li><li><a href="#get-disabled-users-list">Get List of Disabled Users</a></li><li><a href="#get-online-users-list">Get List of Online Users</a></li><li><a href="#get-active-users-list">Get List of Active Users</a></li><li><a href="#get-idle-users-list">Get List of Idle Users</a></li><li><a href="#announce">Send Announcement to Online Users</a></li><li><a href="#set-motd">Set Message of the Day</a></li><li><a href="#edit-motd">Edit Message of the Day</a></li><li><a href="#delete-motd">Delete Message of the Day</a></li><li><a href="#set-welcome">Set Welcome Message</a></li><li><a href="#delete-welcome">Delete Welcome Message</a></li><li><a href="#edit-admin">Edit Admin List</a></li><li><a href="#restart">Restart Service</a></li><li><a href="#shutdown">Shut Down Service</a></li></ol></li><li><a href="#errors">Error Handling</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-protocol">Protocol Namespaces</a></li><li><a href="#registrar-formtype">Field Standardization</a></li></ol></li><li><a href="#sect-id42">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">There exists a set of common service-level tasks that administrators often need to perform in relation to Jabber/XMPP servers and components. Examples include creating users, disabling accounts, and blacklisting domains for inbound or outbound communications. Because such tasks can be performed with respect to a server or with respect to many kinds of add-on components (e.g., a text conferencing component that conforms to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id43">1</a>]), it makes sense to define a generic protocol for such interactions. This document describes such a protocol by specifying a profile of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0050.html">Ad-Hoc Commands (XEP-0050)</a></span>  [<a href="#nt-id44">2</a>] and associated <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0004.html">Data Forms (XEP-0004)</a></span>  [<a href="#nt-id45">3</a>] fields, rather than by defining a specialized and distinct protocol.</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document addresses the following requirements:</p>
+  <ul class="" style="">
+    <li class="" style="">Enable users with appropriate privileges to perform common administrative tasks with respect to Jabber/XMPP servers and components.</li>
+    <li class="" style="">Re-use existing XMPP and Jabber protocols wherever possible.</li>
+  </ul>
+<h2 id="disco">3.
+       Discovery<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">A server or component MUST advertise any administrative commands it supports via <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id46">4</a>] (as described in <span class="ref">XEP-0050: Ad-Hoc Commands</span>); such commands exist as well-defined discovery nodes associated with the service in question.</p>
+  <p class="" style="">In order to interact with a particular component attached to a server, an administrator needs to first discover that component and the commands it support, then send the appropriate command to the component itself. A server SHOULD NOT process commands on behalf of associated components, just as it does not handle service discovery requests on behalf of such components.</p>
+<h2 id="usecases">4.
+       Use Cases<a class="anchor-link" href="#usecases"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document defines a profile of <span class="ref">XEP-0050: Ad-Hoc Commands</span> that enables a service-level administrator to complete the following use cases:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">Add User</li>
+    <li class="" style="">Delete User</li>
+    <li class="" style="">Disable User</li>
+    <li class="" style="">Re-Enable User</li>
+    <li class="" style="">End User Session</li>
+    <li class="" style="">Get User Password (retracted)</li>
+    <li class="" style="">Change User Password</li>
+    <li class="" style="">Get User Roster</li>
+    <li class="" style="">Get User Last Login Time</li>
+    <li class="" style="">Get User Statistics</li>
+    <li class="" style="">Edit Blacklist</li>
+    <li class="" style="">Edit Whitelist</li>
+    <li class="" style="">Get Number of Registered Users</li>
+    <li class="" style="">Get Number of Disabled Users</li>
+    <li class="" style="">Get Number of Online Users</li>
+    <li class="" style="">Get Number of Active Users</li>
+    <li class="" style="">Get Number of Idle Users</li>
+    <li class="" style="">Get List of Registered Users</li>
+    <li class="" style="">Get List of Disabled Users</li>
+    <li class="" style="">Get List of Online Users</li>
+    <li class="" style="">Get List of Active Users</li>
+    <li class="" style="">Get List of Idle Users</li>
+    <li class="" style="">Send Announcement to Active Users</li>
+    <li class="" style="">Set Message of the Day</li>
+    <li class="" style="">Edit Message of the Day</li>
+    <li class="" style="">Delete Message of the Day</li>
+    <li class="" style="">Set Welcome Message</li>
+    <li class="" style="">Delete Welcome Message</li>
+    <li class="" style="">Edit Admin List</li>
+    <li class="" style="">Restart Service</li>
+    <li class="" style="">Shut Down Service</li>
+  </ol>
+  <p class="" style="">Naturally, not all of these use cases apply to all service types (e.g., adding a user may not apply to a multi-user chat service). An implementation or deployment MAY support any subset of the use cases defined herein. In addition, although this document aims to define common use cases, an implementation or deployment MAY support additional commands not defined herein, which may or may not be publicly registered.</p>
+  <p class="" style=""><em>Note:</em> The text that follows assumes that implementors have read and understood <span class="ref">XEP-0050: Ad-Hoc Commands</span> and <span class="ref">XEP-0004: Data Forms</span>.</p>
+  <div class="indent"><h3 id="add-user">4.1 Add User<a class="anchor-link" href="#add-user"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">A user is defined as any entity that has a persistent relationship with a service (most commonly through the creation a registered account with the service) and whose account is in some sense hosted by the service. Adding a user MUST result in the creation of an account, along with any implementation-specific data for such an account (e.g., database entries or a roster file). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#add-user".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Admin Requests to Add a User<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='add-user-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#add-user'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Service Returns Add User Form to Admin<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='add-user-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#add-user'
+           sessionid='add-user:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Adding a User&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to add a user.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The Jabber ID for the account to be added'
+             type='jid-single'
+             var='accountjid'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+      &lt;field label='The password for this account'
+             type='text-private'
+             var='password'/&gt;
+      &lt;field label='Retype password'
+             type='text-private'
+             var='password-verify'/&gt;
+      &lt;field label='Email address'
+             type='text-single'
+             var='email'/&gt;
+      &lt;field label='Given name'
+             type='text-single'
+             var='given_name'/&gt;
+      &lt;field label='Family name'
+             type='text-single'
+             var='surname'/&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Admin Submits Add User Form to Service<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='add-user-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#add-user'
+           sessionid='add-user:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='accountjid'&gt;
+        &lt;value&gt;juliet@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='password'&gt;
+        &lt;value&gt;R0m30&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='password-verify'&gt;
+        &lt;value&gt;R0m30&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='email'&gt;
+        &lt;value&gt;juliet@capulet.com&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='given_name'&gt;
+        &lt;value&gt;Juliet&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='surname'&gt;
+        &lt;value&gt;Capulet&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='add-user-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#add-user'
+           sessionid='add-user:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Notification of completion MAY include the processed data in a data form of type "result".</p>
+  </div>
+  <div class="indent"><h3 id="delete-user">4.2 Delete User<a class="anchor-link" href="#delete-user"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An administrator may need to permanently delete a user account. Deleting a user SHOULD result in the termination of any active sessions for the user and in the destruction of any implementation-specific data for the account (e.g., database entries or a roster file). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#delete-user".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Admin Requests to Delete a User<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='delete-user-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#delete-user'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Service Returns Delete User Form to Admin<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='delete-user-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#delete-user'
+           sessionid='delete-user:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Deleting a User&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to delete a user.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The Jabber ID(s) to delete'
+             type='jid-multi'
+             var='accountjids'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Note: If the entity is an end user, the JID SHOULD be of the form &lt;user@host&gt;, not &lt;user@host/resource&gt;.</p>
+    <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Admin Submits Delete User Form to Service<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='delete-user-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#delete-user'
+           sessionid='delete-user:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='accountjids'&gt;
+        &lt;value&gt;juliet@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='delete-user-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#delete-user'
+           sessionid='delete-user:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="disable-user">4.3 Disable User<a class="anchor-link" href="#disable-user"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An administrator may need to temporarily disable a user account. Disabling a user MUST result in the termination of any active sessions for the user and in the prevention of further user logins until the account is re-enabled (this can be thought of as "banning" the user). However, it MUST NOT result in the destruction of any implementation-specific data for the account (e.g., database entries or a roster file). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#disable-user".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> Admin Requests to Disable a User<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='disable-user-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#disable-user'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Service Returns Disable User Form to Admin<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='disable-user-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#disable-user'
+           sessionid='disable-user:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Disabling a User&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to disable a user.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The Jabber ID(s) to disable'
+             type='jid-multi'
+             var='accountjids'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Note: If the entity is an end user, the JID SHOULD be of the form &lt;user@host&gt;, not &lt;user@host/resource&gt;.</p>
+    <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Admin Submits Disable User Form to Service<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='disable-user-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#disable-user'
+           sessionid='disable-user:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='accountjids'&gt;
+        &lt;value&gt;juliet@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='disable-user-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#disable-user'
+           sessionid='disable-user:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="reenable-user">4.4 Re-Enable User<a class="anchor-link" href="#reenable-user"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An administrator may need to re-enable a user account that had been temporarily disabled. Re-enabling a user MUST result in granting the user the ability to access the service again. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#reenable-user".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-13"><figcaption><strong>Example 13.</strong> Admin Requests to Re-Enable a User<a class="anchor-link" href="#example-13"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='reenable-user-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#reenable-user'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-14"><figcaption><strong>Example 14.</strong> Service Returns Re-Enable User Form to Admin<a class="anchor-link" href="#example-14"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='reenable-user-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#reenable-user'
+           sessionid='reenable-user:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Re-Enable a User&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to re-enable a user.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The Jabber ID(s) to re-enable'
+             type='jid-multi'
+             var='accountjids'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Note: If the entity is an end user, the JID SHOULD be of the form &lt;user@host&gt;, not &lt;user@host/resource&gt;.</p>
+    <figure class="code-example" id="example-15"><figcaption><strong>Example 15.</strong> Admin Submits Re-Enable User Form to Service<a class="anchor-link" href="#example-15"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='reenable-user-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#reenable-user'
+           sessionid='reenable-user:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='accountjids'&gt;
+        &lt;value&gt;juliet@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-16"><figcaption><strong>Example 16.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-16"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='reenable-user-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#reenable-user'
+           sessionid='reenable-user:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="end-user-session">4.5 End User Session<a class="anchor-link" href="#end-user-session"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An administrator may need to terminate one or all of the user's current sessions, but allow future logins (this can be thought of as "kicking" rather than "banning" the user). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#end-user-session".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-17"><figcaption><strong>Example 17.</strong> Admin Requests to End a User's Session<a class="anchor-link" href="#example-17"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='end-user-session-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#end-user-session'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-18"><figcaption><strong>Example 18.</strong> Service Returns End User Session Form to Admin<a class="anchor-link" href="#example-18"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='end-user-session-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#end-user-session'
+           sessionid='end-user-session:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Ending a User Session&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to end a user&amp;apos;s session.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The Jabber ID(s) for which to end sessions'
+             type='jid-multi'
+             var='accountjids'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Note: If the JID is of the form &lt;user@host&gt;, the service MUST end all of the user's sessions; if the JID is of the form &lt;user@host/resource&gt;, the service MUST end only the session associated with that resource.</p>
+    <figure class="code-example" id="example-19"><figcaption><strong>Example 19.</strong> Admin Submits End User Session Form to Service<a class="anchor-link" href="#example-19"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='end-user-session-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#end-user-session'
+           sessionid='end-user-session:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='accountjids'&gt;
+        &lt;value&gt;juliet@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-20"><figcaption><strong>Example 20.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-20"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='end-user-session-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#end-user-session'
+           sessionid='end-user-session:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="get-user-password">4.6 Get User Password (retracted)<a class="anchor-link" href="#get-user-password"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Up to and including revision 1.2 of this XEP, this section defined a command that could be used to retrieve a user's password. This implies that the implementation stores plaintext passwords, a practise that is a well-documented vulnerability [<a href="#nt-id47">5</a>]. This command has therefore been retracted from this XEP. To retain section numbering, this text replaces the command definition that previously existed in this section.</p>
+  </div>
+  <div class="indent"><h3 id="change-user-password">4.7 Change User Password<a class="anchor-link" href="#change-user-password"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An administrator may need to change a user's password. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#change-user-password".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-21"><figcaption><strong>Example 21.</strong> Admin Requests to Change a User's Password<a class="anchor-link" href="#example-21"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='change-user-password-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#change-user-password'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-22"><figcaption><strong>Example 22.</strong> Service Returns Change User Password Form to Admin<a class="anchor-link" href="#example-22"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='change-user-password-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#change-user-password'
+           sessionid='change-user-password:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Changing a User Password&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to change a user&amp;apos;s password.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The Jabber ID for this account'
+             type='jid-single'
+             var='accountjid'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+      &lt;field label='The password for this account'
+             type='text-private'
+             var='password'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Note: If the entity is an end user, the JID SHOULD be of the form &lt;user@host&gt;, not &lt;user@host/resource&gt;.</p>
+    <figure class="code-example" id="example-23"><figcaption><strong>Example 23.</strong> Admin Submits Change User Password Form to Service<a class="anchor-link" href="#example-23"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='change-user-password-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#change-user-password'
+           sessionid='change-user-password:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='accountjid'&gt;
+        &lt;value&gt;juliet@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='password'&gt;
+        &lt;value&gt;V3r0n4&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-24"><figcaption><strong>Example 24.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-24"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='change-user-password-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#change-user-password'
+           sessionid='change-user-password:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="get-user-roster">4.8 Get User Roster<a class="anchor-link" href="#get-user-roster"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An administrator may need to retrieve a user's roster (e.g., to help verify the user's ownership of the account before reminding the user of the password). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#get-user-roster".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-25"><figcaption><strong>Example 25.</strong> Admin Requests to Get a User's Roster<a class="anchor-link" href="#example-25"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-user-roster-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#get-user-roster'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-26"><figcaption><strong>Example 26.</strong> Service Returns Get User Roster Form to Admin<a class="anchor-link" href="#example-26"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-user-roster-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-user-roster'
+           sessionid='get-user-roster:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Getting a User's Roster&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to get a user&amp;apos;s roster.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The Jabber ID(s) for which to retrieve the roster'
+             type='jid-multi'
+             var='accountjids'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Note: If the entity is an end user, the JID SHOULD be of the form &lt;user@host&gt;, not &lt;user@host/resource&gt;.</p>
+    <figure class="code-example" id="example-27"><figcaption><strong>Example 27.</strong> Admin Submits Get User Roster Form to Service<a class="anchor-link" href="#example-27"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-user-roster-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-user-roster'
+           sessionid='get-user-roster:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='accountjids'&gt;
+        &lt;value&gt;juliet@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The data form included in the IQ result will include the user's roster, formatted according to the 'jabber:iq:roster' protocol defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6121">XMPP IM</a></span>  [<a href="#nt-id48">6</a>].</p>
+    <figure class="code-example" id="example-28"><figcaption><strong>Example 28.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-28"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-user-roster-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-user-roster'
+           sessionid='get-user-roster:20040408T0337Z'
+           status='completed'&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='accountjids'&gt;
+        &lt;value&gt;juliet@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;query xmlns='jabber:iq:roster'&gt;
+        &lt;item jid='romeo@example.net'
+              name='Romeo'
+              subscription='both'&gt;
+          &lt;group&gt;Friends&lt;/group&gt;
+          &lt;group&gt;Lovers&lt;/group&gt;
+        &lt;/item&gt;
+        &lt;item jid='mercutio@example.org'
+              name='Mercutio'
+              subscription='from'&gt;
+          &lt;group&gt;Friends&lt;/group&gt;
+        &lt;/item&gt;
+        &lt;item jid='benvolio@example.org'
+              name='Benvolio'
+              subscription='both'&gt;
+          &lt;group&gt;Friends&lt;/group&gt;
+        &lt;/item&gt;
+      &lt;/query&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="get-user-lastlogin">4.9 Get User Last Login Time<a class="anchor-link" href="#get-user-lastlogin"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An administrator may need to retrieve a user's last login time (e.g., to help verify the user's ownership of the account before reminding the user of the password). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#get-user-lastlogin".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-29"><figcaption><strong>Example 29.</strong> Admin Requests to Get a User's Last Login Time<a class="anchor-link" href="#example-29"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-user-lastlogin-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#get-user-lastlogin'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-30"><figcaption><strong>Example 30.</strong> Service Returns Get User Last Login Form to Admin<a class="anchor-link" href="#example-30"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-user-lastlogin-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-user-lastlogin'
+           sessionid='get-user-lastlogin:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Getting a User's Last Login Time&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to get a user&amp;apos;s last login time.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The Jabber ID(s) for which to retrieve the last login time'
+             type='jid-multi'
+             var='accountjids'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Note: If the entity is an end user, the JID SHOULD be of the form &lt;user@host&gt;, not &lt;user@host/resource&gt;.</p>
+    <figure class="code-example" id="example-31"><figcaption><strong>Example 31.</strong> Admin Submits Get User Last Login Form to Service<a class="anchor-link" href="#example-31"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-user-lastlogin-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-user-lastlogin'
+           sessionid='get-user-lastlogin:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='accountjids'&gt;
+        &lt;value&gt;juliet@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The data form included in the IQ result will include the user's last login time (which SHOULD conform to the DateTime profile specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles (XEP-0082)</a></span>  [<a href="#nt-id49">7</a>]).</p>
+    <figure class="code-example" id="example-32"><figcaption><strong>Example 32.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-32"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-user-lastlogin-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-user-lastlogin'
+           sessionid='get-user-lastlogin:20040408T0337Z'
+           status='completed'&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='accountjids'&gt;
+        &lt;value&gt;juliet@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='lastlogin'&gt;
+        &lt;value&gt;2003-12-19T17:58:35Z&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="get-user-stats">4.10 Get User Statistics<a class="anchor-link" href="#get-user-stats"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An administrator may want to gather statistics about a particular user's interaction with the service (roster size, bandwidth usage, logins, IP address, etc.). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#user-stats".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-33"><figcaption><strong>Example 33.</strong> Admin Requests User Statistics<a class="anchor-link" href="#example-33"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='user-stats-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#user-stats'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-34"><figcaption><strong>Example 34.</strong> Service Returns User Statistics Form to Admin<a class="anchor-link" href="#example-34"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='user-stats-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#user-stats'
+           sessionid='user-stats:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Get User Statistics&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to gather user statistics.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The Jabber ID for statistics'
+             type='jid-single'
+             var='accountjid'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-35"><figcaption><strong>Example 35.</strong> Admin Submits User Statistics Form to Service<a class="anchor-link" href="#example-35"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='user-stats-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#user-stats'
+           sessionid='user-stats:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='accountjid'&gt;
+        &lt;value&gt;iago@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-36"><figcaption><strong>Example 36.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-36"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='user-stats-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#user-stats'
+           sessionid='user-stats:20040408T0337Z'
+           status='completed'&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='ipaddresses'&gt;
+        &lt;value&gt;127.0.0.1&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='rostersize'&gt;
+        &lt;value&gt;123&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='onlineresources'&gt;
+        &lt;value&gt;work&lt;/value&gt;
+        &lt;value&gt;home&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='stanzaspersecond'&gt;
+        &lt;value&gt;3&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='loginsperminute'&gt;
+        &lt;value&gt;0.1&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="edit-blacklist">4.11 Edit Blacklist<a class="anchor-link" href="#edit-blacklist"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The service may enable an administrator to define one or more service-wide blacklists (lists of entities that are blocked from communications to or from the service). For example, a multi-user chat service may forbid a certain user from joining any room on the service, or may block entire domains from accessing the service. An entity specified on the blacklist MAY be a JID of any form as specified in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-id50">8</a>]; the order of JID matching SHOULD be that specified for privacy lists in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0016.html">Privacy Lists (XEP-0016)</a></span>  [<a href="#nt-id51">9</a>].</p>
+    <p class="" style="">A blacklist may prevent inbound communications, outbound communications, or both; whether to offer only bidirectional blocking or a more granular choice of inbound or outbound blocking is a matter of implementation or deployment policy. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#edit-blacklist" if blocking is bidirectional as shown below; "http://jabber.org/protocol/admin#add-to-blacklist-in" for inbound blocking only; and "http://jabber.org/protocol/admin#add-to-blacklist-out" for outbound blocking only.</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-37"><figcaption><strong>Example 37.</strong> Admin Requests Editing of Blacklist<a class="anchor-link" href="#example-37"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='edit-blacklist-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#edit-blacklist'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-38"><figcaption><strong>Example 38.</strong> Service Returns Edit Blacklist Form to Admin<a class="anchor-link" href="#example-38"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='edit-blacklist-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#edit-blacklist'
+           sessionid='edit-blacklist:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Editing the Blacklist&lt;/title&gt;
+      &lt;instructions&gt;
+          Fill out this form to edit the list of entities with whom
+          communications are disallowed.
+      &lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The blacklist'
+             var='blacklistjids'&gt;
+        &lt;value&gt;marlowe.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-39"><figcaption><strong>Example 39.</strong> Admin Submits Edit Blacklist Form to Service<a class="anchor-link" href="#example-39"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='edit-blacklist-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#edit-blacklist'
+           sessionid='edit-blacklist:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='blacklistjids'&gt;
+        &lt;value&gt;denmark.lit&lt;/value&gt;
+        &lt;value&gt;france.lit&lt;/value&gt;
+        &lt;value&gt;marlowe.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-40"><figcaption><strong>Example 40.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-40"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='edit-blacklist-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#edit-blacklist'
+           sessionid='edit-blacklist:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="edit-whitelist">4.12 Edit Whitelist<a class="anchor-link" href="#edit-whitelist"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The service may enable an administrator to define one or more service-wide whitelists (lists of entities that are allowed to communicate the service). For example, a publish-subscribe may allow only a select list of users to publish or subscribe to nodes hosted on the service. An entity added to a whitelist MAY be a JID of any form as specified in <span class="ref">RFC 6120</span>; the order of JID matching SHOULD be that specified for privacy lists in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0016.html">Privacy Lists (XEP-0016)</a></span>  [<a href="#nt-id51">9</a>].</p>
+    <p class="" style="">As with blacklists, a whitelist may prevent inbound communications, outbound communications, or both; whether to offer only bidirectional blocking or a more granular choice of inbound or outbound blocking is a matter of implementation or deployment policy. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#add-to-whitelist" if blocking is bidirectional; "http://jabber.org/protocol/admin#add-to-whitelist-in" for inbound blocking only; and "http://jabber.org/protocol/admin#add-to-whitelist-out" for outbound blocking only.</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-41"><figcaption><strong>Example 41.</strong> Admin Requests Editing of Whitelist<a class="anchor-link" href="#example-41"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='edit-whitelist-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#edit-whitelist'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-42"><figcaption><strong>Example 42.</strong> Service Returns Edit Whitelist Form to Admin<a class="anchor-link" href="#example-42"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='edit-whitelist-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#edit-whitelist'
+           sessionid='edit-whitelist:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Editing the Whitelist&lt;/title&gt;
+      &lt;instructions&gt;
+          Fill out this form to edit the list of entities with whom
+          communications are allowed.
+      &lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The whitelist'
+             var='whitelistjids'&gt;
+        &lt;value&gt;capulet.com&lt;/value&gt;
+        &lt;value&gt;denmark.lit&lt;/value&gt;
+        &lt;value&gt;england.lit&lt;/value&gt;
+        &lt;value&gt;montague.net&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-43"><figcaption><strong>Example 43.</strong> Admin Submits Edit Whitelist Form to Service<a class="anchor-link" href="#example-43"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='edit-whitelist-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#edit-whitelist'
+           sessionid='edit-whitelist:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='whitelistjids'&gt;
+        &lt;value&gt;capulet.com&lt;/value&gt;
+        &lt;value&gt;england.lit&lt;/value&gt;
+        &lt;value&gt;montague.net&lt;/value&gt;
+        &lt;value&gt;verona.it&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-44"><figcaption><strong>Example 44.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-44"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='edit-whitelist-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#edit-whitelist'
+           sessionid='edit-whitelist:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="get-registered-users-num">4.13 Get Number of Registered Users<a class="anchor-link" href="#get-registered-users-num"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">It may be helpful to enable an administrator to retrieve the number of registered users. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#get-registered-users-num".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-45"><figcaption><strong>Example 45.</strong> Admin Requests Number of Registered Users<a class="anchor-link" href="#example-45"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-registered-users-num-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#get-registered-users-num'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD simply return the number of registered users.</p>
+    <figure class="code-example" id="example-46"><figcaption><strong>Example 46.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-46"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-registered-users-num-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-registered-users-num'
+           sessionid='get-registered-users-num:20040408T0337Z'
+           status='completed'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The number of registered users'
+             var='registeredusersnum'&gt;
+        &lt;value&gt;123&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="get-disabled-users-num">4.14 Get Number of Disabled Users<a class="anchor-link" href="#get-disabled-users-num"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Given that admins may be able to disable user accounts, it may be helpful to enable an administrator to retrieve the number of disabled users. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#get-disabled-users-num".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-47"><figcaption><strong>Example 47.</strong> Admin Requests Number of Disabled Users<a class="anchor-link" href="#example-47"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-disabled-users-num-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#get-disabled-users-num'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD simply return the number of disabled users.</p>
+    <figure class="code-example" id="example-48"><figcaption><strong>Example 48.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-48"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-disabled-users-num-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-disabled-users-num'
+           sessionid='get-disabled-users-num:20040408T0337Z'
+           status='completed'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The number of disabled users'
+             var='disabledusersnum'&gt;
+        &lt;value&gt;123&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="get-online-users-num">4.15 Get Number of Online Users<a class="anchor-link" href="#get-online-users-num"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">It may be helpful to enable an administrator to retrieve the number of registered users who are online at any one moment. By "online user" is meant any user or account that currently has at least one connected or available resource as specified in <span class="ref">RFC 6120</span> and <span class="ref">RFC 6121</span>, whether that user is actively sending XML stanzas or is idle. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#get-online-users-num".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-49"><figcaption><strong>Example 49.</strong> Admin Requests Number of Online Users<a class="anchor-link" href="#example-49"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-online-users-num-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#get-online-users-num'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD simply return the number of online users.</p>
+    <figure class="code-example" id="example-50"><figcaption><strong>Example 50.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-50"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-online-users-num-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-online-users-num'
+           sessionid='get-online-users-num:20040408T0337Z'
+           status='completed'&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The number of online users'
+             var='onlineusersnum'&gt;
+        &lt;value&gt;79&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="get-active-users-num">4.16 Get Number of Active Users<a class="anchor-link" href="#get-active-users-num"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Some services may distinguish users who are online and actively using the service from users who are online but idle. Therefore it may be helpful to enable an administrator to retrieve the number of online users who are active at any one moment. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#get-active-users-num".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-51"><figcaption><strong>Example 51.</strong> Admin Requests Number of Active Users<a class="anchor-link" href="#example-51"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-active-users-num-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#get-active-users-num'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD simply return the number of active users.</p>
+    <figure class="code-example" id="example-52"><figcaption><strong>Example 52.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-52"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-active-users-num-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-active-users-num'
+           sessionid='get-online-users-num:20040408T0337Z'
+           status='completed'&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The number of active users'
+             var='activeusersnum'&gt;
+        &lt;value&gt;66&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="get-idle-users-num">4.17 Get Number of Idle Users<a class="anchor-link" href="#get-idle-users-num"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Some services may distinguish users who are online and actively using the service from users who are online but idle. Therefore it may be helpful to enable an administrator to retrieve the number of online users who are idle at any one moment. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#get-idle-users-num".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-53"><figcaption><strong>Example 53.</strong> Admin Requests Number of Idle Users<a class="anchor-link" href="#example-53"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-idle-users-num-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#get-idle-users-num'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD simply return the number of idle users.</p>
+    <figure class="code-example" id="example-54"><figcaption><strong>Example 54.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-54"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-idle-users-num-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-idle-users-num'
+           sessionid='get-online-users-num:20040408T0337Z'
+           status='completed'&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The number of idle users'
+             var='idleusersnum'&gt;
+        &lt;value&gt;13&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="get-registered-users-list">4.18 Get List of Registered Users<a class="anchor-link" href="#get-registered-users-list"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">On a server or service without many registered users, it may be helpful to enable an administrator to retrieve a list of all registered users. The service may need to truncate the result-set, since it could be quite large (however, any ability to limit or page through the result-set is outside the scope of this document). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#get-registered-users-list".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-55"><figcaption><strong>Example 55.</strong> Admin Requests List of Registered Users<a class="anchor-link" href="#example-55"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-registered-users-list-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#get-registered-users-list'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD do one of the following:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">If there are not many registered users, the service MAY simply return the list of registered users.</li>
+      <li class="" style="">However, the service MAY also return a form so that the admin can specify more detailed information about the search (e.g., number of users to show).</li>
+    </ol>
+    <figure class="code-example" id="example-56"><figcaption><strong>Example 56.</strong> Service Returns Get Registered Users Form to Admin<a class="anchor-link" href="#example-56"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-registered-users-list-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-registered-users-list'
+           sessionid='get-registered-users-list:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Requesting List of Registered Users&lt;/title&gt;
+      &lt;instructions&gt;
+          Fill out this form to request the registered users
+	  of this service.
+      &lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='Maximum number of items to show'
+             type='list-single'
+             var='max_items'&gt;
+        &lt;option label='25'&gt;&lt;value&gt;25&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='50'&gt;&lt;value&gt;50&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='75'&gt;&lt;value&gt;75&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='100'&gt;&lt;value&gt;100&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='150'&gt;&lt;value&gt;150&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='200'&gt;&lt;value&gt;200&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='None'&gt;&lt;value&gt;none&lt;/value&gt;&lt;/option&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-57"><figcaption><strong>Example 57.</strong> Admin Submits Get Registered Users Form to Service<a class="anchor-link" href="#example-57"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-registered-users-list-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-registered-users-list'
+           sessionid='get-registered-users-list:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='max_items'&gt;
+        &lt;value&gt;100&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-58"><figcaption><strong>Example 58.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-58"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-registered-users-list-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-registered-users-list'
+           sessionid='get-registered-users:20040408T0337Z'
+           status='completed'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The list of all users'
+             var='registereduserjids'&gt;
+        &lt;value&gt;bernardo@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;bard@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;cordelia@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;crone1@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;emilia@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;francisco@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;goneril@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;hag66@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;hecate@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;iago@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;kingclaudius@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;kinglear@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;laertes@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;macbeth@shakespeare.li&lt;/value&gt;
+        &lt;value&gt;mercutio@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;nestor@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;northumberland@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;painter@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;regan@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;timon@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;wiccarocks@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The service MAY return an error (rather than a list) if the number of items is excessive or the max_items value is unnacceptable.</p>
+    <p class="" style="">The service MAY specify additional fields that restrict the scope of the user list (e.g., regular expression matching for Jabber IDs), and such fields MAY be registered in the future with the XMPP Registrar; however, such fields are not defined herein.</p>
+  </div>
+  <div class="indent"><h3 id="get-disabled-users-list">4.19 Get List of Disabled Users<a class="anchor-link" href="#get-disabled-users-list"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">It may be helpful to enable an administrator to retrieve a list of all disabled users. The service may need to truncate the result-set, since it could be quite large (however, any ability to limit or page through the result-set is outside the scope of this document). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#get-disabled-users-list".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-59"><figcaption><strong>Example 59.</strong> Admin Requests List of Disabled Users<a class="anchor-link" href="#example-59"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-disabled-users-list-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#get-disabled-users-list'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD do one of the following:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">If there are not many disabled users, the service MAY simply return the list of disabled users.</li>
+      <li class="" style="">However, the service MAY also return a form so that the admin can specify more detailed information about the search (e.g., number of users to show).</li>
+    </ol>
+    <figure class="code-example" id="example-60"><figcaption><strong>Example 60.</strong> Service Returns Get Disabled Users Form to Admin<a class="anchor-link" href="#example-60"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-disabled-users-list-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-disabled-users-list'
+           sessionid='get-disabled-users-list:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Requesting List of Disabled Users&lt;/title&gt;
+      &lt;instructions&gt;
+          Fill out this form to request the disabled users
+	  of this service.
+      &lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='Maximum number of items to show'
+             type='list-single'
+             var='max_items'&gt;
+        &lt;option label='25'&gt;&lt;value&gt;25&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='50'&gt;&lt;value&gt;50&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='75'&gt;&lt;value&gt;75&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='100'&gt;&lt;value&gt;100&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='150'&gt;&lt;value&gt;150&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='200'&gt;&lt;value&gt;200&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='None'&gt;&lt;value&gt;none&lt;/value&gt;&lt;/option&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-61"><figcaption><strong>Example 61.</strong> Admin Submits Get Disabled Users Form to Service<a class="anchor-link" href="#example-61"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-disabled-users-list-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-disabled-users-list'
+           sessionid='get-disabled-users-list:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='max_items'&gt;
+        &lt;value&gt;100&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-62"><figcaption><strong>Example 62.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-62"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-disabled-users-list-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-disabled-users-list'
+           sessionid='get-disabled-users:20040408T0337Z'
+           status='completed'&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The list of all disabled users'
+             var='disableduserjids'&gt;
+        &lt;value&gt;bernardo@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;iago@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The service MAY return an error (rather than a list) if the number of items is excessive or the max_items value is unnacceptable.</p>
+    <p class="" style="">The service MAY specify additional fields that restrict the scope of the user list (e.g., regular expression matching for Jabber IDs), and such fields MAY be registered in the future with the XMPP Registrar; however, such fields are not defined herein.</p>
+  </div>
+  <div class="indent"><h3 id="get-online-users-list">4.20 Get List of Online Users<a class="anchor-link" href="#get-online-users-list"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">It may be helpful to enable an administrator to retrieve a list of all online users. Because the number of online users may be quite large, the service may need to truncate the result-set, since it could be quite large (however, any ability to limit or page through the result-set is outside the scope of this document). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#get-online-users-list".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-63"><figcaption><strong>Example 63.</strong> Admin Requests List of Online Users<a class="anchor-link" href="#example-63"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-online-users-list-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#get-online-users-list'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD do one of the following:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">If there are not many online users, the service MAY simply return the list of online users.</li>
+      <li class="" style="">However, the service MAY also return a form so that the admin can specify more detailed information about the search (e.g., number of users to show).</li>
+    </ol>
+    <figure class="code-example" id="example-64"><figcaption><strong>Example 64.</strong> Service Returns Get Online Users Form to Admin<a class="anchor-link" href="#example-64"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-online-users-list-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-online-users-list'
+           sessionid='get-online-users-list:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Requesting List of Online Users&lt;/title&gt;
+      &lt;instructions&gt;
+          Fill out this form to request the online users
+	  of this service.
+      &lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='Maximum number of items to show'
+             type='list-single'
+             var='max_items'&gt;
+        &lt;option label='25'&gt;&lt;value&gt;25&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='50'&gt;&lt;value&gt;50&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='75'&gt;&lt;value&gt;75&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='100'&gt;&lt;value&gt;100&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='150'&gt;&lt;value&gt;150&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='200'&gt;&lt;value&gt;200&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='None'&gt;&lt;value&gt;none&lt;/value&gt;&lt;/option&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-65"><figcaption><strong>Example 65.</strong> Admin Submits Get Online Users Form to Service<a class="anchor-link" href="#example-65"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-online-users-list-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-online-users-list'
+           sessionid='get-online-users-list:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='max_items'&gt;
+        &lt;value&gt;100&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-66"><figcaption><strong>Example 66.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-66"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-online-users-list-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-online-users-list'
+           sessionid='get-online-users:20040408T0337Z'
+           status='completed'&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The list of all online users'
+             var='onlineuserjids'&gt;
+        &lt;value&gt;bard@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;cordelia@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;crone1@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;goneril@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;hag66@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;hecate@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;kinglear@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;macbeth@shakespeare.li&lt;/value&gt;
+        &lt;value&gt;mercutio@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;northumberland@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;painter@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;wiccarocks@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The service MAY return an error (rather than a list) if the number of items is excessive or the max_items value is unnacceptable.</p>
+    <p class="" style="">The service MAY specify additional fields that restrict the scope of the user list (e.g., regular expression matching for Jabber IDs), and such fields MAY be registered in the future with the XMPP Registrar; however, such fields are not defined herein.</p>
+  </div>
+  <div class="indent"><h3 id="get-active-users-list">4.21 Get List of Active Users<a class="anchor-link" href="#get-active-users-list"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">It may be helpful to enable an administrator to retrieve a list of all active users. Because the number of active users may be quite large, the service may need to truncate the result-set, since it could be quite large (however, any ability to limit or page through the result-set is outside the scope of this document). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#get-active-users".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-67"><figcaption><strong>Example 67.</strong> Admin Requests List of Active Users<a class="anchor-link" href="#example-67"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-active-users-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#get-active-users'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD do one of the following:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">If there are not many active users, the service MAY simply return the list of active users.</li>
+      <li class="" style="">However, the service MAY also return a form so that the admin can specify more detailed information about the search (e.g., number of users to show).</li>
+    </ol>
+    <figure class="code-example" id="example-68"><figcaption><strong>Example 68.</strong> Service Returns Get Active Users Form to Admin<a class="anchor-link" href="#example-68"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-active-users-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-active-users'
+           sessionid='get-active-users:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Requesting List of Active Users&lt;/title&gt;
+      &lt;instructions&gt;
+          Fill out this form to request the active users
+	  of this service.
+      &lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='Maximum number of items to show'
+             type='list-single'
+             var='max_items'&gt;
+        &lt;option label='25'&gt;&lt;value&gt;25&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='50'&gt;&lt;value&gt;50&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='75'&gt;&lt;value&gt;75&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='100'&gt;&lt;value&gt;100&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='150'&gt;&lt;value&gt;150&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='200'&gt;&lt;value&gt;200&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='None'&gt;&lt;value&gt;none&lt;/value&gt;&lt;/option&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-69"><figcaption><strong>Example 69.</strong> Admin Submits Get Active Users Form to Service<a class="anchor-link" href="#example-69"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-active-users-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-active-users'
+           sessionid='get-active-users:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='max_items'&gt;
+        &lt;value&gt;100&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-70"><figcaption><strong>Example 70.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-70"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-active-users-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-active-users'
+           sessionid='get-active-users:20040408T0337Z'
+           status='completed'&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The list of active users'
+             var='activeuserjids'&gt;
+        &lt;value&gt;bard@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;crone1@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;hag66@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;hecate@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;wiccarocks@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The service MAY return an error (rather than a list) if the number of items is excessive or the max_items value is unnacceptable.</p>
+    <p class="" style="">The service MAY specify additional fields that restrict the scope of the user list (e.g., regular expression matching for Jabber IDs), and such fields MAY be registered in the future with the XMPP Registrar; however, such fields are not defined herein.</p>
+  </div>
+  <div class="indent"><h3 id="get-idle-users-list">4.22 Get List of Idle Users<a class="anchor-link" href="#get-idle-users-list"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">It may be helpful to enable an administrator to retrieve a list of all idle users. Because the number of idle users may be quite large, the service may need to truncate the result-set, since it could be quite large (however, any ability to limit or page through the result-set is outside the scope of this document). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#get-idle-users".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-71"><figcaption><strong>Example 71.</strong> Admin Requests List of Active Users<a class="anchor-link" href="#example-71"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-idle-users-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#get-idle-users'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD do one of the following:</p>
+    <ol start="" class="" style="">
+      <li class="" style="">If there are not many idle users, the service MAY simply return the list of idle users.</li>
+      <li class="" style="">However, the service MAY also return a form so that the admin can specify more detailed information about the search (e.g., number of users to show).</li>
+    </ol>
+    <figure class="code-example" id="example-72"><figcaption><strong>Example 72.</strong> Service Returns Get Idle Users Form to Admin<a class="anchor-link" href="#example-72"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-idle-users-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-idle-users'
+           sessionid='get-idle-users:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Requesting List of Active Users&lt;/title&gt;
+      &lt;instructions&gt;
+          Fill out this form to request the idle users
+	  of this service.
+      &lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='Maximum number of items to show'
+             type='list-single'
+             var='max_items'&gt;
+        &lt;option label='25'&gt;&lt;value&gt;25&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='50'&gt;&lt;value&gt;50&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='75'&gt;&lt;value&gt;75&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='100'&gt;&lt;value&gt;100&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='150'&gt;&lt;value&gt;150&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='200'&gt;&lt;value&gt;200&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='None'&gt;&lt;value&gt;none&lt;/value&gt;&lt;/option&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-73"><figcaption><strong>Example 73.</strong> Admin Submits Get Idle Users Form to Service<a class="anchor-link" href="#example-73"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='get-idle-users-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-idle-users'
+           sessionid='get-idle-users:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='max_items'&gt;
+        &lt;value&gt;100&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-74"><figcaption><strong>Example 74.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-74"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='get-idle-users-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#get-idle-users'
+           sessionid='get-active-users:20040408T0337Z'
+           status='completed'&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The list of idle users'
+             var='activeuserjids'&gt;
+        &lt;value&gt;cordelia@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;goneril@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;kinglear@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;macbeth@shakespeare.li&lt;/value&gt;
+        &lt;value&gt;mercutio@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;northumberland@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;painter@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">The service MAY return an error (rather than a list) if the number of items is excessive or the max_items value is unnacceptable.</p>
+    <p class="" style="">The service MAY specify additional fields that restrict the scope of the user list (e.g., regular expression matching for Jabber IDs), and such fields MAY be registered in the future with the XMPP Registrar; however, such fields are not defined herein.</p>
+  </div>
+  <div class="indent"><h3 id="announce">4.23 Send Announcement to Online Users<a class="anchor-link" href="#announce"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Administrators of some existing Jabber servers have found it useful to be able to send an announcement to all online users of the server (e.g., to announce a server shutdown); this concept can be extended to any service (such as a multi-user chat service or a gateway to a foreign IM service). The message shall be sent only to users who currently have a "session" with the service. Obviously there may be latency in sending the message if the number of active users is extremely large. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#announce".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-75"><figcaption><strong>Example 75.</strong> Admin Requests Announcement<a class="anchor-link" href="#example-75"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='announce-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#announce'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-76"><figcaption><strong>Example 76.</strong> Service Returns Announce Form to Admin<a class="anchor-link" href="#example-76"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='announce-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#announce'
+           sessionid='announce:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Making an Announcement&lt;/title&gt;
+      &lt;instructions&gt;
+          Fill out this form to make an announcement to all
+          active users of this service.
+      &lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='Announcement'
+             type='text-multi'
+             var='announcement'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-77"><figcaption><strong>Example 77.</strong> Admin Submits Announce Form to Service<a class="anchor-link" href="#example-77"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='announce-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#announce'
+           sessionid='announce:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='announcement'&gt;
+        &lt;value&gt;Attention! This service will be going down for&lt;/value&gt;
+        &lt;value&gt;maintenance in 2 minutes. Please log off now!&lt;/value&gt;
+        &lt;value&gt;We apologize for the inconvenience.&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-78"><figcaption><strong>Example 78.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-78"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='announce-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#announce'
+           sessionid='announce:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="set-motd">4.24 Set Message of the Day<a class="anchor-link" href="#set-motd"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Administrators of some existing Jabber servers have found it useful to be able to send a "message of the day" that is delivered to any user who logs in to the server that day (e.g., to announce service changes);
+       [<a href="#nt-id52">10</a>]
+     this concept can be extended to any service (such as a multi-user chat service or a gateway to a foreign IM service). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#set-motd".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-79"><figcaption><strong>Example 79.</strong> Admin Sets Message of the Day<a class="anchor-link" href="#example-79"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='set-motd-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#set-motd'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-80"><figcaption><strong>Example 80.</strong> Service Returns MOTD Form to Admin<a class="anchor-link" href="#example-80"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='set-motd-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#set-motd'
+           sessionid='set-motd:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Setting the Message of the Day&lt;/title&gt;
+      &lt;instructions&gt;
+          Fill out this form to set the message of the day.
+      &lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='Message of the Day'
+             type='text-multi'
+             var='motd'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-81"><figcaption><strong>Example 81.</strong> Admin Submits MOTD Form to Service<a class="anchor-link" href="#example-81"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='set-motd-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#set-motd'
+           sessionid='set-motd:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='motd'&gt;
+        &lt;value&gt;Don&amp;apos;t forget: the grand re-opening of the&lt;/value&gt;
+        &lt;value&gt;Globe Theatre will occur tomorrow night.&lt;/value&gt;
+        &lt;value&gt;The festivities will begin right after tea&lt;/value&gt;
+        &lt;value&gt;and extend far into the night. Don&amp;apos;t miss it!&lt;/value&gt;
+        &lt;value&gt;--The Globe Staff&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-82"><figcaption><strong>Example 82.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-82"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='set-motd-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#set-motd'
+           sessionid='set-motd:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="edit-motd">4.25 Edit Message of the Day<a class="anchor-link" href="#edit-motd"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">After setting a message of the day, an administrator may want to edit that message (e.g., in order to correct an error). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#edit-motd".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-83"><figcaption><strong>Example 83.</strong> Admin Edits Message of the Day<a class="anchor-link" href="#example-83"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='edit-motd-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#edit-motd'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form, which SHOULD include the current message of the day if one has already been set.</p>
+    <figure class="code-example" id="example-84"><figcaption><strong>Example 84.</strong> Service Returns MOTD Form to Admin<a class="anchor-link" href="#example-84"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='edit-motd-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#edit-motd'
+           sessionid='edit-motd:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Editing the Message of the Day&lt;/title&gt;
+      &lt;instructions&gt;
+          Fill out this form to edit the message of the day.
+      &lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='Message of the Day'
+             type='text-multi'
+             var='motd'&gt;
+        &lt;required/&gt;
+        &lt;value&gt;Don&amp;apos;t forget: the grand re-opening of the&lt;/value&gt;
+        &lt;value&gt;Globe Theatre will occur tomorrow night.&lt;/value&gt;
+        &lt;value&gt;The festivities will begin right after tea&lt;/value&gt;
+        &lt;value&gt;and extend far into the night. Don&amp;apos;t miss it!&lt;/value&gt;
+        &lt;value&gt;--The Globe Stuff&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-85"><figcaption><strong>Example 85.</strong> Admin Submits MOTD Form to Service<a class="anchor-link" href="#example-85"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='edit-motd-2'
+    to='shakespeare.lit'
+    type='edit'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#edit-motd'
+           sessionid='edit-motd:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='motd'&gt;
+        &lt;value&gt;Don&amp;apos;t forget: the grand re-opening of the&lt;/value&gt;
+        &lt;value&gt;Globe Theatre will occur tomorrow night.&lt;/value&gt;
+        &lt;value&gt;The festivities will begin right after tea&lt;/value&gt;
+        &lt;value&gt;and extend far into the night. Don&amp;apos;t miss it!&lt;/value&gt;
+        &lt;value&gt;--The Globe Staff&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-86"><figcaption><strong>Example 86.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-86"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='edit-motd-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#edit-motd'
+           sessionid='edit-motd:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="delete-motd">4.26 Delete Message of the Day<a class="anchor-link" href="#delete-motd"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Sometimes a previously-set "message of the day" is no longer appropriate and needs to be deleted. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#delete-motd".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-87"><figcaption><strong>Example 87.</strong> Admin Deletes Message of the Day<a class="anchor-link" href="#example-87"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='delete-motd-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#delete-motd'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD simply delete the message of the day.</p>
+    <figure class="code-example" id="example-88"><figcaption><strong>Example 88.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-88"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='delete-motd-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#delete-motd'
+           sessionid='delete-motd:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="set-welcome">4.27 Set Welcome Message<a class="anchor-link" href="#set-welcome"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Some existing Jabber servers send an informative "welcome message" to newly registered users of the server when they first log in; this concept can be extended to any service (such as a multi-user chat service or a gateway to a foreign IM service). The command node for this use case SHOULD be "http://jabber.org/protocol/admin#set-welcome".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-89"><figcaption><strong>Example 89.</strong> Admin Sets Welcome Message<a class="anchor-link" href="#example-89"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='set-welcome-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#set-welcome'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form, which SHOULD include the current welcome message if one has already been set.</p>
+    <figure class="code-example" id="example-90"><figcaption><strong>Example 90.</strong> Service Returns Welcome Message Form to Admin<a class="anchor-link" href="#example-90"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='set-welcome-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#set-welcome'
+           sessionid='set-welcome:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Setting Welcome Message&lt;/title&gt;
+      &lt;instructions&gt;
+          Fill out this form to set the welcome message
+          for this service.
+      &lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='Welcome Message'
+             type='text-multi'
+             var='welcome'&gt;
+        &lt;required/&gt;
+        &lt;value&gt;Welcome to Shakespeare.lit, your home for&lt;/value&gt;
+        &lt;value&gt;instant messaging with a literary touch.&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-91"><figcaption><strong>Example 91.</strong> Admin Submits Welcome Message Form to Service<a class="anchor-link" href="#example-91"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='set-welcome-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#set-welcome'
+           sessionid='set-welcome:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='welcome'&gt;
+        &lt;value&gt;Welcome to Shakespeare.lit, your home for&lt;/value&gt;
+        &lt;value&gt;instant messaging with a literary touch.&lt;/value&gt;
+        &lt;value&gt;For helpful information about this service,&lt;/value&gt;
+        &lt;value&gt;hie thee to http://www.shakespeare.lit/&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-92"><figcaption><strong>Example 92.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-92"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='set-welcome-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#set-welcome'
+           sessionid='set-welcome:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="delete-welcome">4.28 Delete Welcome Message<a class="anchor-link" href="#delete-welcome"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Sometimes a previously-set "welcome message" is no longer appropriate and needs to be deleted. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#delete-welcome".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-93"><figcaption><strong>Example 93.</strong> Admin Deletes Welcome Message<a class="anchor-link" href="#example-93"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='delete-welcome-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#delete-welcome'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD simply delete the welcome message.</p>
+    <figure class="code-example" id="example-94"><figcaption><strong>Example 94.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-94"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='delete-welcome-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#delete-welcome'
+           sessionid='delete-welcome:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="edit-admin">4.29 Edit Admin List<a class="anchor-link" href="#edit-admin"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An administrator may want to directly edit the list of users who have administrative privileges. Whether there are distinctions between service-level administrators (e.g., owner, admin, moderator), and thus in what types of administrators are allowed to edit administrative privileges, is a matter for the implementation or local service policy and is not specified herein. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#edit-admin".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-95"><figcaption><strong>Example 95.</strong> Admin Requests Editing of Admin List<a class="anchor-link" href="#example-95"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='edit-admin-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#edit-admin'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-96"><figcaption><strong>Example 96.</strong> Service Returns Edit Admin List Form to Admin<a class="anchor-link" href="#example-96"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='edit-admin-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#edit-admin'
+           sessionid='edit-admin:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Editing the Admin List&lt;/title&gt;
+      &lt;instructions&gt;
+          Fill out this form to edit the list of entities who
+          have administrative privileges.
+      &lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The admin list'
+             type='jid-multi'
+             var='adminjids'&gt;
+        &lt;value&gt;bard@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;chris@marlowe.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-97"><figcaption><strong>Example 97.</strong> Admin Submits Edit Admin List Form to Service<a class="anchor-link" href="#example-97"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='edit-admin-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#edit-admin'
+           sessionid='edit-admin:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='adminjids'&gt;
+        &lt;value&gt;bard@shakespeare.lit&lt;/value&gt;
+        &lt;value&gt;hecate@shakespeare.lit&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-98"><figcaption><strong>Example 98.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-98"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='edit-admin-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#edit-admin'
+           sessionid='edit-admin:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="restart">4.30 Restart Service<a class="anchor-link" href="#restart"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">A service may allow an administrator to restart the service. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#restart".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-99"><figcaption><strong>Example 99.</strong> Admin Requests Restart of Service<a class="anchor-link" href="#example-99"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='restart-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#restart'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-100"><figcaption><strong>Example 100.</strong> Service Returns Restart Form to Admin<a class="anchor-link" href="#example-100"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='restart-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#restart'
+           sessionid='restart:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Restarting the Service&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to restart the service.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='Time delay before restarting'
+             type='list-single'
+             var='delay'&gt;
+        &lt;option label='30 seconds'&gt;&lt;value&gt;30&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='60 seconds'&gt;&lt;value&gt;60&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='90 seconds'&gt;&lt;value&gt;90&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='2 minutes'&gt;&lt;value&gt;120&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='3 minutes'&gt;&lt;value&gt;180&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='4 minutes'&gt;&lt;value&gt;240&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='5 minutes'&gt;&lt;value&gt;300&lt;/value&gt;&lt;/option&gt;
+      &lt;/field&gt;
+      &lt;field label='Announcement'
+             type='text-multi'
+             var='announcement'/&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-101"><figcaption><strong>Example 101.</strong> Admin Submits Restart Form to Service<a class="anchor-link" href="#example-101"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='restart-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#restart'
+           sessionid='restart:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='delay'&gt;
+        &lt;value&gt;120&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='announcement'&gt;
+        &lt;value&gt;The service will be restarted in 2 minutes!&lt;/value&gt;
+        &lt;value&gt;Please log off now. --The Admins&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-102"><figcaption><strong>Example 102.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-102"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='restart-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#restart'
+           sessionid='restart:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="shutdown">4.31 Shut Down Service<a class="anchor-link" href="#shutdown"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">A service may allow an administrator to shut down the service. The command node for this use case SHOULD be "http://jabber.org/protocol/admin#shutdown".</p>
+    <p class="" style="">A sample protocol flow for this use case is shown below.</p>
+    <figure class="code-example" id="example-103"><figcaption><strong>Example 103.</strong> Admin Requests Shut Down of Service<a class="anchor-link" href="#example-103"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='shutdown-1'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='http://jabber.org/protocol/admin#shutdown'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs (see the <a href="#errors">Error Handling</a> section below), the service SHOULD return the appropriate form.</p>
+    <figure class="code-example" id="example-104"><figcaption><strong>Example 104.</strong> Service Returns Shut Down Form to Admin<a class="anchor-link" href="#example-104"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='shutdown-1'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#shutdown'
+           sessionid='shutdown:20040408T0337Z'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Shutting Down the Service&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to shut down the service.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='Time delay before shutting down'
+             type='list-single'
+             var='delay'&gt;
+        &lt;option label='30 seconds'&gt;&lt;value&gt;30&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='60 seconds'&gt;&lt;value&gt;60&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='90 seconds'&gt;&lt;value&gt;90&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='2 minutes'&gt;&lt;value&gt;120&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='3 minutes'&gt;&lt;value&gt;180&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='4 minutes'&gt;&lt;value&gt;240&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='5 minutes'&gt;&lt;value&gt;300&lt;/value&gt;&lt;/option&gt;
+      &lt;/field&gt;
+      &lt;field label='Announcement'
+             type='text-multi'
+             var='announcement'/&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-105"><figcaption><strong>Example 105.</strong> Admin Submits Shut Down Form to Service<a class="anchor-link" href="#example-105"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='bard@shakespeare.lit/globe'
+    id='shutdown-2'
+    to='shakespeare.lit'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#shutdown'
+           sessionid='shutdown:20040408T0337Z'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/admin&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='delay'&gt;
+        &lt;value&gt;120&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='announcement'&gt;
+        &lt;value&gt;The service will be shut down in 2 minutes!&lt;/value&gt;
+        &lt;value&gt;Please log off now. --The Admins&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-106"><figcaption><strong>Example 106.</strong> Service Informs Admin of Completion<a class="anchor-link" href="#example-106"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='shakespeare.lit'
+    id='shutdown-2'
+    to='bard@shakespeare.lit/globe'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='http://jabber.org/protocol/admin#shutdown'
+           sessionid='shutdown:20040408T0337Z'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+<h2 id="errors">5.
+       Error Handling<a class="anchor-link" href="#errors"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Several error conditions are possible when an entity sends a command request to the service, as defined in the following table. If one of these error conditions occurs, the service MUST return an error stanza to the requesting entity.</p>
+  <figure class="table"><figcaption id="table-1"><strong>Table 1:</strong> Error Conditions<a class="anchor-link" href="#table-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+    <tr class="body">
+      <th colspan="" rowspan="">Condition</th>
+      <th colspan="" rowspan="">Cause</th>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;conflict/&gt;</td>
+      <td align="" colspan="" rowspan="">The command cannot be completed because of a data or system conflict (e.g., a user already exists with that username).</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;feature-not-implemented/&gt;</td>
+      <td align="" colspan="" rowspan="">The specific command is not supported (even though the ad-hoc commands protocol is).</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;forbidden/&gt;</td>
+      <td align="" colspan="" rowspan="">The requesting entity does not have sufficient privileges to perform the command.</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;not-allowed/&gt;</td>
+      <td align="" colspan="" rowspan="">No entity is allowed to perform the command (e.g., retrieve the CEO's roster).</td>
+    </tr>
+    <tr class="body">
+      <td align="" colspan="" rowspan="">&lt;service-unavailable/&gt;</td>
+      <td align="" colspan="" rowspan="">The ad-hoc commands protocol is not supported.</td>
+    </tr>
+  </table></figure>
+  <p class="" style="">For the syntax of these errors, see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0086.html">Error Condition Mappings (XEP-0086)</a></span>  [<a href="#nt-id53">11</a>]. Naturally, other errors may be returned as well (e.g., &lt;internal-server-error/&gt; if the service cannot be shut down).</p>
+<h2 id="security">6.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The ability to complete the administrative tasks specified herein MUST NOT be granted to users who lack service-level administrative privileges.</p>
+<h2 id="iana">7.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id54">12</a>].</p>
+<h2 id="registrar">8.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id55">13</a>] shall include the following information in its registries.</p>
+  <div class="indent"><h3 id="registrar-protocol">8.1 Protocol Namespaces<a class="anchor-link" href="#registrar-protocol"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The XMPP Registrar includes "http://jabber.org/protocol/admin" in its registry of protocol namespaces.</p>
+  </div>
+  <div class="indent"><h3 id="registrar-formtype">8.2 Field Standardization<a class="anchor-link" href="#registrar-formtype"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0068.html">Field Standardization for Data Forms (XEP-0068)</a></span>  [<a href="#nt-id56">14</a>] defines a process for standardizing the fields used within Data Forms scoped by a particular namespace. The reserved fields for the 'http://jabber.org/protocol/admin' namespace are specified below.</p>
+    <figure class="code"><figcaption>Registry Submission</figcaption><pre class="prettyprint">
+&lt;form_type&gt;
+  &lt;name&gt;http://jabber.org/protocol/admin&lt;/name&gt;
+  &lt;doc&gt;XEP-0133&lt;/doc&gt;
+  &lt;desc&gt;Forms used for administration of servers and components.&lt;/desc&gt;
+  &lt;field var='accountjid'
+         type='jid-single'
+         label='The Jabber ID of a single entity to which an operation applies'/&gt;
+  &lt;field var='accountjids'
+         type='jid-multi'
+         label='The Jabber ID of one or more entities to which an operation applies'/&gt;
+  &lt;field var='activeuserjids'
+         type='jid-multi'
+         label='The Jabber IDs associated with active sessions'/&gt;
+  &lt;field var='activeusersnum'
+         type='text-single'
+         label='The number of online entities that are active'/&gt;
+  &lt;field var='adminjids'
+         type='jid-multi'
+         label='A list of entities with administrative privileges'/&gt;
+  &lt;field var='announcement'
+         type='text-multi'
+         label='The text of an announcement to be sent to active users or all users'/&gt;
+  &lt;field var='blacklistjids'
+         type='jid-multi'
+         label='A list of entities with whom communication is blocked'/&gt;
+  &lt;field var='delay'
+         type='list-multi'
+         label='The number of seconds to delay before applying a change'/&gt;
+  &lt;field var='disableduserjids'
+         type='jid-multi'
+         label='The Jabber IDs that have been disabled'/&gt;
+  &lt;field var='disabledusersnum'
+         type='text-single'
+         label='The number of disabled entities'/&gt;
+  &lt;field var='email'
+         type='text-single'
+         label='The email address for a user'/&gt;
+  &lt;field var='given_name'
+         type='text-single'
+         label='The given (first) name of a user'/&gt;
+  &lt;field var='idleusersnum'
+         type='text-single'
+         label='The number of online entities that are idle'/&gt;
+  &lt;field var='ipaddresses'
+         type='list-multi'
+         label='The IP addresses of an account&amp;apos;s online sessions'/&gt;
+  &lt;field var='lastlogin'
+         type='text-single'
+         label='The last login time (per XEP-0082) of a user'/&gt;
+  &lt;field var='loginsperminute'
+         type='text-single'
+         label='The number of logins per minute for an account'/&gt;
+  &lt;field var='max_items'
+         type='list-single'
+         label='The maximum number of items associated with a search or list'/&gt;
+  &lt;field var='motd'
+         type='text-multi'
+         label='The text of a message of the day'/&gt;
+  &lt;field var='onlineresources'
+         type='text-single'
+         label='The names of an account&amp;apos;s online sessions'/&gt;
+  &lt;field var='onlineuserjids'
+         type='jid-multi'
+         label='The Jabber IDs associated with online users'/&gt;
+  &lt;field var='onlineusersnum'
+         type='text-single'
+         label='The number of online entities'/&gt;
+  &lt;field var='password'
+         type='text-private'
+         label='The password for an account'/&gt;
+  &lt;field var='password-verify'
+         type='text-private'
+         label='Password verification'/&gt;
+  &lt;field var='registereduserjids'
+         type='jid-multi'
+         label='A list of registered entities'/&gt;
+  &lt;field var='registeredusersnum'
+         type='text-single'
+         label='The number of registered entities'/&gt;
+  &lt;field var='rostersize'
+         type='text-single'
+         label='Number of roster items for an account'/&gt;
+  &lt;field var='stanzaspersecond'
+         type='text-single'
+         label='The number of stanzas being sent per second by an account'/&gt;
+  &lt;field var='surname'
+         type='text-single'
+         label='The family (last) name of a user'/&gt;
+  &lt;field var='welcome'
+         type='text-multi'
+         label='The text of a welcome message'/&gt;
+  &lt;field var='whitelistjids'
+         type='jid-multi'
+         label='A list of entities with whom communication is allowed'/&gt;
+&lt;/form_type&gt;
+</pre></figure>
+  </div>
+<h2 id="sect-id42">9.
+       XML Schema<a class="anchor-link" href="#sect-id42"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Because the protocol defined here is a profile of <span class="ref">XEP-0050: Ad-Hoc Commands</span>, no schema definition is needed.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0133</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Active">Active</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Informational">Informational</a></dd><dt>Version</dt><dd>1.3.1</dd><dt>Last Updated</dt><dd>2024-09-01</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd><a href="https://datatracker.ietf.org/doc/html/rfc6120">RFC 6120</a>, <a href="xep-0050.html">XEP-0050</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>admin</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0133.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0133.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0133.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Peter Saint-Andre</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:stpeter@stpeter.im">stpeter@stpeter.im</a></dd><dt>JabberID</dt><dd><a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a></dd><dt>URI</dt><dd><a href="https://stpeter.im/">https://stpeter.im/</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="https://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id43">1</a>. XEP-0045: Multi-User Chat &lt;<a href="https://xmpp.org/extensions/xep-0045.html">https://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-id44">2</a>. XEP-0050: Ad-Hoc Commands &lt;<a href="https://xmpp.org/extensions/xep-0050.html">https://xmpp.org/extensions/xep-0050.html</a>&gt;.</p><p><a name="nt-id45">3</a>. XEP-0004: Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0004.html">https://xmpp.org/extensions/xep-0004.html</a>&gt;.</p><p><a name="nt-id46">4</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id47">5</a>. OWASP: Password Plaintext Storage &lt;<a href="https://owasp.org/www-community/vulnerabilities/Password_Plaintext_Storage">https://owasp.org/www-community/vulnerabilities/Password_Plaintext_Storage</a>&gt;</p><p><a name="nt-id48">6</a>. RFC 6121: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc6121">http://tools.ietf.org/html/rfc6121</a>&gt;.</p><p><a name="nt-id49">7</a>. XEP-0082: XMPP Date and Time Profiles &lt;<a href="https://xmpp.org/extensions/xep-0082.html">https://xmpp.org/extensions/xep-0082.html</a>&gt;.</p><p><a name="nt-id50">8</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-id51">9</a>. XEP-0016: Privacy Lists &lt;<a href="https://xmpp.org/extensions/xep-0016.html">https://xmpp.org/extensions/xep-0016.html</a>&gt;.</p><p><a name="nt-id52">10</a>. Typically, a "message of the day" is an announcement that is sent once to all users of a server or a service until and unless the message is deleted; it can be thought of as a "standing announcement" as opposed to the "one-time announcement" sent to all online users in the previous use cases. The announcement is sent immediately to users who are online when the message is set, or after the next session initiation for other users (e.g., on server login or chatroom join).</p><p><a name="nt-id53">11</a>. XEP-0086: Error Condition Mappings &lt;<a href="https://xmpp.org/extensions/xep-0086.html">https://xmpp.org/extensions/xep-0086.html</a>&gt;.</p><p><a name="nt-id54">12</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id55">13</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id56">14</a>. XEP-0068: Field Data Standardization for Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0068.html">https://xmpp.org/extensions/xep-0068.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v1.3.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0133-1.3.1.html">1.3.1</a> (2024-09-01)<a class="anchor-link" href="#revision-history-v1.3.1"><abbr title="Link to this point in the document">¶</abbr></a></div>Fixed typo in example for Get User Last Login Time<div class="revision-author">dc</div></li><li id="revision-history-v1.3.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0133-1.3.0.html">1.3.0</a> (2024-01-04)<a class="anchor-link" href="#revision-history-v1.3.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Removed use case 'Get User Password', which violates best-practices with regard to security.<div class="revision-author">gdk</div></li><li id="revision-history-v1.2"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0133-1.2.html">1.2</a> (2017-07-15)<a class="anchor-link" href="#revision-history-v1.2"><abbr title="Link to this point in the document">¶</abbr></a></div>Fix broken node value in example.<div class="revision-author">XEP Editor: ssw</div></li><li id="revision-history-v1.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0133-1.1.html">1.1</a> (2005-08-19)<a class="anchor-link" href="#revision-history-v1.1"><abbr title="Link to this point in the document">¶</abbr></a></div>Added use cases for getting list of idle users and of active users (where online = active + idle), getting number (rather than list) of registered/disabled/online/active/idle users, getting list of disabled users, getting user statistics.<div class="revision-author">psa</div></li><li id="revision-history-v1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0133-1.0.html">1.0</a> (2004-12-09)<a class="anchor-link" href="#revision-history-v1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Per a vote of the Jabber Council, advanced status to Active.<div class="revision-author">psa</div></li><li id="revision-history-v0.8"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0133-0.8.html">0.8</a> (2004-12-06)<a class="anchor-link" href="#revision-history-v0.8"><abbr title="Link to this point in the document">¶</abbr></a></div>Addressed Council feedback: folded add blacklist use case into edit blacklist use case; folded add whitelist use case into edit whitelist use case; changed jid-single to jid-multi in many of the use cases; added accountjid field to change password use case; removed grant administrative privileges and revoke administrative privileges use cases (need edit admin list use case only); added max_items field to get active users and get registered users use case.<div class="revision-author">psa</div></li><li id="revision-history-v0.7"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0133-0.7.html">0.7</a> (2004-12-02)<a class="anchor-link" href="#revision-history-v0.7"><abbr title="Link to this point in the document">¶</abbr></a></div>Added use case for editing message of the day.<div class="revision-author">psa</div></li><li id="revision-history-v0.6"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0133-0.6.html">0.6</a> (2004-11-19)<a class="anchor-link" href="#revision-history-v0.6"><abbr title="Link to this point in the document">¶</abbr></a></div>Further clarified message of the day per list discussion.<div class="revision-author">psa</div></li><li id="revision-history-v0.5"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0133-0.5.html">0.5</a> (2004-11-17)<a class="anchor-link" href="#revision-history-v0.5"><abbr title="Link to this point in the document">¶</abbr></a></div>Changed firstname to given_name.<div class="revision-author">psa</div></li><li id="revision-history-v0.4"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0133-0.4.html">0.4</a> (2004-11-02)<a class="anchor-link" href="#revision-history-v0.4"><abbr title="Link to this point in the document">¶</abbr></a></div>Added note clarifying concept of message of the day.<div class="revision-author">psa</div></li><li id="revision-history-v0.3"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0133-0.3.html">0.3</a> (2004-09-30)<a class="anchor-link" href="#revision-history-v0.3"><abbr title="Link to this point in the document">¶</abbr></a></div>Changed command naming requirement from MUST to SHOULD.<div class="revision-author">psa</div></li><li id="revision-history-v0.2"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0133-0.2.html">0.2</a> (2004-07-22)<a class="anchor-link" href="#revision-history-v0.2"><abbr title="Link to this point in the document">¶</abbr></a></div>Added several more use cases; defined complete protocol flows; specified XMPP Registrar considerations.<div class="revision-author">psa</div></li><li id="revision-history-v0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0133-0.1.html">0.1</a> (2004-04-25)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a></div>Initial version.<div class="revision-author">psa</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{saint-andre2004admin,
+  title = {Service Administration},
+  author = {Saint-Andre, Peter},
+  type = {XEP},
+  number = {0133},
+  version = {1.3.1},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0133.html},
+  date = {2004-04-25/2024-09-01},
+}</pre><p>END</p></body></html>
