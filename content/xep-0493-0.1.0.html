@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0493: OAuth Client Login</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0493";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="OAuth Client Login"><meta name="DC.Creator" content="Matthew Wild"><meta name="DC.Description" content="This specification details how a third-party can be securely granted access to an XMPP account without exposing the account credentials, using OAuth."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2024-09-17"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0493"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0493: OAuth Client Login</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification details how a third-party can be securely granted access to an XMPP account without exposing the account credentials, using OAuth.</dd><dt>Author</dt><dd>Matthew Wild</dd><dt>Copyright</dt><dd>© 2024 – 2024 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental informational">WARNING: This Informational document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the best practice or protocol profile described herein is encouraged in exploratory implementations, although production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Stable.</div></dd><dt>Type</dt><dd>Informational</dd><dt>Version</dt><dd>0.1.0 (2024-09-17)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Active</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#introduction">Introduction</a><ol><li><a href="#use-of-oauth">Use of OAuth</a></li><li><a href="#defining-the-scope-of-this-document">Defining the scope of this document</a></li></ol></li><li><a href="#requirements">Requirements</a><ol><li><a href="#use-cases">Use cases</a></li><li><a href="#client-login-flow">Client login flow</a></li><li><a href="#obtaining-authorization">Obtaining authorization</a><ol><li><a href="#discovering-oauth-support">Discovering OAuth support</a></li><li><a href="#registering-with-the-oauth-provider">Registering with the OAuth provider</a></li><li><a href="#authorization-request">Authorization request</a></li><li><a href="#successful-authorization">Successful authorization</a></li></ol></li></ol></li><li><a href="#oauth-scopes">OAuth Scopes</a><ol><li><a href="#special-scopes">Special scopes</a><ol><li><a href="#account-only-access">Account-only access</a></li></ol></li></ol></li><li><a href="#implementation-notes">Implementation notes</a><ol><li><a href="#oauth-versions">OAuth versions</a></li><li><a href="#servers">Servers</a></li></ol></li><li><a href="#security-considerations">Security considerations</a><ol><li><a href="#oauth-security">OAuth security</a></li><li><a href="#authentication-vs-authorization">Authentication vs Authorization</a></li></ol></li><li><a href="#accessibility-considerations">Accessibility Considerations</a></li><li><a href="#privacy-considerations">Privacy Considerations</a></li><li><a href="#iana-considerations">IANA Considerations</a></li><li><a href="#xmpp-registrar-considerations">XMPP Registrar Considerations</a><ol><li><a href="#scope-name-registry">Scope name registry</a><ol><li><a href="#initial-contents">Initial contents</a></li></ol></li></ol></li><li><a href="#acknowledgements">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="introduction">1.
+       Introduction<a class="anchor-link" href="#introduction"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">This specification defines a way to allow an XMPP account owner to safely and securely log in to their account
+through a client or other application without sharing their password or other primary credentials with that
+application. This is particularly important if the application is hosted by a third party (e.g. as a web app),
+as some XMPP applications are.</p>
+
+<p class="" style="">To achieve this, we define how OAuth can be implemented and used to grant this access.</p>
+
+<div class="indent"><h3 id="use-of-oauth">1.1 Use of OAuth<a class="anchor-link" href="#use-of-oauth"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">OAuth is a widely used authentication and authorization framework. It allows a resource owner (such as an XMPP user)
+to safely and securely grant address to a resource (such as their XMPP account) to software and services that they choose.
+In the past, granting access to an account was only possible by sharing the account password with the software or service
+that wants to access it. Once shared, such access is unlimited and impossible to selectively revoke.</p>
+
+<p class="" style="">However, OAuth is also a very broad framework with many features and capabilities, spread across multiple specifications.
+This can make it difficult for developers to know which parts are necessary for different usage scenarios, and this leads
+to non-interoperable implementations, or avoiding implementation at all.</p>
+
+</div><div class="indent"><h3 id="defining-the-scope-of-this-document">1.2 Defining the scope of this document<a class="anchor-link" href="#defining-the-scope-of-this-document"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">This specification focuses on one primary use case - securely granting third-party access to an account. It does not
+introduce any new protocols, but describes how existing protocols can be combined together to enable this use case.</p>
+
+<p class="" style="">There is an existing published XEP related to use of OAuth in XMPP, <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0235.html">Direct Invitations (XEP-0235)</a></span>  [<a href="#nt-id28">1</a>]. However this describes a different use
+case - specifically, how an arbitrary XMPP entity can use OAuth to manage access to its own services by other XMPP entities.
+Furthermore, that specification is based on the outdated OAuth 1.0, while this specification builds upon OAuth 2.0+ only.</p>
+
+<p class="" style="">Other use cases that are <strong>not</strong> described by this document, but may also be achieved using OAuth include:</p>
+
+<ul class="" style="">
+<li class="" style="">Allowing users to identify themselves to a third-party service by proving ownership of an XMPP account (e.g. this would allow a web service to display
+a "Log in with XMPP" button).
+Such a feature could be implemented by adding support for OpenID Connect protocols in addition to the simpler protocols described here.
+Alternatively, <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0070.html">Verifying HTTP Requests via XMPP (XEP-0070)</a></span>  [<a href="#nt-id29">2</a>] defines a pre-OAuth method of achieving similar functionality.</li>
+<li class="" style="">Allowing users to identify themselves to their XMPP server using a third-party service (e.g. this would allow an XMPP client to display
+a "Log in with TrendyService" button). This can be achieved through use of OpenID Connect, which has significant overlap with the parts
+of OAuth used in this specification, but ultimately requires different protocol flows.</li>
+</ul>
+
+<p class="" style="">By limiting the scope of this document to secure account access delegation, we aim to make it easier for developers to safely
+and securely implement this important feature, without the distractions of the complex and sprawling wider OAuth ecosystem.</p>
+
+<p class="" style="">However, this XEP’s protocols do unlock additional use cases. For example, the flows described here would enable server admins to deploy and
+utilize OAuth-compatible identity providers to manage access to XMPP user accounts, which in turn can be used for features such as Single Sign-On.</p>
+
+</div><h2 id="requirements">2.
+       Requirements<a class="anchor-link" href="#requirements"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<ul class="" style="">
+<li class="" style="">It should be possible for an XMPP account owner to provide an application or service access to their account without sharing their password (or any similar unconstrained credentials).</li>
+</ul>
+
+<p class="" style="">Although the protocol details will not be covered in this particular document, following this specification must enable the following
+important features to be implemented by the service:</p>
+
+<ul class="" style="">
+<li class="" style="">It should be possible to control the level of the access granted (e.g. providing read-only access, or allowing access to only certain aspects of the account).</li>
+<li class="" style="">It should be possible to revoke the granted access at any time.</li>
+</ul>
+
+<div class="indent"><h3 id="use-cases">2.1 Use cases<a class="anchor-link" href="#use-cases"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">Imagine that a developer has made an XMPP web application that allows people to create and browse XMPP social content (such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0277.html">Microblogging Over XMPP (XEP-0277)</a></span>  [<a href="#nt-id30">3</a>]) on the XMPP network. To work, it needs to connect to a user’s XMPP account. However the developer does not want the liability of requesting (and potentially storing) user passwords to allow the application to log in to user accounts. Additionally, users do not want to type their passwords into a third-party service.</p>
+
+<p class="" style="">Using OAuth, the user is able to enter only their JID in the application, and then through OAuth negotiation the application will be able to obtain unique credentials that can be used to connect to the user’s XMPP account.</p>
+
+</div><div class="indent"><h3 id="client-login-flow">2.2 Client login flow<a class="anchor-link" href="#client-login-flow"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">The initial login process can be broken down into a series of steps, which are each given a section here, in the order they will typically occur.</p>
+
+<p class="" style="">The following entities play a part in these sections:</p>
+
+<ul class="" style="">
+<li class="" style="">The "user" - this is the, typically human, individual that wants to use the application with their XMPP account.</li>
+<li class="" style="">The "application" (or in the context of XMPP, also referred to as the "client") - this is the application or service that wants to access the user’s account on behalf of the user.</li>
+<li class="" style="">The "server" - this is the user’s XMPP service, identified by the domain part of their JID.</li>
+<li class="" style="">The "OAuth provider" - this is the service with which the application performs OAuth. It may be part of the user’s XMPP server, but may also be located elsewhere. The OAuth provider is responsible for issuing credentials that can be used to access the user’s account.</li>
+</ul>
+
+</div><div class="indent"><h3 id="obtaining-authorization">2.3 Obtaining authorization<a class="anchor-link" href="#obtaining-authorization"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">To begin the process, the application must first obtain the user’s JID. For example, it
+may present a login form with a field for the JID (but no field for the password).</p>
+
+<div class="indent"><h4 id="discovering-oauth-support">2.3.1 Discovering OAuth support<a class="anchor-link" href="#discovering-oauth-support"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+
+<p class="" style="">The application takes the hostname from the JID, and initiates a client connection
+to the user’s account on that server. Per <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-id31">4</a>], the client SHOULD include the user’s
+JID in the 'from' attribute on opening stream headers, but MUST only do so after the
+connection is secured with TLS.</p>
+
+<p class="" style="">The server will present a list of SASL mechanisms, either using the core SASL profile defined
+in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">XMPP Core</a></span>  [<a href="#nt-id31">4</a>], or using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-id32">5</a>].</p>
+
+<p class="" style="">If the server does not offer the OAUTHBEARER mechanism in this list, then it does not support the
+flow defined in this XEP. The application SHOULD indicate to the user that their server does not
+support secure third-party application access and abort the login process. However, the application
+MAY offer password login as a fallback, if such fallback has been enabled by the administrator of the application deployment.</p>
+
+<p class="" style="">During initial authentication, the client does not have any credentials, so it SHOULD proceed
+with the OAUTHBEARER mechanism, but provide an empty access token. Per the rules in 
+<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc7628">RFC 7628</a></span>
+
+ [<a href="#nt-id33">6</a>]
+,
+the server will respond with a JSON object that includes the discovery URL for the requested user.</p>
+
+<p class="" style="">The application makes a request to the discovery URL to fetch metadata about the OAuth provider,
+which is needed to complete the authorization process. The response from the discovery URL SHOULD be parsed according to 
+<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8414">RFC 8414</a></span>
+
+ [<a href="#nt-id34">7</a>]
+.</p>
+
+</div><div class="indent"><h4 id="registering-with-the-oauth-provider">2.3.2 Registering with the OAuth provider<a class="anchor-link" href="#registering-with-the-oauth-provider"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+
+<p class="" style="">If the application has not previously interacted with this OAuth provider (identified by the "issuer" URL in the metadata), then it must first register itself. This registration is necessary to protect against certain attacks on the OAuth process, and it also provides an opportunity for the application to provide details such as a name and logo that will be presented to the user. Details of this registration process are specified in 
+<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc7591">RFC 7591</a></span>
+
+ [<a href="#nt-id35">8</a>]
+.</p>
+
+</div><div class="indent"><h4 id="authorization-request">2.3.3 Authorization request<a class="anchor-link" href="#authorization-request"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+
+<p class="" style="">Authorization begins by preparing an authorization request. In the case of server-side "hosted" applications, this request is not made directly by the application. Rather, the application must craft the URL (known as the "Authorization Endpoint") for the request and then redirect the user to that URL.</p>
+
+<p class="" style="">The base of the Authorization Endpoint is obtained from the earlier discovery process. The client then adds parameters specific to the current authorization request. XMPP implementations SHOULD implement at least the Authorization Code grant type (
+<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6749">RFC 6749</a></span>
+
+ [<a href="#nt-id36">9</a>]
+ section 4.1), and details of the expected parameters for this grant type can be found in 
+<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6749">RFC 6749</a></span>
+
+ [<a href="#nt-id36">9</a>]
+ section 4.1.1. In addition, servers and clients MUST support the PKCE extension to this flow, which is defined in 
+<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc7636">RFC 7636</a></span>
+
+ [<a href="#nt-id37">10</a>]
+.</p>
+
+<p class="" style="">The application SHOULD request specific scopes, according to the access that it requires. These scopes MUST be limited to the minimum level of access required for the application to function. OAuth itself does not define any standard scopes, however some standard scopes are included in this specification that are expected to be offered, in addition to any custom scopes that a specific service or implementation may offer.</p>
+
+<p class="" style="">At this point, the OAuth provider will display to the user whatever steps are necessary to grant the authorization, such as requiring the user to authenticate themselves.</p>
+
+</div><div class="indent"><h4 id="successful-authorization">2.3.4 Successful authorization<a class="anchor-link" href="#successful-authorization"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+
+<p class="" style="">If the user successfully approves the application’s access, the OAuth provider will redirect them back to the application (specifically, the application’s "Redirection URI" which it provided to the server previously in the Authorization Request or Client Registration).</p>
+
+<p class="" style="">In the case of the Authorization Code grant type, the application will be able to exchange the authorization code received in the URL for the final credentials - an access token that can be used with the SASL OAUTHBEARER mechanism. This exchange is described in 
+<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6749">RFC 6749</a></span>
+
+ [<a href="#nt-id36">9</a>]
+ sections 4.1.3 and 4.1.4.</p>
+
+</div></div><h2 id="oauth-scopes">3.
+       OAuth Scopes<a class="anchor-link" href="#oauth-scopes"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">OAuth allows each authorization grant to have different permissions, it calls these "scopes". However, because
+OAuth is a generic framework, it does not specify any scopes itself. This can become an interoperability issue,
+if applications don’t understand what scopes they need to request for the functionality they implement.</p>
+
+<p class="" style="">For this reason, we define some basic scopes in this specification, without excluding the possibility that
+additional scopes will be defined in the future.</p>
+
+<p class="" style="">Scope names SHOULD be registered with the XSF before being used, however this
+is not a requirement. Custom scopes that are not intended for standardization
+SHOULD avoid the 'xmpp:' prefix to prevent conflicts. Note that scope names
+are arbitrary opaque strings as far as OAuth is concerned, and are not defined
+to be URIs, or any specific format.</p>
+
+<p class="" style="">This specification defines the following scopes:</p>
+
+<ul class="" style="">
+<li class="" style=""><code>xmpp:client:normal</code> - The application gains access to most features of the account, but may be restricted from certain sensitive operations, such as changing the account password or managing connected devices. This ensures that such a client cannot escalate its privileges or take over an account. This scope MUST be supported by the server.</li>
+</ul>
+
+<div class="indent"><h3 id="special-scopes">3.1 Special scopes<a class="anchor-link" href="#special-scopes"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">For certain specialized non-IM applications, it may be preferable to request limited access to a user’s account. For example, an
+application which allows a user to view or export or backup their data.</p>
+
+<p class="" style="">These scopes do not permit communication access to the XMPP network. They SHOULD be supported by servers.</p>
+
+<div class="indent"><h4 id="account-only-access">3.1.1 Account-only access<a class="anchor-link" href="#account-only-access"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+
+<p class="" style="">These scopes control access to account data (including user profile information, public and private PEP nodes, and roster). In general they allow
+communication with the account’s server to facilitate this access, but not with other XMPP entities. Notably they do not grant access to a user’s
+current or past communications (e.g. <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0280.html">Message Carbons (XEP-0280)</a></span>  [<a href="#nt-id38">11</a>] or <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-id39">12</a>]).</p>
+
+<ul class="" style="">
+<li class="" style=""><code>xmpp:account:read</code> - Read-only access to the account and associated data.</li>
+<li class="" style=""><code>xmpp:account:write</code> - Write access to the account and associated data.</li>
+</ul>
+
+</div></div><h2 id="implementation-notes">4.
+       Implementation notes<a class="anchor-link" href="#implementation-notes"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<div class="indent"><h3 id="oauth-versions">4.1 OAuth versions<a class="anchor-link" href="#oauth-versions"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">At the time of writing, OAuth 2.0 is published as RFCs and widely supported by
+implementations and libraries generally. OAuth 2.1 is under development, and
+while broadly compatible it has many improvements that improve robustness,
+increase interoperability and reduce the potential for security issues.</p>
+
+<p class="" style="">The subset of OAuth required by this specification is not likely to change
+substantially, and it is probable that a future version of this XEP may advise
+support for OAuth 2.1 when it is finalized. Implementers are encouraged to
+cross-reference the OAuth 2.1 drafts, as they can be simpler than the original
+OAuth 2.0 specifications while the protocol remains largely identical.</p>
+
+<p class="" style="">In particular, OAuth 2.1 requires the PKCE extension to the Authorization Grant
+flow, which this XEP already requires. Many of the other OAuth 2.0 grant types
+are removed from OAuth 2.1, and this XEP does not recommend that
+implementations support these grant types.</p>
+
+<p class="" style="">Finally, OAuth 2.1 formally forbids the practice of allowing wildcards in the
+client’s redirect_uri fields. Allowing fuzzy matching can lead to unintented
+security issues, and a simple string comparison should be used instead, aside
+from special handling of certain localhost URLs (see the OAuth 2.1
+specification for details).</p>
+
+<p class="" style="">Following the few paragraphs above will lead to implementations which are
+simpler, safer and forwards-compatible with OAuth 2.1.</p>
+
+</div><div class="indent"><h3 id="servers">4.2 Servers<a class="anchor-link" href="#servers"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">At a minimum, servers are required to implement the OAUTHBEARER SASL mechanism defined in 
+<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6749">RFC 6749</a></span>
+
+ [<a href="#nt-id36">9</a>]
+. To ensure
+clients can adequately discover support and the information they need to successfully obtain authorization,
+servers MUST provide a URL to a valid OAuth Discovery document (
+<span class="ref" style=""><a href="http://tools.ietf.org/html/rfc8414">RFC 8414</a></span>
+
+ [<a href="#nt-id34">7</a>]
+) in the openid-configuration field
+described in that RFC.</p>
+
+<p class="" style="">The discovery document, as well as the rest of the OAuth exchange, may be implemented and served by the XMPP
+server itself, or by an external OAuth-compatible identity provider that the server admin configures. This
+choice is left to individual implementations and deployments.</p>
+
+</div><h2 id="security-considerations">5.
+       Security considerations<a class="anchor-link" href="#security-considerations"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<div class="indent"><h3 id="oauth-security">5.1 OAuth security<a class="anchor-link" href="#oauth-security"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">This specification builds upon the existing OAuth standards, this allows reuse
+of existing implementation experience and security practices.</p>
+
+<p class="" style="">Nevertheless, while OAuth has the potential to greatly improve security (compared to a world where users freely hand out their passwords
+to third-party services), there has been a long history of security issues related to OAuth implementations. Some general advice for
+developers:</p>
+
+<ul class="" style="">
+<li class="" style="">Read 
+<span class="ref" style=""><a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics">draft-ietf-oauth-security-topics</a></span>
+
+ [<a href="#nt-id40">13</a>]
+ for an excellent review of known security pitfalls that can be encountered while implementing OAuth applications and services.</li>
+<li class="" style="">Reuse existing libraries and APIs where possible, and read their documentation carefully.</li>
+<li class="" style="">Do not implement or support OAuth 1.x, or any of the deprecated grant types.</li>
+<li class="" style="">Read the security considerations in the RFCs this specification builds upon.</li>
+</ul>
+
+<p class="" style="">Server implementations MUST NOT support this specification without giving account owners a method to manage and revoke access. While
+this could be a proprietary interface, implementations SHOULD provide support for this using standard XMPP protocols, such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0494.html">Client Access Management (XEP-0494)</a></span> [<a href="#nt-id41">14</a>].</p>
+
+<p class="" style="">Be sure to review the 'OAuth versions' section of the Implementation Notes
+above and implement the requirements listed there for improved security and
+for compatibility with OAuth 2.1 when it arrives.</p>
+
+</div><div class="indent"><h3 id="authentication-vs-authorization">5.2 Authentication vs Authorization<a class="anchor-link" href="#authentication-vs-authorization"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">Note well that this specification is about an XMPP account owner granting
+(i.e. authorizing) an application access to their account. It is not about
+the account owner asserting any particular identity to the application, nor is
+is it designed to assert the identity of the application towards the XMPP
+service.</p>
+
+<p class="" style="">One simple example of how this confusion could manifest, is if a user
+initially provides one JID (which they may not own) to an application, but
+authenticates to the server using a different JID during the OAuth process,
+potentially confusing the application about the user’s identity.</p>
+
+<p class="" style="">OAuth is an authorization (permission) protocol, not an authentication
+(identity) protocol. Applications can safely use the credentials returned from
+OAuth negotiation to connect and authenticate to the XMPP service as the
+authenticated user, but should be careful not to make the assumption that this
+somehow authenticates the user to the application itself. Such authentication
+is not the intention of OAuth.</p>
+
+<p class="" style="">In the case of an XMPP client that establishes a session, note that the full
+JID of the authenticated session is returned by the server during resource
+binding, which allows the application to know which JID was ultimately
+authenticated.</p>
+
+<p class="" style="">Alternatively, the OpenID Connect protocols build upon OAuth to allow an
+application to securely learn the identity of an authenticated user. However,
+as described in the Requirements section earlier, these use cases are beyond
+the scope of this specification.</p>
+
+<p class="" style="">In all cases, a shared application that maintains local state (i.e. outside of
+the user’s XMPP server) MUST be extremely careful to avoid leaking such data
+between user accounts, although such care must be taken with or without OAuth.</p>
+
+</div><h2 id="accessibility-considerations">6.
+       Accessibility Considerations<a class="anchor-link" href="#accessibility-considerations"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">This specification potentially adds new human interaction points, such as
+during the authentication and authorization process. These steps will be
+provided by the XMPP server or an identity provider configured by the server
+administrator. These interfaces should be implemented and chosen according to
+accessibility best practices. Deployments should consider the accessibility
+impact of features such as CAPTCHAs which may be presented during an
+authentication flow, and ensure there are accessible variants if they must be
+used.</p>
+
+<h2 id="privacy-considerations">7.
+       Privacy Considerations<a class="anchor-link" href="#privacy-considerations"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">As noted in the Security Considerations, implementations MUST support viewing
+and revoking authorizations after they have been granted.</p>
+
+<h2 id="iana-considerations">8.
+       IANA Considerations<a class="anchor-link" href="#iana-considerations"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">None.</p>
+
+<h2 id="xmpp-registrar-considerations">9.
+       XMPP Registrar Considerations<a class="anchor-link" href="#xmpp-registrar-considerations"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<div class="indent"><h3 id="scope-name-registry">9.1 Scope name registry<a class="anchor-link" href="#scope-name-registry"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+
+<p class="" style="">This specification introduces a registry of scope names. The format of an
+entry should be in the following format:</p>
+
+<figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> <a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">&lt;scope&gt;
+  &lt;name&gt;Name of the OAuth scope to be used in the protocol, typically begins with 'xmpp:' prefix&lt;/name&gt;
+  &lt;doc&gt;Associated specification&lt;/doc&gt;
+  &lt;desc&gt;Natural-language description of the scope and its purpose&lt;/desc&gt;
+&lt;/scope&gt;</pre></figure>
+
+<div class="indent"><h4 id="initial-contents">9.1.1 Initial contents<a class="anchor-link" href="#initial-contents"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+
+<p class="" style="">Upon advancement of this XEP, the registrar will create the registry with the
+following initial contents:</p>
+
+<figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> <a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">&lt;scope&gt;
+  &lt;name&gt;xmpp:client:normal&lt;/name&gt;
+  &lt;doc&gt;XEP-xxxx&lt;/doc&gt;
+  &lt;desc&gt;Permit general access to an XMPP account, excluding security-relevant features&lt;/desc&gt;
+&lt;/scope&gt;
+
+&lt;scope&gt;
+  &lt;name&gt;xmpp:account:read&lt;/name&gt;
+  &lt;doc&gt;XEP-xxxx&lt;/doc&gt;
+  &lt;desc&gt;Permit access to read account data&lt;/desc&gt;
+&lt;/scope&gt;
+
+&lt;scope&gt;
+  &lt;name&gt;xmpp:account:write&lt;/name&gt;
+  &lt;doc&gt;XEP-xxxx&lt;/doc&gt;
+  &lt;desc&gt;Permit access to modify account data&lt;/desc&gt;
+&lt;/scope&gt;</pre></figure>
+
+</div></div><h2 id="acknowledgements">10.
+       Acknowledgements<a class="anchor-link" href="#acknowledgements"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+<p class="" style="">Thanks to Jonas Schäfer for assisting in the review of this document, and to
+Kim Alvefur for the (almost) tireless assistance with developing the prototype
+implemention and making sense of the of various OAuth specifications with me.
+Thanks to NLnet for providing the funding that made it possible for me to do
+this work on XMPP authentication improvements.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0493</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Informational">Informational</a></dd><dt>Version</dt><dd>0.1.0</dd><dt>Last Updated</dt><dd>2024-09-17</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>
+                None
+              </dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>tsa</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0493.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0493.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0493.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Matthew Wild</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:mwild1@gmail.com">mwild1@gmail.com</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id28">1</a>. XEP-0235: Direct Invitations &lt;<a href="https://xmpp.org/extensions/xep-0235.html">https://xmpp.org/extensions/xep-0235.html</a>&gt;.</p><p><a name="nt-id29">2</a>. XEP-0070: Verifying HTTP Requests via XMPP &lt;<a href="https://xmpp.org/extensions/xep-0070.html">https://xmpp.org/extensions/xep-0070.html</a>&gt;.</p><p><a name="nt-id30">3</a>. XEP-0277: Microblogging over XMPP &lt;<a href="https://xmpp.org/extensions/xep-0277.html">https://xmpp.org/extensions/xep-0277.html</a>&gt;.</p><p><a name="nt-id31">4</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-id32">5</a>. XEP-0388: Extensible SASL Profile &lt;<a href="https://xmpp.org/extensions/xep-0388.html">https://xmpp.org/extensions/xep-0388.html</a>&gt;.</p><p><a name="nt-id33">6</a>. 
+
+RFC 7628: A Set of Simple Authentication and Security Layer (SASL) Mechanisms for OAuth &lt;<a href="http://tools.ietf.org/html/rfc7628">http://tools.ietf.org/html/rfc7628</a>&gt;.
+
+</p><p><a name="nt-id34">7</a>. 
+
+RFC 8414: OAuth 2.0 Authorization Server Metadata &lt;<a href="http://tools.ietf.org/html/rfc8414">http://tools.ietf.org/html/rfc8414</a>&gt;.
+
+</p><p><a name="nt-id35">8</a>. 
+
+RFC 7591: OAuth 2.0 Dynamic Client Registration Protocol &lt;<a href="http://tools.ietf.org/html/rfc7591">http://tools.ietf.org/html/rfc7591</a>&gt;.
+
+</p><p><a name="nt-id36">9</a>. 
+
+RFC 6749: The OAuth 2.0 Authorization Framework &lt;<a href="http://tools.ietf.org/html/rfc6749">http://tools.ietf.org/html/rfc6749</a>&gt;.
+
+</p><p><a name="nt-id37">10</a>. 
+
+RFC 7636: Proof Key for Code Exchange by OAuth Public Clients &lt;<a href="http://tools.ietf.org/html/rfc7636">http://tools.ietf.org/html/rfc7636</a>&gt;.
+
+</p><p><a name="nt-id38">11</a>. XEP-0280: Message Carbons &lt;<a href="https://xmpp.org/extensions/xep-0280.html">https://xmpp.org/extensions/xep-0280.html</a>&gt;.</p><p><a name="nt-id39">12</a>. XEP-0313: Message Archive Management &lt;<a href="https://xmpp.org/extensions/xep-0313.html">https://xmpp.org/extensions/xep-0313.html</a>&gt;.</p><p><a name="nt-id40">13</a>. 
+
+OAuth 2.0 Security Best Current Practice &lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics">https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics</a>&gt;.
+
+</p><p><a name="nt-id41">14</a>. XEP-0494: Client Access Management &lt;<a href="https://xmpp.org/extensions/xep-0494.html">https://xmpp.org/extensions/xep-0494.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0493-0.1.0.html">0.1.0</a> (2024-09-17)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Promoted to Experimental</li>
+      </ul>
+    <div class="revision-author">XEP Editor: dg</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0493-0.0.1.html">0.0.1</a> (2024-08-20)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div>
+<div class="revision-author">mjw</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{wild2024tsa,
+  title = {OAuth Client Login},
+  author = {Wild, Matthew},
+  type = {XEP},
+  number = {0493},
+  version = {0.1.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0493.html},
+  date = {2024-08-20/2024-09-17},
+}</pre><p>END</p></body></html>
