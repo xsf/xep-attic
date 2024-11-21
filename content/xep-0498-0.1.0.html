@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0498: Pubsub File Sharing</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0498";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="Pubsub File Sharing"><meta name="DC.Creator" content="Jérôme Poisson"><meta name="DC.Description" content="This specification explains how to share files and optionally include directory structures similar to filesystems over XMPP Pubsub. It leverages XMPP Pubsub to enable notifications about file changes and manage permissions, providing users with real-time updates and control mechanisms. An optional mechanism is also specified for managing uploaded files."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2024-11-20"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0498"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0498: Pubsub File Sharing</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification explains how to share files and optionally include directory structures similar to filesystems over XMPP Pubsub. It leverages XMPP Pubsub to enable notifications about file changes and manage permissions, providing users with real-time updates and control mechanisms. An optional mechanism is also specified for managing uploaded files.</dd><dt>Author</dt><dd>Jérôme Poisson</dd><dt>Copyright</dt><dd>© 2024 – 2024 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.1.0 (2024-11-20)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#payload">General Structure and Payload</a></li><li><a href="#naming">Node Structure and Naming</a><ol><li><a href="#well-known-node">Well-Known Node</a></li><li><a href="#naming-convention">Node and Item Naming Convention</a></li></ol></li><li><a href="#handling-changes">Handling Metadata and File Changes</a><ol><li><a href="#metadata-association">Metadata and File Association</a></li><li><a href="#mapping">Mapping of Files and Metadata</a></li></ol></li><li><a href="#e2ee">End to End Encryption</a></li><li><a href="#well-known">Well-Known Directories</a></li><li><a href="#rules">Business Rules</a></li><li><a href="#disco">Discovering Support</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#acks">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">File sharing is a foundational use case in XMPP, with numerous attempts to facilitate the sharing of file hierarchies. Notable efforts include <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0105.html">Tree Transfer Stream Initiation Profile (XEP-0105)</a></span>  [<a href="#nt-id19">1</a>], <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0135.html">File Sharing (XEP-0135)</a></span>  [<a href="#nt-id20">2</a>], <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0214.html">File Repository and Sharing (XEP-0214)</a></span>  [<a href="#nt-id21">3</a>], and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0329.html">File Information Sharing (XEP-0329)</a></span>  [<a href="#nt-id22">4</a>]. However, these previous approaches often fall short in key areas, particularly in the realm of notifications, and/or use now-deprecated specifications. While <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0214.html">File Repository and Sharing (XEP-0214)</a></span>  [<a href="#nt-id21">3</a>] is the only specification that supports file hierarchies with notifications, it has seen limited adoption and suffers from its reliance on an outdated stack and issues with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0248.html">PubSub Collection Nodes (XEP-0248)</a></span>  [<a href="#nt-id23">5</a>], especially concerning permission management between collection and leaf nodes.</p>
+  <p class="" style="">The current specification addresses these shortcomings by leveraging a more modern stack. It adapts <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0447.html">Stateless file sharing (XEP-0447)</a></span>  [<a href="#nt-id24">6</a>] to Pubsub for robust access management and notifications, and incorporates <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0496.html">Pubsub Node Relationships (XEP-0496)</a></span> [<a href="#nt-id25">7</a>] to handle hierarchical structures. This results in a flexible and easy-to-implement solution that supports a wide range of use cases, including server-based file hosting, ad-hoc or permanent per-device directory sharing, and gateways to other file-sharing protocols.</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The design goals of this XEP are:</p>
+  <ul class="" style="">
+    <li class="" style="">To use as many existing mechanisms as possible.</li>
+    <li class="" style="">To be as easy as possible to implement for both clients and services, once dependencies are in place.</li>
+    <li class="" style="">To support mapping a traditional filesystem directory structure.</li>
+    <li class="" style="">To support notifications for changes, such as new or deleted files and directories.</li>
+    <li class="" style="">To allow for server file hosting use cases.</li>
+    <li class="" style="">To enable device file directory structure sharing use cases.</li>
+    <li class="" style="">To facilitate gateways to other file hosting protocols or mechanisms, such as FTP or "cloud" hosting.</li>
+    <li class="" style="">To permit access control at the node and descendant levels, without parent nodes overriding descendant node permissions and vice versa.</li>
+    <li class="" style="">To provide a quick file listing soon after a file structure is shared.</li>
+    <li class="" style="">To ensure compatibility with end-to-end encryption for both file metadata and transfers.</li>
+  </ul>
+<h2 id="glossary">3.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This section defines key terms used throughout this specification.</p>
+  <ul class="" style="">
+    <li class="" style=""><strong>Root Node</strong>: The well-known node "urn:xmpp:pubsub-file-sharing:0" that serves as the top-level container for shared files and directories. It is the entry point for discovering all shared resources.</li>
+    <li class="" style=""><strong>Directory</strong>: A logical grouping of files and/or other directories, represented by a Pubsub node. They can map to usual filesystem directories.</li>
+    <li class="" style=""><strong>Well-Known Node/Directory</strong>: A predefined node/directory with a specific purpose, such as "urn:xmpp:pubsub-file-sharing:0" (root node) or "urn:xmpp:pubsub-file-sharing:0:/uploaded" (Uploaded directory).</li>
+  </ul>
+<h2 id="payload">4.
+       General Structure and Payload<a class="anchor-link" href="#payload"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Pubsub nodes represent directories, and files data are put in their items. The payload of the file items MUST be a &lt;file-sharing&gt; element, including metadata and sources, as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0447.html">Stateless file sharing (XEP-0447)</a></span>  [<a href="#nt-id24">6</a>]. The &lt;file-sharing&gt; element MUST NOT have a 'disposition' attribute as it doesn't make sense in the context of pubsub file sharing.</p>
+<h2 id="naming">5.
+       Node Structure and Naming<a class="anchor-link" href="#naming"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">To facilitate a clear and consistent approach to file sharing, this specification defines a well-known node for discovering shared files and a node/item naming convention. This ensures that files and directories can be easily identified and managed.</p>
+
+  <div class="indent"><h3 id="well-known-node">5.1 Well-Known Node<a class="anchor-link" href="#well-known-node"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Entities that support file sharing through this protocol MUST have a well-known node for discovering shared files. This node is defined as "urn:xmpp:pubsub-file-sharing:0".</p>
+    <p class="" style="">When a user subscribes to this node using XEP-XXXX: Pubsub Extended Subscription, they will receive notifications for any new or deleted files and directories up to the requested depth. The node's items represent the shared files.</p>
+    <p class="" style="">To discover file hierarchy, use XEP-XXXX: Pubsub Extended Discovery.</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Discovering Directories From Well-known Node<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='juliet@example.org/balcony'
+    to='files.example.org'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'
+    node='urn:xmpp:pubsub-file-sharing:0'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field var='FORM_TYPE' type='hidden'&gt;
+        &lt;value&gt;urn:xmpp:pubsub-ext-disco:0&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='type'&gt;
+        &lt;value&gt;nodes&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='depth'&gt;
+        &lt;value&gt;1&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="naming-convention">5.2 Node and Item Naming Convention<a class="anchor-link" href="#naming-convention"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">To ensure a consistent and intuitive structure while maintaining unique node names across the pubsub service, the following naming convention is used for nodes and items:</p>
+    <ul class="" style="">
+      <li class="" style=""><strong>Root Node:</strong> The well-known node "urn:xmpp:pubsub-file-sharing:0" serves as the root of the file sharing structure.</li>
+      <li class="" style=""><strong>Directory Nodes:</strong> Each directory is represented by a node with a name that reflects its path relative to the root. This node name follows the template "<code>urn:xmpp:pubsub-file-sharing:0:<em>&lt;unique ID&gt;</em>/<em>&lt;directory name&gt;</em></code>, where <em>&lt;unique ID&gt;</em> is a unique identifier across the pubsub service and MUST NOT contain the "/" character. For example, a directory named "Documents" with a unique ID of "abc123" would be represented by the node "<code>urn:xmpp:pubsub-file-sharing:0:abc123/Documents</code>.</li>
+    <li class="" style=""><strong>File Items:</strong> Each file is represented as an item within its corresponding directory node. The item's ID is the name of the file, and its payload contains metadata and source information for the file. For example, a file named "report.pdf" in the "Documents" directory (with unique ID "abc123") would be represented by the item "<code>report.pdf</code>", which is within the node "<code>urn:xmpp:pubsub-file-sharing:0:abc123/Documents</code>".</li>
+  </ul>
+    <p class="" style="">This convention allows for an easy mapping of file system structure to a pubsub node hierarchy, making it simple to navigate and manage shared files without encountering conflicts due to non-unique node names.</p>
+  </div>
+<h2 id="handling-changes">6.
+       Handling Metadata and File Changes<a class="anchor-link" href="#handling-changes"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This section specifies how metadata and file deletions are handled in the context of shared files and directories.</p>
+
+  <div class="indent"><h3 id="metadata-association">6.1 Metadata and File Association<a class="anchor-link" href="#metadata-association"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Each file item includes metadata and source information. The metadata is provided using the <code>file</code> element as described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0446.html">File metadata element (XEP-0446)</a></span>  [<a href="#nt-id26">8</a>]. The source information is provided using the <code>sources</code> element, which lists the available sources for the file.</p>
+<figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Example of a File Item With Metadata and Sources<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    from='files.example.org'
+    to='juliet@example.org/balcony'
+    id='items1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='urn:xmpp:pubsub-file-sharing:0:EASD1546/Images'&gt;
+      &lt;item id='beach-sunset.jpg'&gt;
+        &lt;file-sharing xmlns='urn:xmpp:sfs:0'&gt;
+          &lt;file xmlns='urn:xmpp:file:metadata:0'&gt;
+            &lt;media-type&gt;image/jpeg&lt;/media-type&gt;
+            &lt;name&gt;beach-sunset.jpg&lt;/name&gt;
+            &lt;size&gt;8765432&lt;/size&gt;
+            &lt;hash xmlns='urn:xmpp:hashes:2' algo='sha3-256'&gt;GZTbL1pJmX9jzVgQwR0HfI+DyKuPcWvE2nUxYiMkS78=&lt;/hash&gt;
+            &lt;desc&gt;A stunning sunset on the beach.&lt;/desc&gt;
+          &lt;/file&gt;
+          &lt;sources&gt;
+            &lt;url-data xmlns='http://jabber.org/protocol/url-data' target='https://photos.example.org/gallery/beach-sunset.jpg' /&gt;
+            &lt;jinglepub xmlns='urn:xmpp:jinglepub:1' from='files.example.org' id='9876543B-2CFB-AE7E-B45Z-3DAA225972BB'&gt;
+              &lt;description xmlns='urn:xmpp:jingle:apps:file-transfer:5' /&gt;
+            &lt;/jinglepub&gt;
+          &lt;/sources&gt;
+        &lt;/file-sharing&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;</pre></figure>
+
+  </div>
+
+  <div class="indent"><h3 id="mapping">6.2 Mapping of Files and Metadata<a class="anchor-link" href="#mapping"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">For services declaring support for this specification (as explained in the <a href="#disco">Discovering Support</a> section), the following rules apply:</p>
+    <ul class="" style="">
+      <li class="" style="">When a mapped file is deleted or updated, the corresponding items SHOULD be deleted or updated accordingly.</li>
+      <li class="" style="">Conversely, when an item in pubsub corresponding to a file is updated or retracted, the corresponding file SHOULD be updated or deleted accordingly.</li>
+      <li class="" style="">When a directory is deleted, the mapped node SHOULD also be deleted accordingly.</li>
+      <li class="" style="">When a directory is renamed, the mapped node SHOULD first be deleted and another one SHOULD be created with the new name. Additionally, the &lt;redirect/&gt; element SHOULD be used as specified in the <a href="https://xmpp.org/extensions/xep-0060.html#owner-delete-success">XEP-0060: Delete a Node/Success Case</a>.</li>
+    </ul>
+    <p class="" style="">A service MAY prohibit deletion or update of items based on its internal policy. In this case, the service MUST return a &lt;forbidden&gt; error and SHOULD use a human-readable explanation of the error.</p>
+
+    <p class="" style="">If support for this specification is not advertised, it means that file sharing metadata are manually set by an XMPP client on a generic pubsub service. In such cases, the mapping cannot be performed by the pubsub service and there is no guarantee of synchronization between files and metadata.</p>
+  </div>
+
+<h2 id="e2ee">7.
+       End to End Encryption<a class="anchor-link" href="#e2ee"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">File sharing can optionally use end-to-end encryption. For file metadata, this can be achieved at the pubsub level using specifications such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0473.html">OpenPGP for XMPP Pubsub (XEP-0473)</a></span>  [<a href="#nt-id27">9</a>] or <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0477.html">Pubsub Targeted Encryption (XEP-0477)</a></span>  [<a href="#nt-id28">10</a>] or any relevant mechanism. For file transfers, this is dependent on the chosen source, and specifications such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0391.html">Jingle Encrypted Transports (XEP-0391)</a></span>  [<a href="#nt-id29">11</a>] with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0396.html">Jingle Encrypted Transports - OMEMO (XEP-0396)</a></span>  [<a href="#nt-id30">12</a>] could be used.</p>
+<h2 id="well-known">8.
+       Well-Known Directories<a class="anchor-link" href="#well-known"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This specification introduces predefined nodes for special directories that MAY be used by pubsub services. Other specifications MAY define additional well-known nodes as needed. If these directories are implemented, they SHOULD be attached to the root node "urn:xmpp:pubsub-file-sharing:0".</p>
+
+  <p class="" style="">The only explicitly defined directory in this specification is the 'Uploaded' directory. This directory MUST use the node named "urn:xmpp:pubsub-file-sharing:0:/uploaded", where the unique ID field is intentionally left blank. The purpose of the 'Uploaded' directory is to track files uploaded via specifications such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0363.html">HTTP File Upload (XEP-0363)</a></span>  [<a href="#nt-id31">13</a>]. It enables end-users to view and manage their uploaded files (e.g., for deletion purposes), typically through the PEP service associated with each user.</p>
+<h2 id="rules">9.
+       Business Rules<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The following business rules apply to the file sharing protocol:</p>
+  <ul class="" style="">
+    <li class="" style="">Support for XEP-XXXX Pubsub Node Relationships is optional. If not supported, the file sharing protocol cannot handle file hierarchies and can only manage flat files. Well-known directories cannot be attached to the root node, and clients must directly search for them. Therefore, support for file hierarchies is tied to support for XEP-XXXX: Pubsub Node Relationships and is detected as explained in its Discovering Support section.</li>
+    <li class="" style="">If a service advertises support for this specification (as explained in <a href="#disco">Discovering Support</a>) but cannot monitor file changes (e.g., because it does not support <a href="https://en.wikipedia.org/wiki/Inotify">inotify</a> or a similar mechanism), it MUST refuse any subscription attempts by sending a &lt;feature-not-implemented/&gt; error with a pubsub-specific error condition of &lt;unsupported/&gt;, as explained in <a href="https://xmpp.org/extensions/xep-0060.html#subscriber-subscribe-error-unsupported">XEP-0060: §6.1.3.10 Subscriptions Not Supported</a>.</li>
+    <li class="" style="">Entities MUST ensure that access control is correctly managed at the node and descendant levels, without parent nodes overriding descendant node permissions and vice versa.</li>
+    <li class="" style="">A pubsub service MAY propose different hierarchies (i.e., different child nodes or items) from the root node according to the requesting entities.</li>
+    <li class="" style="">As the number of items may be high, a supporting service SHOULD use <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0059.html">Result Set Management (XEP-0059)</a></span>  [<a href="#nt-id32">14</a>].</li>
+  </ul>
+<h2 id="disco">10.
+       Discovering Support<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">If an entity supports sharing files through the protocol specified in this XEP, it MUST advertise it by including the "urn:xmpp:pubsub-file-sharing:0" discovery feature in response to a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id33">15</a>] information request.</p>
+  <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Service Discovery Information Request<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='juliet@example.org/balcony'
+    to='files.example.org'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;</pre></figure>
+  <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Service Discovery Information Response<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    from='files.example.org'
+    to='juliet@example.org/balcony'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;feature var='urn:xmpp:pubsub-file-sharing:0'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></figure>
+  <p class="" style="">When declaring support for this protocol, a pubsub service MUST manage a mapping between files and pubsub nodes.</p>
+  <p class="" style="">Alternatively, XMPP clients can use this specification by filling in metadata related to files on any generic pubsub service. In such cases, there is no need to advertise support at the discovery level. File sharing nodes are identified either by searching for the well-known node 'urn:xmpp:pubsub-file-sharing:0' or any other node that starts with a similar prefix.</p>
+
+<h2 id="security">11.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The following security considerations apply to the file sharing protocol:</p>
+  <ul class="" style="">
+    <li class="" style="">Entities MUST manage access control at both the node and descendant levels, ensuring that permissions are preserved for all child and parent nodes. This prevents unauthorized access to files and directories.</li>
+    <li class="" style="">Entities SHOULD use secure protocols (e.g., HTTPS) for transferring files to prevent eavesdropping and tampering with the data.</li>
+    <li class="" style="">Entities SHOULD implement rate limiting and other security measures to prevent abuse of the file sharing service.</li>
+    <li class="" style="">File sharing involves numerous security risks. Implementations must take care to prevent the diffusion of sensitive files (e.g., "/etc/password"), denial-of-service (DoS) techniques such as never completing a file transfer or repeatedly requesting files, improper permission mapping, and accidental sharing (e.g., by following symbolic links).</li>
+    <li class="" style="">The security considerations of dependencies, such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0447.html">Stateless file sharing (XEP-0447)</a></span>  [<a href="#nt-id24">6</a>], also apply.</li>
+    <li class="" style="">Supporting services SHOULD hide nodes and items from entities that are not authorized to access the corresponding files or directories.</li>
+  </ul>
+<h2 id="iana">12.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document does not require interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id34">16</a>].</p>
+<h2 id="registrar">13.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="acks">14.
+       Acknowledgements<a class="anchor-link" href="#acks"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Thanks to NLNet foundation/NGI Zero Core for funding the work on this specification.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0498</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.1.0</dd><dt>Last Updated</dt><dd>2024-11-20</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, <a href="xep-0001.html">XEP-0001</a>, <a href="xep-0060.html">XEP-0060</a>, <a href="xep-0447.html">XEP-0447</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>pubsub-relationships</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0498.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0498.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0498.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Jérôme Poisson</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:goffi@goffi.org">goffi@goffi.org</a></dd><dt>JabberID</dt><dd><a href="xmpp:goffi@jabber.fr">goffi@jabber.fr</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id19">1</a>. XEP-0105: Tree Transfer Stream Initiation Profile &lt;<a href="https://xmpp.org/extensions/xep-0105.html">https://xmpp.org/extensions/xep-0105.html</a>&gt;.</p><p><a name="nt-id20">2</a>. XEP-0135: File Sharing &lt;<a href="https://xmpp.org/extensions/xep-0135.html">https://xmpp.org/extensions/xep-0135.html</a>&gt;.</p><p><a name="nt-id21">3</a>. XEP-0214: File Repository and Sharing &lt;<a href="https://xmpp.org/extensions/xep-0214.html">https://xmpp.org/extensions/xep-0214.html</a>&gt;.</p><p><a name="nt-id22">4</a>. XEP-0329: File Information Sharing &lt;<a href="https://xmpp.org/extensions/xep-0329.html">https://xmpp.org/extensions/xep-0329.html</a>&gt;.</p><p><a name="nt-id23">5</a>. XEP-0248: PubSub Collection Nodes &lt;<a href="https://xmpp.org/extensions/xep-0248.html">https://xmpp.org/extensions/xep-0248.html</a>&gt;.</p><p><a name="nt-id24">6</a>. XEP-0447: Stateless file sharing &lt;<a href="https://xmpp.org/extensions/xep-0447.html">https://xmpp.org/extensions/xep-0447.html</a>&gt;.</p><p><a name="nt-id25">7</a>. XEP-0496: Pubsub Node Relationships &lt;<a href="https://xmpp.org/extensions/xep-0496.html">https://xmpp.org/extensions/xep-0496.html</a>&gt;.</p><p><a name="nt-id26">8</a>. XEP-0446: File metadata element &lt;<a href="https://xmpp.org/extensions/xep-0446.html">https://xmpp.org/extensions/xep-0446.html</a>&gt;.</p><p><a name="nt-id27">9</a>. XEP-0473: OpenPGP for XMPP Pubsub &lt;<a href="https://xmpp.org/extensions/xep-0473.html">https://xmpp.org/extensions/xep-0473.html</a>&gt;.</p><p><a name="nt-id28">10</a>. XEP-0477: Pubsub Targeted Encryption &lt;<a href="https://xmpp.org/extensions/xep-0477.html">https://xmpp.org/extensions/xep-0477.html</a>&gt;.</p><p><a name="nt-id29">11</a>. XEP-0391: Jingle Encrypted Transports &lt;<a href="https://xmpp.org/extensions/xep-0391.html">https://xmpp.org/extensions/xep-0391.html</a>&gt;.</p><p><a name="nt-id30">12</a>. XEP-0396: Jingle Encrypted Transports - OMEMO &lt;<a href="https://xmpp.org/extensions/xep-0396.html">https://xmpp.org/extensions/xep-0396.html</a>&gt;.</p><p><a name="nt-id31">13</a>. XEP-0363: HTTP File Upload &lt;<a href="https://xmpp.org/extensions/xep-0363.html">https://xmpp.org/extensions/xep-0363.html</a>&gt;.</p><p><a name="nt-id32">14</a>. XEP-0059: Result Set Management &lt;<a href="https://xmpp.org/extensions/xep-0059.html">https://xmpp.org/extensions/xep-0059.html</a>&gt;.</p><p><a name="nt-id33">15</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id34">16</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0498-0.1.0.html">0.1.0</a> (2024-11-20)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <p class="" style="">Promoted to Experimental</p>
+    <div class="revision-author">XEP Editor: dg</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0498-0.0.1.html">0.0.1</a> (2024-10-19)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">jp</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{poisson2024pubsub-relationships,
+  title = {Pubsub File Sharing},
+  author = {Poisson, Jérôme},
+  type = {XEP},
+  number = {0498},
+  version = {0.1.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0498.html},
+  date = {2024-10-19/2024-11-20},
+}</pre><p>END</p></body></html>
