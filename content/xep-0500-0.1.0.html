@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0500: MUC Slow Mode</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0500";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="MUC Slow Mode"><meta name="DC.Creator" content="John Livingston"><meta name="DC.Description" content="
+    This specification describes a way to rate limit messages a single user can
+    send to a MUC room. It includes room configuration option, and how servers
+    and clients can handle such a feature.
+  "><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2024-11-28"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0500"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0500: MUC Slow Mode</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>
+    This specification describes a way to rate limit messages a single user can
+    send to a MUC room. It includes room configuration option, and how servers
+    and clients can handle such a feature.
+  </dd><dt>Author</dt><dd>John Livingston</dd><dt>Copyright</dt><dd>© 2024 – 2024 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.1.0 (2024-11-28)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#usecases">Use Cases</a></li><li><a href="#muc-configuration">MUC configuration</a><ol><li><a href="#sect-id6">Activating Slow Mode in the MUC Room configuration</a></li><li><a href="#client-discovering">Client discovering</a></li></ol></li><li><a href="#server-side-rate-limiting">Server-side rate limiting</a></li><li><a href="#sect-id9">Client handling</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#sect-id13">Field Standardization</a><ol><li><a href="#sect-id14">muc#roomconfig_slow_mode_duration</a></li><li><a href="#sect-id15">muc#roominfo_slow_mode_duration</a></li></ol></li></ol></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    There are some contexts in which you want to be able to rate limit <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id16">1</a>]
+    messages. This could have multiple motivations: avoid flooding, garantee
+    a better readability of the room when there are hundreds of active users, …
+  </p>
+  <p class="" style="">
+    This specification propose a new option to MUC rooms, allowing room owners
+    to fix a duration that users MUST wait between two messages.
+    We will also specify how the server MUST reject messages send too quickly,
+    and how clients SHOULD handle this feature (by preventing users to send
+    messages without waiting the delay to be over, and displaying some
+    information to them).
+  </p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document addresses the following requirements:</p>
+  <ul class="" style="">
+    <li class="" style="">
+      How to allow room owners to enable and configure the feature by editing
+      the MUC room discovery information.
+    </li>
+    <li class="" style="">
+      How to enable and configure the feature without allowing room owners to
+      change the configuration.
+    </li>
+    <li class="" style="">
+      How the server MUST reject messages that does not respect the parameters.
+    </li>
+    <li class="" style="">
+      How clients SHOULD handle rooms with such feature enabled.
+    </li>
+  </ul>
+<h2 id="glossary">3.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><dl>
+    
+      <dt><strong>Clients</strong></dt>
+      <dd>
+        The client software used by end-users to join MUC rooms.
+      </dd>
+    
+    
+      <dt><strong>Moderator</strong></dt>
+      <dd>
+        A room role that is usually associated with room admins but that can be
+        granted to non-admins.
+      </dd>
+    
+    
+      <dt><strong>MUC</strong></dt>
+      <dd>
+        The multi-user chat protocol for text-based conferencing
+        (e.g. <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id16">1</a>]).
+      </dd>
+    
+    
+      <dt><strong>Participant</strong></dt>
+      <dd>
+        An occupant who does not have admin status; in a moderated room,
+        a participant is further defined as having voice (in contrast to a
+        visitor).
+        A participant has a role of "participant".
+      </dd>
+    
+    
+      <dt><strong>Role</strong></dt>
+      <dd>
+        A temporary position or privilege level within a room, distinct from a
+        user's long-lived affiliation with the room; the possible roles are
+        "moderator", "participant", and "visitor" (it is also possible to have
+        no defined role). A role lasts only for the duration of an occupant's
+        visit to a room. See <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id16">1</a>].
+      </dd>
+    
+    
+      <dt><strong>Room administrator</strong></dt>
+      <dd>
+        A user empowered by the room owner to perform administrative functions
+        such as banning users; however, a room administrator is not allowed to
+        change the room configuration or to destroy the room. An admin has an
+        affiliation of "admin". See <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id16">1</a>].
+      </dd>
+    
+    
+      <dt><strong>Room owner</strong></dt>
+      <dd>
+        Users that have special access to a room, and that can edit room
+        configuration. See <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id16">1</a>] - Owner Use Cases.
+      </dd>
+    
+    
+      <dt><strong>Service Discovery Extensions</strong></dt>
+      <dd>
+        See <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions (XEP-0128)</a></span>  [<a href="#nt-id17">2</a>]
+      </dd>
+    
+    
+      <dt><strong>Slow Mode</strong></dt>
+      <dd>
+        Feature allowing to rate limit user messages in a MUC room.
+      </dd>
+    
+    
+      <dt><strong>Slow Mode duration</strong></dt>
+      <dd>
+        When the Slow Mode feature is active, specifies the duration, in
+        seconds, users must wait between two text messages.
+      </dd>
+    
+    
+      <dt><strong>Visitor</strong></dt>
+      <dd>
+        In a moderated room, an occupant who does not have voice (in contrast to
+        a participant). A visitor has a role of "visitor".
+      </dd>
+    
+  </dl></div>
+<h2 id="usecases">4.
+       Use Cases<a class="anchor-link" href="#usecases"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    The MUC Slow Mode can for example be used when a MUC room is associated
+    to a live video stream. In such case, there are often hundreds of people
+    writing at the same time. To avoid flooding, and encourage participants to
+    post relevant messages, slow mode can be usefull.
+  </p>
+<h2 id="muc-configuration">5.
+       MUC configuration<a class="anchor-link" href="#muc-configuration"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="sect-id6">5.1 Activating Slow Mode in the MUC Room configuration<a class="anchor-link" href="#sect-id6"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">
+      Your implementation MAY allow the Slow Mode feature to be set room by
+      room, by their owners.
+    </p>
+    <p class="" style="">
+      If room owners can configure the Slow Mode feature, the server MUST add a
+      <code>'muc#roomconfig_slow_mode_duration'</code> field in the room
+      configuration form.
+    </p>
+    <p class="" style="">
+      This field MUST have its type equal to <code>'text-single'</code>.
+    </p>
+    <p class="" style="">
+      This field SHOULD use
+      <a href="https://xmpp.org/extensions/xep-0122.html">
+        Data Forms Validation
+      </a>, having its datatype equal to <code>'xs:integer'</code>.
+    </p>
+    <p class="" style="">
+      The <code>'value'</code> of the field MUST be a positive integer, so you MUST
+      add a <code>'range'</code> validation, as described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0122.html">Data Forms Validation (XEP-0122)</a></span>  [<a href="#nt-id18">3</a>].
+    </p>
+    <p class="" style="">
+      Value <code>'0'</code> means that the slow mode is disabled for this room.
+    </p>
+    <p class="" style="">
+      Any positive value is the duration, in seconds, users must wait between
+      two messages.
+    </p>
+    <p class="" style="">
+      Here is an example of response the server could send when a client is
+      querying <a href="https://xmpp.org/extensions/xep-0045.html#roomconfig">
+      room configuration form</a>:
+    </p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Room configuration example<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='coven@chat.shakespeare.lit'
+  id='config1'
+  to='crone1@shakespeare.lit/desktop'
+  type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/muc#owner'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Configuration for "coven" Room&lt;/title&gt;
+      &lt;instructions&gt;
+        Complete this form to modify the
+        configuration of your room.
+      &lt;/instructions&gt;
+      &lt;field
+          type='hidden'
+          var='FORM_TYPE'&gt;
+        &lt;value&gt;http://jabber.org/protocol/muc#roomconfig&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field
+        var='muc#roomconfig_slow_mode_duration'
+        type='text-single'
+        label='Slow Mode (0=disabled, any positive integer= users can send a message every X seconds.)'
+      &gt;
+        &lt;validate xmlns='http://jabber.org/protocol/xdata-validate' datatype='xs:integer'&gt;
+          &lt;range min='0'/&gt;
+        &lt;/validate&gt;
+        &lt;value&gt;20&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;!-- and any other field... --&gt;
+    &lt;/x&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">
+      If the configuration is changed, the server SHOULD send a status code
+      <code>'104'</code>, as specified in
+      <a href="https://xmpp.org/extensions/xep-0045.html#roomconfig-notify">
+        XEP-0045 - Notification of configuration changes
+      </a>.
+    </p>
+  </div>
+  <div class="indent"><h3 id="client-discovering">5.2 Client discovering<a class="anchor-link" href="#client-discovering"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">
+      The feature can be enabled on a room:
+    </p>
+    <ul class="" style="">
+      <li class="" style="">
+        by the room owner, if your implementation allow them to set this option,
+      </li>
+      <li class="" style="">by a server-wide parameter,</li>
+      <li class="" style="">by any other criteria, specific to the room or not.</li>
+    </ul>
+    <p class="" style="">
+      In other words: you can enable this feature, without adding the field in
+      the room configuration form. This allows for example server admins to
+      apply a rate limit server-wide, or to set the slow mode programmatically
+      on any wanted criteria (number of users in the room, current server load,
+      room context, ...).
+    </p>
+    <p class="" style="">
+      In any case, to allow clients to discover that the feature is active, the
+      server MUST respond on
+      <a href="https://xmpp.org/extensions/xep-0045.html#disco-roominfo">
+        room information queries
+      </a>
+      by adding a <code>'muc#roominfo_slow_mode_duration'</code> field.
+      This field type MUST be <code>'text-single'</code>, and its value MUST be a
+      positive integer.
+    </p>
+    <p class="" style="">
+      Value <code>'0'</code> means that the slow mode is disabled for this room.
+    </p>
+    <p class="" style="">
+      Any positive value is the duration, in seconds, users must wait between
+      two messages.
+    </p>
+    <p class="" style="">
+      Any invalid (non-positive integer) value sent by the server MUST be
+      considered as equal to <code>'0'</code> (in case of a bad implementation).
+    </p>
+    <p class="" style="">
+      Here is an example of response the server could send when a client is
+      <a href="https://xmpp.org/extensions/xep-0045.html#disco-roominfo">
+      querying room information</a>:
+    </p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Room information example<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='coven@chat.shakespeare.lit'
+    id='ik3vs715'
+    to='hag66@shakespeare.lit/pda'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity
+        category='conference'
+        name='The place to be'
+        type='text'/&gt;
+    &lt;feature var='http://jabber.org/protocol/muc'/&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field var='FORM_TYPE' type='hidden'&gt;
+        &lt;value&gt;http://jabber.org/protocol/muc#roominfo&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='muc#roominfo_slow_mode_duration' type='text-single'&gt;
+        &lt;value&gt;20&lt;/value&gt;
+      &lt;/field&gt;
+
+      &lt;!-- and any other field... --&gt;
+    &lt;/x&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <p class="" style="">
+    If the slow mode duration has changed (either because the room configuration
+    was modified, or because a server parameter has changed, or any other
+    reason), the server SHOULD send a status code <code>'104'</code>, as specified
+    in <a href="https://xmpp.org/extensions/xep-0045.html#roomconfig-notify">
+    XEP-0045 - Notification of configuration changes</a>.
+  </p>
+  </div>
+<h2 id="server-side-rate-limiting">6.
+       Server-side rate limiting<a class="anchor-link" href="#server-side-rate-limiting"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    When the Slow Mode is enabled, server MUST NOT accept two consecutive
+    messages from the same user, to the same room, until the slow mode duration
+    has elapsed.
+  </p>
+  <p class="" style="">
+    Only messages containing at least one <code>'&lt;body/&gt;'</code> element must
+    be taking into account (to avoid counting <code>'chatstate'</code> messages for
+    example).
+  </p>
+  <p class="" style="">
+    Room administrators and owners MUST NOT be rate limited.
+  </p>
+  <p class="" style="">
+    If a user bypass the limit, the server MUST reply an error stanza, that
+    respects <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-id19">4</a>] stanza erors (see
+    <a href="https://xmpp.org/rfcs/rfc6120.html#stanzas-error">
+    RFC6120 - stanza errors</a>), to reject the message. Especially:
+  </p>
+  <ul class="" style="">
+    <li class="" style="">
+      <code>'error_type'</code> MUST be <code>'wait'</code>, as described in
+      <a href="https://xmpp.org/rfcs/rfc6120.html#stanzas-error-syntax">
+        RFC6120 - Stanzas error - Syntax
+      </a>.
+    </li>
+    <li class="" style="">
+      <code>'error_condition'</code> MUST be <code>'policy-violation'</code>, as
+      described in
+      <a href="https://xmpp.org/rfcs/rfc6120.html#stanzas-error-conditions">
+        RFC 6120 - Stanzas error - Defined Stream Error Conditions</a>,
+    </li>
+    <li class="" style="">
+      the stanza SHOULD contain a <code>&lt;text&gt;'</code> element explaining why
+      the message was rejected, and this message SHOULD mention the slow mode
+      duration so that users can understand why they can't post their message.
+    </li>
+  </ul>
+  <p class="" style="">
+    Here is an example or error stanza:
+  </p>
+  <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Example error stanza<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message
+  xmlns="jabber:client"
+  type="error"
+  to="crone1@shakespeare.lit/desktop"
+  id="528df978-aa6b-422a-b987-056a810c4733"
+  from="coven@chat.shakespeare.lit"
+&gt;
+  &lt;error type="wait"&gt;
+    &lt;policy-violation xmlns="urn:ietf:params:xml:ns:xmpp-stanzas" /&gt;
+    &lt;text xmlns="urn:ietf:params:xml:ns:xmpp-stanzas"&gt;
+      You have exceeded the limit imposed by the slow mode in this room.
+      You have to wait 20 seconds between messages. Please try again later.
+    &lt;/text&gt;
+  &lt;/error&gt;
+&lt;/message&gt;
+</pre></figure>
+  <p class="" style="">
+    The rejected message MUST NOT be forwarded to other room occupants.
+  </p>
+<h2 id="sect-id9">7.
+       Client handling<a class="anchor-link" href="#sect-id9"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    When a participant joins a room, the client SHOULD request room information
+    as described in section
+    <a href="client-discovering">Client discovering</a>", and look for the
+    <code>'muc#roominfo_slow_mode_duration'</code> field.
+  </p>
+  <p class="" style="">
+    If this field is present, and contains a valid strictly positive integer
+    value, the client SHOULD display an information somewhere, to tell users
+    that there is a slow mode limitation that applies to this room.
+    This information MAY also be displayed to users for which the rate limit
+    does not apply (administrators, owners, ...).
+  </p>
+  <p class="" style="">
+    Moreover, each time a participant sends a text message, the client SHOULD
+    prevent the user to send another message before the timeout is passed.
+    This MAY be done either by disabling the input field, or the submit button.
+    If the user has at least the administrator acces level, the client
+    SHOULD NOT disable the input field or the submit button.
+  </p>
+  <p class="" style="">
+    To avoid some frustrating behaviour, in case there is some lag on the server
+    for example, the client MAY start counting time after receiving the message
+    echo. Indeed, if the first message is processed with some delay by the
+    server, it could consider that the duration is not passed yet when receiving
+    the next one.
+  </p>
+<h2 id="security">8.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    As a same user can join a room with multiple sessions and/or nicknames,
+    the server MUST use the appropriate criteria to identify the account, and
+    apply the same limits to all user's sessions.
+  </p>
+  <p class="" style="">
+    The slow mode duration parameter is a positive integer. When parsing its
+    value, clients and servers MUST ignore invalid value.
+    They MUST also check that this value is not to big to store in memory
+    (this depends on the data type used by the implementation).
+  </p>
+<h2 id="iana">9.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    This document requires no interaction with the Internet Assigned Numbers
+    Authority (IANA).
+  </p>
+<h2 id="registrar">10.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="sect-id13">10.1 Field Standardization<a class="anchor-link" href="#sect-id13"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">
+      <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0068.html">Field Standardization for Data Forms (XEP-0068)</a></span>  [<a href="#nt-id20">5</a>] defines a process for standardizing the fields used within Data
+      Forms scoped by a particular namespace, and the XMPP Registrar maintains a
+      registry of such FORM_TYPES (see &lt;<a href="https://xmpp.org/registrar/formtypes.html">https://xmpp.org/registrar/formtypes.html</a>&gt;).
+      In this XEP there are two uses of such form fields:
+    </p>
+    <ol start="" class="" style="">
+      <li class="" style="">
+        Configuration of the slow mode duration using the
+        <code>'muc#roomconfig_slow_mode_duration'</code> field.
+      </li>
+      <li class="" style="">
+        Discovery of the slow mode duration using the 
+        <code>'muc#roominfo_slow_mode_duration'</code> field.
+      </li>
+    </ol>
+    <p class="" style="">
+      The registry submissions associated with these namespaces are defined
+      below.
+    </p>
+  <div class="indent"><h4 id="sect-id14">10.1.1 muc#roomconfig_slow_mode_duration<a class="anchor-link" href="#sect-id14"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+    <p class="" style="">
+      The registrar shall add the following field to the 'muc#roomconfig' data
+      form:
+    </p>
+      <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Registry Submission<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;form_type&gt;
+  &lt;name&gt;http://jabber.org/protocol/muc#roomconfig&lt;/name&gt;
+  &lt;doc&gt;XEP-XXXX&lt;/doc&gt;
+  &lt;desc&gt;
+    Forms extension for slow mode support in a MUC room.
+  &lt;/desc&gt;
+  &lt;field
+    var='muc#roomconfig_slow_mode_duration'
+    type='text-single'
+    label='Slow Mode (0=disabled, any positive integer= users can send a message every X seconds.)'
+  /&gt;  
+&lt;/form_type&gt;
+</pre></figure>
+    </div>
+    <div class="indent"><h4 id="sect-id15">10.1.2 muc#roominfo_slow_mode_duration<a class="anchor-link" href="#sect-id15"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">
+        The registrar shall add the following field to the 'muc#roominfo' data
+        form:
+      </p>
+        <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Registry Submission<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;form_type&gt;
+  &lt;name&gt;http://jabber.org/protocol/muc#roominfo&lt;/name&gt;
+  &lt;doc&gt;XEP-XXXX&lt;/doc&gt;
+  &lt;desc&gt;
+    Forms extension for slow mode support in a MUC room.
+  &lt;/desc&gt;
+  &lt;field
+    var='muc#roominfo_slow_mode_duration'
+    label='Slow Mode (0=disabled, any positive integer= users can send a message every X seconds.)'
+  /&gt;  
+&lt;/form_type&gt;
+  </pre></figure>
+    </div>
+  </div>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0500</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.1.0</dd><dt>Last Updated</dt><dd>2024-11-28</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, <a href="xep-0001.html">XEP-0001</a>, <a href="xep-0045.html">XEP-0045</a>, <a href="xep-0068.html">XEP-0068</a>, <a href="xep-0122.html">XEP-0122</a>, <a href="xep-0128.html">XEP-0128</a>, RFC6120</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>muc-slow-mode</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0500.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0500.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0500.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>John Livingston</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:contact@john-livingston.fr">contact@john-livingston.fr</a></dd><dt>JabberID</dt><dd><a href="xmpp:john@im.yiny.org">john@im.yiny.org</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="https://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id16">1</a>. XEP-0045: Multi-User Chat &lt;<a href="https://xmpp.org/extensions/xep-0045.html">https://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-id17">2</a>. XEP-0128: Service Discovery Extensions &lt;<a href="https://xmpp.org/extensions/xep-0128.html">https://xmpp.org/extensions/xep-0128.html</a>&gt;.</p><p><a name="nt-id18">3</a>. XEP-0122: Data Forms Validation &lt;<a href="https://xmpp.org/extensions/xep-0122.html">https://xmpp.org/extensions/xep-0122.html</a>&gt;.</p><p><a name="nt-id19">4</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-id20">5</a>. XEP-0068: Field Data Standardization for Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0068.html">https://xmpp.org/extensions/xep-0068.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0500-0.1.0.html">0.1.0</a> (2024-11-28)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <p class="" style="">Promoted to Experimental</p>
+    <div class="revision-author">XEP Editor: dg</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0500-0.0.1.html">0.0.1</a> (2024-02-28)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">psa</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{livingston2024muc-slow-mode,
+  title = {MUC Slow Mode},
+  author = {Livingston, John},
+  type = {XEP},
+  number = {0500},
+  version = {0.1.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0500.html},
+  date = {2024-02-28/2024-11-28},
+}</pre><p>END</p></body></html>
