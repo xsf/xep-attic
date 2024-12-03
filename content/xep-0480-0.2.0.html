@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0480: SASL Upgrade Tasks</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0480";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="SASL Upgrade Tasks"><meta name="DC.Creator" content="Thilo Molitor"><meta name="DC.Description" content="This specification provides a way to upgrade to newer SASL mechanisms using SASL2 tasks."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2024-12-01"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0480"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0480: SASL Upgrade Tasks</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification provides a way to upgrade to newer SASL mechanisms using SASL2 tasks.</dd><dt>Author</dt><dd>Thilo Molitor</dd><dt>Copyright</dt><dd>© 2022 – 2024 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.2.0 (2024-12-01)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#protocol">Protocol</a><ol><li><a href="#disco">Server advertising possible upgrade tasks</a></li><li><a href="#request">Client requesting SASL upgrades</a></li><li><a href="#upgrade">Performing the upgrade</a></li></ol></li><li><a href="#scram">SCRAM upgrade tasks</a></li><li><a href="#rules">Business Rules</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#sect-id11">XML Schema</a></li><li><a href="#acknowledgements">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">While <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-id13">1</a>] provides a modern and extensible way to use SASL in XMPP, it lacks support for SASL mechanism upgrades.</p>
+  <p class="" style="">Modern XMPP server deployments typically store only the hash of a user's password, to improve account security. At times, it may be desirable for servers to upgrade to newer or different hash algorithms, e.g. so they can offer different authentication mechanisms for improved security or interoperability. Due to the security properties of one-way cryptographic hash algorithms, it is not possible for the server to extract the original data and simply hash it in a new format. To perform such upgrades, the cooperation of the client is necessary - because it has, or can obtain from the user, the original password to derive a hash from.</p>
+  <p class="" style="">This specification fills that gap by providing a pluggable way to perform such SASL mechanism upgrades using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-id13">1</a>] tasks to provide the server with the needed data it does not yet have.</p>
+  <p class="" style="">This specification also provides a concrete definition of SCRAM upgrade tasks in <a href="#scram">Section 3</a>.</p>
+<h2 id="protocol">2.
+       Protocol<a class="anchor-link" href="#protocol"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Clients capable of SASL mechanism upgrades defined herein MUST send the desired bare JID they want to authenticate for in the "from" attribute of the stream-header unless they don't know it (e.g. when using the GSS-API SASL mechanism etc.) according to section 4.7.1 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-id14">2</a>]. Providing the bare JID in the "from" attribute, rather than introducing additional nonzas, saves one round-trip, see <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-id13">1</a>].</p>
+  <div class="indent"><h3 id="disco">2.1 Server advertising possible upgrade tasks<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">To inform the client which SASL mechanism upgrades it supports, the server adds &lt;upgrade/&gt; elements in the namespace "urn:xmpp:sasl:upgrade:0", each containing the name of one upgrade task, to the SASL2 &lt;authentication/&gt; element inside the stream features.</p>
+    <p class="" style="">Upgrade task names SHOULD have a prefix of "UPGR-" (to distinguish them from "normal" SASL mechanisms) followed by the SASL mechanism name to upgrade to, and if multiple mechanisms differ only in their support for channel-binding (e.g. SCRAM's -PLUS variants), implementations MUST use only the names of variants without channel-binding for the task names, because mechanism upgrades are independent of any channel-binding. Finally, upgrade tasks MUST NOT transmit plaintext passwords (or any reversible encoding of them) if the SASL mechanism to upgrade allows this to be avoided.</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Server advertises support for SASL mechanism upgrades to fictional BLOOP2 and BLOOP-42 mechanisms<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;!-- Client sending stream header --&gt;
+&lt;stream:stream
+  from='user@example.org'
+  to='example.org'
+  version='1.0'
+  xml:lang='en'
+  xmlns='jabber:client'
+  xmlns:stream='http://etherx.jabber.org/streams'&gt;
+
+&lt;!-- Server responding with stream header and features --&gt;
+&lt;stream:stream
+  from='example.org'
+  id='++TR84Sm6A3hnt3Q065SnAbbk3Y='
+  to='user@example.org'
+  version='1.0'
+  xml:lang='en'
+  xmlns='jabber:client'
+  xmlns:stream='http://etherx.jabber.org/streams'&gt;
+&lt;stream:features&gt;
+  &lt;authentication xmlns='urn:xmpp:sasl:2'&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1&lt;/mechanism&gt;
+    &lt;mechanism&gt;SCRAM-SHA-1-PLUS&lt;/mechanism&gt;
+    &lt;inline&gt;
+      &lt;!-- Server indicates that XEP-0198 stream resumption can be done "inline" --&gt;
+      &lt;resume xmlns='urn:xmpp:sm:3'/&gt;
+      &lt;!-- Server indicates support for XEP-0386 Bind 2 --&gt;
+      &lt;bind xmlns='urn:xmpp:bind2:1'/&gt;
+    &lt;/inline&gt;
+    &lt;upgrade xmlns='urn:xmpp:sasl:upgrade:0'&gt;UPGR-BLOOP2&lt;/upgrade&gt;
+    &lt;upgrade xmlns='urn:xmpp:sasl:upgrade:0'&gt;UPGR-BLOOP-42&lt;/upgrade&gt;
+  &lt;/authentication&gt;
+  &lt;!-- Channel-binding information provided by XEP-0440 --&gt;
+  &lt;sasl-channel-binding xmlns='urn:xmpp:sasl-cb:0'&gt;
+    &lt;channel-binding type='tls-server-end-point'/&gt;
+    &lt;channel-binding type='tls-exporter'/&gt;
+  &lt;/sasl-channel-binding&gt;
+&lt;/stream:features&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="request">2.2 Client requesting SASL upgrades<a class="anchor-link" href="#request"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The client SHOULD always request one or more upgrade tasks it recognises. To do this, it includes the &lt;upgrade/&gt; element namespaced to "urn:xmpp:sasl:upgrade:0" in its &lt;authenticate/&gt; element listing the upgrade tasks it wants to perform, as specified in the Initiation section of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-id13">1</a>], one &lt;upgrade&gt; element for each task.</p>
+    <p class="" style="">Upon successfully authenticating the client (including any secondary authentication steps required for the account), but before the final &lt;success/&gt; would be sent, the server sends a &lt;continue/&gt; element, which MUST contain a single task, matching whatever was selected by the client. If the client selected more than one upgrade task, as sequence of upgrade tasks occur. The client then initiates this upgrade task by providing a corresponding &lt;next/&gt; element providing the task name and optionally including any further child-elements as defined by the specification for this concrete upgrade task.</p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Client requests upgrades for fictional BLOOP2 and BLOOP-42 mechanisms<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;!-- Client sends authentication request, requesting upgrades to BLOOP2 and BLOOP-42--&gt;
+&lt;authenticate xmlns='urn:xmpp:sasl:2' mechanism='SCRAM-SHA-1-PLUS'&gt;
+  &lt;upgrade xmlns='urn:xmpp:sasl:upgrade:0'&gt;UPGR-BLOOP2&lt;/upgrade&gt;
+  &lt;upgrade xmlns='urn:xmpp:sasl:upgrade:0'&gt;UPGR-BLOOP-42&lt;/upgrade&gt;
+  &lt;!-- Base64 of: 'p=tls-exporter,,n=user,r=12C4CD5C-E38E-4A98-8F6D-15C38F51CCC6' --&gt;
+  &lt;initial-response&gt;cD10bHMtZXhwb3J0ZXIsLG49dXNlcixyPTEyQzRDRDVDLUUzOEUtNEE5OC04RjZELTE1QzM4RjUxQ0NDNg==&lt;/initial-response&gt;
+  &lt;user-agent id='d4565fa7-4d72-4749-b3d3-740edbf87770'&gt;
+    &lt;software&gt;AwesomeXMPP&lt;/software&gt;
+    &lt;device&gt;Kiva's Phone&lt;/device&gt;
+  &lt;/user-agent&gt;
+&lt;/authenticate&gt;
+</pre></figure>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Server initiates first upgrade task for BLOOP2<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;!-- Client authenticates using SCRAM-SHA-1-PLUS (or whatever mechanism was selected)--&gt;
+[...]
+
+&lt;!-- The Server requests the client to perform the first requested upgrade task for BLOOP2 --&gt;
+&lt;continue xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;additional-data&gt;
+    SSdtIGJvcmVkIG5vdy4=
+  &lt;/additional-data&gt;
+  &lt;tasks&gt;
+    &lt;task&gt;UPGR-BLOOP2&lt;/task&gt;
+  &lt;/tasks&gt;
+  &lt;text&gt;This account requires an upgrade to BLOOP2 as requested by the client&lt;/text&gt;
+&lt;/continue&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="upgrade">2.3 Performing the upgrade<a class="anchor-link" href="#upgrade"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Upon receiving the &lt;next/&gt; element for the upgrade, the server provides the elements and data needed for the client to calculate the requested data. The concrete elements and exchanges needed for the upgrade are specific to individual tasks. These tasks may be documented in other documents.</p>
+  </div>
+  <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> SASL mechanism upgrades to fictional BLOOP2 and BLOOP-42 mechanisms<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;!-- The Client initiates the task requested by the server in the &lt;continue/&gt; element --&gt;
+&lt;next xmlns='urn:xmpp:sasl:2' task='UPGR-BLOOP2'&gt;
+  &lt;request xmlns='urn:xmpp:bloop2:example'&gt;
+    UGxlYXNlIHVwZ3JhZGUgbWUh
+  &lt;/request&gt;
+&lt;/next&gt;
+
+&lt;!-- The Server provides the needed data --&gt;
+&lt;task-data xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;data xmlns='urn:xmpp:bloop2:example'&gt;
+    &lt;data&gt;U28sIG5leHQgRk9TREVNIC0gMjAxOCwgdGhhdCBpcy4uLg==&lt;/data&gt;
+    &lt;description&gt;BLOOP2 is cool!&lt;/description&gt;
+  &lt;/data&gt;
+&lt;/task-data&gt;
+
+&lt;!-- The Client now responds --&gt;
+&lt;task-data xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;upgrade xmlns='urn:xmpp:bloop2:example'&gt;
+    &lt;response&gt;Li4uSSdsbCBidXkgYSBiZWVyIGZvciB0aGUgZmlyc3QgcGVyc29uIHdoby4uLg==&lt;/response&gt;
+    &lt;finalize&gt;2&lt;/finalize&gt;
+  &lt;/upgrade&gt;
+&lt;/task-data&gt;
+
+&lt;!-- The Server requests the client to perform the second requested upgrade task for BLOOP-42 --&gt;
+&lt;continue xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;additional-data&gt;
+    SSdtIGJvcmVkIG5vdy4=
+  &lt;/additional-data&gt;
+  &lt;tasks&gt;
+    &lt;task&gt;UPGR-BLOOP-42&lt;/task&gt;
+  &lt;/tasks&gt;
+  &lt;text&gt;This account requires an upgrade to BLOOP-42 as requested by the client&lt;/text&gt;
+&lt;/continue&gt;
+
+&lt;!-- The Client initiates the task --&gt;
+&lt;next xmlns='urn:xmpp:sasl:2' task='UPGR-BLOOP-42'&gt;
+  &lt;request xmlns='urn:xmpp:bloop42:example'&gt;
+    UGxlYXNlIHVwZ3JhZGUgbWUh
+  &lt;/request&gt;
+&lt;/next&gt;
+
+&lt;!-- The Server provides the needed data --&gt;
+&lt;task-data xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;data xmlns='urn:xmpp:bloop42:example'&gt;
+    &lt;data&gt;U28sIG5leHQgRk9TREVNIC0gMjAxOCwgdGhhdCBpcy4uLg==&lt;/data&gt;
+    &lt;description&gt;BLOOP-42 is cool!&lt;/description&gt;
+  &lt;/data&gt;
+&lt;/task-data&gt;
+
+&lt;!-- The Client now responds --&gt;
+&lt;task-data xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;upgrade xmlns='urn:xmpp:bloop42:example'&gt;
+    &lt;response&gt;Li4uSSdsbCBidXkgYSBiZWVyIGZvciB0aGUgZmlyc3QgcGVyc29uIHdoby4uLg==&lt;/response&gt;
+    &lt;finalize&gt;42&lt;/finalize&gt;
+  &lt;/upgrade&gt;
+&lt;/task-data&gt;
+
+&lt;!-- The upgrade was performed and the Server finishes authentication --&gt;
+&lt;success xmlns='urn:xmpp:sasl:2'&gt;
+  &lt;authorization-identifier&gt;user@example.org&lt;/authorization-identifier&gt;
+&lt;/success&gt;
+</pre></figure>
+<h2 id="scram">3.
+       SCRAM upgrade tasks<a class="anchor-link" href="#scram"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">For upgrades of SCRAM mechanisms as defined in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5802">RFC 5802</a></span>  [<a href="#nt-id15">3</a>], the server has to provide the needed data for the client to calculate the SaltedPassword as defined in this RFC (or some RFC updating it), namely the iteration count and salt. To do so the server sends a &lt;salt/&gt; element namespaced to "urn:xmpp:scram-upgrade:0" containing the base64 encoded salt (omitting the "s=" prefix, see <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5802">RFC 5802</a></span>  [<a href="#nt-id15">3</a>] for the concrete definition of valid salts) and an attribute named "iterations" containing the iteration count as defined in that RFC (omitting the "i=" prefix). The &lt;salt/&gt; element is contained within a &lt;task-data/&gt; wrapper element as defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-id13">1</a>] and MUST NOT be empty.</p>
+  <p class="" style="">The client then calculates the <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc5802">RFC 5802</a></span>  [<a href="#nt-id15">3</a>] SaltedPassword and sends back its base64 encoded value inside a &lt;hash/&gt; element namespaced to "urn:xmpp:scram-upgrade:0". The &lt;hash/&gt; element MUST NOT be empty and is contained within a &lt;task-data/&gt; wrapper element as defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0388.html">Extensible SASL Profile (XEP-0388)</a></span>  [<a href="#nt-id13">1</a>].</p>
+  <p class="" style="">The name of the upgrade task MUST NOT conain the "-PLUS" suffix, because channel-binding is not relevant for upgrade tasks.</p>
+  <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> SCRAM hash upgrade task for SCRAM-SHA-256 after successful SCRAM-SHA-1-PLUS authentication<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+  &lt;!-- Client sending stream header --&gt;
+  &lt;stream:stream
+    from='user@example.org'
+    to='example.org'
+    version='1.0'
+    xml:lang='en'
+    xmlns='jabber:client'
+    xmlns:stream='http://etherx.jabber.org/streams'&gt;
+
+  &lt;!-- Server responding with stream header and features --&gt;
+  &lt;stream:stream
+    from='example.org'
+    id='++TR84Sm6A3hnt3Q065SnAbbk3Y='
+    to='user@example.org'
+    version='1.0'
+    xml:lang='en'
+    xmlns='jabber:client'
+    xmlns:stream='http://etherx.jabber.org/streams'&gt;
+  &lt;stream:features&gt;
+    &lt;authentication xmlns='urn:xmpp:sasl:2'&gt;
+      &lt;mechanism&gt;SCRAM-SHA-1&lt;/mechanism&gt;
+      &lt;mechanism&gt;SCRAM-SHA-1-PLUS&lt;/mechanism&gt;
+      &lt;inline&gt;
+        &lt;!-- Server indicates that XEP-0198 stream resumption can be done "inline" --&gt;
+        &lt;resume xmlns='urn:xmpp:sm:3'/&gt;
+        &lt;!-- Server indicates support for XEP-0386 Bind 2 --&gt;
+        &lt;bind xmlns='urn:xmpp:bind2:1'/&gt;
+      &lt;/inline&gt;
+      &lt;upgrade xmlns='urn:xmpp:sasl:upgrade:0'&gt;UPGR-SCRAM-SHA-256&lt;/upgrade&gt;
+      &lt;upgrade xmlns='urn:xmpp:sasl:upgrade:0'&gt;UPGR-SCRAM-SHA-512&lt;/upgrade&gt;
+    &lt;/authentication&gt;
+    &lt;!-- Channel-binding information provided by XEP-0440 --&gt;
+    &lt;sasl-channel-binding xmlns='urn:xmpp:sasl-cb:0'&gt;
+      &lt;channel-binding type='tls-server-end-point'/&gt;
+      &lt;channel-binding type='tls-exporter'/&gt;
+    &lt;/sasl-channel-binding&gt;
+  &lt;/stream:features&gt;
+
+  &lt;!-- Client sends authentication request, requsting an upgrade to SCRAM-SHA-256 --&gt;
+  &lt;authenticate xmlns='urn:xmpp:sasl:2' mechanism='SCRAM-SHA-1-PLUS'&gt;
+    &lt;upgrade xmlns='urn:xmpp:sasl:upgrade:0'&gt;UPGR-SCRAM-SHA-256&lt;/upgrade&gt;
+    &lt;!-- Base64 of: 'p=tls-exporter,,n=user,r=12C4CD5C-E38E-4A98-8F6D-15C38F51CCC6' --&gt;
+    &lt;initial-response&gt;cD10bHMtZXhwb3J0ZXIsLG49dXNlcixyPTEyQzRDRDVDLUUzOEUtNEE5OC04RjZELTE1QzM4RjUxQ0NDNg==&lt;/initial-response&gt;
+    &lt;user-agent id='d4565fa7-4d72-4749-b3d3-740edbf87770'&gt;
+      &lt;software&gt;AwesomeXMPP&lt;/software&gt;
+      &lt;device&gt;Kiva's Phone&lt;/device&gt;
+    &lt;/user-agent&gt;
+  &lt;/authenticate&gt;
+
+  &lt;!-- Client authenticates using SCRAM-SHA-1-PLUS (or whatever mechanism was selected)--&gt;
+  [...]
+
+  &lt;!-- The Server provides the SCRAM upgrade task requested by the client in its &lt;authenticate/&gt; element --&gt;
+  &lt;continue xmlns='urn:xmpp:sasl:2'&gt;
+    &lt;!-- Base64 of: 'v=msVHs/BzIOHDqXeVH7EmmDu9id8=' --&gt;
+    &lt;additional-data&gt;
+      dj1tc1ZIcy9CeklPSERxWGVWSDdFbW1EdTlpZDg9
+    &lt;/additional-data&gt;
+    &lt;tasks&gt;
+      &lt;task&gt;UPGR-SCRAM-SHA-256&lt;/task&gt;
+    &lt;/tasks&gt;
+  &lt;/continue&gt;
+
+  &lt;!-- The Client initiates the task --&gt;
+  &lt;next xmlns='urn:xmpp:sasl:2' task='UPGR-SCRAM-SHA-256'/&gt;
+
+  &lt;!--
+    The server sends the required salt and iteration count.
+  --&gt;
+  &lt;task-data xmlns='urn:xmpp:sasl:2'&gt;
+    &lt;salt xmlns='urn:xmpp:scram-upgrade:0' iterations='4096'&gt;
+      QV9TWENSWFE2c2VrOGJmX1o=
+    &lt;/salt&gt;
+  &lt;/task-data&gt;
+
+  &lt;!-- The client responds with the base64 encoded SaltedPassword. --&gt;
+  &lt;task-data xmlns='urn:xmpp:sasl:2'&gt;
+    &lt;hash xmlns='urn:xmpp:scram-upgrade:0'&gt;
+      BzOnw3Pc5H4bOLlPZ/8JAy6wnTpH05aH21KW2+Xfpaw=
+    &lt;/hash&gt;
+  &lt;/task-data&gt;
+
+  &lt;!--
+    Finally, the server sends a success after adding the salted SHA-256 hash to its database.
+    A SASL2 success always includes the authorization identifier.
+  --&gt;
+  &lt;success xmlns='urn:xmpp:sasl:2'&gt;
+    &lt;authorization-identifier&gt;user@example.org&lt;/authorization-identifier&gt;
+  &lt;/success&gt;
+  </pre></figure>
+<h2 id="rules">4.
+       Business Rules<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">For compatibility purposes, the server SHOULD keep the older authentication data (password hashes etc.) of all configured mechanisms to continue offering the same mechanisms as before.</p>
+<h2 id="security">5.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Clients SHOULD use channel-binding, if available, when requesting an upgrade to make sure no MITM can eavesdrop that hash and subsequently use it for authentication. Note that a client can always choose to not upgrade SASL mechanisms if it can not use channel-binding or the connection is otherwise deemed not secure enough.</p>
+<h2 id="iana">6.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id16">4</a>].</p>
+<h2 id="registrar">7.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This specification does not need any interaction with the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id17">5</a>].</p>
+<h2 id="sect-id11">8.
+       XML Schema<a class="anchor-link" href="#sect-id11"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='utf-8'?&gt;
+&lt;xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'
+           targetNamespace="urn:xmpp:sasl:upgrade:0"
+           xmlns="urn:xmpp:sasl:upgrade:0"
+           elementFormDefault="qualified"&gt;
+
+    &lt;xs:element name="upgrade" type="SaslMechName" minOccurs="0" maxOccurs="unbounded"/&gt;
+
+    &lt;xs:simpleType name="SaslMechName"&gt;
+        &lt;xs:restriction base="xs:string"&gt;
+            &lt;xs:minLength value="1"/&gt;
+            &lt;xs:maxLength value="20"/&gt;
+        &lt;/xs:restriction&gt;
+    &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+</pre></figure>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='utf-8'?&gt;
+&lt;xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'
+           targetNamespace="urn:xmpp:scram-upgrade:0"
+           xmlns="urn:xmpp:scram-upgrade:0"
+           elementFormDefault="qualified"&gt;
+
+  &lt;xs:element name="salt"&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base="base64Data"&gt;
+          &lt;xs:attribute name="iterations" type="iterationCount" use="required"/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name="hash" type="base64Data"/&gt;
+
+  &lt;xs:simpleType name="base64Data"&gt;
+      &lt;xs:restriction base="xs:base64Binary"/&gt;
+  &lt;/xs:simpleType&gt;
+
+  &lt;xs:simpleType name="iterationCount"&gt;
+    &lt;xs:restriction base="xs:integer"&gt;
+      &lt;!-- see minimum value defined in scram rfc! --&gt;
+      &lt;xs:minInclusive value="4096"/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;
+</pre></figure>
+<h2 id="acknowledgements">9.
+       Acknowledgements<a class="anchor-link" href="#acknowledgements"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Thanks to Matthew Wild and Dave Cridland for all of their valuable feedback and improvements.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0480</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.2.0</dd><dt>Last Updated</dt><dd>2024-12-01</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, <a href="https://datatracker.ietf.org/doc/html/rfc5802">RFC 5802</a>, <a href="xep-0388.html">XEP-0388</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>sut</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0480.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0480.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0480.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Thilo Molitor</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:thilo+xmpp@eightysoft.de">thilo+xmpp@eightysoft.de</a></dd><dt>JabberID</dt><dd><a href="xmpp:thilo.molitor@juforum.de">thilo.molitor@juforum.de</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="https://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id13">1</a>. XEP-0388: Extensible SASL Profile &lt;<a href="https://xmpp.org/extensions/xep-0388.html">https://xmpp.org/extensions/xep-0388.html</a>&gt;.</p><p><a name="nt-id14">2</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-id15">3</a>. RFC 5802: Salted Challenge Response Authentication Mechanism (SCRAM) SASL and GSS-API Mechanisms &lt;<a href="http://tools.ietf.org/html/rfc5802">http://tools.ietf.org/html/rfc5802</a>&gt;.</p><p><a name="nt-id16">4</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id17">5</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.2.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0480-0.2.0.html">0.2.0</a> (2024-12-01)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Fix SCRAM upgrade description and XML schema.<div class="revision-author">tm</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0480-0.1.0.html">0.1.0</a> (2023-05-04)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Promote to Experimental.<div class="revision-author">XEP Editor: ks</div></li><li id="revision-history-v0.0.2"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0480-0.0.2.html">0.0.2</a> (2022-12-30)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a></div>Move SASL upgrade tasks from XEP-0388.<div class="revision-author">tm</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0480-0.0.1.html">0.0.1</a> (2022-10-19)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div>Initial version.<div class="revision-author">tm</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{molitor2022sut,
+  title = {SASL Upgrade Tasks},
+  author = {Molitor, Thilo},
+  type = {XEP},
+  number = {0480},
+  version = {0.2.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0480.html},
+  date = {2022-10-19/2024-12-01},
+}</pre><p>END</p></body></html>
