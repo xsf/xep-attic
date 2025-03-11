@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0503: Server-side spaces</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0503";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="Server-side spaces"><meta name="DC.Creator" content="Nicolas Cedilnik"><meta name="DC.Description" content="This document defines an XMPP protocol to cluster
+    several groupchat rooms together."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2025-03-11"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0503"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0503: Server-side spaces</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This document defines an XMPP protocol to cluster
+    several groupchat rooms together.</dd><dt>Author</dt><dd>Nicolas Cedilnik</dd><dt>Copyright</dt><dd>© 2025 – 2025 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.1.0 (2025-03-11)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#terminology">Terminology</a></li><li><a href="#discovering-support">Discovering support</a></li><li><a href="#protocol">Protocol</a><ol><li><a href="#spaces-list">Fetching spaces from a spaces service</a></li><li><a href="#list-rooms">Getting the list of rooms in a specific space</a></li><li><a href="#space-info">Getting information on a specific space</a></li><li><a href="#space-updates">Getting live updates of the space</a></li><li><a href="#space-avatar">Room advertises a parent space</a></li><li><a href="#space-manage">Managing a space</a><ol><li><a href="#creating-a-space">Creation</a></li><li><a href="#updating-a-space">Update</a></li><li><a href="#deleting-a-space">Deletion</a></li></ol></li></ol></li><li><a href="#business">Business rules</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-ns">Protocol Namespaces</a></li><li><a href="#registrar-category">Spaces Category/Type</a></li><li><a href="#registrar-field">Field Standardization</a></li></ol></li><li><a href="#security">Security considerations</a></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">A single group chat room is not always enough.</p>
+    <p class="" style="">In various situations, one wishes to have several rooms clustered together around a common
+      theme. For instance, large open source software projects use different rooms for user support,
+      development, announcements, etc. Other chat networks solved this by allowing (or even, for
+      some of them, forcing) rooms to be children of a parent entity (examples: Slack's <em>
+      workspaces</em>, Discord's <em>servers</em>, Mattermost's <em>teams</em>, WhatsApp's <em>
+      communities</em>, Matrix's <em>spaces</em>).</p>
+    <p class="" style="">This clustering is already possible in practice by using a dedicated MUC Service (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id21">1</a>])
+      to group several rooms, but this limits its <em>spaces</em> creation to administrator of
+      servers. This specification proposes a mechanism that:</p>
+    <ul class="" style="">
+      <li class="" style="">is groupchat protocol-independent;</li>
+      <li class="" style="">makes it possible to host several <em>spaces</em> on a single MUC service.</li>
+    </ul>
+    <p class="" style="">Since there are many subtle variations over the concept of <em>spaces</em>, this
+      specification voluntarily <strong>does not cover</strong> access control, permissions,
+      membership inside a <em> space</em> and its children rooms. Similarly, it does not describe
+      how a <em>space</em> holding rooms hosted on several groupchat services in the federated XMPP
+      network would work (but it does not forbid it). It aims at being a lowest common denominator
+      for all sort of <em>spaces</em> to be built on.</p>
+  <h2 id="terminology">2.
+       Terminology<a class="anchor-link" href="#terminology"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <ul class="" style="">
+      <li class="" style="">A <em>space</em> is an adressable entity acting as the "parent" of several related rooms.</li>
+      <li class="" style="">A <em>spaces service</em> is an adressable entity that contains the <em>spaces</em>, i.e.,
+        it is the parent of multiple <em>spaces</em>.</li>
+    </ul>
+  <h2 id="discovering-support">3.
+       Discovering support<a class="anchor-link" href="#discovering-support"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">Support is discoverd via a <code>disco#info</code> request (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id22">2</a>]). The <em>spaces service</em>
+      MUST reply with an identity of type "spaces" (plural) of the "conference" category, and the <code>
+      urn:xmpp:spaces:0</code> feature.</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Querying the features of a Spaces Service.<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='john@northern.songs.example/walrus'
+    to='apple.records.example'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;</pre></figure>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Spaces Service responds with its identity and feature.<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    from='apple.records.example'
+    to='john@northern.songs.example/walrus'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity category='conference' type='spaces' name='Spaces entity'&gt;
+    ...
+    &lt;feature var='urn:xmpp:spaces:0'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <h2 id="protocol">4.
+       Protocol<a class="anchor-link" href="#protocol"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <div class="indent"><h3 id="spaces-list">4.1 Fetching spaces from a spaces service<a class="anchor-link" href="#spaces-list"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">Fetching the list of <em>spaces</em> hosted on a <em>spaces service</em> is done via a <code>
+        disco#items</code> (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id22">2</a>]) request directed at the <em>spaces service</em>'s JID at the <code>
+        urn:xmpp:spaces:0</code> node. Using a JID plus a node makes it possible for an entity to be a <em>spaces
+        service</em> while having other identities for which the <code>disco#items</code> behaviour on
+        the JID alone is standardized (e.g., a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id21">1</a>] service).</p>
+      <p class="" style="">The <em>space service</em> MUST respond with the list of available spaces for the
+        requesting entity (considerations regarding access control and visibility of spaces are
+        outside the scope of this specification). Each space has a JID.</p>
+      <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Querying the list of spaces<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='george@harrisongs.lsd.example/flowerpower'
+    to='apple.records.example'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#items'
+         node='urn:xmpp:spaces:0'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+      <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Space Service responds with the list of spaces it hosts<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    from='apple.records.example'
+    to='george@harrisongs.lsd.example/flowerpower'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#items'
+         node='urn:xmpp:spaces:0'&gt;
+    &lt;item jid='space1@apple.records.example' name='Space #1' /&gt;
+    &lt;item jid='space2@apple.records.example' name='Space #2' /&gt;
+    &lt;item jid='space3@apple.records.example' name='Space #3' /&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+      <p class="" style="">If the <em>spaces service</em> hosts a large number of <em>spaces</em>, implementations MAY
+        paginate the results using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0059.html">Result Set Management (XEP-0059)</a></span>  [<a href="#nt-id23">3</a>].</p>
+    </div>
+    <div class="indent"><h3 id="list-rooms">4.2 Getting the list of rooms in a specific space<a class="anchor-link" href="#list-rooms"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">Fetching the list of rooms that are children of a <em>space</em> is done via a <code>
+        disco#items</code> directed at the JID of the space on the <code>space#items</code> node. Using a
+        node on top of the JID makes it possible for a space to be a room itself, which is possible
+        but not required by this specification.</p>
+      <p class="" style="">In this case, the <em>space</em> JID MUST be present in the list of rooms.</p>
+      <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Querying the list of spaces<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='paul@northern.songs.example/fool-hill'
+    to='space1@apple.records.example'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#items' 
+         node='space#items' /&gt;
+&lt;/iq&gt;
+</pre></figure>
+      <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Entity responds with the rooms (children) of this space<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    from='space1@apple.records.example'
+    to='paul@northern.songs.example/fool-hill'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#items'
+         node='space#items'&gt;
+    &lt;item jid='room1@apple.records.example' name='Room #1' /&gt;
+    &lt;item jid='room2@apple.records.example' name='Room #2' /&gt;
+    &lt;item jid='room3@apple.records.example' name='Room #3' /&gt;
+    &lt;!-- If the space JID is also a room JID, then it MUST be inside that list --&gt;
+    &lt;item jid='space1@apple.records.example' name='Lobby' /&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+    </div>
+    <div class="indent"><h3 id="space-info">4.3 Getting information on a specific space<a class="anchor-link" href="#space-info"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">Getting information on a space is achieved by a <code>disco#info</code> query on the space JID.
+        The <em>space</em> responds with an identity of category "conference" and type "space"
+        (singular), along with a <code>urn:xmpp:spaces:0</code> feature.</p>
+      <p class="" style="">The space responds with a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions (XEP-0128)</a></span>  [<a href="#nt-id24">4</a>] element of <code>FORM_TYPE=space#info</code>.</p>
+      <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Querying a specific space<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='paul@northern.songs.example/fool-hill'
+    to='space1@apple.records.example'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info' /&gt;
+&lt;/iq&gt;
+</pre></figure>
+      <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> Entity responds<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    from='space1@apple.records.example'
+    to='paul@northern.songs.example/fool-hill'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info' '&gt;
+    &lt;identity category='conference' type='space' name='Space #1'&gt;
+    ...
+    &lt;feature var='urn:xmpp:spaces:0' /&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field var='FORM_TYPE' type='hidden'&gt;
+        &lt;value&gt;space#info&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='space#jid'&gt;
+        &lt;value&gt;space1@apple.records.example&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='space#name'&gt;
+        &lt;value&gt;Space #1&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='space#desc'&gt;
+        &lt;value&gt;Here we discuss stuff of the utmost importance.&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='space#avatar'&gt;
+        &lt;value&gt;https://apple.records.example/logo-highres.jpg&lt;/value&gt;
+        &lt;value&gt;https://apple.records.example/logo-lowres.jpg&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='space#avatarhash'&gt;
+        &lt;value&gt;XXX&lt;/value&gt;
+        &lt;value&gt;YYY&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='space#rooms'&gt;
+        &lt;value&gt;room1@apple.records.example&lt;/value&gt;
+        &lt;value&gt;room2@apple.records.example&lt;/value&gt;
+        &lt;value&gt;room3@apple.records.example&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+    </div>
+    <div class="indent"><h3 id="space-updates">4.4 Getting live updates of the space<a class="anchor-link" href="#space-updates"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">A <em>spaces service</em> SHOULD also implement a minimal subset of features of a Pubsub
+        Service (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-id25">5</a>]) for other entities to subscribe to updates of the informations of a
+        given space, such as room additions/removal, or name/avatar/description changes, without
+        needing to poll regularly.</p>
+      <p class="" style="">To receive live updates on a given space, an entity sends a subscription request on the JID
+        of the <em>space</em> directed at the <code>urn:xmpp:spaces:0</code> node. <em>Spaces services</em>
+        MAY automatically subscribe entities that join a room that is a children of a given space.</p>
+      <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> Subscribing to live of updates of a space<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type="set"
+    from="george@martin.com.example/outerspace"
+    to="space1@apple.records.example"&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;subscribe node='urn:xmpp:spaces:0' jid='george@martin.com.example' /&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+&lt;iq type="result"
+    to="space1@apple.records.example"
+    from="george@martin.com.example/outerspace"&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;subscription node='urn:xmpp:spaces:0' subscription='subscribed' /&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+        </pre></figure>
+      <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Space sends an update of the space<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='space1@apple.records.example'
+         to='francisco@denmark.lit.example'&gt;
+  &lt;event xmlns='http://jabber.org/protocol/pubsub#event'&gt;
+    &lt;items node='urn:xmpp:spaces:0'&gt;
+      &lt;item id='latest'&gt;
+        &lt;x xmlns='jabber:x:data' type='result'&gt;
+          &lt;field var='FORM_TYPE' type='hidden'&gt;
+            &lt;value&gt;space#info&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field var='space#jid'&gt;
+            &lt;value&gt;space1@apple.records.example&lt;/value&gt;
+          &lt;/field&gt;
+          &lt;field var='space#name'&gt;
+            &lt;value&gt;We will now call this one Spaces #3 just to make things confusing.&lt;/value&gt;
+          &lt;/field&gt;
+          ...
+          &lt;field var='space#rooms'&gt;
+            &lt;value&gt;room1@apple.records.example&lt;/value&gt;
+            &lt;value&gt;room2@apple.records.example&lt;/value&gt;
+            &lt;value&gt;room3@apple.records.example&lt;/value&gt;
+            &lt;value&gt;room4@apple.records.example&lt;/value&gt;
+          &lt;/field&gt;
+        &lt;/x&gt;
+      &lt;/item&gt;
+    &lt;/items&gt;
+  &lt;/event&gt;
+&lt;/message&gt;
+        </pre></figure>
+      <p class="" style="">Alternatively, a <em>space service</em> MAY send updates in the form of headline messages
+        containing the <code>space#info</code> form, emanating from the <em>space</em> JID.</p>
+    </div>
+    <div class="indent"><h3 id="space-avatar">4.5 Room advertises a parent space<a class="anchor-link" href="#space-avatar"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">If a room is part of a <em>space</em>, it MUST return the <code>space#info</code> form as part
+        of its <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions (XEP-0128)</a></span>  [<a href="#nt-id24">4</a>] reponse, and advertise the <code>urn:xmpp:spaces:0</code> feature.</p>
+      <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Querying room info<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='ringo@drums.boom.example/kick'
+    to='room1@apple.records.example'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info' /&gt;
+&lt;/iq&gt;
+</pre></figure>
+      <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> Room responds<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='room1@apple.records.example'
+    to='ringo@drums.boom.example/kick'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity category="conference" type="text" /&gt;
+    ...
+    &lt;feature var='urn:xmpp:spaces:0' /&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field var='FORM_TYPE' type='hidden'&gt;
+        &lt;value&gt;space#info&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='space#jid'&gt;
+        &lt;value&gt;space1@apple.records.example&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='space#name'&gt;
+        &lt;value&gt;Space #1&lt;/value&gt;
+      &lt;/field&gt;
+      ...
+    &lt;/x&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+    </div>
+    <div class="indent"><h3 id="space-manage">4.6 Managing a space<a class="anchor-link" href="#space-manage"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">The <em>spaces service</em> SHOULD implement <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0050.html">Ad-Hoc Commands (XEP-0050)</a></span>  [<a href="#nt-id26">6</a>] for entities to create, update and
+        delete adhoc commands. Creating and updating a <em>space</em> rely on the minimal <code>
+        space#info</code> form defined in this document.</p>
+      <div class="indent"><h4 id="creating-a-space">4.6.1 Creation<a class="anchor-link" href="#creating-a-space"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+        <p class="" style="">Creating a <em>space</em> uses a command on the <em>spaces service</em> JID directed at
+          the <code>space#create</code> node. The entity responds with the <code>space#info</code> form.</p>
+      </div>
+      <div class="indent"><h4 id="updating-a-space">4.6.2 Update<a class="anchor-link" href="#updating-a-space"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+        <p class="" style="">Updating a <em>space</em> uses a command on the <em>space</em> JID directed at the <code>
+          space#update</code> node. The entity responds with the <code>space#info</code> form.</p>
+      </div>
+      <div class="indent"><h4 id="deleting-a-space">4.6.3 Deletion<a class="anchor-link" href="#deleting-a-space"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+        <p class="" style="">Deleting a <em>space</em> uses a command on the <em>space</em> JID directed at the <code>
+          space#delete</code> node. Whether or not the rooms in this space shall be deleted on is out
+          of scope of this specification.</p>
+      </div>
+    </div>
+  <h2 id="business">5.
+       Business rules<a class="anchor-link" href="#business"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">A <em>spaces service</em> can be a dedicated component, but this is <strong>not a requirement</strong>.
+      It can also be a MUC service (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id21">1</a>]) if it hosts rooms too. It MUST also be a pubsub
+      service if it broadcast updates via <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-id25">5</a>].</p>
+    <p class="" style="">This is <strong>not a requirement</strong>, but a <em>space</em> can be a room itself. In
+      this case, this room can act as a "lobby" (general purpose room) for this <em>space</em>.
+      Permissions and roles of this room can propagate to the rooms of this space, and/or act as the
+      permission model for updating the <em>space</em>.</p>
+    <p class="" style="">A room MAY be part of different <em>spaces</em>. In this case, it MUST advertise multiple <code>
+      space#info</code> forms in its <code>disco#info</code> (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0128.html">Service Discovery Extensions (XEP-0128)</a></span>  [<a href="#nt-id24">4</a>]).</p>
+  <h2 id="registrar">6.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <div class="indent"><h3 id="registrar-ns">6.1 Protocol Namespaces<a class="anchor-link" href="#registrar-ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">New namespace "urn:xmpp:spaces:0"</p>
+    </div>
+    <div class="indent"><h3 id="registrar-category">6.2 Spaces Category/Type<a class="anchor-link" href="#registrar-category"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">New category "spaces" for "conference" identity. (spaces service)</p>
+      <p class="" style="">New category "space" for "conference" identity. (a specific space)</p>
+    </div>
+    <div class="indent"><h3 id="registrar-field">6.3 Field Standardization<a class="anchor-link" href="#registrar-field"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">This document defines a new <code>FORM_TYPE</code>: <code>space#info</code>.</p>
+      <figure class="code"><figcaption>Registry Submission</figcaption><pre class="prettyprint">
+&lt;form_type&gt;
+  &lt;name&gt;space#info&lt;/name&gt;
+  &lt;doc&gt;XEP-xxxx&lt;/doc&gt;
+  &lt;desc&gt;
+    Description of a space, meant to be used in disco#info XEP-0128
+  &lt;/desc&gt;
+  &lt;field
+     var='space#jid'
+     type='text'
+     label='JID this space.'/&gt;
+  &lt;field
+     var='space#name'
+     type='text'
+     label='Human-readable name of the space' /&gt;
+  &lt;field
+     var='space#desc'
+     type='text'
+     label='Human-readable description of the purpose of this space'/&gt;
+  &lt;field
+     var='space#avatarhash'
+     type='text-multi'
+     label='Hashes of the avatar representing the space'/&gt;
+  &lt;field
+     var='space#avatar'
+     type='text-multi'
+     label='Sources for the avatar'/&gt;
+  &lt;field
+     var='space#rooms'
+     type='jid-multi'
+     label='Rooms that are part of this space'/&gt;
+&lt;/form_type&gt;
+</pre></figure>
+    </div>
+  <h2 id="security">7.
+       Security considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">Security considerations are related to access control, and are out of scope of this document.</p>
+  <h2 id="schema">8.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">No new schema is defined in this document.</p>
+  <hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0503</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.1.0</dd><dt>Last Updated</dt><dd>2025-03-11</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, XMPP IM</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>spaces</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0503.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0503.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0503.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Nicolas Cedilnik</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:nicoco@nicoco.fr">nicoco@nicoco.fr</a></dd><dt>JabberID</dt><dd><a href="xmpp:nicoco@nicoco.fr">nicoco@nicoco.fr</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The following requirements keywords as used in this document are to be interpreted as described in <a href="https://www.ietf.org/rfc/rfc2119.txt">RFC 2119</a>: "MUST", "SHALL", "REQUIRED"; "MUST NOT", "SHALL NOT"; "SHOULD", "RECOMMENDED"; "SHOULD NOT", "NOT RECOMMENDED"; "MAY", "OPTIONAL".</p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id21">1</a>. XEP-0045: Multi-User Chat &lt;<a href="https://xmpp.org/extensions/xep-0045.html">https://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-id22">2</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id23">3</a>. XEP-0059: Result Set Management &lt;<a href="https://xmpp.org/extensions/xep-0059.html">https://xmpp.org/extensions/xep-0059.html</a>&gt;.</p><p><a name="nt-id24">4</a>. XEP-0128: Service Discovery Extensions &lt;<a href="https://xmpp.org/extensions/xep-0128.html">https://xmpp.org/extensions/xep-0128.html</a>&gt;.</p><p><a name="nt-id25">5</a>. XEP-0060: Publish-Subscribe &lt;<a href="https://xmpp.org/extensions/xep-0060.html">https://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-id26">6</a>. XEP-0050: Ad-Hoc Commands &lt;<a href="https://xmpp.org/extensions/xep-0050.html">https://xmpp.org/extensions/xep-0050.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0503-0.1.0.html">0.1.0</a> (2025-03-11)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Promoted to Experimental</p>
+    <div class="revision-author">XEP Editor: dg</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0503-0.0.1.html">0.0.1</a> (2025-02-23)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial version.</p><div class="revision-author">nc</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{cedilnik2025spaces,
+  title = {Server-side spaces},
+  author = {Cedilnik, Nicolas},
+  type = {XEP},
+  number = {0503},
+  version = {0.1.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0503.html},
+  date = {2025-02-23/2025-03-11},
+}</pre><p>END</p></body></html>
