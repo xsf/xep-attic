@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0377: Spam Reporting</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0377";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="Spam Reporting"><meta name="DC.Creator" content="Sam Whited"><meta name="DC.Creator" content="Guus der Kinderen"><meta name="DC.Description" content="
+    This document specifies a mechanism by which users can report spam and other
+    abuse to a server operator or other spam service.
+  "><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2025-04-09"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0377"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0377: Spam Reporting</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>
+    This document specifies a mechanism by which users can report spam and other
+    abuse to a server operator or other spam service.
+  </dd><dt>Authors</dt><dd><ul class="authors"><li>Sam Whited</li><li>Guus der Kinderen</li></ul></dd><dt>Copyright</dt><dd>© 2016 – 2025 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.4.0 (2025-04-09)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#background">Background</a></li><li><a href="#disco">Discovering Support</a></li><li><a href="#payload">Payload</a></li><li><a href="#processing">Report Processing Opt-in</a></li><li><a href="#blocking">Use with the Blocking Command</a></li><li><a href="#impl">Implementation Notes</a></li><li><a href="#i18n">Internationalization Considerations</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-ns">Protocol Namespaces</a></li><li><a href="#registrar-versioning">Namespace Versioning</a></li><li><a href="#registrar-reporting">Abuse Reporting Registry</a></li><li><a href="#registrar-reasons">Abuse Reporting Reasons</a></li><li><a href="#registrar-processing">Abuse Reporting Processing</a></li></ol></li><li><a href="#schema">XML Schema</a></li><li><a href="#acknowledgements">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    Many spam and abuse prevention techniques rely on users being able to report
+    other users who are sending unwanted messages, or specific instances of
+    abuse.
+    <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0191.html">Blocking Command (XEP-0191)</a></span>  [<a href="#nt-id19">1</a>] allows users to block spammers, but does not provide a mechanism
+    for them to report a reason for the block to the server operator.
+    This specification extends the blocking command to optionally provide an
+    abuse report.
+  </p>
+<h2 id="background">2.
+       Background<a class="anchor-link" href="#background"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    This document extends the blocking command instead of providing a separate
+    reporting IQ because we hypothesize that this will slightly lower the levels
+    of false reports received by service operators.
+    We have observed a common pattern on the internet where a user becomes mad
+    at or disagrees with another user and begins harassing them by replying to
+    or reporting their every comment even if it is not itself spam or abusive.
+    However, this sort of behavior cannot continue if the harasser can no longer
+    read the messages of the person they are stalking.
+    Giving them a choice between their abusive behavior and being able to
+    read their targets can possibly force them to break the cycle and only
+    create valid reports.
+  </p>
+<h2 id="disco">3.
+       Discovering Support<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    Entities that support <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id20">2</a>] and abuse reporting using the blocking
+    command as defined in this spec MUST respond to service discovery requests
+    with a feature of 'urn:xmpp:reporting:1'.
+    Support for this namespace also indicates support for the abuse reporting
+    reasons defined in this document.
+    For example, a response from a server that supports reporting and
+    understands the abuse and spam reasons defined later in this specification
+    might look like the following:
+  </p>
+  <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Service discovery information response<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='example.net'
+    id='ku6e51v3'
+    to='kingclaudius@example.net/castle'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;feature var='urn:xmpp:reporting:1'/&gt;
+    …
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></figure>
+<h2 id="payload">4.
+       Payload<a class="anchor-link" href="#payload"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    The payload for reporting abuse to the server takes the form of a
+    &lt;report/&gt; qualified by the 'urn:xmpp:reporting:1' namespace (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number).
+  </p>
+  <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> The most basic report payload<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;report xmlns="urn:xmpp:reporting:1" reason="urn:xmpp:reporting:spam"/&gt;</pre></figure>
+  <p class="" style="">
+    Abuse reports MUST include a reason for the report in the "reason" attribute.
+  </p>
+  <p class="" style="">
+    This document defines the following reasons for a report:
+  </p>
+  <div class="indent"><dl>
+    
+      <dt><strong>urn:xmpp:reporting:spam</strong></dt>
+      <dd>Used for reporting a JID that is sending unwanted messages.</dd>
+    
+    
+      <dt><strong>urn:xmpp:reporting:abuse</strong></dt>
+      <dd>Used for reporting general abuse.</dd>
+    
+  </dl></div>
+  <p class="" style="">
+    Reports MAY contain a user provided message explaining or providing context
+    about the reason for the report.
+    See also the <a href="#i18n">Internationalization Considerations</a>
+    section of this document.
+  </p>
+  <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Report with optional reason and text<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;report xmlns="urn:xmpp:reporting:1" reason="urn:xmpp:reporting:spam"&gt;
+  &lt;text xml:lang="en"&gt;
+    Never came trouble to my house like this.
+  &lt;/text&gt;
+&lt;/report&gt;</pre></figure>
+<h2 id="processing">5.
+       Report Processing Opt-in<a class="anchor-link" href="#processing"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    Reports MAY contain user provided approval ('opt-in') for processing of the report.
+    This document defines the following processing of a report:
+  </p>
+  <div class="indent"><dl>
+    
+      <dt><strong>report-origin</strong></dt>
+      <dd>Forward the report to the domain where the reported message originated.</dd>
+    
+    
+      <dt><strong>third-party</strong></dt>
+      <dd>Forward the report to third-party entities that process reports for purposes
+        including, but not limited to, the collection of statistics, analysis, and 
+        block list services.</dd>
+    
+  </dl></div>
+  <p class="" style="">
+    To express approval of a certain type of processing, a &lt;report-origin&gt; and/or
+    &lt;third-party&gt; element is added to the report.
+  </p>
+  <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Report with optional processing opt-in<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;report xmlns="urn:xmpp:reporting:1" reason="urn:xmpp:reporting:spam"&gt;
+  &lt;text xml:lang="en"&gt;
+    Never came trouble to my house like this.
+  &lt;/text&gt;
+  &lt;report-origin/&gt;
+  &lt;third-party/&gt;
+&lt;/report&gt;</pre></figure>
+  <p class="" style="">
+    Servers MAY ignore processing options when their implementation does not support
+    the corresponding functionality. Servers MUST NOT process a report if the report
+    that do not explicitly include the corresponding processing option.
+  </p>
+  <p class="" style="">
+    Servers MAY anonymize any submission to third-party services to protect the identity
+    of the reporter. Servers SHOULD NOT protect the identity of the reported entity (the
+    alleged spammer/abuser), as it hurts processing without adding any significant
+    protection: it is likely that the origin server can easily look up the original 
+    stanza in their local message archive anyway. Servers can anonymize the report by
+    removing the 'to' attribute of the reported message.
+  </p>
+<h2 id="blocking">6.
+       Use with the Blocking Command<a class="anchor-link" href="#blocking"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    To send a report, a report payload MAY be inserted into an &lt;item/&gt;
+    node sent as part of a request to block a spammer as defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0191.html">Blocking Command (XEP-0191)</a></span>  [<a href="#nt-id19">1</a>].
+    For example:
+  </p>
+  <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Report sent with blocking command<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@example.com/chamber' type='set' id='block1'&gt;
+  &lt;block xmlns='urn:xmpp:blocking'&gt;
+    &lt;item jid='romeo@example.net'&gt;
+      &lt;report xmlns="urn:xmpp:reporting:1" reason="urn:xmpp:reporting:abuse"/&gt;
+    &lt;/item&gt;
+  &lt;/block&gt;
+&lt;/iq&gt;</pre></figure>
+  <p class="" style="">
+    Servers that receive a blocking command with a report MUST block the JID or
+    return an error just as they would if no report were present.
+    Servers then MAY take other actions based on the report, however, such
+    actions are outside the scope of this document.
+  </p>
+  <p class="" style="">
+    If the server supports <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-id21">3</a>] the report MAY also include the stanza-id
+    of specific messages being reported.
+    This is done by including copies of each &lt;stanza-id/&gt; element that the
+    user wishes to report as a child of the &lt;report/&gt; element.
+    The stanza indicated by the provided stanza-id SHOULD be by the same JID
+    being reported and blocked.
+  </p>
+  <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Report sent with stanza IDs<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='juliet@example.com/chamber' type='set' id='block1'&gt;
+  &lt;block xmlns='urn:xmpp:blocking'&gt;
+    &lt;item jid='romeo@example.net'&gt;
+      &lt;report xmlns="urn:xmpp:reporting:1" reason="urn:xmpp:reporting:spam"&gt;
+        &lt;stanza-id xmlns='urn:xmpp:sid:0' by='romeo@example.net' id='28482-98726-73623'/&gt;
+        &lt;stanza-id xmlns='urn:xmpp:sid:0' by='romeo@example.net' id='38383-38018-18385'/&gt;
+        &lt;text xml:lang="en"&gt;
+          Never came trouble to my house like this.
+        &lt;/text&gt;
+      &lt;/report&gt;
+    &lt;/item&gt;
+  &lt;/block&gt;
+&lt;/iq&gt;</pre></figure>
+<h2 id="impl">7.
+       Implementation Notes<a class="anchor-link" href="#impl"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    Clients that support sending reports as part of the blocking command SHOULD
+    expose interfaces to both block a JID without reporting it as abuse, and to
+    block and report a JID.
+  </p>
+  <p class="" style="">
+    The blocking command may be used to block multiple JIDs at the same time.
+    When blocking multiple JIDs any abuse report only applies to a single JID.
+    If the client allows selecting multiple JIDs in an abuse reporting dialog
+    they SHOULD also allow choosing a separate reason, text, and messages for
+    each JID.
+    They MAY choose to only allow reporting a single JID at a time as well when
+    the "block and report" dialog is accessed, and multiple JIDs when the
+    "block" dialog is accessed.
+  </p>
+  <p class="" style="">
+    Software clients may offer processing opt-in options to an end-user whenever
+    they are reporting a message, but also could use a (configurable) default 
+    that is automatically applied to all reports issued by the client.
+  </p>
+<h2 id="i18n">8.
+       Internationalization Considerations<a class="anchor-link" href="#i18n"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">
+    If one or more &lt;text/&gt; elements are present they SHOULD include
+    'xml:lang' attributes specifying the natural language of the XML character
+    data.
+  </p>
+<h2 id="security">9.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">
+      This document introduces no additional security considerations above and
+      beyond those defined in the documents on which it depends.
+    </p>
+  <h2 id="iana">10.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id22">4</a>].</p>
+  <h2 id="registrar">11.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <div class="indent"><h3 id="registrar-ns">11.1 Protocol Namespaces<a class="anchor-link" href="#registrar-ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">This specification defines the following XML namespace:</p>
+      <ul class="" style="">
+        <li class="" style="">urn:xmpp:reporting:1</li>
+      </ul>
+      <p class="" style="">
+        Upon advancement of this specification from a status of Experimental to
+        a status of Draft, the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id23">5</a>] shall add the foregoing namespace to
+        the registry located at &lt;<a href="https://xmpp.org/registrar/disco-features.html">https://xmpp.org/registrar/disco-features.html</a>&gt;, as described in Section 4 of
+        <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-id24">6</a>].
+      </p>
+    </div>
+    <div class="indent"><h3 id="registrar-versioning">11.2 Namespace Versioning<a class="anchor-link" href="#registrar-versioning"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+    </div>
+    <div class="indent"><h3 id="registrar-reporting">11.3 Abuse Reporting Registry<a class="anchor-link" href="#registrar-reporting"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">
+        The XMPP Registrar shall maintain a registry of abuse report reasons
+        and abuse report processing opt-in options. All abuse report reason
+        and processing opt-in registrations shall be defined in separate
+        specifications (not in this document). Application types defined 
+        within the XEP series MUST be registered with the XMPP Registrar,
+        resulting in protocol URNs representing the reason.
+      </p>
+      <p class="" style="">In order to submit new values to this registry, the registrant shall define an XML fragment of the following form and either include it in the relevant XMPP Extension Protocol or send it to the email address &lt;registrar@xmpp.org&gt;:</p>
+      <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;reason&gt;
+  &lt;name&gt;The human-readable name of the abuse report reason.&lt;/name&gt;
+  &lt;feature&gt;URN representing the reason.&lt;/feature&gt;
+  &lt;desc&gt;A natural-language summary of the reason.&lt;/desc&gt;
+  &lt;doc&gt;
+    The document in which the report reason is specified.
+  &lt;/doc&gt;
+&lt;/reason&gt;
+
+&lt;processing&gt;
+  &lt;name&gt;Element name representing the processing opt-in.&lt;/name&gt;
+  &lt;namespace&gt;A unique qualifier of the element name&lt;/namespace&gt;
+  &lt;desc&gt;A natural-language summary of the processing functionality.&lt;/desc&gt;
+  &lt;doc&gt;
+    The document in which the report processing functionality is specified.
+  &lt;/doc&gt;
+&lt;/processing&gt;
+</pre></figure>
+    </div>
+    <div class="indent"><h3 id="registrar-reasons">11.4 Abuse Reporting Reasons<a class="anchor-link" href="#registrar-reasons"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">This specification defines the following abuse reporting reasons:</p>
+      <ul class="" style="">
+        <li class="" style="">urn:xmpp:reporting:spam</li>
+        <li class="" style="">urn:xmpp:reporting:abuse</li>
+      </ul>
+      <p class="" style="">
+        Upon advancement of this specification from a status of Experimental to
+        a status of Draft, the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id23">5</a>] shall add the following definition to
+        the abuse reporting reasons registry, as described in this document:
+      </p>
+      <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;reason&gt;
+  &lt;name&gt;spam&lt;/name&gt;
+  &lt;feature&gt;urn:xmpp:reporting:spam&lt;/feature&gt;
+  &lt;desc&gt;Used to report a JID that was sending spam messages.&lt;/desc&gt;
+  &lt;doc&gt;XEP-0377&lt;/doc&gt;
+&lt;/reason&gt;</pre></figure>
+      <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;reason&gt;
+  &lt;name&gt;abuse&lt;/name&gt;
+  &lt;feature&gt;urn:xmpp:reporting:abuse&lt;/feature&gt;
+  &lt;desc&gt;Used to report general abuse that is not covered by a more specific reason.&lt;/desc&gt;
+  &lt;doc&gt;XEP-0377&lt;/doc&gt;
+&lt;/reason&gt;</pre></figure>
+    </div>
+    <div class="indent"><h3 id="registrar-processing">11.5 Abuse Reporting Processing<a class="anchor-link" href="#registrar-processing"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">This specification defines the following processing opt-in identifiers:</p>
+      <ul class="" style="">
+        <li class="" style="">report-origin</li>
+        <li class="" style="">third-party</li>
+      </ul>
+      <p class="" style="">
+        Upon advancement of this specification from a status of Experimental to
+        a status of Draft, the <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id23">5</a>] shall add the following definition to
+        the abuse report processing opt-in options registry, as described in this
+        document:
+      </p>
+      <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;processing&gt;
+  &lt;name&gt;report-origin&lt;/name&gt;
+  &lt;namespace&gt;urn:xmpp:reporting:spam&lt;/namespace&gt;
+  &lt;desc&gt;Forward the report to the domain where the reported message originated.&lt;/desc&gt;
+  &lt;doc&gt;XEP-0377&lt;/doc&gt;
+&lt;/reason&gt;</pre></figure>
+      <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;reason&gt;
+  &lt;name&gt;third-party&lt;/name&gt;
+  &lt;namespace&gt;urn:xmpp:reporting:spam&lt;/namespace&gt;
+  &lt;desc&gt;
+    Forward the report to third-party entities that process reports for purposes
+    including, but not limited to, the collection of statistics, analysis, and
+    block list services.
+  &lt;/desc&gt;
+  &lt;doc&gt;XEP-0377&lt;/doc&gt;
+&lt;/reason&gt;</pre></figure>
+    </div>
+  <h2 id="schema">12.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    xmlns:sid='urn:xmpp:sid:0'
+    xmlns='urn:xmpp:reporting:1'
+    targetNamespace='urn:xmpp:reporting:1'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:annotation&gt;
+    &lt;xs:documentation&gt;
+      The protocol documented by this schema is defined in
+      XEP-0377: https://xmpp.org/extensions/xep-0377.html
+    &lt;/xs:documentation&gt;
+  &lt;/xs:annotation&gt;
+
+  &lt;xs:import namespace='http://www.w3.org/XML/1998/namespace'
+      schemaLocation='https://www.w3.org/2009/01/xml.xsd'/&gt;
+  &lt;xs:import namespace='urn:xmpp:sid:0'
+      schemaLocation='xep-0359.xsd'/&gt;
+
+  &lt;xs:element name='container'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element ref='report' minOccurs='0' maxOccurs='unbounded'/&gt;
+      &lt;/xs:sequence&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='report'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element ref='sid:stanza-id' minOccurs='0' maxOccurs='unbounded'/&gt;
+        &lt;xs:element ref='text' minOccurs='0' maxOccurs='unbounded'/&gt;
+        &lt;xs:element ref='report-origin' minOccurs='0' maxOccurs='1'/&gt;
+        &lt;xs:element ref='third-party' minOccurs='0' maxOccurs='1'/&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name='reason' type='xs:string' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='spam' type='empty'/&gt;
+
+  &lt;xs:element name='abuse' type='empty'/&gt;
+
+  &lt;xs:element name='text'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='xs:string'&gt;
+          &lt;xs:attribute ref="xml:lang" use="optional"/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='report-origin' type='empty'/&gt;
+
+  &lt;xs:element name='third-party' type='empty'/&gt;
+
+  &lt;xs:simpleType name='empty'&gt;
+    &lt;xs:restriction base='xs:string'&gt;
+      &lt;xs:enumeration value=''/&gt;
+    &lt;/xs:restriction&gt;
+  &lt;/xs:simpleType&gt;
+
+&lt;/xs:schema&gt;</pre></figure>
+  <h2 id="acknowledgements">13.
+       Acknowledgements<a class="anchor-link" href="#acknowledgements"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">
+      Thanks to the participants of the XMPP Summit 20 in Austin, TX who
+      discussed this XEP: specifically to Waqas Hussain, Kevin Smith, Lance
+      Stout, and Matthew Wild. A special thanks to Daniel Wisnewski for giving
+      the presentation that kicked off the anti-abuse work.
+    </p>
+    <p class="" style="">
+      Thanks also (in no particular order) to Jonas Wielicki, Georg Lukas,
+      Daniel Gultsch, and Matthew Wild for their feedback.
+    </p>
+  <hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0377</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.4.0</dd><dt>Last Updated</dt><dd>2025-04-09</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, XMPP IM, <a href="xep-0191.html">XEP-0191</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>NOT_YET_ASSIGNED</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0377.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0377.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0377.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Sam Whited</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:sam@samwhited.com">sam@samwhited.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:sam@samwhited.com">sam@samwhited.com</a></dd><dt>URI</dt><dd><a href="https://blog.samwhited.com/">https://blog.samwhited.com/</a></dd></dl><h5>Guus der Kinderen</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:guus.der.kinderen@gmail.com">guus.der.kinderen@gmail.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:guus.der.kinderen@igniterealtime.org">guus.der.kinderen@igniterealtime.org</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">
+          The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED",
+          "MAY", and "OPTIONAL" in this document are to be interpreted as
+          described in <a href="https://tools.ietf.org/rfc/bcp/bcp14.txt">BCP 14</a>
+          [<a href="https://www.ietf.org/rfc/rfc2119.txt">RFC2119</a>]
+          [<a href="https://tools.ietf.org/rfc/rfc8174.txt">RFC8174</a>] when,
+          and only when, they appear in all capitals, as shown here.
+        </p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id19">1</a>. XEP-0191: Blocking Command &lt;<a href="https://xmpp.org/extensions/xep-0191.html">https://xmpp.org/extensions/xep-0191.html</a>&gt;.</p><p><a name="nt-id20">2</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id21">3</a>. XEP-0313: Message Archive Management &lt;<a href="https://xmpp.org/extensions/xep-0313.html">https://xmpp.org/extensions/xep-0313.html</a>&gt;.</p><p><a name="nt-id22">4</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id23">5</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id24">6</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.4.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0377-0.4.0.html">0.4.0</a> (2025-04-09)<a class="anchor-link" href="#revision-history-v0.4.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Add spam report processing opt-in.</li>
+        <li class="" style="">Add Guus der Kinderen as co-author.</li>
+      </ul>
+    <div class="revision-author">gdk</div></li><li id="revision-history-v0.3.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0377-0.3.1.html">0.3.1</a> (2023-04-03)<a class="anchor-link" href="#revision-history-v0.3.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Add XML Schema.</p><div class="revision-author">egp</div></li><li id="revision-history-v0.3"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0377-0.3.html">0.3</a> (2021-06-21)<a class="anchor-link" href="#revision-history-v0.3"><abbr title="Link to this point in the document">¶</abbr></a></div>Rework based on list feedback.<div class="revision-author">ssw</div></li><li id="revision-history-v0.2"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0377-0.2.html">0.2</a> (2017-09-11)<a class="anchor-link" href="#revision-history-v0.2"><abbr title="Link to this point in the document">¶</abbr></a></div>Defer due to lack of activity.<div class="revision-author">XEP Editor (jwi)</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0377-0.1.0.html">0.1.0</a> (2016-05-25)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial version approved by the Council.</p><div class="revision-author">ssw</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0377-0.0.1.html">0.0.1</a> (2016-05-21)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">ssw</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{whited2016xep0377,
+  title = {Spam Reporting},
+  author = {Whited, Sam and der Kinderen, Guus},
+  type = {XEP},
+  number = {0377},
+  version = {0.4.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0377.html},
+  date = {2016-05-21/2025-04-09},
+}</pre><p>END</p></body></html>
