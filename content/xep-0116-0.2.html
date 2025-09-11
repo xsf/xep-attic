@@ -1,0 +1,705 @@
+<html>
+<head>
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+<title>JEP-0116: Encrypted Sessions</title>
+<link rel="stylesheet" type="text/css" href="jep.css">
+<link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+<meta name="DC.Title" content="Encrypted Sessions">
+<meta name="DC.Creator" content="Dave Smith">
+<meta name="DC.Description" content="Note: This proposal has been retracted by the author.">
+<meta name="DC.Publisher" content="Jabber Software Foundation">
+<meta name="DC.Contributor" content="JEP Editor">
+<meta name="DC.Date" content="2004-07-26">
+<meta name="DC.Type" content="Jabber Enhancement Proposal">
+<meta name="DC.Format" content="XHTML">
+<meta name="DC.Identifier" content="JEP-0116">
+<meta name="DC.Language" content="en">
+<meta name="DC.Rights" content="This Jabber Enhancement Proposal is copyright 1999 - 2004 by the Jabber Software Foundation (JSF) and is in full conformance with the JSF's Intellectual Property Rights Policy &lt;http://www.jabber.org/jsf/ipr-policy.php&gt;. This material may be distributed only subject to the terms and conditions set forth in the Open Publication License, v1.0 or later (the latest version is presently available at &lt;http://www.opencontent.org/openpub/&gt;).">
+</head>
+<body bgcolor="#FFFFFF">
+<h1>JEP-0116: Encrypted Sessions</h1>
+<p>Note: This proposal has been retracted by the author.</p>
+<p><hr></p>
+<p style="color:red">WARNING: This JEP has been retracted by the author(s). Implementation of the protocol described herein is not recommended. Developers desiring similar functionality should implement the protocol that supersedes this one (if any).</p>
+<p><hr></p>
+<h2>JEP Information</h2>
+<p class="indent">
+            Status: Retracted<br>
+            Type: Standards Track<br>
+            Number: 0116<br>
+            Version: 0.2<br>
+            Last Updated: 2004-07-26<br>
+            JIG: Standards JIG<br>
+                Approving Body: Jabber Council<br>
+                Dependencies: None<br>
+                Supersedes: None<br>
+                Superseded By: None<br>
+            Short Name: esession<br>
+</p>
+<h2>Author Information</h2>
+<h3>Dave Smith</h3>
+<p class="indent">
+        Email: dizzyd@jabber.org<br>
+        JID: dizzyd@jabber.org</p>
+<h2>Legal Notice</h2>
+<p class="indent">This Jabber Enhancement Proposal is copyright 1999 - 2004 by the Jabber Software Foundation (JSF) and is in full conformance with the JSF's Intellectual Property Rights Policy &lt;<a href="http://www.jabber.org/jsf/ipr-policy.php">http://www.jabber.org/jsf/ipr-policy.php</a>&gt;. This material may be distributed only subject to the terms and conditions set forth in the Open Publication License, v1.0 or later (the latest version is presently available at &lt;<a href="http://www.opencontent.org/openpub/">http://www.opencontent.org/openpub/</a>&gt;).</p>
+<h2>Discussion Venue</h2>
+<p class="indent">The preferred venue for discussion of this document is the Standards-JIG discussion list: &lt;<a href="http://mail.jabber.org/mailman/listinfo/standards-jig">http://mail.jabber.org/mailman/listinfo/standards-jig</a>&gt;.</p>
+<p class="indent">Given that this JEP normatively references IETF technologies, discussion on the JSF-IETF list may also be appropriate (see &lt;<a href="http://mail.jabber.org/mailman/listinfo/jsf-ietf">http://mail.jabber.org/mailman/listinfo/jsf-ietf</a>&gt; for details).</p>
+<h2>Relation to XMPP</h2>
+<p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core and XMPP IM specifications contributed by the Jabber Software Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocols defined in this JEP have been developed outside the Internet Standards Process and are to be understood as extensions to XMPP rather than as an evolution, development, or modification of XMPP itself.</p>
+<h2>Conformance Terms</h2>
+<p class="indent">The keywords &quot;MUST&quot;, &quot;MUST NOT&quot;, &quot;REQUIRED&quot;, &quot;SHALL&quot;, &quot;SHALL NOT&quot;, &quot;SHOULD&quot;, &quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;NOT RECOMMENDED&quot;, &quot;MAY&quot;, and &quot;OPTIONAL&quot; in this document are to be interpreted as described in RFC 2119.</p>
+<p><hr></p>
+<h2>Table of Contents</h2>
+<dl>
+<dt>1.  <a href="#sect-id2595915">Introduction</a>
+</dt>
+<dt>2.  <a href="#sect-id2596035">References</a>
+</dt>
+<dt>3.  <a href="#sect-id2596285">Characters</a>
+</dt>
+<dt>4.  <a href="#sect-id2596155">Prerequisites</a>
+</dt>
+<dt>5.  <a href="#sect-id2601836">Negotiating the ESession</a>
+</dt>
+<dt>6.  <a href="#sect-id2602874">Exchanging Messages</a>
+</dt>
+<dt>7.  <a href="#sect-id2603297">Public Key Algorithms</a>
+</dt>
+<dt>8.  <a href="#sect-id2603333">Security Considerations</a>
+</dt>
+<dt>9.  <a href="#sect-id2603352">IANA Considerations</a>
+</dt>
+<dt>10.  <a href="#sect-id2603370">Jabber Registrar Considerations</a>
+</dt>
+<dl>
+<dt>10.1.  <a href="#sect-id2603382">Namespaces</a>
+</dt>
+<dt>10.2.  <a href="#sect-id2603444">Field Standardization</a>
+</dt>
+</dl>
+<dt>11.  <a href="#sect-id2603503">XML Schemas</a>
+</dt>
+<dt>12.  <a href="#sect-id2603529">Open Issues</a>
+</dt>
+<dt><a href="#notes">Notes</a></dt>
+<dt><a href="#revs">Revision History</a></dt>
+</dl>
+<p><hr></p>
+<h2>1.
+       <a name="sect-id2595915">Introduction</a>
+</h2>
+    <p class="" style="">This JEP describes a lightweight protocol which allows two Jabber endpoints 
+      to create a secure tunnel between them, called an &quot;ESession&quot;. Once the tunnel is
+      established, all packets between the endpoints will be
+      compressed, encrypted, and transmitted in a &quot;wrapper&quot; protocol
+      element. Steps are taken to ensure that packets exchanged are
+      in the order they were transmitted, were not tampered with, and
+      cannot be replayed at a later time. 
+    </p>
+
+    <p class="" style="">Traditionally, creating an end-to-end encrypted session between
+    two Jabber endpoints has required the use of a PKI system such as
+    PGP or GPG (see, for example, <span class="ref">Current Jabber OpenPGP Usage</span>  [<a href="#nt-id2596077">1</a>]). Integrating with PGP/GPG
+    is problematic due to a lack of solid SDKs. Typical
+    integration with this system requires spawning the PGP/GPG client
+    as a child process and passing data back and forth over some
+    mixture of IPC (such as shared memory or redirected stin/stdout).
+    Additionally, there are efficiency issues with using PKI-based
+    encryption and signatures for every message.  Finally, the way in
+    which the PGP/GPG integration is currently used is susceptible to
+    replay attacks. Given these issues, a protocol is needed which:
+      <ul>
+        <li>Utilizes widely available, in-process, cryptographic
+          primitives</li>
+        <li>Prevents replay attacks</li>
+        <li>Minimizes client processing requirements, per packet</li>
+      </ul>
+    </p>
+
+    <p class="" style="">There exist other Internet protocols which exhibit these
+    characteristics and that are based on standard cryptographic
+    techniques. One of these is SSH
+    (Secure Shell).  The transport protocol used in SSH is
+    flexible, relatively simple to implement and, most importantly,
+    proven. For these reasons, SSH was chosen as the <span style="font-style: italic">conceptual model</span> for this
+    end-to-end encryption proposal. This proposal builds on the
+    key-exchange, replay protection, and cipher processing models
+    that are outlined in the SSH transport protocol.</p>
+  <h2>2.
+       <a name="sect-id2596035">References</a>
+</h2>
+    <p class="" style="">This JEP is built on a broad foundation of well-researched
+    cryptographic techniques (by authors who have far more experience
+    in the crypto sciences than the current author). While this JEP provides
+    all the necessary information to implement the protocol described
+    herein, it is <span style="font-style: italic">strongly</span> recommended that developers also
+    spend some time perusing the following documents, in order to achieve
+    a more perfect understanding of the theories behind this protocol.
+    </p>
+    <ul>
+      <li>
+<span class="ref">RFC 2412</span>  [<a href="#nt-id2596184">2</a>] (especially Appendices C, D, and E)</li>
+      <li>
+<span class="ref">RFC 3526</span>  [<a href="#nt-id2596209">3</a>]</li>
+      <li>
+<span class="ref">SSH Transport Layer Protocol</span>  [<a href="#nt-id2596238">4</a>]</li>
+      <li>
+<span class="ref">SSH Protocol Architecture</span>  [<a href="#nt-id2596261">5</a>] (especially Section 4)</li>
+    </ul>
+    <p class="" style="">In addition, this proposal depends on the following Jabber Enhancement Proposals for syntax within XML streams:</p>
+    <ul>
+      <li>
+<span class="ref">Data Forms</span>  [<a href="#nt-id2596296">6</a>]</li>
+      <li>
+<span class="ref">Feature Negotiation</span>  [<a href="#nt-id2601776">7</a>]</li>
+      <li>
+<span class="ref">Service Discovery</span>  [<a href="#nt-id2601796">8</a>]</li>
+      <li>
+<span class="ref">Field Standardization for Data Forms</span>  [<a href="#nt-id2601819">9</a>]</li>
+    </ul>
+  <h2>3.
+       <a name="sect-id2596285">Characters</a>
+</h2>
+    <p class="" style="">This JEP introduces a few characters to help the reader follow
+    the necessary exchanges:
+      <ol start="1" type="">
+	<li>&quot;Alice&quot; is the name of the initiator of the sample
+	ESession. Within the scope of this JEP, her fully-qualified
+	  JID is: alice@host/res.</li>
+	<li>&quot;Bob&quot; is the name of the other participant in the
+	ESession started by Alice. Within the scope of this JEP, his
+	  fully-qualified JID is: bob@host/res.</li>
+      </ol>
+      For the sake of brevity, both Alice's and Bob's JIDs will be abbrievated in
+      the protocol snippets to just be &quot;alice&quot; and &quot;bob&quot;,
+      respectively. However, ALL packets exchanged for ESession
+      purposes MUST be addressed to a fully-qualified JID.
+    </p>
+    <p class="" style="">
+      Note that while Alice and Bob are introduced as &quot;end-users&quot;, they are simply 
+      meant to be an example of Jabber entities. Any directly addressable Jabber
+      entity may participate in an ESession.
+    </p>
+  <h2>4.
+       <a name="sect-id2596155">Prerequisites</a>
+</h2>
+    <p class="" style="">
+      Alice (alice@host/res) wants to establish an encrypted session
+      with Bob (bob@host/res). Before she can do so, she MUST
+      determine that he supports the ESession protocol. This SHOULD be
+      done using the disco protocol to ensure he supports the
+      &quot;http://jabber.org/protocol/esession&quot; namespace. Once this
+      determination has been made, she can begin the process of
+      establishing an ESession.
+    </p>
+  <h2>5.
+       <a name="sect-id2601836">Negotiating the ESession</a>
+</h2>
+    <p class="" style="">
+      The establishment of an ESession is based on the SSH transport
+      mechanism for establishing a secure session over an insecure
+      transport (refer to &quot;SSH Transport Layer Protocol&quot; for more information). Like SSH,
+      ESession uses a Diffie-Hellman (DH) key exchange algorithm with
+      SHA-1 as the hashing algorithm. The first packet is the initial
+      part of the DH exchange, so Alice must perform the following
+      steps to prepare:
+    </p>
+    <ol start="1" type="">
+      <li><p class="" style="">
+	Select a Modular Exponential (MODP) Diffie-Hellman
+	group (these are defined in RFC 3526). Each MODP group defines a series of constants,
+	including a prime (which we will refer to as &quot;DH_PRIME&quot;) and
+	a generator (which we will refer to as
+	&quot;DH_GEN&quot;). Additionally, a third parameter (&quot;DH_GROUPORDER&quot;)
+	is derived from DH_PRIME and DH_GEN. The value of DH_GROUPORDER
+	is (DH_PRIME - 1) / 2.
+      </p></li>
+      <li><p class="" style="">Generate a random number &quot;x&quot; (where 1 &lt; x &lt;
+      DH_GROUPORDER). Implementors MUST use a cryptographically
+      strong, pseudo-random number generator.</p></li>
+      <li><p class="" style="">Calculate &quot;e&quot; = DH_GEN ^ (x mod DH_PRIME)</p></li>
+    </ol>
+    <p class="" style="">
+      Alice then sends &quot;e&quot; to Bob as a part of the initial exchange
+      request to start an ESession. Alice includes an identifier of
+      the MODP group that she used, so that Bob will be able to work
+      off the same DH parameters. Finally, she specifies the cipher,
+      key, and message authentication code (MAC) algorithms that she is willing to use, in the order
+      of preference. </p>
+    <p class="caption">Example 1. Request for ESession</p>
+<div class="indent"><pre>
+&lt;iq from='alice' to='bob' type='set' id='es1'&gt;
+  &lt;esession xmlns='http://jabber.org/protocol/esession'&gt;
+    &lt;start&gt;
+      &lt;features xmlns='http://jabber.org/protocol/feature-neg'&gt;
+	&lt;x xmlns='jabber:x:data'&gt;
+          &lt;field type='hidden' var='FORM_TYPE'&gt;
+            &lt;value&gt;http://jabber.org/protocol/esession&lt;/value&gt; 
+          &lt;/field&gt;
+	  &lt;field type='list-single' var='cipher-algo'&gt;
+	    &lt;option&gt;&lt;value&gt;3des-cbc&lt;/value&gt;&lt;/option&gt;
+	    &lt;option&gt;&lt;value&gt;blowfish-cbc&lt;/value&gt;&lt;/option&gt;
+	    &lt;option&gt;&lt;value&gt;twofish128-cbc&lt;/value&gt;&lt;/option&gt;
+	    &lt;option&gt;&lt;value&gt;aes128-cbc&lt;/value&gt;&lt;/option&gt;
+	  &lt;/field&gt;
+	  &lt;field type='list-single' var='key-algo'&gt;
+	    &lt;option&gt;&lt;value&gt;esession-dss&lt;/value&gt;&lt;/option&gt;
+	    &lt;option&gt;&lt;value&gt;esession-rsa&lt;/value&gt;&lt;/option&gt;
+	  &lt;/field&gt;
+	  &lt;field type='list-single' var='mac-algo'&gt;
+	    &lt;option&gt;&lt;value&gt;hmac-sha1&lt;/value&gt;&lt;/option&gt;
+	    &lt;option&gt;&lt;value&gt;hmac-sha1-96&lt;/value&gt;&lt;/option&gt;
+	  &lt;/field&gt;
+	&lt;/x&gt;
+      &lt;/features&gt;
+      &lt;e modp='MODP-5'&gt; ** value of &quot;e&quot;, encoded as a hexadecimal string ** &lt;/e&gt;
+    &lt;/start&gt;
+  &lt;/esession&gt;
+&lt;/iq&gt;
+    </pre></div>
+
+    <p class="" style="">When Bob receives the request for the ESession, he must examine
+      the available algorithms and the selected MODP group. If none of
+      these parameters meets his requirements for security or Bob is unwilling to negotiate an ESession, he
+      MUST return an IQ type='error'. However, if Bob is willing to start an
+      ESession with Alice, he MUST select one algorithm each from the list of cipher, key, and MAC
+      algorithms that Alice provided, and perform the
+      following computations (using the MODP parameters provided by
+      Alice):</p>
+    <ol start="4" type="">
+      <li><p class="" style="">Verify that (1 &lt; e &lt; DH_PRIME - 1)</p></li>
+      <li><p class="" style="">Generate a random number &quot;y&quot; (where 0 &lt; y &lt; DH_GROUPORDER)</p></li>
+      <li><p class="" style="">Calculate &quot;f&quot; = DH_GEN ^ (y mod DH_GROUPORDER)</p></li>
+      <li><p class="" style="">Verify that (1 &lt; f &lt; DH_PRIME - 1)</p></li>
+      <li><p class="" style="">Calculate &quot;K&quot; = e ^ (y mod DH_PRIME). K represents
+      the base key material used to derive the actual keys for
+      encryption and integrity checking</p></li>
+      <li>
+<p class="" style="">Compute a session identifier (SID) by computing the SHA-1
+        hash of the following values  [<a href="#nt-id2595752">10</a>]:</p>
+        <p class="caption">Table 1: SID Hash Inputs</p>
+<table border="1" cellpadding="3" cellspacing="0">
+          <tr class="body">
+            <th colspan="" rowspan="">Data</th>
+            <th colspan="" rowspan="">Datatype</th>
+          </tr>
+          <tr class="body">
+            <td align="" colspan="" rowspan="">Bob's public key (base64 encoded)</td>
+            <td align="" colspan="" rowspan="">string</td>
+          </tr>
+          <tr class="body">
+            <td align="" colspan="" rowspan="">Value of &quot;e&quot;</td>
+            <td align="" colspan="" rowspan="">mpint</td>
+          </tr>
+          <tr class="body">
+            <td align="" colspan="" rowspan="">Value of &quot;f&quot;</td>
+            <td align="" colspan="" rowspan="">mpint</td>
+          </tr>
+          <tr class="body">
+            <td align="" colspan="" rowspan="">Value of &quot;K&quot;</td>
+            <td align="" colspan="" rowspan="">mpint</td>
+          </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Name of the selected cipher-algo</td>
+	    <td align="" colspan="" rowspan="">string</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Name of the selected key-algo</td>
+	    <td align="" colspan="" rowspan="">string</td>
+	  </tr>
+	  <tr class="body">
+	    <td align="" colspan="" rowspan="">Name of the selected mac-algo</td>
+	    <td align="" colspan="" rowspan="">string</td>
+	  </tr>
+        </table>
+        <p class="" style="">Note that &quot;e&quot;, &quot;f&quot; and &quot;K&quot; are hashed as raw multiple-precision
+          integers, encoded according to the &quot;mpint&quot; type defined in the 
+          &quot;SSH Protocol Architecture&quot; specification.
+        </p>
+
+      </li>
+      <li><p class="" style="">Compute signature (&quot;SIG&quot;) of the session identifier. To
+      complete this step, Bob must select a key algorithm from the list
+      Alice provided and use that to create a signed message digest of
+      the SID. Alice will use this message digest, in conjunction with
+      Bob's public key, to verify that the value of &quot;f&quot; which she
+      receives from Bob was actually generated by Bob, and was not
+      tampered with.</p></li>
+    </ol>
+
+    <p class="" style="">Bob now sends &quot;f&quot;, &quot;SIG&quot; and his public key to Alice, along
+    with his choices for the required algorithms.</p>
+
+    <p class="caption">Example 2. Response to ESession request</p>
+<div class="indent"><pre>
+&lt;iq from='bob' to='alice' type='result' id='es1'&gt;
+  &lt;esession xmlns='http://jabber.org/protocol/esession'&gt;
+    &lt;starting&gt;
+      &lt;features xmlns='http://jabber.org/protocol/feature-neg'&gt;
+	&lt;x xmlns='jabber:x:data'&gt;
+	  &lt;field var='cipher-algo'&gt;&lt;value&gt;blowfish-cbc&lt;/value&gt;&lt;/field&gt;
+	  &lt;field var='key-algo'&gt;&lt;value&gt;esession-dss&lt;/value&gt;&lt;/field&gt;
+	  &lt;field var='mac-algo'&gt;&lt;value&gt;hmac-sha1&lt;/value&gt;&lt;/field&gt;
+	&lt;/x&gt;
+      &lt;/features&gt;
+      &lt;f&gt; ** value of &quot;f&quot;, encoded as a hexadecimal string ** &lt;/f&gt;
+      &lt;sig&gt; ** value of SIG, Base64 encoded ** &lt;/sig&gt;
+      &lt;public-key type='dsa'&gt; ** Base64 encoded DSA public key ** &lt;/public-key&gt;
+    &lt;/starting&gt;
+  &lt;/esession&gt;
+&lt;/iq&gt;
+    </pre></div>
+
+    <p class="" style="">On receipt of the IQ-result, Alice now needs to verify the &quot;f&quot;
+    value provided by Bob. She performs the following
+    computations:</p>
+    <ol start="11" type="">
+      <li><p class="" style="">Verify that (1 &lt; f &lt; DH_PRIME-1)</p></li>
+      <li><p class="" style="">Calculate &quot;K&quot; where K = f ^ (x mod DH_PRIME).</p></li>
+      <li><p class="" style="">Compute SID (session id) exactly as Bob did above in Step 9.</p></li>
+      <li><p class="" style="">Verify the signed message digest (&quot;SIG&quot;) that Bob
+      provided, using his public key and SID.</p></li>
+    </ol>
+
+    <p class="" style="">At this point, Alice can be certain that the &quot;f&quot; value in the
+    IQ-result was actually generated by Bob, and in turn, can trust
+    that she has the same value for &quot;K&quot; that Bob does. This entire
+    trust system is based on Alice trusting that the public key
+    presented by Bob is <span style="font-style: italic">actually</span> Bob's key.  Depending on the
+    public key algorithm selected, determining this trust can be done
+    in a variety of ways. For instance, if PGP/GPG is in use Alice may
+    verify that Bob's key is signed by another key she knows to be
+    good. Or if they are using an X.509-based algorithm, she may
+    check that Bob's key has been signed by a trusted Certificate Authority (CA).</p>
+
+    <p class="" style="">With the Diffie-Helman negotiation complete and verified, Alice
+    and Bob can generate two sets of key data, one for each direction
+    of the ESession. For data that Alice will send to Bob (Alice -&gt;
+    Bob), the keys are calculated as:</p>
+    <ol start="15" type="">
+      <li><p class="" style="">IV (cipher vector) K-I1 = SHA-1(K, &quot;A&quot;, SID)</p></li>
+      <li><p class="" style="">Encryption Key K-E1 = SHA-1(K, &quot;C&quot;, SID)</p></li>
+      <li><p class="" style="">Integrity Key K-M1 = SHA-1(K, &quot;E&quot;, SID)</p></li>
+    </ol>
+    <p class="" style="">For data that Bob will send to Alice (Bob -&gt; Alice) the keys are calculated as:</p>
+    <ol start="18" type="">
+      <li><p class="" style="">IV (cipher vector) K-I2 = SHA-1(K, &quot;B&quot;, SID)</p></li>
+      <li><p class="" style="">Encryption Key K-E2 = SHA-1(K, &quot;D&quot;, SID)</p></li>
+      <li><p class="" style="">Integrity Key K-M2 = SHA-1(K, &quot;F&quot;, SID)</p></li>
+    </ol>
+
+    <p class="" style="">As described in the &quot;SSH Transport Layer Protocol&quot; specification (Section 5.2), key data
+    MUST be taken from the beginning of the hash output. 192 bits (24
+    bytes) SHOULD be used for algorithms with variable-length
+    keys. For other algorithms, as many bytes as are needed are taken
+    from the beginning of the hash value.  If the key length in longer
+    than the output of the hash, the key is extended by computing a
+    hash of the concatenation of K and H and the entire key so far,
+    and appending the resulting bytes (as many as the hash generates)
+    to the key.  This process is repeated until enough key material is
+    available; the key is taken from the beginning of this
+    value  [<a href="#nt-id2602709">11</a>]. In other words:
+      <p class="caption"></p>
+<div class="indent"><pre>
+        K-E1_1 = SHA-1(K, X, SID)   (X is e.g. &quot;A&quot;)
+        K-E1_2 = SHA-1(K, K1)
+        K-E1_3 = SHA-1(K, K1, K2)
+        ...
+        K-E1 = K-E1_1 || K-E1_2 || K-E1_3 || ...
+      </pre></div>
+    </p>
+
+    <p class="" style="">Note that for each key generated, the following inputs should be passed
+    into the SHA-1 hash function, using the formats specified below:
+      <p class="caption">Table 2: Key Hash Inputs</p>
+<table border="1" cellpadding="3" cellspacing="0">
+          <tr class="body">
+            <th colspan="" rowspan="">Data</th>
+            <th colspan="" rowspan="">Datatype</th>
+          </tr>
+          <tr class="body">
+            <td align="" colspan="" rowspan="">The value of &quot;K&quot;, as calculated above</td>
+            <td align="" colspan="" rowspan="">mpint</td>
+          </tr>
+          <tr class="body">
+            <td align="" colspan="" rowspan="">Literal value of &quot;A&quot;, &quot;B&quot;, etc.</td>
+            <td align="" colspan="" rowspan="">character (single-byte)</td>
+          </tr>
+          <tr class="body">
+            <td align="" colspan="" rowspan="">Value of &quot;SID&quot; (an output of another SHA-1 digest)</td>
+            <td align="" colspan="" rowspan="">raw SHA-1 digest</td>
+          </tr>
+        </table>
+    </p>
+    
+    <p class="" style="">With these keys computed and algorithms agreed upon, ESession
+    negotiation is now complete. From this point forward, Alice and
+    Bob MUST only exchange encrypted forms of directed &lt;message/&gt; and
+    &lt;iq/&gt; stanzas. Presence stanzas SHOULD NOT be encrypted, since
+    they are typically relayed by the server, which does not have the
+    key.</p>
+
+    <p class="" style="">Each side will now start a counter (&quot;C&quot;) which will be
+    incremented with each packet sent and received. This counter is used to prevent
+    replay attacks by ensuring that the MAC for a given packet never
+    repeats, even if the content of the packet is identical.</p>
+  <h2>6.
+       <a name="sect-id2602874">Exchanging Messages</a>
+</h2>
+    <p class="" style="">When Alice wants to send Bob a &lt;message/&gt; (such as the one in
+    Example 3) she will now take the following steps:</p>
+
+      <ol start="1" type="">
+        <li><p class="" style="">Construct the packet she wishes to send, and serialize
+        this packet (&quot;m&quot;).</p></li>
+      </ol>
+    <p class="caption">Example 3. Message to be encrypted</p>
+<div class="indent"><pre>
+&lt;message from='alice' to='bob' type='chat'&gt;
+  &lt;body&gt;Hello, Bob!&lt;/body&gt;
+&lt;/message&gt;
+</pre></div>
+    <ol start="2" type="">
+      <li>
+        <p class="" style="">Compress the serialization using the ZLIB compression format defined in <span class="ref">RFC 1950</span>  [<a href="#nt-id2603045">12</a>]. This
+          is a required step due to the large amount of repeated data
+          inherent in XML. Typically, the compression context will be
+          initialized after key exchange and is passed from one packet
+          to the next, with only a partial flush being performed at
+          the end of the packet.</p>
+        <p class="" style="">
+<p class="caption"></p>
+<div class="indent"><pre>m_compressed = zlib-compress(m)</pre></div>
+</p>
+      </li>
+      <li>
+        <p class="" style="">Random bytes of padding are now appended to the compressed
+        serialization, with the following constraints:
+          <ul>
+            <li>The total length of the compressed serialization and
+              the padding is a multiple of the cipher block
+              size.</li>
+            <li>There MUST NOT be more than 255 bytes of padding.</li> 
+            <li>The last block of data (as determined by cipher block size)
+              MUST only contain padding
+               [<a href="#nt-id2602999">13</a>].
+            </li>
+            <li>The last <span style="font-style: italic">byte</span> of padding must indicate how
+            many bytes of padding there are in total. The recipient
+            will use this to remove the padding after decryption, but
+            before feeding the data into the decompressor.</li>
+          </ul>
+        </p>
+        <p class="" style="">
+<p class="caption"></p>
+<div class="indent"><pre>m_padded = m_compressed + padding</pre></div>
+</p>
+      </li>
+      <li>
+        <p class="" style="">The resulting data from Step 3 is now processed through the
+        selected MAC algorithm (&quot;mac-algo&quot;), along with the MAC key
+        (&quot;K-M1&quot;) and the current value of the packet counter
+        (&quot;C&quot;).</p>
+        <p class="" style="">
+<p class="caption"></p>
+<div class="indent"><pre>m_mac = mac-algo(K-M1, C, m_padded)</pre></div>
+</p>
+      </li>
+      <li>
+        <p class="" style="">Finally, the data from Step 3 will be encrypted with the
+        selected algorithm (&quot;cipher-algo&quot;), using the encryption
+        key.</p>
+        <p class="" style="">
+<p class="caption"></p>
+<div class="indent"><pre>m_final = cipher-algo-encrypt(K-E1, m_padded)</pre></div>
+</p>
+      </li>
+    </ol>
+
+    <p class="" style="">Alice will now wrap m_mac and m_final in a &lt;message/&gt; packet and
+    transmit it directly to Bob's address (fully-qualified):</p>
+
+    <p class="caption">Example 4. Encrypted message</p>
+<div class="indent"><pre>
+&lt;message from='alice' to='bob' 
+	 xmlns:enc='http://jabber.org/protocol/esession#data'&gt;
+  &lt;enc:data&gt; ** base64 encoded m_final ** &lt;/enc:data&gt;
+  &lt;enc:mac&gt; ** base64 encoded m_mac ** &lt;/enc:mac&gt;
+&lt;/message&gt;
+    </pre></div>
+
+    <p class="" style="">When Bob recieves the packet from Alice, he will extract the
+    m_final and m_mac from the message and perform the following
+    steps:</p>
+    <ol start="1" type="">
+      <li>
+        <p class="" style="">Decrypt m_final using the selected cipher and K-M1</p>
+        <p class="" style="">
+<p class="caption"></p>
+<div class="indent"><pre>r_padded = cipher-algo-decrypt(K-E1, m_final)</pre></div>
+</p>
+      </li>
+      <li>
+        <p class="" style="">Calculate the MAC for the decrypted data</p>
+        <p class="" style="">
+<p class="caption"></p>
+<div class="indent"><pre>r_mac = mac-algo(K-M1, C, r_padded)</pre></div>
+</p>
+      </li>
+      <li>
+        <p class="" style="">Compare r_mac and m_mac; they MUST match. If they do not
+        match, the message has been tampered with and SHOULD be
+        bounced with a Bad Request error. Additionally, Bob
+        MUST invalidate the ESession (since if a packet was
+        dropped or delivered out of order, it will be impossible to
+        recover the contents, as ZLIB stream would be in an
+        inconsistent state).</p>
+
+        <p class="" style="">
+<p class="caption"></p>
+<div class="indent"><pre>assert(r_mac == m_mac)</pre></div>
+</p>
+      </li>
+      <li>Strip off &quot;n&quot; bytes of padding, determined by the last byte
+      in the decrypted data.
+        <p class="caption"></p>
+<div class="indent"><pre>n = last-byte-of(r_padded)</pre></div>
+        <p class="caption"></p>
+<div class="indent"><pre>r_compressed = left(r_padded, len(r_padded) - n)</pre></div>
+      </li>
+      <li>
+        <p class="" style="">Decompress r_padded via ZLIB</p>
+        <p class="" style="">
+<p class="caption"></p>
+<div class="indent"><pre>r = zlib-decompress(r_padded)</pre></div>
+</p>
+      </li>
+      <li>
+        <p class="" style="">Bob will now take r and feed it into an XML parser to
+        transform the raw bytes into a useable, parsed XML form.</p>
+      </li>
+    </ol>
+  <h2>7.
+       <a name="sect-id2603297">Public Key Algorithms</a>
+</h2>
+    <p class="" style="">ESession supports two public key algorithms initially:
+      <ul>
+        <li>esession-dss: a Digital Signature Standard [FIPS-186]
+          based signature and verification key</li>
+        <li>esession-rsa: a RSA (PKCS-1) bases signature and
+          verification key</li>
+      </ul>
+    </p>
+  <h2>8.
+       <a name="sect-id2603333">Security Considerations</a>
+</h2>
+    <p class="" style="">To follow.</p>
+  <h2>9.
+       <a name="sect-id2603352">IANA Considerations</a>
+</h2>
+    <p class="" style="">This JEP requires no interaction with the <span class="ref">Internet Assigned Numbers Authority (IANA)</span>  [<a href="#nt-id2603470">14</a>]. </p>
+  <h2>10.
+       <a name="sect-id2603370">Jabber Registrar Considerations</a>
+</h2>
+    <div class="indent">
+<h3>10.1 <a name="sect-id2603382">Namespaces</a>
+</h3>
+      <p class="" style="">Upon approval of this JEP, the <span class="ref">Jabber Registrar</span>  [<a href="#nt-id2603419">15</a>] shall register the following namespaces:</p>
+      <ul>
+        <li>'http://jabber.org/protocol/esession'</li>
+        <li>'http://jabber.org/protocol/esession#data'</li>
+      </ul>
+    </div>
+    <div class="indent">
+<h3>10.2 <a name="sect-id2603444">Field Standardization</a>
+</h3>
+      <p class="" style="">The Jabber Registrar shall reserve the following fields within the scope of Data Forms used for ESession negotation:</p>
+      <p class="caption">Registry Submission</p>
+<div class="indent"><pre>
+&lt;form_type&gt;
+  &lt;name&gt;http://jabber.org/protocol/esession&lt;/name&gt;
+  &lt;jep&gt;JEP-0116&lt;/jep&gt;
+  &lt;desc&gt;ESession negotiation forms&lt;/desc&gt;
+  &lt;field 
+      var='cipher-algo'
+      type='list-single'
+      label='Cipher algorithm options'/&gt;
+  &lt;field 
+      var='key-algo'
+      type='list-single'
+      label='Public key algorithm options'/&gt;
+  &lt;field 
+      var='mac-algo'
+      type='list-single'
+      label='Message authentication code algorithm options'/&gt;
+&lt;/form_type&gt;
+      </pre></div>
+    </div>
+  <h2>11.
+       <a name="sect-id2603503">XML Schemas</a>
+</h2>
+    <p class="" style="">To follow.</p>
+  <h2>12.
+       <a name="sect-id2603529">Open Issues</a>
+</h2>
+    <ol start="" type="">
+      <li>Address encoding issues.</li>
+      <li>Specify how to handle namespaces.</li>
+      <li>Specify that clients should use multiple XML parser instances to guard against presence of non-well-formed XML (not checked by server).</li>
+      <li>Address offline message handling, if any.</li>
+      <li>Define session tear-down.</li>
+      <li>Discuss public key algorithms and formats in greater detail.</li>
+    </ol>
+  <p><hr></p>
+<a name="notes"></a><h2>Notes</h2>
+<p>
+<a name="nt-id2596077">1</a>. JEP-0027: Current Jabber OpenPGP Usage &lt;<a href="http://www.jabber.org/jeps/jep-0027.html">http://www.jabber.org/jeps/jep-0027.html</a>&gt;.</p>
+<p>
+<a name="nt-id2596184">2</a>. RFC 2412: The OAKLEY Key Determination Protocol &lt;<a href="http://www.ietf.org/rfc/rfc2412.txt">http://www.ietf.org/rfc/rfc2412.txt</a>&gt;.</p>
+<p>
+<a name="nt-id2596209">3</a>. RFC 3526: More Modular Exponential (MODP) Diffie-Hellman Groups &lt;<a href="http://www.ietf.org/rfc/rfc3526.txt">http://www.ietf.org/rfc/rfc3526.txt</a>&gt;.</p>
+<p>
+<a name="nt-id2596238">4</a>. SSH Transport Layer Protocol &lt;<a href="http://www.ietf.org/internet-drafts/draft-ietf-secsh-transport-17.txt">http://www.ietf.org/internet-drafts/draft-ietf-secsh-transport-17.txt</a>&gt;. Work in progress.</p>
+<p>
+<a name="nt-id2596261">5</a>. SSH Protocol Architecture &lt;<a href="http://www.ietf.org/internet-drafts/draft-ietf-secsh-architecture-15.txt">http://www.ietf.org/internet-drafts/draft-ietf-secsh-architecture-15.txt</a>&gt;. Work in progress.</p>
+<p>
+<a name="nt-id2596296">6</a>. JEP-0004: Data Forms &lt;<a href="http://www.jabber.org/jeps/jep-0004.html">http://www.jabber.org/jeps/jep-0004.html</a>&gt;.</p>
+<p>
+<a name="nt-id2601776">7</a>. JEP-0020: Feature Negotiation &lt;<a href="http://www.jabber.org/jeps/jep-0020.html">http://www.jabber.org/jeps/jep-0020.html</a>&gt;.</p>
+<p>
+<a name="nt-id2601796">8</a>. JEP-0030: Service Discovery &lt;<a href="http://www.jabber.org/jeps/jep-0030.html">http://www.jabber.org/jeps/jep-0030.html</a>&gt;.</p>
+<p>
+<a name="nt-id2601819">9</a>. JEP-0068: Field Data Standardization for Data Forms &lt;<a href="http://www.jabber.org/jeps/jep-0068.html">http://www.jabber.org/jeps/jep-0068.html</a>&gt;.</p>
+<p>
+<a name="nt-id2595752">10</a>. The SID must NEVER be transmitted between Alice and Bob;
+          they should both be able to derive the same value.</p>
+<p>
+<a name="nt-id2602709">11</a>. As noted in &quot;SSH Transport Layer Protocol&quot;, this process will lose entropy if the amount of
+    entropy in K is larger than the internal state size of
+    SHA-1.</p>
+<p>
+<a name="nt-id2603045">12</a>. RFC 1950: ZLIB Compressed Data Format Specification version 3.3 &lt;<a href="http://www.ietf.org/rfc/rfc1950.txt">http://www.ietf.org/rfc/rfc1950.txt</a>&gt;.</p>
+<p>
+<a name="nt-id2602999">13</a>. This helps protect against attacks on the last
+                cipher block, since it will contain only random
+                data</p>
+<p>
+<a name="nt-id2603470">14</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p>
+<p>
+<a name="nt-id2603419">15</a>. The Jabber Registrar maintains a list of reserved Jabber protocol namespaces as well as registries of parameters used in the context of protocols approved by the Jabber Software Foundation. For further information, see &lt;<a href="http://www.jabber.org/registrar/">http://www.jabber.org/registrar/</a>&gt;.</p>
+<p><hr></p>
+<a name="revs"></a><h2>Revision History</h2>
+<div class="indent">
+<h4>Version 0.2 (2004-07-26)</h4>
+<div class="indent">At the request of the JEP author, changed status to Retracted. (psa)
+    </div>
+<h4>Version 0.1 (2003-09-09)</h4>
+<div class="indent">Initial Version (diz)
+    </div>
+</div>
+<p><hr></p>
+<p>END</p>
+</body>
+</html>
