@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0503: Server-side spaces</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0503";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="Server-side spaces"><meta name="DC.Creator" content="Nicolas Cedilnik"><meta name="DC.Creator" content="Timothée Jaussoin"><meta name="DC.Description" content="This document defines an XMPP protocol to cluster
+    several groupchat rooms together."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2025-09-13"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0503"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0503: Server-side spaces</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This document defines an XMPP protocol to cluster
+    several groupchat rooms together.</dd><dt>Authors</dt><dd><ul class="authors"><li>Nicolas Cedilnik</li><li>Timothée Jaussoin</li></ul></dd><dt>Copyright</dt><dd>© 2025 – 2025 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.2.0 (2025-09-13)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#terminology">Terminology</a></li><li><a href="#node-config">Node Configuration</a></li><li><a href="#node-config">Discovering support</a></li><li><a href="#protocol">Protocol</a><ol><li><a href="#list-spaces">Fetching spaces from a spaces service</a></li><li><a href="#space-metadata">Fetching the metadata associated to a space</a></li><li><a href="#join-space">Joining a space</a></li><li><a href="#space-content">Discovering the content of a space</a></li><li><a href="#membership-advertising">Advertising space membership</a></li></ol></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-ns">Protocol Namespaces</a></li></ol></li><li><a href="#security">Security considerations</a></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">A single group chat room is not always enough.</p>
+    <p class="" style="">In various situations, one wishes to have several rooms (or even other entities) clustered together around a common
+      theme. For instance, large open source software projects use different rooms for user support,
+      development, announcements (examples: Slack's <em>
+      workspaces</em>, Discord's <em>servers</em>, Mattermost's <em>teams</em>, WhatsApp's <em>
+      communities</em>, Matrix's <em>spaces</em>). For the purpose of this document, let us call such group of entities under the umbrella term "spaces".</p>
+    <p class="" style="">This clustering is already possible by setting up a dedicated MUC Service (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id15">1</a>])
+      to group several rooms, but existing implementations of MUC service leave that option the administrators only.
+      This specification proposes to use the semantics of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-id16">2</a>] for spaces that:</p>
+    <ul class="" style="">
+      <li class="" style="">are groupchat protocol-independent;</li>
+      <li class="" style="">allow other types of entities than rooms (such as pubsub nodes);</li>
+      <li class="" style="">allow several spaces on a single pubsub service;</li>
+      <li class="" style="">allow entities to subscribe to updates of the space content;</li>
+      <li class="" style="">can be managed by users and not only administrators of a service.</li>
+    </ul>
+    <p class="" style="">Since there are many subtle variations over the concept of <em>spaces</em>, this
+      specification voluntarily <strong>does not cover</strong> access control, permissions,
+      membership inside a <em> space</em> and its children entities. Similarly, it does not describe
+      how a <em>space</em> holding entities hosted on several services in the federated XMPP
+      network would work (but it does not forbid it). It aims at being a lowest common denominator
+      for all sort of <em>spaces</em> to be built on.</p>
+  <h2 id="terminology">2.
+       Terminology<a class="anchor-link" href="#terminology"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <ul class="" style="">
+      <li class="" style="">A <em>space</em> is a pubsub node (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-id16">2</a>]) acting as the "parent" of several related rooms and other entities.</li>
+      <li class="" style="">A <em>spaces service</em> is a pubsub service that contains <em>spaces</em>, i.e.,
+        it is the parent of multiple <em>spaces</em>.</li>
+    </ul>
+  <h2 id="node-config">3.
+       Node Configuration<a class="anchor-link" href="#node-config"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">To be effectively usable as a space, a pubsub node must be configured in the way described by the following table below. We here introduce the notion of space <em>exposure</em>. A space can be <strong>public</strong>, meant to be joinable by anyone; or <strong>private</strong>, meant to be joined at the discretion of the node owner.</p>
+    <figure class="table"><figcaption id="table-1"><strong>Table 1:</strong> Pubsub node configuration for any type of space<a class="anchor-link" href="#table-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+      <tr class="body">
+        <th colspan="" rowspan="">field</th>
+        <th colspan="" rowspan="">requirement</th>
+        <th colspan="" rowspan="">value</th>
+        <th colspan="" rowspan="">exposure</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pubsub#type</td>
+        <td align="" colspan="" rowspan="">MUST</td>
+        <td align="" colspan="" rowspan="">urn:xmpp:spaces:0</td>
+        <td align="" colspan="" rowspan="">any</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pubsub#notify_retract</td>
+        <td align="" colspan="" rowspan="">MUST</td>
+        <td align="" colspan="" rowspan="">true</td>
+        <td align="" colspan="" rowspan="">any</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pubsub#persist_items</td>
+        <td align="" colspan="" rowspan="">MUST</td>
+        <td align="" colspan="" rowspan="">true</td>
+        <td align="" colspan="" rowspan="">any</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pubsub#purge_offline</td>
+        <td align="" colspan="" rowspan="">MUST</td>
+        <td align="" colspan="" rowspan="">false</td>
+        <td align="" colspan="" rowspan="">any</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pubsub#notify_sub</td>
+        <td align="" colspan="" rowspan="">SHOULD</td>
+        <td align="" colspan="" rowspan="">true</td>
+        <td align="" colspan="" rowspan="">any</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pubsub#notify_config</td>
+        <td align="" colspan="" rowspan="">SHOULD</td>
+        <td align="" colspan="" rowspan="">true</td>
+        <td align="" colspan="" rowspan="">any</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pubsub#notify_delete</td>
+        <td align="" colspan="" rowspan="">SHOULD</td>
+        <td align="" colspan="" rowspan="">true</td>
+        <td align="" colspan="" rowspan="">any</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pubsub#publish_model</td>
+        <td align="" colspan="" rowspan="">SHOULD NOT</td>
+        <td align="" colspan="" rowspan="">open</td>
+        <td align="" colspan="" rowspan="">any</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pubsub#access_model</td>
+        <td align="" colspan="" rowspan="">MUST</td>
+        <td align="" colspan="" rowspan="">open</td>
+        <td align="" colspan="" rowspan="">public</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">pubsub#access_model</td>
+        <td align="" colspan="" rowspan="">MUST</td>
+        <td align="" colspan="" rowspan="">authorize or whitelist</td>
+        <td align="" colspan="" rowspan="">private</td>
+      </tr>
+    </table></figure>
+    <p class="" style="">NB: this specification is made to be fully compatible with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-id16">2</a>] without special server support. Ideally, additional functionality, yet to be described in subsequent specifications, would allow:</p>
+    <ul class="" style="">
+      <li class="" style="">To notify the subscribers of a space node of new subscriptions (and not just the owner). This is especially useful for private spaces.</li>
+      <li class="" style="">To ensure that a private space node is hidden from the list of nodes of a pubsub service, similar to the <code>muc#roomconfig_publicroom</code> configuration option for <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id15">1</a>].</li>
+    </ul>
+  <h2 id="node-config">4.
+       Discovering support<a class="anchor-link" href="#node-config"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">In order to act as a space service, a pubsub service MUST implement and advertise in its <code>disco#info</code> (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id17">3</a>]) the following features described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-id16">2</a>] (prepended by http://jabber.org/protocol/pubsub#):</p>
+    <ul class="" style="">
+      <li class="" style="">subscribe</li>
+      <li class="" style="">create-nodes</li>
+      <li class="" style="">delete-nodes</li>
+      <li class="" style="">config-node</li>
+      <li class="" style="">meta-data</li>
+      <li class="" style="">delete-items</li>
+      <li class="" style="">retract-items</li>
+      <li class="" style="">multi-items</li>
+      <li class="" style="">item-ids</li>
+      <li class="" style="">manage-subscriptions</li>
+      <li class="" style="">retrieve-items</li>
+    </ul>
+    <p class="" style="">For better usability, it SHOULD also implement:</p>
+    <ul class="" style="">
+      <li class="" style="">member-affiliation</li>
+      <li class="" style="">modify-affiliations</li>
+      <li class="" style="">retrieve-affiliations</li>
+      <li class="" style="">get-pending</li>
+    </ul>
+  <h2 id="protocol">5.
+       Protocol<a class="anchor-link" href="#protocol"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <div class="indent"><h3 id="list-spaces">5.1 Fetching spaces from a spaces service<a class="anchor-link" href="#list-spaces"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">Fetching the list of <em>spaces</em> hosted on a <em>spaces service</em> is done via a <code>
+        disco#items</code> (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id17">3</a>]) request directed at the pubsub service JID.
+        If supported by the server and/or if the pubsub component holds pubsub nodes that are not spaces,
+        <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0462.html">PubSub Type Filtering (XEP-0462)</a></span>  [<a href="#nt-id18">4</a>] support might come in handy.</p>
+      <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Querying the list of spaces<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='emacs-user@megacorp.example.com/cool-client'
+    to='megacorp-pubsub.example.com'
+    id='spaces-items'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#items'&gt;
+    &lt;!-- Optional filter, if supported --&gt;
+    &lt;filter xmlns='urn:xmpp:pubsub-filter:0'&gt;
+      &lt;x xmlns='jabber:x:data' type='submit'&gt;
+        &lt;field var='FORM_TYPE' type='hidden'&gt;
+          &lt;value&gt;urn:xmpp:pubsub-filter:0&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field type='list-multi' var='included-types'&gt;
+          &lt;value&gt;urn:xmpp:spaces:0&lt;/value&gt;
+          &lt;value/&gt;
+        &lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/filter&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+      <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Space Service responds with the list of spaces it hosts<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    to='emacs-user@megacorp.example.com/cool-client'
+    from='megacorp-pubsub.example.com'
+    id='spaces-items'&gt;
+  &lt;item jid='megacorp-pubsub.example.com'
+        node='dev'
+        name='The developers corner'/&gt;
+  &lt;item jid='megacorp-pubsub.example.com'
+        node='sales'
+        name='Sales team'/&gt;
+  &lt;item jid='megacorp-pubsub.example.com'
+        node='management'
+        name='The bosses lounge'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    </div>
+    <div class="indent"><h3 id="space-metadata">5.2 Fetching the metadata associated to a space<a class="anchor-link" href="#space-metadata"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">Getting more information about a specific space relies on the standard pubsub mechanism to do so, i.e., a <code>disco#info</code> request directed at the space node.</p>
+      <p class="" style="">If the spaces service supports <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0499.html">Pubsub Extended Discovery (XEP-0499)</a></span> [<a href="#nt-id19">5</a>] it could be used to reduce the number of roundtrips, by fetching metadata along with with the <code>disco#items</code> request of the previous section.</p>
+      <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Querying a space metadata<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='emacs-user@megacorp.example.com/cool-client'
+    to='megacorp-pubsub.example.com'
+    id='space-metadata'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'
+         node='dev'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+      <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Space service responds with space metadata<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    from='megacorp-pubsub.example.com'
+    to='emacs-user@megacorp.example.com/cool-client'
+    id='space-metadata'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'
+         node='dev'&gt;
+    &lt;identity category='pubsub' type='leaf'/&gt;
+    &lt;feature var='http://jabber.org/protocol/pubsub'/&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field var='FORM_TYPE' type='hidden'&gt;
+        &lt;value&gt;http://jabber.org/protocol/pubsub#meta-data&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='pubsub#type'&gt;
+        &lt;value&gt;urn:xmpp:spaces:0&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='pubsub#creator' label='Node creator' type='jid-single'&gt;
+        &lt;value&gt;lead-dev@megacorp.example.com&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='pubsub#title'&gt;
+        &lt;value&gt;The developers corner&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='pubsub#owner' label='Node owners' type='jid-multi'&gt;
+        &lt;value&gt;lead-dev@megacorp.example.com&lt;/value&gt;
+        &lt;value&gt;lead-dev-friend@megacorp.example.com&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;!-- other fields of the pubsub#meta-data FORM_TYPE !--&gt;
+    &lt;/x&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+    </div>
+    <div class="indent"><h3 id="join-space">5.3 Joining a space<a class="anchor-link" href="#join-space"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">Joining a space is equivalent to subscribing to a pubsub node, as described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-id16">2</a>].
+      If the pubsub service supports <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0497.html">Pubsub Extended Subscriptions (XEP-0497)</a></span> [<a href="#nt-id20">6</a>], clients SHOULD also subscribe to the metadata updates of this node.
+      After a successful join, a client may decide to use <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0330.html">Pubsub Subscription (XEP-0330)</a></span>  [<a href="#nt-id21">7</a>] or <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0465.html">Pubsub Public Subscriptions (XEP-0465)</a></span>  [<a href="#nt-id22">8</a>] to advertise its subscriptions.</p>
+    </div>
+    <div class="indent"><h3 id="space-content">5.4 Discovering the content of a space<a class="anchor-link" href="#space-content"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">Discovering the children of a space uses the pubsub/items (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-id16">2</a>]) query directed a the node. The items can represent different entities, wrapped in appropriate elements. Chat rooms SHOULD be wrapped in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0402.html">PEP Native Bookmarks (XEP-0402)</a></span>  [<a href="#nt-id23">9</a>], which extensibility allows adding additional information that are useful for client to adapt their user interface, e.g. specifying that a given MUC is a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0272.html">Multiparty Jingle (XEP-0272)</a></span>  [<a href="#nt-id24">10</a>], or that its access is restricted to a specific subset of members of the space. Pubsub nodes SHOULD be wrapped in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0330.html">Pubsub Subscription (XEP-0330)</a></span>  [<a href="#nt-id21">7</a>] <code>&lt;subscription&gt;</code> elements. Other types of entities can be present and MUST be ignored by unsupporting clients.</p>
+      <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Querying space for its content<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='emacs-user@megacorp.example.com/cool-client'
+    to='megacorp-pubsub.example.com'
+    id='space-items'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='dev' /&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;</pre></figure>
+<figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Space service responds with space content<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    from='megacorp-pubsub.example.com'
+    to='emacs-user@megacorp.example.com/cool-client'
+    id='space-items'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='dev'&gt;
+      &lt;item id='boring-software@conference.megacorp.example.com'&gt;
+        &lt;conference xmlns='urn:xmpp:bookmarks:1'
+                    name='ERP 3000'
+                    autojoin='true' /&gt;
+      &lt;/item&gt;
+      &lt;item id='programming-socks@conference.megacorp.example.com'&gt;
+        &lt;conference xmlns='urn:xmpp:bookmarks:1'
+                    name='Share your best programming socks deal HERE'&gt;
+          &lt;extensions&gt;
+            &lt;pinned xmlns='urn:xmpp:bookmarks-pinning:0'/&gt;
+          &lt;/extensions&gt;
+        &lt;/conference&gt;
+      &lt;/item&gt;
+      &lt;item id='editors@conference.megacorp.example.com'&gt;
+        &lt;conference xmlns='urn:xmpp:bookmarks:1'
+                    name='Settling the text editor wars'&gt;
+        &lt;/conference&gt;
+      &lt;/item&gt;
+      &lt;item id='https://megacorp.example.com/dev-team-presentation'&gt;
+        &lt;x xmlns='jabber:x:oob'&gt;
+          &lt;url&gt;https://megacorp.example.com/dev-team-presentation&lt;/url&gt;
+        &lt;/x&gt;
+      &lt;/item&gt;
+      &lt;item id='some-hash'&gt;
+        &lt;subscription xmlns="urn:xmpp:pubsub:subscription:0"
+                      server="megacorp-pubsub.example.com"
+                      node="dev-announcements" /&gt;
+      &lt;/item&gt;
+      &lt;!-- other items --&gt;
+    &lt;/items&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">According to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-id16">2</a>], all items of the space are returned, but <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0496.html">Pubsub Node Relationships (XEP-0496)</a></span> [<a href="#nt-id25">11</a>] could be used to define a more complex hierarchy of items, e.g., chat rooms restricted to the owners and not discoverable by other users.</p>
+    </div>
+    <div class="indent"><h3 id="membership-advertising">5.5 Advertising space membership<a class="anchor-link" href="#membership-advertising"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">All entities that are part of a space SHOULD advertise their parent in their disco#info and the 'urn:xmpp:spaces:0' feature. This is useful if an entity wants to advertise the "official" space it is part of, and to help discoverability of related entities. To verify that an entity is effectively part of a space it advertises, the disco#items of the advertised node can be queried.</p>
+      <p class="" style="">To advertise their parent, entities SHOULD include a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0004.html">Data Forms (XEP-0004)</a></span>  [<a href="#nt-id26">12</a>] of type urn:xmpp:spaces:0 with a <code>parent</code> field of type <code>text-single</code>.</p>
+      <p class="" style="">In the case of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id15">1</a>], the <code>muc#roominfo_pubsub</code> field SHOULD point to the space node IRI for backwards compatibility of this specification with existing MUC services implementations.</p>
+      <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Querying a MUC information<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='emacs-user@megacorp.example.com/cool-client'
+    to='programming-socks@conference.megacorp.example.com'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;
+</pre></figure><figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> MUC reply, including its parent space<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='programming-socks@conference.megacorp.example.com'
+    to='emacs-user@megacorp.example.com/cool-client'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+  &lt;!-- [...] --&gt;
+  &lt;feature var='urn:xmpp:spaces:0'/&gt;
+  &lt;x xmlns='jabber:x:data' type='result'&gt;
+    &lt;field var='FORM_TYPE' type='hidden'&gt;
+      &lt;value&gt;urn:xmpp:spaces:0&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;field var='parent' label='Space parent''&gt;
+      &lt;value&gt;xmpp:megacorp-pubsub.example.com?;node=dev&lt;/value&gt;
+    &lt;/field&gt;
+  &lt;/x&gt;
+  &lt;x xmlns='jabber:x:data' type='result'&gt;
+    &lt;field var='FORM_TYPE' type='hidden'&gt;
+      &lt;value&gt;http://jabber.org/protocol/muc#roominfo&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;!-- ... --&gt;
+    &lt;field var='muc#roominfo_pubsub' label='Associated pubsub node'&gt;
+      &lt;value&gt;xmpp:megacorp-pubsub.example.com?;node=dev&lt;/value&gt;
+    &lt;/field&gt;
+  &lt;/x&gt;
+&lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+    </div>
+  <h2 id="registrar">6.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <div class="indent"><h3 id="registrar-ns">6.1 Protocol Namespaces<a class="anchor-link" href="#registrar-ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">New namespace "urn:xmpp:spaces:0"</p>
+    </div>
+  <h2 id="security">7.
+       Security considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">Security considerations are related to access control, and are out of scope of this document.</p>
+  <h2 id="schema">8.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">No new schema is defined in this document.</p>
+  <hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0503</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.2.0</dd><dt>Last Updated</dt><dd>2025-09-13</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, XMPP IM</dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>spaces</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0503.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0503.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0503.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Nicolas Cedilnik</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:nicoco@nicoco.fr">nicoco@nicoco.fr</a></dd><dt>JabberID</dt><dd><a href="xmpp:nicoco@nicoco.fr">nicoco@nicoco.fr</a></dd></dl><h5>Timothée Jaussoin</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:edhelas@movim.eu">edhelas@movim.eu</a></dd><dt>JabberID</dt><dd><a href="xmpp:edhelas@movim.eu">edhelas@movim.eu</a></dd><dt>URI</dt><dd><a href="https://edhelas.movim.eu">https://edhelas.movim.eu</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">
+          The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED",
+          "MAY", and "OPTIONAL" in this document are to be interpreted as
+          described in <a href="https://tools.ietf.org/rfc/bcp/bcp14.txt">BCP 14</a>
+          [<a href="https://www.ietf.org/rfc/rfc2119.txt">RFC2119</a>]
+          [<a href="https://tools.ietf.org/rfc/rfc8174.txt">RFC8174</a>] when,
+          and only when, they appear in all capitals, as shown here.
+        </p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id15">1</a>. XEP-0045: Multi-User Chat &lt;<a href="https://xmpp.org/extensions/xep-0045.html">https://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-id16">2</a>. XEP-0060: Publish-Subscribe &lt;<a href="https://xmpp.org/extensions/xep-0060.html">https://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-id17">3</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id18">4</a>. XEP-0462: PubSub Type Filtering &lt;<a href="https://xmpp.org/extensions/xep-0462.html">https://xmpp.org/extensions/xep-0462.html</a>&gt;.</p><p><a name="nt-id19">5</a>. XEP-0499: Pubsub Extended Discovery &lt;<a href="https://xmpp.org/extensions/xep-0499.html">https://xmpp.org/extensions/xep-0499.html</a>&gt;.</p><p><a name="nt-id20">6</a>. XEP-0497: Pubsub Extended Subscriptions &lt;<a href="https://xmpp.org/extensions/xep-0497.html">https://xmpp.org/extensions/xep-0497.html</a>&gt;.</p><p><a name="nt-id21">7</a>. XEP-0330: Pubsub Subscription &lt;<a href="https://xmpp.org/extensions/xep-0330.html">https://xmpp.org/extensions/xep-0330.html</a>&gt;.</p><p><a name="nt-id22">8</a>. XEP-0465: Pubsub Public Subscriptions &lt;<a href="https://xmpp.org/extensions/xep-0465.html">https://xmpp.org/extensions/xep-0465.html</a>&gt;.</p><p><a name="nt-id23">9</a>. XEP-0402: PEP Native Bookmarks &lt;<a href="https://xmpp.org/extensions/xep-0402.html">https://xmpp.org/extensions/xep-0402.html</a>&gt;.</p><p><a name="nt-id24">10</a>. XEP-0272: Multiparty Jingle &lt;<a href="https://xmpp.org/extensions/xep-0272.html">https://xmpp.org/extensions/xep-0272.html</a>&gt;.</p><p><a name="nt-id25">11</a>. XEP-0496: Pubsub Node Relationships &lt;<a href="https://xmpp.org/extensions/xep-0496.html">https://xmpp.org/extensions/xep-0496.html</a>&gt;.</p><p><a name="nt-id26">12</a>. XEP-0004: Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0004.html">https://xmpp.org/extensions/xep-0004.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.2.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0503-0.2.0.html">0.2.0</a> (2025-09-13)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Rewrite using pubsub semantics.</p>
+    <div class="revision-author">nc</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0503-0.1.0.html">0.1.0</a> (2025-03-11)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Promoted to Experimental</p>
+    <div class="revision-author">XEP Editor: dg</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0503-0.0.1.html">0.0.1</a> (2025-02-23)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial version.</p><div class="revision-author">nc</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{cedilnik2025spaces,
+  title = {Server-side spaces},
+  author = {Cedilnik, Nicolas and Jaussoin, Timothée},
+  type = {XEP},
+  number = {0503},
+  version = {0.2.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0503.html},
+  date = {2025-02-23/2025-09-13},
+}</pre><p>END</p></body></html>
