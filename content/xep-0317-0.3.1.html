@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0317: Hats</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0317";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="Hats"><meta name="DC.Creator" content="Peter Saint-Andre"><meta name="DC.Creator" content="Matthew Wild"><meta name="DC.Creator" content="Timothée Jaussoin"><meta name="DC.Description" content="This specification defines a more extensible model for roles and affiliations in Multi-User Chat rooms."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2025-08-18"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0317"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0317: Hats</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification defines a more extensible model for roles and affiliations in Multi-User Chat rooms.</dd><dt>Authors</dt><dd><ul class="authors"><li>Peter Saint-Andre</li><li>Matthew Wild</li><li>Timothée Jaussoin</li></ul></dd><dt>Copyright</dt><dd>© 2012 – 2025 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.3.1 (2025-08-18)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#disco">Discovery</a></li><li><a href="#protocol">Protocol</a><ol><li><a href="#presence">Hats in Presence</a></li><li><a href="#create">Creating and Updating a Hat</a></li><li><a href="#destroy">Destroying a Hat</a></li><li><a href="#sect-id7">Listing Hats</a></li><li><a href="#add">Assigning a Hat</a></li><li><a href="#remove">Removing a Hat</a></li><li><a href="#sect-id10">Listing Assigned Hats</a></li><li><a href="#registrar-formtype">Field Standardization</a></li></ol></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-protocol">Protocol Namespaces</a></li></ol></li><li><a href="#schema">XML Schema</a></li><li><a href="#acks">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id18">1</a>] defines a widely-implemented XMPP extension for chatrooms, including basic roles and affiliations such as owner, administrator, and moderator. However, in many scenarios it is desirable to define different roles that are appropriate for the relevant application. Examples might include a "presenter" or a "scribe" in an online meeting system, a "representative" or a "manager" in a customer service application, a "comms officer" in a military chat system, an "incident manager" in a first responder system, a "teacher" or a "teacher's assistant" in an online classroom, specialized roles in online games, etc. To prevent confusion with standard MUC roles, these extended roles are call "hats", since a participant can "wear many hats" in a room.</p>
+<h2 id="disco">2.
+       Discovery<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">A room in a MUC service that supports hats MUST advertise a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id19">2</a>] feature of "urn:xmpp:hats:0" to the requesting entity.</p>
+
+  <p class="" style="">The "hat list" and all associated commands are OPTIONAL. Some of the commands might be restricted by some business logic or internal rules (such as a LDAP configuration where the hats are already preconfigured).</p>
+
+  <p class="" style="">If the room has a list of hats configured, it should advertise it in its 'muc#roominfo' extension form by computing a unique hash based on the list of hats URIs provided. The way the hash is computed is left to the implementer.</p>
+
+  <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> User’s client discovers the hat features of a MUC room<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='professor@example.edu/office'
+    id='p87Ne'
+    to='physicsforpoets@courses.example.edu'
+    type='get'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;</pre></figure>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Room advertises hats support<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='physicsforpoets@courses.example.edu'
+    id='p87Ne'
+    to='professor@example.edu/office'
+    type='result'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    &lt;identity
+        category='conference'
+        type='text'
+        name='Shakespearean Chat Service'/&gt;
+    &lt;feature var='urn:xmpp:hats:0'/&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;field var='FORM_TYPE' type='hidden'&gt;
+        &lt;value&gt;http://jabber.org/protocol/muc#roominfo&lt;/value&gt;
+      &lt;/field&gt;
+      ...
+      &lt;field var='hats#hash'
+             type='text-single'
+             label='Hats hash'&gt;
+        &lt;value&gt;d0f8d96ef806c440d4d2bce0bb56244540fd292f&lt;/value&gt;
+      &lt;/field&gt;
+      ...
+    &lt;/x&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></figure>
+
+<p class="" style="">If the requesting entity detects that, based on a mismatching hash, the localy stored hats list is considered outdated.</p>
+
+<h2 id="protocol">3.
+       Protocol<a class="anchor-link" href="#protocol"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="presence">3.1 Hats in Presence<a class="anchor-link" href="#presence"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">MUC already includes a way for the room to signal the roles and affiliations of room occupants. Hats are signalled in a similar way. A participant can wear many hats. The following example shows a participant who is a MUC room owner and both a "host" and a "presenter" in an online meeting system. This system also demonstrates how hats can be annotated with custom information (here, the example &lt;badge/&gt; element).</p>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Presence With Multiple Hats<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence
+    from='meeting123@meetings.example.com/Harry'
+    id='D568A74F-E062-407C-83E9-531E91526516'
+    to='someone@example.com/foo'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'&gt;
+    &lt;item affiliation='owner' role='moderator'/&gt;
+  &lt;/x&gt;
+  &lt;hats xmlns='urn:xmpp:hats:0'&gt;
+    &lt;hat title='Host' uri='http://schemas.example.com/hats#host' hue='327.255249' xml:lang='en-us'&gt;
+      &lt;badge xmlns="urn:example:badges" level="3"/&gt;
+    &lt;/hat&gt;
+    &lt;hat title='Presenter' uri='http://schemas.example.com/hats#presenter' hue='171.430664' xml:lang='en-us'&gt;
+      &lt;badge xmlns="urn:example:badges" level="5"/&gt;
+    &lt;/hat&gt;
+  &lt;/hats&gt;
+&lt;/presence&gt;
+</pre></figure>
+    <p class="" style="">Every hat is uniquely identified by its URI. Hats also carry a human-readable title for display purposes. Within XMPP, a hat is contained within a &lt;hat/&gt; element in the 'urn:xmpp:hats:0' namespace. This element MUST possess a 'uri' attribute (containing the hat's URI), a 'title' attribute containing the name of the hat for display purposes, MAY contain an 'xml:lang' attribute that identifies the language used in the 'title' attribute and MAY contain a Hue Angle color that define the hat color to apply. The &lt;hat/&gt; element MAY contain additional custom payloads defined by other XEPs, or payloads specific to an implementation or deployment.</p>
+    <p class="" style="">Entities may have multiple hats. The &lt;hats/&gt; element is defined as a container of zero or more &lt;hat/&gt; elements.</p>
+
+  </div>
+  <div class="indent"><h3 id="create">3.2 Creating and Updating a Hat<a class="anchor-link" href="#create"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Hats are created and destroyed using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0050.html">Ad-Hoc Commands (XEP-0050)</a></span>  [<a href="#nt-id20">3</a>].</p>
+    <p class="" style="">The following flow shows how to create a hat.</p>
+    <p class="" style="">Updating a hat follows the same flow but set an existing "hats#uri". If a hat is updated the room SHOULD broadcast the related JID presences with the refreshed hat list.</p>
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Admin Requests to Create a Hat<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='professor@example.edu/office'
+    id='gd53a2b6'
+    to='physicsforpoets@courses.example.edu'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+            action='execute'
+            node='urn:xmpp:hats:commands:create'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+    <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Room Returns Form to Admin<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='physicsforpoets@courses.example.edu'
+    id='gd53a2b6'
+    to='professor@example.edu/office'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+            node='urn:xmpp:hats:commands:create'
+            sessionid='A971D19A-2226-4DAD-B261-9D0886B9A026'
+            status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Creating a Hat&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to create a hat.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;urn:xmpp:hats:commands&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='hats#title'
+            type='text-single'
+            label='Hat Title'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+      &lt;field var='hats#uri'
+            type='text-single'
+            label='Hat URI'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+      &lt;field var='hats#hue'
+            type='text-single'
+            label='Hat Hue'/&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Admin Submits Form<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='professor@example.edu/office'
+    id='9fets723'
+    to='physicsforpoets@courses.example.edu'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+            node='urn:xmpp:hats:commands:create'
+            sessionid='A971D19A-2226-4DAD-B261-9D0886B9A026'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;urn:xmpp:hats:commands&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='hats#title'&gt;
+        &lt;value&gt;Assistant&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='hats#uri'&gt;
+        &lt;value&gt;http://tech.example.edu/hats#TeacherAssistant&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='hats#hue'&gt;
+        &lt;value&gt;327.255249&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Room Informs Admin of Completion<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='physicsforpoets@courses.example.edu'
+    id='9fets723'
+    to='professor@example.edu/office'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+            node='urn:xmpp:hats:commands:assign'
+            sessionid='A971D19A-2226-4DAD-B261-9D0886B9A026'
+            status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  <p class="" style="">When any change is applied to the hats list the room SHOULD broadcast a notification that the configuration changed to all users present.</p>
+  <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> Room broadcasts a configuration change<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message type='groupchat'
+      to='professor@example.edu/office'
+      from='physicsforpoets@courses.example.edu'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'&gt;
+    &lt;status code='104'/&gt;
+  &lt;/x&gt;
+&lt;/message&gt;
+
+&lt;message type='groupchat'
+      to='student@example.edu/bedroom'
+      from='physicsforpoets@courses.example.edu'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc#user'&gt;
+    &lt;status code='104'/&gt;
+  &lt;/x&gt;
+&lt;/message&gt;</pre></figure>
+
+  </div>
+  <div class="indent"><h3 id="destroy">3.3 Destroying a Hat<a class="anchor-link" href="#destroy"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The following flow shows how to destroy a hat and remove it from the list of available hats.</p>
+    <p class="" style="">It first asks the formulary, which returns a list of all the available hats, and then actually requests to destroy one of them. Notice that alternatively, the client may send directly the query to destroy a hat without first requesting the formulary, as it already knows many hats that were received in presence stanzas.</p>
+    <p class="" style="">When a hat is destroyed, it is automatically removed from all the JIDs where it was assigned.</p>
+    <p class="" style="">The room SHOULD broadcast the related JID presences with the refreshed hats list.</p>
+    <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> Admin Requests Form to Destroy a Hat<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='professor@example.edu/office'
+    id='gd53a2b6'
+    to='physicsforpoets@courses.example.edu'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='urn:xmpp:hats:commands:destroy'&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Room Provides Form to Destroy a Hat<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='physicsforpoets@courses.example.edu'
+    id='gd53a2b6'
+    to='professor@example.edu/office'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+            node='urn:xmpp:hats:commands:destroy'
+            sessionid='A971D19A-2226-4DAD-B261-9D0886B9A026'
+            status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Destroying a Hat&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to destroy a hat.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;urn:xmpp:hats:commands&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='The role'
+             type='list-single'
+             var='hat'&gt;
+        &lt;option label='Teacher'&gt;&lt;value&gt;http://tech.example.edu/hats#Teacher&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='Teacher&amp;apos;s Assistant'&gt;&lt;value&gt;http://tech.example.edu/hats#TeacherAssistant&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='Test Proctor'&gt;&lt;value&gt;http://tech.example.edu/hats#Proctor&lt;/value&gt;&lt;/option&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Admin Requests to Destroy a Hat<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='professor@example.edu/office'
+    id='rei4n2b0'
+    to='physicsforpoets@courses.example.edu'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='urn:xmpp:hats:commands:destroy'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;urn:xmpp:hats:commands&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='hats#uri'&gt;
+        &lt;value&gt;http://tech.example.edu/hats#TeacherAssistant&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> Room Informs Admin of Completion<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='physicsforpoets@courses.example.edu'
+    id='rei4n2b0'
+    to='professor@example.edu/office'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='urn:xmpp:hats:commands:destroy'
+           sessionid='A971D19A-2226-4DAD-B261-7D0886B9A123'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="sect-id7">3.4 Listing Hats<a class="anchor-link" href="#sect-id7"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An entity might be interested to get all the existing hats available in a chatroom.</p>
+    <figure class="code-example" id="example-13"><figcaption><strong>Example 13.</strong> User’s client request the hats list configured on a MUC room<a class="anchor-link" href="#example-13"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='professor@example.edu/office'
+  id='fdi3n2b6'
+  to='physicsforpoets@courses.example.edu'
+  type='set'
+  xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+          action='execute'
+          node='urn:xmpp:hats:commands:list'/&gt;
+&lt;/iq&gt;</pre></figure>
+    <figure class="code-example" id="example-14"><figcaption><strong>Example 14.</strong> Room Returns the List of Configured Hats<a class="anchor-link" href="#example-14"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='physicsforpoets@courses.example.edu'
+    id='fdi3n2b6'
+    to='professor@example.edu/office'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='urn:xmpp:hats:commands:list'
+           status='completed'
+           sessionid='A971D19A-2226-4DAD-B261-9D0886B9A026'&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;title&gt;Hats List&lt;/title&gt;
+      &lt;reported&gt;
+        &lt;field var='hats#title'/&gt;
+        &lt;field var='hats#uri'/&gt;
+        &lt;field var='hats#hue'/&gt;
+      &lt;/reported&gt;
+      &lt;item&gt;
+        &lt;field var='hats#title'&gt;
+            &lt;value&gt;Host&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='hats#uri'&gt;
+            &lt;value&gt;http://schemas.example.com/hats#host&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='hats#hue'&gt;
+            &lt;value&gt;327.255249&lt;/value&gt;
+        &lt;/field&gt;
+      &lt;/item&gt;
+      &lt;item&gt;
+        &lt;field var='hats#title'&gt;
+            &lt;value&gt;Presenter&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='hats#uri'&gt;
+            &lt;value&gt;http://schemas.example.com/hats#presenter&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='hats#hue'&gt;
+            &lt;value&gt;171.430664&lt;/value&gt;
+        &lt;/field&gt;
+      &lt;/item&gt;
+      …
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="add">3.5 Assigning a Hat<a class="anchor-link" href="#add"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Hats are assigned and removed using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0050.html">Ad-Hoc Commands (XEP-0050)</a></span>  [<a href="#nt-id20">3</a>].</p>
+    <p class="" style="">The following flow shows how to assign a hat.</p>
+    <figure class="code-example" id="example-15"><figcaption><strong>Example 15.</strong> Admin Requests to Assign a Hat<a class="anchor-link" href="#example-15"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='professor@example.edu/office'
+    id='fdi3n2b6'
+    to='physicsforpoets@courses.example.edu'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='urn:xmpp:hats:commands:assign'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Unless an error occurs, the room returns the appropriate form.</p>
+    <figure class="code-example" id="example-16"><figcaption><strong>Example 16.</strong> Room Returns Form to Admin<a class="anchor-link" href="#example-16"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='physicsforpoets@courses.example.edu'
+    id='fdi3n2b6'
+    to='professor@example.edu/office'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='urn:xmpp:hats:commands:assign'
+           sessionid='A971D19A-2226-4DAD-B261-8D0886B9A026'
+           status='executing'&gt;
+    &lt;x xmlns='jabber:x:data' type='form'&gt;
+      &lt;title&gt;Assigning a Hat&lt;/title&gt;
+      &lt;instructions&gt;Fill out this form to assign a hat.&lt;/instructions&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;urn:xmpp:hats:commands&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field label='User Address'
+             type='jid-single'
+             var='hats#jid'&gt;
+        &lt;required/&gt;
+      &lt;/field&gt;
+      &lt;field label='The role'
+             type='list-single'
+             var='hats#uri'&gt;
+        &lt;option label='Teacher'&gt;&lt;value&gt;http://tech.example.edu/hats#Teacher&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='Teacher&amp;apos;s Assistant'&gt;&lt;value&gt;http://tech.example.edu/hats#TeacherAssistant&lt;/value&gt;&lt;/option&gt;
+        &lt;option label='Test Proctor'&gt;&lt;value&gt;http://tech.example.edu/hats#Proctor&lt;/value&gt;&lt;/option&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-17"><figcaption><strong>Example 17.</strong> Admin Submits Form<a class="anchor-link" href="#example-17"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='professor@example.edu/office'
+    id='9fens61z'
+    to='physicsforpoets@courses.example.edu'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='urn:xmpp:hats:commands:assign'
+           sessionid='A971D19A-2226-4DAD-B261-8D0886B9A026'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;urn:xmpp:hats:commands&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='hats#jid'&gt;
+        &lt;value&gt;terry.anderson@example.edu&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='hats#uri'&gt;
+        &lt;value&gt;http://tech.example.edu/hats#TeacherAssistant&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-18"><figcaption><strong>Example 18.</strong> Room Informs Admin of Completion<a class="anchor-link" href="#example-18"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='physicsforpoets@courses.example.edu'
+    id='9fens61z'
+    to='professor@example.edu/office'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='urn:xmpp:hats:commands:assign'
+           sessionid='A971D19A-2226-4DAD-B261-8D0886B9A026'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">Note: only one hat is added at a time, and the form uses a field of type "list-single" to enforce that logic.</p>
+  </div>
+  <div class="indent"><h3 id="remove">3.6 Removing a Hat<a class="anchor-link" href="#remove"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The following flow shows how to remove a hat.</p>
+    <p class="" style="">When the hat is removed, the room SHOULD broadcast the related JID presence with the refreshed hat list.</p>
+    <figure class="code-example" id="example-19"><figcaption><strong>Example 19.</strong> Admin Requests to Remove a Hat<a class="anchor-link" href="#example-19"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='professor@example.edu/office'
+    id='fdi3n2b6'
+    to='physicsforpoets@courses.example.edu'
+    type='set'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           action='execute'
+           node='urn:xmpp:hats:commands:unassign'&gt;
+    &lt;x xmlns='jabber:x:data' type='submit'&gt;
+      &lt;field type='hidden' var='FORM_TYPE'&gt;
+        &lt;value&gt;urn:xmpp:hats:commands&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='hats#jid'&gt;
+        &lt;value&gt;terry.anderson@example.edu&lt;/value&gt;
+      &lt;/field&gt;
+      &lt;field var='hats#uri'&gt;
+        &lt;value&gt;http://tech.example.edu/hats#TeacherAssistant&lt;/value&gt;
+      &lt;/field&gt;
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-20"><figcaption><strong>Example 20.</strong> Room Informs Admin of Completion<a class="anchor-link" href="#example-20"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='physicsforpoets@courses.example.edu'
+    id='fdi3n2b6'
+    to='professor@example.edu/office'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='urn:xmpp:hats:commands:unassign'
+           sessionid='A971D19A-2226-4DAD-B261-8D0886B9A026'
+           status='completed'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="sect-id10">3.7 Listing Assigned Hats<a class="anchor-link" href="#sect-id10"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An entity might be interested to get all the hats assigned to users in a chatroom.</p>
+
+    <figure class="code-example" id="example-21"><figcaption><strong>Example 21.</strong> User’s client request the hats list assigned on a MUC room<a class="anchor-link" href="#example-21"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='professor@example.edu/office'
+  id='fdi3n2b6'
+  to='physicsforpoets@courses.example.edu'
+  type='set'
+  xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+          action='execute'
+          node='urn:xmpp:hats:commands:list-assigned'/&gt;
+&lt;/iq&gt;</pre></figure>
+    <figure class="code-example" id="example-22"><figcaption><strong>Example 22.</strong> Room Returns the List of Assigned Hats<a class="anchor-link" href="#example-22"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='physicsforpoets@courses.example.edu'
+    id='fdi3n2b6'
+    to='professor@example.edu/office'
+    type='result'
+    xml:lang='en'&gt;
+  &lt;command xmlns='http://jabber.org/protocol/commands'
+           node='urn:xmpp:hats:commands:list-assigned'
+           status='completed'
+           sessionid='A971D19A-2226-4DAD-B261-9D0886B9A026'&gt;
+    &lt;x xmlns='jabber:x:data' type='result'&gt;
+      &lt;title&gt;Assigned Hats List&lt;/title&gt;
+      &lt;reported&gt;
+        &lt;field var='hats#jid'/&gt;
+        &lt;field var='hats#uri'/&gt;
+        &lt;field var='hats#title'/&gt;
+        &lt;field var='hats#hue'/&gt;
+      &lt;/reported&gt;
+      &lt;item&gt;
+        &lt;field var='hats#jid'&gt;
+            &lt;value&gt;terry.anderson@example.edu&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='hats#uri'&gt;
+            &lt;value&gt;http://tech.example.edu/hats#TeacherAssistant&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='hats#title'&gt;
+            &lt;value&gt;Assistant&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='hats#hue'&gt;
+            &lt;value&gt;327.255249&lt;/value&gt;
+        &lt;/field&gt;
+      &lt;/item&gt;
+      …
+    &lt;/x&gt;
+  &lt;/command&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="registrar-formtype">3.8 Field Standardization<a class="anchor-link" href="#registrar-formtype"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0068.html">Field Standardization for Data Forms (XEP-0068)</a></span>  [<a href="#nt-id21">4</a>] defines a process for standardizing the fields used within Data Forms qualified by a particular FORM_TYPE. Within Hats, all the interactions revolves around one unique FORM_TYPE, urn:xmpp:hats:commands. The reserved fields are defined below.</p>
+
+    <figure class="code"><figcaption>Registry Submission</figcaption><pre class="prettyprint">
+&lt;form_type&gt;
+  &lt;name&gt;urn:xmpp:hats:commands&lt;/name&gt;
+  &lt;doc&gt;XEP-0317&lt;/doc&gt;
+  &lt;desc&gt;
+    Forms enabling the creation, destruction, assignal and removal of hats.
+  &lt;/desc&gt;
+  &lt;field
+      var='hats#jid'
+      type='text-single'
+      label='JID to which a hat is assigned'/&gt;
+  &lt;field
+      var='hats#title'
+      type='text-single'
+      label='Title'/&gt;
+  &lt;field
+      var='hats#uri'
+      type='text-single'
+      label='Unique URI'/&gt;
+  &lt;field
+      var='hats#hue'
+      type='text-single'
+      label='Custom color'/&gt;
+  &lt;field
+      var='hats#hash'
+      type='text-single'
+      label='Hash computed from the list of hats available in a room'/&gt;
+&lt;/form_type&gt;
+</pre></figure>
+  </div>
+<h2 id="security">4.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">To follow.</p>
+<h2 id="iana">5.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id22">5</a>].</p>
+<h2 id="registrar">6.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+  <div class="indent"><h3 id="registrar-protocol">6.1 Protocol Namespaces<a class="anchor-link" href="#registrar-protocol"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The XMPP Registrar shall add "urn:xmpp:hats:0" to its registry of protocol namespaces.</p>
+  </div>
+
+<h2 id="schema">7.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">To follow.</p>
+<h2 id="acks">8.
+       Acknowledgements<a class="anchor-link" href="#acks"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The concepts underlying this specification were first discussed several years ago at an XMPP Summit in Brussels, Belgium. Special thanks to Joe Hildebrand and Ralph Meijer for their contributions to those discussions. Thanks also to Matt Miller, Kevin Smith, Matthew Wild and badlop for their feedback on the written specification.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0317</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.3.1</dd><dt>Last Updated</dt><dd>2025-08-18</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, <a href="xep-0045.html">XEP-0045</a>, <a href="xep-0068.html">XEP-0068</a>, <a href="xep-0050.html">XEP-0050</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>NOT_YET_ASSIGNED</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0317.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0317.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0317.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Peter Saint-Andre</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:stpeter@stpeter.im">stpeter@stpeter.im</a></dd><dt>JabberID</dt><dd><a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a></dd><dt>URI</dt><dd><a href="https://stpeter.im/">https://stpeter.im/</a></dd></dl><h5>Matthew Wild</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:mwild1@gmail.com">mwild1@gmail.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:me@matthewwild.co.uk">me@matthewwild.co.uk</a></dd></dl><h5>Timothée Jaussoin</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:edhelas@movim.eu">edhelas@movim.eu</a></dd><dt>JabberID</dt><dd><a href="xmpp:edhelas@movim.eu">edhelas@movim.eu</a></dd><dt>URI</dt><dd><a href="https://edhelas.movim.eu">https://edhelas.movim.eu</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">
+          The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED",
+          "MAY", and "OPTIONAL" in this document are to be interpreted as
+          described in <a href="https://tools.ietf.org/rfc/bcp/bcp14.txt">BCP 14</a>
+          [<a href="https://www.ietf.org/rfc/rfc2119.txt">RFC2119</a>]
+          [<a href="https://tools.ietf.org/rfc/rfc8174.txt">RFC8174</a>] when,
+          and only when, they appear in all capitals, as shown here.
+        </p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id18">1</a>. XEP-0045: Multi-User Chat &lt;<a href="https://xmpp.org/extensions/xep-0045.html">https://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-id19">2</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id20">3</a>. XEP-0050: Ad-Hoc Commands &lt;<a href="https://xmpp.org/extensions/xep-0050.html">https://xmpp.org/extensions/xep-0050.html</a>&gt;.</p><p><a name="nt-id21">4</a>. XEP-0068: Field Data Standardization for Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0068.html">https://xmpp.org/extensions/xep-0068.html</a>&gt;.</p><p><a name="nt-id22">5</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.3.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0317-0.3.1.html">0.3.1</a> (2025-08-18)<a class="anchor-link" href="#revision-history-v0.3.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Typos, completed some examples and paragraph clarifications thanks to badlop feedback.</p><div class="revision-author">tj</div></li><li id="revision-history-v0.3.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0317-0.3.0.html">0.3.0</a> (2025-04-30)<a class="anchor-link" href="#revision-history-v0.3.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Add hat creation and detruction flows; add hue optional parameter; add chatroom presence hats broadcast; complete disco#info; clarify how the service should broadcast updated hats; typos; standardize the form fields;</p><div class="revision-author">tj</div></li><li id="revision-history-v0.2.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0317-0.2.0.html">0.2.0</a> (2023-06-28)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Select a syntax for hats.</p><div class="revision-author">mw</div></li><li id="revision-history-v0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0317-0.1.html">0.1</a> (2013-01-03)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial published version approved for publication by the XMPP Council; clarified ad-hoc commands logic and syntax.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.0.2"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0317-0.0.2.html">0.0.2</a> (2012-12-09)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Described use of ad-hoc commands for adding and removing hats.</p><div class="revision-author">psa</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0317-0.0.1.html">0.0.1</a> (2012-12-06)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">psa</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{saint-andre2012xep0317,
+  title = {Hats},
+  author = {Saint-Andre, Peter and Wild, Matthew and Jaussoin, Timothée},
+  type = {XEP},
+  number = {0317},
+  version = {0.3.1},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0317.html},
+  date = {2012-12-06/2025-08-18},
+}</pre><p>END</p></body></html>
