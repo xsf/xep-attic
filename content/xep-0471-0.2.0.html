@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0471: Calendar Events</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0471";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="Calendar Events"><meta name="DC.Creator" content="Jérôme Poisson"><meta name="DC.Description" content="This specification describe how to handle calendar events with XMPP."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2025-10-13"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0471"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0471: Calendar Events</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification describe how to handle calendar events with XMPP.</dd><dt>Author</dt><dd>Jérôme Poisson</dd><dt>Copyright</dt><dd>© 2022 – 2025 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.2.0 (2025-10-13)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#usecases">Use Cases</a><ol><li><a href="#simple-event">Creating a Simple Event</a><ol><li><a href="#simple-event-explanation">explanation</a></li></ol></li><li><a href="#originazing-event">Organizing an Event</a><ol><li><a href="#simple-event-explanation">explanation</a></li></ol></li></ol></li><li><a href="#events_nodes">Events Nodes</a></li><li><a href="#events-data">Events Data</a><ol><li><a href="#head-picture">Head Picture</a></li><li><a href="#description">Description</a></li><li><a href="#categories">Categories</a></li><li><a href="#location">Location</a><ol><li><a href="#online_location">Online Location</a></li></ol></li><li><a href="#RSVP">RSVP</a><ol><li><a href="#rsvp_summarizing">RSVP Summarizing</a></li><li><a href="#private_rsvp">Private RSVP</a></li></ol></li><li><a href="#linked_nodes">Linked Pubsub Nodes</a><ol><li><a href="#linked_invitees">invitees</a></li><li><a href="#linked_comments">comments</a></li><li><a href="#linked_blog">blog</a></li><li><a href="#linked_schedule">schedule</a></li></ol></li><li><a href="#attachments">Attachments</a></li><li><a href="#extra">Extra Data</a></li><li><a href="#external">External Event</a></li></ol></li><li><a href="#rules">Business Rules</a></li><li><a href="#disco">Discovering Support</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#schema">XML Schema</a></li><li><a href="#acks">Acknowledgements</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <p class="" style="">Nowadays, it is common to handle all kind of events through desktop computer or phone: it is useful to have them at hand, to easily share them and to have all kind of reminders.</p>
+    <p class="" style="">XMPP is a good fit to handle events: it's a communication protocol, and as such it would be useful for it to have tools to handle and share events.</p>
+    <p class="" style="">The only existing attempt at this point is <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0097.html">iCal Envelope (XEP-0097)</a></span>  [<a href="#nt-id34">1</a>] which describe a way to wrap iCal [<a href="#nt-id35">2</a>] data. However, this XEP never got traction, is not taking advantage of XMPP features, doesn't handle thing such as invitees and RSVP, and it not easily extensible.</p>
+    <p class="" style="">This XEP proposes an alternative which leverage existing tools such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-id36">3</a>].</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The design goals of this XEP are:</p>
+  <ul class="" style="">
+      <li class="" style="">use pubsub and its access model to be able to have events either private or public, and to take advantage of the subscription mechanism</li>
+      <li class="" style="">being able to specify simple events with minimum metadata (e.g. doctor appointment, coffee with a friend)</li>
+      <li class="" style="">provide optional tools such as RSVP or invitees list for events organization</li>
+      <li class="" style="">it should be possible to optionally ask any kind of extra data in RSVP (e.g.: number of people attending, allergy information for dinner, etc.)</li>
+      <li class="" style="">group several events of same kind in a pubsub node (e.g. personal agenda, work agenda, events linked to an organization)</li>
+      <li class="" style="">flexible enough to specify all kind of extra metadata (e.g. description, classification tags, accessibility information) and media (e.g. main picture)</li>
+      <li class="" style="">being able to optionally link to other pubsub features such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0277.html">Microblogging Over XMPP (XEP-0277)</a></span>  [<a href="#nt-id37">4</a>] blog, or a way to share picture after the event is finished</li>
+      <li class="" style="">be extensible</li>
+  </ul>
+<h2 id="glossary">3.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <ul class="" style="">
+        <li class="" style=""><strong>RSVP</strong>: "<a href="https://en.wikipedia.org/wiki/RSVP">Répondez s'il vous plaît</a>", a way for event invitees to indicate whether they plan to attend the event</li>
+    </ul>
+<h2 id="usecases">4.
+       Use Cases<a class="anchor-link" href="#usecases"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+    <div class="indent"><h3 id="simple-event">4.1 Creating a Simple Event<a class="anchor-link" href="#simple-event"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">Juliet and her nurse decide to have a coffee together. Juliet knows the usual place where they're going, and thus doesn't need to add much information, she creates an event for her agenda on her XMPP client. The client creates an item on Juliet's PEP node `urn:xmpp:calendar-events:0` as follow:</p>
+
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Minimal Event<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq
+  type='set'
+  from='juliet@capulet.lit/chamber'
+  to='juliet@capulet.lit'
+  id='event1'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='urn:xmpp:calendar-events:0'&gt;
+      &lt;item&gt;
+        &lt;event xmlns='urn:xmpp:calendar-events:0'&gt;
+          &lt;name&gt;Coffee with the nurse&lt;/name&gt;
+          &lt;start&gt;2022-09-05T12:00:00Z&lt;/start&gt;
+          &lt;end&gt;2022-09-05T13:00:00Z&lt;/end&gt;
+        &lt;/event&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;</pre></figure>
+        <div class="indent"><h4 id="simple-event-explanation">4.1.1 explanation<a class="anchor-link" href="#simple-event-explanation"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+          <p class="" style="">An event is published on a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-id36">3</a>] item. Juliet publishes this event on her personal agenda, thus she uses the node 'urn:xmpp:calendar-events:0' (see <a href="#events_nodes">events nodes</a>). The payload of an event is an &lt;event/&gt; element qualified by the namespace 'urn:xmpp:calendar-events:0'. Each event MUST have one or several &lt;name/&gt; elements containing a human readable short text describing the element. If several &lt;name/&gt; elements are used, they MUST have distinct 'xml:lang' attributes, to specify the same name in different languages. Each &lt;event/&gt; element MUST have a &lt;start/&gt; and an &lt;end/&gt; child elements specifying the expected start time and end time of the event by using the format explained in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles (XEP-0082)</a></span>  [<a href="#nt-id38">5</a>].</p>
+          <p class="" style="">This is all for the minimum required elements of an event, everything else is optional. Thus, the only required elements of an event payload are &lt;name/&gt;, &lt;start/&gt; and &lt;end/&gt;.</p>
+        </div>
+    </div>
+    <div class="indent"><h3 id="originazing-event">4.2 Organizing an Event<a class="anchor-link" href="#originazing-event"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+        <p class="" style="">Juliet is organizing a ball, and to make things easier she uses her XMPP client to manage it. To make the event more appealing, she'll publish a nice image of the ball room as main picture of the event, and she'll publish the list of invitees. She'll also need RSVP to evaluate the number of people attending.</p>
+        <p class="" style="">The event she's publishing looks as follows:</p>
+
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Organising an Event<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq
+  type='set'
+  from='juliet@capulet.lit/chamber'
+  to='pubsub.capulet.lit'
+  id='event2'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='urn:xmpp:calendar-events:0/balls'&gt;
+      &lt;item id='2022_ball'&gt;
+        &lt;event xmlns='urn:xmpp:calendar-events:0'&gt;
+          &lt;name xml:lang='en'&gt;Capulet's Ball&lt;/name&gt;
+          &lt;start&gt;2022-12-15T20:00:00Z&lt;/start&gt;
+          &lt;end&gt;2022-12-16T02:00:00Z&lt;/end&gt;
+          &lt;head-picture&gt;
+            &lt;file-sharing xmlns='urn:xmpp:sfs:0' disposition='inline'&gt;
+              &lt;file xmlns='urn:xmpp:file:metadata:0'&gt;
+                &lt;media-type&gt;image/jpeg&lt;/media-type&gt;
+                &lt;name&gt;ball_room.jpg&lt;/name&gt;
+                &lt;size&gt;120354&lt;/size&gt;
+                &lt;dimensions&gt;1920x1080&lt;/dimensions&gt;
+                &lt;hash xmlns='urn:xmpp:hashes:2' algo='sha3-256'&gt;2XarmwTlNxDAMkvymloX3S5+VbylNrJt/l5QyPa+YoU=&lt;/hash&gt;
+                &lt;hash xmlns='urn:xmpp:hashes:2' algo='id-blake2b256'&gt;2AfMGH8O7UNPTvUVAM9aK13mpCY=&lt;/hash&gt;
+                &lt;desc&gt;Photo of the ball room.&lt;/desc&gt;
+                &lt;thumbnail xmlns='urn:xmpp:thumbs:1' uri='cid:sha1+ffd7c8d28e9c5e82afea41f97108c6b4@bob.capulet.lit' media-type='image/png' width='640' height='360'/&gt;
+              &lt;/file&gt;
+              &lt;sources&gt;
+                &lt;url-data xmlns='http://jabber.org/protocol/url-data' target='https://download.capulet.lit/123abc-def-456-789/ball_room.jpg' /&gt;
+                &lt;jinglepub xmlns='urn:xmpp:jinglepub:1' from='download.capulet.lit' id='123abc-def-456-789'&gt;
+                  &lt;description xmlns='urn:xmpp:jingle:apps:file-transfer:5' /&gt;
+                &lt;/jinglepub&gt;
+              &lt;/sources&gt;
+            &lt;/file-sharing&gt;
+          &lt;/head-picture&gt;
+          &lt;description type='text' xml:lang='en'&gt;
+            The Capulet familly is organizing its great annual ball! Come and enjoy the event of the year…
+          &lt;/description&gt;
+          &lt;description type='xhtml' xml:lang='en'&gt;
+            &lt;div xmlns='http://www.w3.org/1999/xhtml'&gt;
+                The Capulet familly is organizing its great &lt;strong&gt;annual ball!&lt;/strong&gt; Come and enjoy the event of the year…
+            &lt;/div&gt;
+          &lt;/description&gt;
+          &lt;category term='ball' wd='Q478515' xml:lang=en /&gt;
+          &lt;category term='dance' wd='Q11639' xml:lang=en /&gt;
+          &lt;category term='music' wd='Q638' xml:lang=en /&gt;
+          &lt;location&gt;
+            &lt;geoloc xmlns='http://jabber.org/protocol/geoloc' xml:lang='en'&gt;
+              &lt;locality&gt;Capulet's House&lt;/locality&gt;
+              &lt;country&gt;Italy&lt;/country&gt;
+              &lt;lat&gt;45.4181&lt;/lat&gt;,
+              &lt;lon&gt;10.9637&lt;/lon&gt;
+              &lt;text&gt;Code for entrance gate: 0123C&lt;/text&gt;
+            &lt;/geoloc&gt;
+          &lt;/location&gt;
+          &lt;rsvp xml:lang='en'&gt;
+            &lt;x xmlns="jabber:x:data" type="form"&gt;
+              &lt;field var="FORM_TYPE" type="hidden"&gt;
+                &lt;value&gt;urn:xmpp:calendar-events:rsvp:0&lt;/value&gt;
+              &lt;/field&gt;
+              &lt;field type='list-single' label='Attending' var='attending'&gt;
+                &lt;value&gt;maybe&lt;/value&gt;
+                &lt;option label='maybe'&gt;&lt;value&gt;maybe&lt;/value&gt;&lt;/option&gt;
+                &lt;option label='yes'&gt;&lt;value&gt;yes&lt;/value&gt;&lt;/option&gt;
+                &lt;option label='no'&gt;&lt;value&gt;no&lt;/value&gt;&lt;/option&gt;
+                &lt;required/&gt;
+              &lt;/field&gt;
+            &lt;/x&gt;
+          &lt;/rsvp&gt;
+          &lt;invitees jid='pubsub.capulet.lit' node='urn:xmpp:calendar-events:invitees:0/2022_ball' /&gt;
+          &lt;comments jid='pubsub.capulet.lit' node='urn:xmpp:microblog:0:comments/2022_ball' /&gt;
+          &lt;blog jid='pubsub.capulet.lit' node='2022_ball_blog' /&gt;
+          &lt;schedule jid='pubsub.capulet.lit' node='urn:xmpp:calendar-events:0/2022_ball_schedule' /&gt;
+          &lt;attachments&gt;
+            &lt;file-sharing xmlns='urn:xmpp:sfs:0' disposition='inline'&gt;
+              &lt;file xmlns='urn:xmpp:file:metadata:0'&gt;
+                &lt;media-type&gt;application/pdf&lt;/media-type&gt;
+                &lt;name&gt;dinner_menu.pdf&lt;/name&gt;
+                &lt;size&gt;50123&lt;/size&gt;
+                &lt;hash xmlns='urn:xmpp:hashes:2' algo='sha3-256'&gt;d7b7d858663d110761ac4c9b7dbc4d8408445b16be0b9cedb908a2c7b454335a&lt;/hash&gt;
+                &lt;desc&gt;Menu for the ball dinner.&lt;/desc&gt;
+              &lt;/file&gt;
+              &lt;sources&gt;
+                &lt;url-data xmlns='http://jabber.org/protocol/url-data' target='https://download.capulet.lit/789abc-def-123-456/dinner_menu.pdf' /&gt;
+                &lt;jinglepub xmlns='urn:xmpp:jinglepub:1' from='download.capulet.lit' id='789abc-def-123-456'&gt;
+                  &lt;description xmlns='urn:xmpp:jingle:apps:file-transfer:5' /&gt;
+                &lt;/jinglepub&gt;
+              &lt;/sources&gt;
+            &lt;/file-sharing&gt;
+          &lt;/attachments&gt;
+          &lt;extra&gt;
+            &lt;x xmlns="jabber:x:data" type="result"&gt;
+              &lt;field var="FORM_TYPE" type="hidden"&gt;
+                &lt;value&gt;urn:xmpp:calendar-events:extra:0&lt;/value&gt;
+              &lt;/field&gt;
+              &lt;field var='website'&gt;
+                &lt;value&gt;https://ball2022.capulet.lit&lt;/value&gt;
+              &lt;/field&gt;
+              &lt;field var='accessibility:wheelchair'&gt;
+                &lt;value&gt;full&lt;/value&gt;
+              &lt;/field&gt;
+            &lt;/x&gt;
+          &lt;/extra&gt;
+        &lt;/event&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;</pre></figure>
+      <div class="indent"><h4 id="simple-event-explanation">4.2.1 explanation<a class="anchor-link" href="#simple-event-explanation"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+        <p class="" style="">Juliet wants to be sure that this event will be a success, thus she provides a lot of information. The first 3 elements &lt;name/&gt;, &lt;start/&gt; and &lt;end/&gt; are the mandatory one as specified in <a href="#simple-event-explanation">simple event explanation</a>, all other elements are optionals. The elements used are briefly explained below, and are more detailed in <a href="#events-data">Events Data</a> section.</p>
+        <p class="" style="">The &lt;head-picture/&gt; element indicate where to find the head picture, or in other terms the main image used to represent the event. This image is used by clients to nicely represent the event to end-user.</p>
+        <p class="" style="">&lt;description/&gt; elements contain human readable text to explain what the event is about.</p>
+        <p class="" style="">&lt;category/&gt; elements are used to classify the event. This is useful to quickly give an idea of what the event is about, and for events discovery.</p>
+        <p class="" style="">&lt;location/&gt; specify where the event takes place. It may also be used for online events.</p>
+        <p class="" style="">&lt;rsvp/&gt; contains the form that invitees will answer to indicate if they plan to attend the event.</p>
+        <p class="" style="">The 4 following elements &lt;invitees/&gt;, &lt;comments/&gt;, &lt;blog/&gt; and &lt;schedule/&gt; link to pubsub nodes respectively handling list of invitees, comments on the events, blog talking about the event, and event schedule. They are described in <a href="#linked_nodes">Linked Pubsub Nodes</a> section.</p>
+        <p class="" style="">&lt;attachments/&gt; elements provide any kind of files that can be useful to the event. It's used here to provide the menu for the dinner.</p>
+        <p class="" style="">Finally, the &lt;extra/&gt; element contains a data form for any useful extra information.</p>
+      </div>
+    </div>
+<h2 id="events_nodes">5.
+       Events Nodes<a class="anchor-link" href="#events_nodes"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Events are published to pubsub nodes. Each user may have a personal agenda on its <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0163.html">Personal Eventing Protocol (XEP-0163)</a></span>  [<a href="#nt-id39">6</a>] service, by using the 'urn:xmpp:calendar-events:0' node. This node should have an access model of "whitelist" by default, however it is up to the entity holding the PEP node to use an other access model (a JID linked to an organisation may want to make public all its events from the personal agenda by using an "open" access model).</p>
+  <p class="" style="">Otherwise, a node may be published on any pubsub service. An events node SHOULD be prefixed with 'urn:xmpp:calendar-events:0/', which SHOULD be followed by an unique identifier.</p>
+  <p class="" style="">A pubsub node can contain any kind of events, and it is up to the publisher to decide what to put inside. While a personal agenda will hold events related to the owning entity, an events node can be used to keep events related to a school or other organisation, to a room (e.g. to show when and by whom a room is booked), to a team, to professional appointments, etc.</p>
+<h2 id="events-data">6.
+       Events Data<a class="anchor-link" href="#events-data"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This section describe the various optional elements usable as children of an &lt;event/&gt; element. The 3 mandatory elements &lt;name/&gt;, &lt;start/&gt; and &lt;end/&gt; are specified in <a href="#simple-event-explanation">Simple Event Explanation</a>.</p>
+  <div class="indent"><h3 id="head-picture">6.1 Head Picture<a class="anchor-link" href="#head-picture"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">&lt;head-picture/&gt; element describe the image to use to represent the event to end-user. It is recommended to include it for public events as it may help to give a rough idea of the event, and to represent nicely a summary of the event. Keep in mind that the picture may be resized or cropped to fit end-user display and client's UI choices.</p>
+    <p class="" style="">The element MUST contain a child &lt;file-sharing/&gt; element as described <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0447.html">Stateless file sharing (XEP-0447)</a></span>  [<a href="#nt-id40">7</a>]. The image SHOULD be published in JPEG format due to its widespread support and the fact that mostly photos are expected to be used as head pictures.</p>
+    <p class="" style="">It is strongly recommended to include thumbnails if the head picture is large, as the event may be displayed on any screen size.</p>
+  </div>
+  <div class="indent"><h3 id="description">6.2 Description<a class="anchor-link" href="#description"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The &lt;description/&gt; element is used to give an human readable text explaining the event. It is the main presentation of the event, usually highlighted below the head picture.</p>
+        <p class="" style="">The description may be in plain text, in this case the &lt;description/&gt; MUST have a 'type' attribute with a value of "text". The element then contains the plain text description.</p>
+        <p class="" style="">XHTML may also be used to provide rich description. To do so, the "xhtml" value must be used for the 'type' attribute, and the first child element of the &lt;description/&gt; element MUST be a &lt;div/&gt; element qualified by the 'http://www.w3.org/1999/xhtml' namespace. Note that the content MUST be sanitized before being shown to end-user, please check <a href="#security">Security Considerations</a> for some advices.</p>
+        <p class="" style="">The "xml:lang" attribute SHOULD be present on each description element.</p>
+        <p class="" style="">Several &lt;description/&gt; elements MAY be present, as long as they have distinct "type"/"xml:lang" combination. It is not mandatory to provide a text or XHTML description, and providing only one of them is valid.</p>
+  </div>
+  <div class="indent"><h3 id="categories">6.3 Categories<a class="anchor-link" href="#categories"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">It is possible to give categories to the event with the &lt;category/&gt; element. This is specially useful for event discovery, and to give a rought idea of what the event is about. A &lt;category/&gt; MUST have a 'term' attribute with a human readable word or short words combination describing the category, and SHOULD have a "xml:lang" attribute set.</p>
+      <p class="" style="">Whenever possible, the &lt;category/&gt; SHOULD have a "wd" attribute whose value is the <a href="https://www.wikidata.org/wiki/Wikidata:Identifiers">Wikidata Entity ID</a>
+           [<a href="#nt-id41">8</a>].
+          Wikidata is an open and collaborative database with over 100 million items. By specifying the Wikidata entity ID corresponding to the term, the category becomes machine readable and can be easily translated, associated to similar terms, linked to corresponding Wikipedia page in end-user language, and so on.</p>
+  </div>
+  <div class="indent"><h3 id="location">6.4 Location<a class="anchor-link" href="#location"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+      <p class="" style="">It is often important to indicate the place where the event happens. This is done by using a &lt;location/&gt; element which is wrapping zero or one <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0080.html">User Geolocation (XEP-0080)</a></span>  [<a href="#nt-id42">9</a>] &lt;geoloc/&gt; element and any number of &lt;online/&gt; elements (described below).</p>
+      <p class="" style="">&lt;online/&gt; element is used for virtual meeting using a computer. If is it the under the same &lt;location/&gt; element than a &lt;geoloc/&gt; element, the online meeting is done in parallel to the physical meeting.</p>
+      <p class="" style="">There may be several &lt;location&gt; elements if the meeting happens in several places (either at the same time, or one after the other). If several locations are used, each &lt;location/&gt; element MUST have an 'id' attribute with an unique identifier. At least one of the &lt;location/&gt; SHOULD have an 'id' with a value of "main", indicating that it is the main meeting place (which can then be used to discover events by geographical coordinates). When the event is presented to end-user using HTML, the rendering software SHOULD set an 'id' attribute to the element showing the location with the value "location_&lt;LOCATION_ID&gt;" (e.g. for the "main" location, the 'id' attribute would have a value of "location_main"), this way location may then be linked in the XHTML description.</p>
+      <div class="indent"><h4 id="online_location">6.4.1 Online Location<a class="anchor-link" href="#online_location"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+        <p class="" style="">If the meeting is virtual or if a virtual meeting happens in parallel for those who can't go physically to the event, one or more &lt;online/&gt; elements can be used to give the instructions.</p>
+        <p class="" style="">The only mandatory &lt;online/&gt; child element is &lt;instructions/&gt; which contains a human readable text explaining how to join the online meeting. The &lt;instructions/&gt; element SHOULD have a 'xml:lang' attribute, and several &lt;instructions/&gt; elements MAY be present if they have distinct 'xml:lang' attributes.</p>
+        <p class="" style="">&lt;online/&gt; MAY have an optional &lt;name/&gt; child with a human readable text, this is notably useful if several online locations are used at the same time for different purpose (e.g.: global announces, lost and found, etc.). The &lt;name/&gt; element SHOULD have a 'xml:lang' attribute.</p>
+        <p class="" style="">If the online location is on an XMPP MUC, an &lt;x/&gt; element qualified by the 'jabber:x:conference' namespace as described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0249.html">Direct MUC Invitations (XEP-0249)</a></span>  [<a href="#nt-id43">10</a>] can be used.</p>
+        <p class="" style="">It may be useful to indicate which software is used for the meeting. This is done with the &lt;software/&gt; element which MUST have a 'name' attribute with the software name, SHOULD have a 'wd' attribute with Wikidata entity ID when available (see <a href="#categories">Categories section</a> for explanation on Wikidata) as it provides a lot of machine readable useful information such as where it can be found, on which platforms it is running, etc. The &lt;software/&gt; SHOULD also have an 'url' attribute with the URL to the official software website as value. The 'need_install' attribute MAY be used with a value of either 'true' if the software needs to be installed or 'false' if it's not necessary (i.e. if it's accessible directly via a web resource).</p>
+        <p class="" style="">The &lt;url-data/&gt; provide the main URL to be used to join the online meeting. It is specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0103.html">URL Address Information (XEP-0103)</a></span>  [<a href="#nt-id44">11</a>]</p>
+
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Online Location<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq
+  type='set'
+  from='juliet@capulet.lit/chamber'
+  to='pubsub.capulet.lit'
+  id='event3'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='urn:xmpp:calendar-events:0/ball_organisation'&gt;
+      &lt;item&gt;
+        &lt;event xmlns='urn:xmpp:calendar-events:0'&gt;
+          &lt;!-- … --&gt;
+
+          &lt;location&gt;
+            &lt;online&gt;
+              &lt;name xml:lang="en"&gt;Ball organisation&lt;/name&gt;
+              &lt;software name='Jitsi Meet' wd='Q87849488' url='https://meet.jit.si/' need_install='false' /&gt;
+              &lt;url-data xmlns='http://jabber.org/protocol/url-data' target='https://jitsi.capulet.lit/ball_2022_organisation' /&gt;
+              &lt;instructions xml:lang='en'&gt;
+                  Just click on the link to access the room. We'll be discussion about organisation of the Capulet ball.
+              &lt;/instructions&gt;
+            &lt;/online&gt;
+            &lt;online&gt;
+              &lt;x xmlns='jabber:x:conference' jid='ball_talks@muc.capulet.lit' /&gt;
+              &lt;instructions xml:lang='en'&gt;
+                  Join this room for any king of discussions which need to be written, and to share files.
+              &lt;/instructions&gt;
+            &lt;/online&gt;
+          &lt;/location&gt;
+
+          &lt;!-- … --&gt;
+        &lt;/event&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;</pre></figure>
+      </div>
+  </div>
+  <div class="indent"><h3 id="RSVP">6.5 RSVP<a class="anchor-link" href="#RSVP"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">RSVP is a major tools when an event is organized: it helps to check if invitees have seen the event, and to evaluate the total number of people attending. The &lt;rsvp&gt; element MUST contain form as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0004.html">Data Forms (XEP-0004)</a></span>  [<a href="#nt-id45">12</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0068.html">Field Standardization for Data Forms (XEP-0068)</a></span>  [<a href="#nt-id46">13</a>]. The form must be specified as explained in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0068.html">Field Standardization for Data Forms (XEP-0068)</a></span>  [<a href="#nt-id46">13</a>] with &lt;field/&gt; having a 'type' attribute with a value of "hidden", a 'var' with a value of "FORM_TYPE", and the field value MUST be "urn:xmpp:calendar-events:rsvp:0".</p>
+    <p class="" style="">The form is the one which has to be answered by invitees, it SHOULD contain a field with a 'type' attribute of value "list-single" and a 'var' attribute of value "attending" with 3 options of respective value "maybe", "yes" and "no". This is the main field and it's the one which will be used to estimate the number of attendees. However, an event organizer MAY decide to modify the available options, for instance if the "maybe" option is not desired. This element SHOULD have a &lt;required/&gt; child element.</p>
+    <p class="" style="">An optional field named "participants_number" MAY be used to indicate the number of attendees, including the person answering. This field has the default type of "text-single". If present, it will be used to summarize the expected number of persons participating to the event, otherwise one person per attending invitee will be assumed.</p>
+    <p class="" style="">Any other field can be added to request extra information to invitees. For instance, it may be used to ask if attendees have allergies, or who is bringing what to a picnic. If a new field is added, <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0068.html">Field Standardization for Data Forms (XEP-0068)</a></span>  [<a href="#nt-id46">13</a>] MUST be followed, and the 'var' attribute MUST be namespaced using <span class="ref" style=""><a href="http://www.jclark.com/xml/xmlns.htm">Clark Notation</a></span>  [<a href="#nt-id47">14</a>].</p>
+    <p class="" style="">The answer is provided by attendees using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0470.html">Pubsub Attachments (XEP-0470)</a></span>  [<a href="#nt-id48">15</a>]: an &lt;rsvp/&gt; element qualified by the 'urn:xmpp:calendar-events:0' namespace is attached to the event item, containing the submitted data.</p>
+    <p class="" style="">&lt;rsvp/&gt; element SHOULD have a 'xml:lang' attribute set to the language of the labels. Several &lt;rsvp/&gt; elements MAY be present, in which case they MUST have distinct 'xml:lang' attributes.</p>
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> RSVP Form<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq
+  type='set'
+  from='juliet@capulet.lit/chamber'
+  to='pubsub.capulet.lit'
+  id='event4'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='urn:xmpp:calendar-events:0/picnics'&gt;
+      &lt;item id='picnic_ab123'&gt;
+        &lt;event xmlns='urn:xmpp:calendar-events:0'&gt;
+          &lt;!-- … --&gt;
+
+          &lt;rsvp&gt;
+            &lt;x xmlns="jabber:x:data" type="form"&gt;
+              &lt;field var="FORM_TYPE" type="hidden"&gt;
+                &lt;value&gt;urn:xmpp:calendar-events:rsvp:0&lt;/value&gt;
+              &lt;/field&gt;
+              &lt;field type='list-single' label='Attending' var='attending'&gt;
+                &lt;value&gt;maybe&lt;/value&gt;
+                &lt;option label='maybe'&gt;&lt;value&gt;maybe&lt;/value&gt;&lt;/option&gt;
+                &lt;option label='yes'&gt;&lt;value&gt;yes&lt;/value&gt;&lt;/option&gt;
+                &lt;option label='no'&gt;&lt;value&gt;no&lt;/value&gt;&lt;/option&gt;
+                &lt;required/&gt;
+              &lt;/field&gt;
+              &lt;field label='Number of persons comming (including you)' var='participants_number'&gt;
+                &lt;value&gt;1&lt;/value&gt;
+              &lt;/field&gt;
+              &lt;field
+                label='Do you have any allergy or food restriction?'
+                var='{https://example.org/some_software}restrictions'
+                type='text-multi' /&gt;
+            &lt;/x&gt;
+          &lt;/rsvp&gt;
+
+          &lt;!-- … --&gt;
+        &lt;/event&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;</pre></figure>
+    <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Romeo Submit his RSVP Answer<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.lit/123'
+  id='events_5'
+  to='pubsub.capulet.lit'
+  type='set'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='xmpp:pubsub.capulet.lit?;node=urn%3Axmpp%3Aevents%3A0%2Fpicnics;item=picnic_ab123'&gt;
+      &lt;item id='romeo@montague.lit'&gt;
+        &lt;attachments&gt;
+          &lt;rsvp xmlns='urn:xmpp:calendar-events:0'&gt;
+            &lt;x xmlns="jabber:x:data" type="submit"&gt;
+              &lt;field var='FORM_TYPE'&gt;
+                &lt;value&gt;&gt;urn:xmpp:calendar-events:rsvp:0&lt;/value&gt;
+              &lt;/field&gt;
+              &lt;field var='attending'&gt;
+                &lt;value&gt;yes&lt;/value&gt;
+              &lt;/field&gt;
+              &lt;field var='{https://example.org/some_software}restrictions'&gt;
+                &lt;value&gt;no&lt;/value&gt;
+              &lt;/field&gt;
+            &lt;/x&gt;
+          &lt;/rsvp&gt;
+        &lt;/attachments&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <div class="indent"><h4 id="rsvp_summarizing">6.5.1 RSVP Summarizing<a class="anchor-link" href="#rsvp_summarizing"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">To summarize RSVP answers, as explained in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0470.html">Pubsub Attachments (XEP-0470)</a></span>  [<a href="#nt-id48">15</a>], the number of attendees is counted with 2 values: "confirmed" which are attendees coming for sure, and "max" which is the maximum number of persons expected.</p>
+      <p class="" style="">For each &lt;rsvp/&gt; element attached, the count is done like this:</p>
+      <ul class="" style="">
+        <li class="" style="">the increment is equal to the value of the 'participants_number' field, or 1 if
+        <ol start="" class="" style="">
+          <li class="" style="">the 'participants_number' field is not used or not present in submitted values</li>
+          <li class="" style="">the value doesn't cast to an int</li>
+          <li class="" style="">the int value is lower than 1</li>
+        </ol>
+      </li>
+      <li class="" style="">if the value of 'attending' field is not set or "no", then nothing is done</li>
+      <li class="" style="">if the value of 'attending' field is "yes", both "confirmed" and "max" are increased by the increment value</li>
+      <li class="" style="">if the value of 'attending' field is "maybe", only "max" is increased by the increment value</li>
+    </ul>
+    <p class="" style="">The summary is done in an &lt;attendees/&gt; element qualified by the 'urn:xmpp:calendar-events:0' namespace, with a 'confirmed' attribute whose value is the number of confirmed invitees, and a 'max' attribute with the maximum number of invitees expected. If 'max' is the same number as 'confirmed' (meaning that nobody has answered "maybe"), then it may be omitted.</p>
+
+    <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Juliet Check Current Summary of RSVP<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+  &lt;iq from='pubsub.capulet.lit'
+    id='events_6'
+    to='juliet@capulet.lit/chamber'
+    type='result'&gt;
+    &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+      &lt;items node='urn:xmpp:pubsub-attachments:summary:1/urn:xmpp:calendar-events:0/picnics'&gt;
+        &lt;item id='picnic_ab123'&gt;
+          &lt;summary xmlns='urn:xmpp:pubsub-attachments:summary:1'&gt;
+            &lt;!-- … --&gt;
+
+            &lt;attendees xmlns='urn:xmpp:calendar-events:0' confirmed='5' max='7' /&gt;
+
+            &lt;!-- … --&gt;
+          &lt;/summary&gt;
+        &lt;/item&gt;
+      &lt;/items&gt;
+    &lt;/pubsub&gt;
+  &lt;/iq&gt;
+
+</pre></figure>
+
+    </div>
+
+    <div class="indent"><h4 id="private_rsvp">6.5.2 Private RSVP<a class="anchor-link" href="#private_rsvp"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">Due to the way <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0470.html">Pubsub Attachments (XEP-0470)</a></span>  [<a href="#nt-id48">15</a>] is working, the normal way to answer RSVP is visible to everybody which can see the event. This is normally not a problem as people which attend the event can see by themselves who is there or not, however some persons may not want to have their RSVP or JID exposed to other participants. In this case the RSVP MAY be sent through a &lt;message/&gt; stanza directed to the JID of the event publisher. The RSVP is then simply put as a child of the stanza, with an optional &lt;body/&gt;. If not &lt;body/&gt; is provided or if the body in empty, The &lt;message/&gt; SHOULD include a &lt;store&gt; hint as specified in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0334.html">Message Processing Hints (XEP-0334)</a></span>  [<a href="#nt-id49">16</a>].</p>
+      <p class="" style="">Note that sending an RSVP with a &lt;message/&gt; may complicate the organisation: it's then not counted automatically in the attachments summary, and if several persons are organizing the event, they may not all check easily the participation.</p>
+    <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Romeo Submit a Private RSVP Answer<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+  &lt;message from='romeo@montague.lit/123' to='juliet@.capulet.lit' &gt;
+    &lt;rsvp xmlns='urn:xmpp:calendar-events:0'&gt;
+      &lt;x xmlns="jabber:x:data" type="submit"&gt;
+        &lt;field var='FORM_TYPE'&gt;
+          &lt;value&gt;&gt;urn:xmpp:calendar-events:rsvp:0&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='attending'&gt;
+          &lt;value&gt;yes&lt;/value&gt;
+        &lt;/field&gt;
+        &lt;field var='{https://example.org/some_software}restrictions'&gt;
+          &lt;value&gt;no&lt;/value&gt;
+        &lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/rsvp&gt;
+    &lt;store xmlns="urn:xmpp:hints"/&gt;
+  &lt;/message&gt;
+</pre></figure>
+
+    </div>
+  </div>
+  <div class="indent"><h3 id="linked_nodes">6.6 Linked Pubsub Nodes<a class="anchor-link" href="#linked_nodes"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Some useful external pubsub nodes can be linked to the event. Those nodes are linked through elements which always have a 'jid' attribute specifying the JID of the pubsub or <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0163.html">Personal Eventing Protocol (XEP-0163)</a></span>  [<a href="#nt-id39">6</a>] service, and a 'node' attribute specifying the pubsub node used. The supported elements are described below.</p>
+    <div class="indent"><h4 id="linked_invitees">6.6.1 invitees<a class="anchor-link" href="#linked_invitees"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">&lt;invitees/&gt; element links to a node containing one item per invitee. This node access model MAY be different to the one of the event itself: it can for instance have a "whitelist" access model to restrict the list of invitees only to organisers. In other words, it's not because an user has access to the event item that they have necessarily access to the list of invitees. Each item of the invitees node has a simple payload with an &lt;invitee/&gt; element qualified by the 'urn:xmpp:calendar-events:0' namespace and whose attributes are the mandatory 'jid' with the JID of the invitee, and an optional 'name' attribute with a human readable name.</p>
+    </div>
+    <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> Pubsub Service Returns the List of Invitees to Juliet<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+  from='pubsub.capulet.lit'
+  to='juliet@capulet.lit/chamber'
+  id='invitees_123'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;items node='urn:xmpp:calendar-events:invitees:0/2022_ball'&gt;
+      &lt;item id='abcdef'&gt;
+        &lt;invitee jid='nurse@capulet.lit' name='Nurse' /&gt;
+      &lt;/item&gt;
+      &lt;item id='123456'&gt;
+        &lt;invitee jid='tybalt@capulet.lit' name='Tybalt' /&gt;
+      &lt;/item&gt;
+      &lt;!-- … --&gt;
+    &lt;/items
+    &lt;/pubsub&gt;
+  &lt;/iq&gt;
+</pre></figure>
+    <div class="indent"><h4 id="linked_comments">6.6.2 comments<a class="anchor-link" href="#linked_comments"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">The &lt;comments/&gt; element link to a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0277.html">Microblogging Over XMPP (XEP-0277)</a></span>  [<a href="#nt-id37">4</a>] comments node holding comments to the event iself.</p>
+    </div>
+    <div class="indent"><h4 id="linked_blog">6.6.3 blog<a class="anchor-link" href="#linked_blog"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">The &lt;blog/&gt; element link to a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0277.html">Microblogging Over XMPP (XEP-0277)</a></span>  [<a href="#nt-id37">4</a>] node with a blog about the event. It is useful to keep people updated about any news or preparation information.</p>
+    </div>
+    <div class="indent"><h4 id="linked_schedule">6.6.4 schedule<a class="anchor-link" href="#linked_schedule"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">The &lt;schedule/&gt; element link to an events node (i.e. a node using this specification) describing the programation which will happens during the main event. Put another way, it's were information such as dinner time, talks, workshop, etc. can be added.</p>
+      <p class="" style="">Several events in the schedule MAY happen at the same time or overlapping time (for instance: various talks happening in parallel in a conference), in which case the locations SHOULD be specified (e.g. in which room each talk is taking place). Schedule MAY include events with RSVP (e.g. for a workshop needing inscription).</p>
+    </div>
+  </div>
+
+  <div class="indent"><h3 id="attachments">6.7 Attachments<a class="anchor-link" href="#attachments"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The &lt;attachments/&gt; elements is used to attach all kinds of files which may be useful to the event (menu, map, badge template, and so forth). It contains one or more &lt;file-sharing/&gt; elements as specified by <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0447.html">Stateless file sharing (XEP-0447)</a></span>  [<a href="#nt-id40">7</a>].</p>
+  </div>
+
+  <div class="indent"><h3 id="extra">6.8 Extra Data<a class="anchor-link" href="#extra"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The &lt;extra/&gt; element hold a data form containing any relevant extra data. The form must be specified by using a FORM_TYPE field with the value "urn:xmpp:calendar-events:extra:0" and a 'type' with the value "hidden". Below some fields are specified, a software MAY add additional field. Any new field MUST follow <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0068.html">Field Standardization for Data Forms (XEP-0068)</a></span>  [<a href="#nt-id46">13</a>] and be namespaced using <span class="ref" style=""><a href="http://www.jclark.com/xml/xmlns.htm">Clark Notation</a></span>  [<a href="#nt-id47">14</a>]. All field and the form itself are optional.</p>
+    <p class="" style="">The following fields may be used, if not specified otherwise their type is "text-single":</p>
+    <ul class="" style="">
+      <li class="" style=""><strong>website</strong>: the value links to a website dedicated to the event</li>
+      <li class="" style=""><strong>status</strong>: indicate if the event will happen for sure or if it's a tentative. The possible values are "confirmed" if the event will happen for sure, "tentative" if the event may happen dependant on some condition (e.g. number of participants, convenient date found), and "cancelled" if the event won't happen. Note that "tentative" events may be moved to another time [<a href="#nt-id50">17</a>].</li>
+      <li class="" style=""><strong>languages</strong>: indicate the main languages that will be used during the event. The field is of type "list-multi", and each language value is an <a href="https://en.wikipedia.org/wiki/ISO_639">ISO 639</a> language code.</li>
+      <li class="" style=""><strong>accessibility:wheelchair</strong>: indicates if the event is accessible to wheelchairs. The possible values are "full" for an event totally accessible to wheelchair, "partial" when some zones may be difficult to access, and "no" when the zone is not adapted for wheelchairs.</li>
+    </ul>
+  </div>
+
+  <div class="indent"><h3 id="external">6.9 External Event<a class="anchor-link" href="#external"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An event may link to an other one. This is often useful when ones want to participate to an event and add it to their own personal agenda</p>
+    <p class="" style="">To link an external event, an &lt;external/&gt; element is used which MUST have the 3 following attributes: 'jid' with the JID of the pubsub service of the linked event, 'node' with the name of the pubsub node and 'item' with the ID of the linked event item.</p>
+    <p class="" style="">Generally, only the 3 mandatory &lt;name/&gt;, &lt;start/&gt; and &lt;end/&gt; elements are specified in addition to the &lt;external/&gt; one, the reason being that all data of the events SHOULD be retrieved from the original event itself. The start and end time are still specified through to be sure that the event won't be automatically moved to an unapproved time spot if the original event is modified.</p>
+    <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> Romeo Link Capulet's Ball in His Personal Agenda<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq
+  type='set'
+  from='romeo@montague.lit/123'
+  to='romeo@montague.lit'
+  id='event_link_123'&gt;
+  &lt;pubsub xmlns='http://jabber.org/protocol/pubsub'&gt;
+    &lt;publish node='urn:xmpp:calendar-events:0'&gt;
+      &lt;item&gt;
+        &lt;event xmlns='urn:xmpp:calendar-events:0'&gt;
+          &lt;name xml:lang='en'&gt;Capulet's Ball&lt;/name&gt;
+          &lt;start&gt;2022-12-15T20:00:00Z&lt;/start&gt;
+          &lt;end&gt;2022-12-16T02:00:00Z&lt;/end&gt;
+          &lt;external jid='pubsub.capulet.lit' node='urn:xmpp:calendar-events:0/balls' item='2022_ball' /&gt;
+        &lt;/event&gt;
+      &lt;/item&gt;
+    &lt;/publish&gt;
+  &lt;/pubsub&gt;
+&lt;/iq&gt;</pre></figure>
+  </div>
+
+<h2 id="rules">7.
+       Business Rules<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="disco">8.
+       Discovering Support<a class="anchor-link" href="#disco"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">If a client supports the Events protocol specified in this XEP, it must advertize it by including the "urn:xmpp:calendar-events:0" discovery feature in response to a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id51">18</a>] information request:</p>
+
+  <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Service Discovery information request<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='juliet@example.org/balcony'
+    to='romeo@example.org/orchard'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;</pre></figure>
+  <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Service Discovery information response<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    from='romeo@example.org/orchard'
+    to='juliet@example.org/balcony'
+    id='disco1'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;feature var='urn:xmpp:calendar-events:0'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></figure>
+<p class="" style="">Similarly, if a PEP/Pubsub service implements the summarizing of RSVP as described in <a href="#rsvp_summarizing">RSVP Summarizing</a>, it MUST advertise that fact by including the "urn:xmpp:calendar-events:0" discovery feature in response to a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id51">18</a>] information request:</p>
+  <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> Service Discovery information request<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='get'
+    from='juliet@example.org/balcony'
+    to='pubsub.capulet.lit'
+    id='disco2'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'/&gt;
+&lt;/iq&gt;</pre></figure>
+  <figure class="code-example" id="example-13"><figcaption><strong>Example 13.</strong> Service Discovery information response<a class="anchor-link" href="#example-13"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type='result'
+    from='pubsub.capulet.lit'
+    to='juliet@example.org/balcony'
+    id='disco2'&gt;
+  &lt;query xmlns='http://jabber.org/protocol/disco#info'&gt;
+    ...
+    &lt;feature var='urn:xmpp:calendar-events:0'/&gt;
+    ...
+  &lt;/query&gt;
+&lt;/iq&gt;</pre></figure>
+<h2 id="security">9.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="iana">10.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="registrar">11.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="schema">12.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">TODO</p>
+<h2 id="acks">13.
+       Acknowledgements<a class="anchor-link" href="#acks"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Thanks to NLnet foundation/NGI0 Discovery for funding the work on this specification.</p>
+  <p class="" style="">Thanks to JC Brand for spelling corrections.</p>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0471</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.2.0</dd><dt>Last Updated</dt><dd>2025-10-13</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, <a href="xep-0001.html">XEP-0001</a>, <a href="xep-0004.html">XEP-0004</a>, <a href="xep-0060.html">XEP-0060</a>, <a href="xep-0447.html">XEP-0447</a>, <a href="xep-0470.html">XEP-0470</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>calendar-events</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0471.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0471.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0471.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Jérôme Poisson</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:goffi@goffi.org">goffi@goffi.org</a></dd><dt>JabberID</dt><dd><a href="xmpp:goffi@jabber.fr">goffi@jabber.fr</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">
+          The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED",
+          "MAY", and "OPTIONAL" in this document are to be interpreted as
+          described in <a href="https://tools.ietf.org/rfc/bcp/bcp14.txt">BCP 14</a>
+          [<a href="https://www.ietf.org/rfc/rfc2119.txt">RFC2119</a>]
+          [<a href="https://tools.ietf.org/rfc/rfc8174.txt">RFC8174</a>] when,
+          and only when, they appear in all capitals, as shown here.
+        </p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id34">1</a>. XEP-0097: iCal Envelope &lt;<a href="https://xmpp.org/extensions/xep-0097.html">https://xmpp.org/extensions/xep-0097.html</a>&gt;.</p><p><a name="nt-id35">2</a>. iCalendar <a href="https://datatracker.ietf.org/doc/html/rfc5545">https://datatracker.ietf.org/doc/html/rfc5545</a></p><p><a name="nt-id36">3</a>. XEP-0060: Publish-Subscribe &lt;<a href="https://xmpp.org/extensions/xep-0060.html">https://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-id37">4</a>. XEP-0277: Microblogging over XMPP &lt;<a href="https://xmpp.org/extensions/xep-0277.html">https://xmpp.org/extensions/xep-0277.html</a>&gt;.</p><p><a name="nt-id38">5</a>. XEP-0082: XMPP Date and Time Profiles &lt;<a href="https://xmpp.org/extensions/xep-0082.html">https://xmpp.org/extensions/xep-0082.html</a>&gt;.</p><p><a name="nt-id39">6</a>. XEP-0163: Personal Eventing Protocol &lt;<a href="https://xmpp.org/extensions/xep-0163.html">https://xmpp.org/extensions/xep-0163.html</a>&gt;.</p><p><a name="nt-id40">7</a>. XEP-0447: Stateless file sharing &lt;<a href="https://xmpp.org/extensions/xep-0447.html">https://xmpp.org/extensions/xep-0447.html</a>&gt;.</p><p><a name="nt-id41">8</a>. to find the ID corresponding to the term, you can either <a href="https://www.wikidata.org/wiki/Special:Search">search on Wikidata itself</a>, or <a href="https://www.wikidata.org/wiki/Wikidata:Identifiers">check it via Wikipedia</a>. An item entity identifier is needed, thus it should start with a "Q". IDs can also be found via <a href="https://www.mediawiki.org/wiki/API:Main_page">Wikipedia API</a> or <a href="https://www.wikidata.org/wiki/Wikidata:Data_access">Wikidata API</a>.</p><p><a name="nt-id42">9</a>. XEP-0080: User Geolocation &lt;<a href="https://xmpp.org/extensions/xep-0080.html">https://xmpp.org/extensions/xep-0080.html</a>&gt;.</p><p><a name="nt-id43">10</a>. XEP-0249: Direct MUC Invitations &lt;<a href="https://xmpp.org/extensions/xep-0249.html">https://xmpp.org/extensions/xep-0249.html</a>&gt;.</p><p><a name="nt-id44">11</a>. XEP-0103: URL Address Information &lt;<a href="https://xmpp.org/extensions/xep-0103.html">https://xmpp.org/extensions/xep-0103.html</a>&gt;.</p><p><a name="nt-id45">12</a>. XEP-0004: Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0004.html">https://xmpp.org/extensions/xep-0004.html</a>&gt;.</p><p><a name="nt-id46">13</a>. XEP-0068: Field Data Standardization for Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0068.html">https://xmpp.org/extensions/xep-0068.html</a>&gt;.</p><p><a name="nt-id47">14</a>. Clark Notation, a syntax to allow universal names written as a URI in curly brackets followed by the local name; developed by James Clark. &lt;<a href="http://www.jclark.com/xml/xmlns.htm">http://www.jclark.com/xml/xmlns.htm</a>&gt;.</p><p><a name="nt-id48">15</a>. XEP-0470: Pubsub Attachments &lt;<a href="https://xmpp.org/extensions/xep-0470.html">https://xmpp.org/extensions/xep-0470.html</a>&gt;.</p><p><a name="nt-id49">16</a>. XEP-0334: Message Processing Hints &lt;<a href="https://xmpp.org/extensions/xep-0334.html">https://xmpp.org/extensions/xep-0334.html</a>&gt;.</p><p><a name="nt-id50">17</a>. technically any event can be moved to a different time, the "tentative" status just make it a stronger possibility</p><p><a name="nt-id51">18</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.2.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0471-0.2.0.html">0.2.0</a> (2025-10-13)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Modified title for "Calendar Events". Updated short-name and namespaces accordingly.<div class="revision-author">jp</div></li><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0471-0.1.0.html">0.1.0</a> (2022-12-13)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Accepted by vote of Council on 2022-09-28.<div class="revision-author">XEP Editor (jsc)</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0471-0.0.1.html">0.0.1</a> (2022-09-08)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">jp</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{poisson2022calendar-events,
+  title = {Calendar Events},
+  author = {Poisson, Jérôme},
+  type = {XEP},
+  number = {0471},
+  version = {0.2.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0471.html},
+  date = {2022-09-08/2025-10-13},
+}</pre><p>END</p></body></html>
