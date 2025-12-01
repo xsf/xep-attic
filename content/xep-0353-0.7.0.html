@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0353: Jingle Message Initiation</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0353";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="Jingle Message Initiation"><meta name="DC.Creator" content="Philipp Hancke"><meta name="DC.Creator" content="Peter Saint-Andre"><meta name="DC.Creator" content="Thilo Molitor"><meta name="DC.Description" content="This specification provides a way for the initiator of a Jingle session to propose sending an invitation in an XMPP message stanza, thus taking advantage of message delivery semantics instead of sending IQ stanzas to all of the responder's online resources or choosing a particular online resource."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2025-09-16"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0353"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0353: Jingle Message Initiation</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification provides a way for the initiator of a Jingle session to propose sending an invitation in an XMPP message stanza, thus taking advantage of message delivery semantics instead of sending IQ stanzas to all of the responder's online resources or choosing a particular online resource.</dd><dt>Authors</dt><dd><ul class="authors"><li>Philipp Hancke</li><li>Peter Saint-Andre</li><li>Thilo Molitor</li></ul></dd><dt>Copyright</dt><dd>© 2014 – 2025 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.7.0 (2025-09-16)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#usecases">Use Cases</a><ol><li><a href="#intent">Indicating Intent to Start a Session</a></li><li><a href="#ring">Indicating a Ringing Device</a></li><li><a href="#retract">Disavowing Intent to Start a Session</a></li><li><a href="#proceed">Accepting Intent to Start a Session</a></li><li><a href="#reject">Rejecting Intent to Start a Session</a></li><li><a href="#initiate">Initiating the Jingle Session</a></li><li><a href="#finish">Finishing a Started Session</a></li></ol></li><li><a href="#tie-breaking">Tie Breaking</a><ol><li><a href="#tie-break-1">No existing session</a></li><li><a href="#tie-break-2">Existing session</a></li></ol></li><li><a href="#business-rules">Business Rules</a></li><li><a href="#security">Security Considerations</a></li><li><a href="#acks">Acknowledgements</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-ns">Protocol Namespaces</a></li><li><a href="#registrar-versioning">Protocol Versioning</a></li></ol></li><li><a href="#design">Design Considerations</a></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0166.html">Jingle (XEP-0166)</a></span>  [<a href="#nt-id23">4</a>] uses &lt;iq/&gt; stanzas for all interactions between the parties to a jingle session. When sending an invitation the initiator needs to either pick one of the responder's resources (e.g., based on <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0115.html">Entity Capabilities (XEP-0115)</a></span>  [<a href="#nt-id24">5</a>] information) or send the invitation to all of the responder's resources that support Jingle. The first method is prone to error (e.g., in cases where more than one resource supports Jingle) and the second method requires sending a separate invitation to each resource. Neither of these is ideal. Although <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0276.html">Presence Decloaking (XEP-0276)</a></span>  [<a href="#nt-id25">6</a>] proposed a way to overcome the problem, it too has issues (e.g., dependency on a presence service and the need to reveal all supported XMPP features) and in any case has not been widely implemented.</p>
+  <p class="" style="">This document proposes an alternative solution: exchanging a &lt;message/&gt; stanza before sending the Jingle invitation in an &lt;iq/&gt; stanza. (Indeed, in the early discussions leading up to the Jingle protocol the authors considered using &lt;message/&gt; stanzas instead of &lt;iq/&gt; stanzas, but chose the latter for their deterministic handling semantics.) This method effectively results in a kind of decloaking for Jingle purposes.</p><p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0280.html">Message Carbons (XEP-0280)</a></span>  [<a href="#nt-id26">1</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-id27">2</a>] (including <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0334.html">Message Processing Hints (XEP-0334)</a></span>  [<a href="#nt-id28">3</a>]) make sure all devices (offline or not) know about the jingle session, its start timestamp and even its end timestamp and the state in between.</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This protocol was designed with the following requirements in mind:</p>
+  <ul class="" style="">
+    <li class="" style="">Allow responder to choose the resource or device on which to take the call.</li>
+    <li class="" style="">Result in "ring-on-all-devices" behavior.</li>
+    <li class="" style="">Not rely on presence stanzas.</li>
+    <li class="" style="">Make use of "forking" semantics for message stanzas.</li>
+    <li class="" style="">Allow indication of session content.</li>
+    <li class="" style="">Work with push notifications.</li>
+    <li class="" style="">Work with offline devices</li>
+    <li class="" style="">Work with devices that use negative resource priorities</li>
+    <li class="" style="">Allow all devices of the involved users to display start and end timestamps of the call</li>
+  </ul>
+<h2 id="usecases">3.
+       Use Cases<a class="anchor-link" href="#usecases"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">All &lt;message/&gt; stanzas exchanged by this protocol MUST be of type="chat" and contain <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0334.html">Message Processing Hints (XEP-0334)</a></span>  [<a href="#nt-id28">3</a>] &lt;store/&gt; hints.</p>
+  <div class="indent"><h3 id="intent">3.1 Indicating Intent to Start a Session<a class="anchor-link" href="#intent"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">In order to prepare for sending a Jingle invitation, the initiator (e.g., Romeo) sends a &lt;message/&gt; stanza containing a &lt;propose/&gt; element qualified by the 'urn:xmpp:jingle-message:0' namespace. The &lt;propose/&gt; element MUST possess an 'id' attribute being a globally unique identifier. It therefore is RECOMMENDED to use UUIDv4. This id will also be used for the session invitation of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0166.html">Jingle (XEP-0166)</a></span>  [<a href="#nt-id23">4</a>] later on. The &lt;propose/&gt; element MUST contain one &lt;description/&gt; element for each media type associated with the intended session.</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Initiator Sends Intent Message<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='romeo@montague.example/orchard'
+         to='juliet@capulet.example'
+         type='chat'&gt;
+  &lt;propose xmlns='urn:xmpp:jingle-message:0' id='ca3cf894-5325-482f-a412-a6e9f832298d'&gt;
+    &lt;description xmlns='urn:xmpp:jingle:apps:rtp:1' media='audio'/&gt;
+  &lt;/propose&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+</pre></figure>
+    <p class="" style="">The server of the responder (e.g., Juliet) distributes this message stanza to all of Juliet's available resources (and to push resources as appropriate) thanks to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0280.html">Message Carbons (XEP-0280)</a></span>  [<a href="#nt-id26">1</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-id27">2</a>]. Those devices might start ringing as a result.</p>
+    <p class="" style="">Consistent with the recommendation for one-to-one chat sessions in Section 5.1 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6121">RFC 6121</a></span>  [<a href="#nt-id29">7</a>], the initiator SHOULD also send directed presence to the responder if the two entities do not already share presence information; including Entity Capabilities (XEP-0115) information in this directed presence stanza enables the responder to know the availability of the initiator (e.g., in case the message is actually delivered quite a bit later because it is saved to <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-id27">2</a>] storage) and also to know the XMPP features supported by the initiator.</p>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Initiator Sends Directed Presence<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence to='romeo@montague.example/orchard'
+          from='juliet@capulet.example'&gt;
+  &lt;c xmlns='http://jabber.org/protocol/caps'
+     hash='sha-1'
+     node='http://psi-im.org'
+     ver='q07IKJEyjvHSyhy//CH0CxmKi8w='/&gt;
+&lt;/presence&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="ring">3.2 Indicating a Ringing Device<a class="anchor-link" href="#ring"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Upon receiving the &lt;propose/&gt; message, the responder's various devices will start "ringing" and indicate so by sending a message to the bare JID of the initiator containing a &lt;ringing/&gt; element qualified by the 'urn:xmpp:jingle-message:0' namespace and specifying the session ID of the original &lt;propose/&gt; message.</p>
+    <p class="" style="">This makes it possible to reflect the real state of the call in the UI and therefore comprises for better UX. It also somewhat compensates for the (intentionally) missing discovery of this protocol.</p>
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> One of Responder's Resources Reports it is Ringing<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='juliet@capulet.example/phone'
+         to='romeo@montague.example'
+         type='chat'&gt;
+  &lt;ringing xmlns='urn:xmpp:jingle-message:0' id='ca3cf894-5325-482f-a412-a6e9f832298d'/&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="retract">3.3 Disavowing Intent to Start a Session<a class="anchor-link" href="#retract"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">It can happen that the initiator might want to disavow intent to send a session invitation (e.g., because the initiator has accepted another session). The initiator can do so by sending a message stanza containing a &lt;retract/&gt; element qualified by the 'urn:xmpp:jingle-message:0' namespace and specifying the session ID of the original &lt;propose/&gt; message.</p>
+    <p class="" style="">The &lt;retract/&gt; element SHOULD contain a &lt;reason/&gt; element as defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0166.html">Jingle (XEP-0166)</a></span>  [<a href="#nt-id23">4</a>] section 7.4. This SHOULD use a condition of &lt;cancel/&gt;, but implementations MAY use other conditions if deemed more appropriate (see <a href="#security">Security Considerations</a> below for details and rationale).</p>
+    <p class="" style="">In conjunction with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-id27">2</a>] upon ending the catchup phase the responder SHOULD consider all sessions for which it received a &lt;propose/&gt; but no &lt;retract/&gt; or &lt;finish/&gt; message to be still active and allow the user to <a href="#proceed">accept the intent to start a session</a>.</p>
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Initiator Sends Retract Message<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='romeo@montague.example/orchard'
+         to='juliet@capulet.example'
+         type='chat'&gt;
+  &lt;retract xmlns='urn:xmpp:jingle-message:0' id='ca3cf894-5325-482f-a412-a6e9f832298d'&gt;
+    &lt;reason xmlns="urn:xmpp:jingle:1"&gt;
+      &lt;cancel/&gt;
+      &lt;text&gt;Retracted&lt;/text&gt;
+    &lt;/reason&gt;
+  &lt;/retract&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="proceed">3.4 Accepting Intent to Start a Session<a class="anchor-link" href="#proceed"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The responder will answer the call on a particular device. Here we assume that since this is an audio-only call, Juliet chooses to take the call on the device associated with her "phone" resource.</p>
+    <p class="" style="">Her "phone" resource informs all of her resources and all of the initiator's resources about accepting the call by sending a message to the bare JID of the initiator containing an &lt;proceed/&gt; element qualified by the 'urn:xmpp:jingle-message:0' namespace and specifying the session ID of the original &lt;propose/&gt; message.</p>
+    <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> One of Responder's Resources Accepts the Call<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='juliet@capulet.example/phone'
+         to='romeo@montague.example'
+         type='chat'&gt;
+  &lt;proceed xmlns='urn:xmpp:jingle-message:0' id='ca3cf894-5325-482f-a412-a6e9f832298d'/&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+</pre></figure>
+    <p class="" style="">Juliet's server broadcasts this accept message to all of her resources (as described in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0280.html">Message Carbons (XEP-0280)</a></span>  [<a href="#nt-id26">1</a>]), which stop ringing, and to all of Romeo's resources (as described in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6121">RFC 6121</a></span>  [<a href="#nt-id29">7</a>]). Romeo's resources that did not send the &lt;propose/&gt; can use this &lt;message/&gt; stanza to update their UI or choose to ignore this &lt;message/&gt; stanza altogether.</p>
+    <p class="" style="">Next, the device from which Juliet accepted the call SHOULD also send directed presence to Romeo if the two entities do not already share presence information, for the reasons described above.</p>
+    <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Responder Sends Directed Presence<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence from='juliet@capulet.example/phone'
+          to='romeo@montague.example/orchard'&gt;
+  &lt;c xmlns='http://jabber.org/protocol/caps'
+     hash='sha-1'
+     node='http://code.google.com/p/exodus'
+     ver='QgayPKawpkPSDYmwT/WM94uAlu0='/&gt;
+&lt;/presence&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="reject">3.5 Rejecting Intent to Start a Session<a class="anchor-link" href="#reject"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Instead of accepting the call, the responder might want to decline the call and tell all of her devices to stop ringing (e.g., perhaps because Romeo is getting to be a bit of a nuisance). She does this by rejecting the call on one of her devices and having that device tell all of the other devices to stop ringing by sending a &lt;message/&gt; stanza containing a &lt;reject/&gt; element qualified by the 'urn:xmpp:jingle-message:0' namespace and specifying the session ID of the original &lt;propose/&gt; message to the bare JID of Romeo.</p>
+    <p class="" style="">The &lt;reject/&gt; element SHOULD contain a &lt;reason/&gt; element as defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0166.html">Jingle (XEP-0166)</a></span>  [<a href="#nt-id23">4</a>] section 7.4. If given, the &lt;reason/&gt; element SHOULD use a condition of &lt;busy/&gt;, but implementations MAY use other conditions if deemed more appropriate (see <a href="#security">Security Considerations</a> below for details and rationale).</p>
+    <p class="" style="">In Tie-Breaking scenarios it MUST also contain a &lt;tie-break/&gt; element as defined in <a href="#tie-break-1">Tie Breaking</a>.</p>
+    <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> One of Responder's Resources Rejects the Call<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='juliet@capulet.example/phone'
+         to='romeo@montague.example'
+         type='chat'&gt;
+  &lt;reject xmlns='urn:xmpp:jingle-message:0' id='ca3cf894-5325-482f-a412-a6e9f832298d'&gt;
+    &lt;reason xmlns="urn:xmpp:jingle:1"&gt;
+      &lt;busy/&gt;
+      &lt;text&gt;Busy&lt;/text&gt;
+    &lt;/reason&gt;
+  &lt;/reject&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="initiate">3.6 Initiating the Jingle Session<a class="anchor-link" href="#initiate"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Now Romeo actually initiates the session (segue to Jingle itself).</p>
+    <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> Initiation<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@montague.example/orchard'
+    id='ih28sx61'
+    to='juliet@capulet.example/phone'
+    type='set'&gt;
+  &lt;jingle xmlns='urn:xmpp:jingle:1'
+          action='session-initiate'
+          initiator='romeo@montague.example/orchard'
+          sid='ca3cf894-5325-482f-a412-a6e9f832298d'&gt;
+    &lt;content creator='initiator' name='voice'&gt;
+      &lt;description xmlns='urn:xmpp:jingle:apps:rtp:1' media='audio'&gt;
+        &lt;payload-type id='96' name='speex' clockrate='16000'/&gt;
+        &lt;payload-type id='97' name='speex' clockrate='8000'/&gt;
+        &lt;payload-type id='18' name='G729'/&gt;
+        &lt;payload-type id='0' name='PCMU'/&gt;
+        &lt;payload-type id='103' name='L16' clockrate='16000' channels='2'/&gt;
+        &lt;payload-type id='98' name='x-ISAC' clockrate='8000'/&gt;
+      &lt;/description&gt;
+      &lt;transport xmlns='urn:xmpp:jingle:transports:ice-udp:1'
+                 pwd='asd88fgpdd777uzjYhagZg'
+                 ufrag='8hhy'&gt;
+        &lt;candidate component='1'
+                   foundation='1'
+                   generation='0'
+                   id='el0747fg11'
+                   ip='10.0.1.1'
+                   network='1'
+                   port='8998'
+                   priority='2130706431'
+                   protocol='udp'
+                   type='host'/&gt;
+        &lt;candidate component='1'
+                   foundation='2'
+                   generation='0'
+                   id='y3s2b30v3r'
+                   ip='192.0.2.3'
+                   network='1'
+                   port='45664'
+                   priority='1694498815'
+                   protocol='udp'
+                   rel-addr='10.0.1.1'
+                   rel-port='8998'
+                   type='srflx'/&gt;
+      &lt;/transport&gt;
+    &lt;/content&gt;
+  &lt;/jingle&gt;
+&lt;/iq&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="finish">3.7 Finishing a Started Session<a class="anchor-link" href="#finish"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This protocol in conjunction with <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0280.html">Message Carbons (XEP-0280)</a></span>  [<a href="#nt-id26">1</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-id27">2</a>] allows all devices of both involved parties to get synchronized about session start, rejection etc. To synchronize the ending of the session, both parties SHOULD send a message stanza containing a &lt;finish/&gt; element qualified by the 'urn:xmpp:jingle-message:0' namespace and specifying the same session ID as in <a href="#proceed">proceed</a> to the bare jid of the other party.</p>
+    <p class="" style="">Letting both involved parties send the &lt;finish/&gt; element makes sure we have the correct state in MAM archives etc. even if one client suddenly looses connectivity/power. It even makes possible for a client to determine if the call is still deemed "running" by the other party if it manages to recover from connectivity loss — before the other party runs into a timeout and sends a &lt;finish/&gt; — to recover the session or formally terminate the call (by ending the Jingle session and sending a &lt;finish/&gt; message itself). See <a href="#tie-break-2">Tie Breaking</a> for more infos on this and similar scenarios.</p>
+    <p class="" style="">The &lt;finish/&gt; element SHOULD contain a &lt;reason/&gt; element as defined in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0166.html">Jingle (XEP-0166)</a></span>  [<a href="#nt-id23">4</a>] section 7.4. This SHOULD use a condition of &lt;success/&gt; or &lt;expired/&gt;, but implementations MAY use other conditions like &lt;connectivity-error/&gt; if deemed more appropriate (see <a href="#security">Security Considerations</a> below for details and rationale).</p>
+    <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> Initiator Sends Finish Message<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='romeo@montague.example/orchard'
+         to='juliet@capulet.example'
+         type='chat'&gt;
+  &lt;finish xmlns='urn:xmpp:jingle-message:0' id='ca3cf894-5325-482f-a412-a6e9f832298d'&gt;
+    &lt;reason xmlns="urn:xmpp:jingle:1"&gt;
+      &lt;success/&gt;
+      &lt;text&gt;Success&lt;/text&gt;
+    &lt;/reason&gt;
+  &lt;/finish&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+</pre></figure>
+    <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Responder Sends Finish Message<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='juliet@capulet.example/phone'
+         to='romeo@montague.example'
+         type='chat'&gt;
+  &lt;finish xmlns='urn:xmpp:jingle-message:0' id='ca3cf894-5325-482f-a412-a6e9f832298d'&gt;
+    &lt;reason xmlns="urn:xmpp:jingle:1"&gt;
+      &lt;success/&gt;
+      &lt;text&gt;Success&lt;/text&gt;
+    &lt;/reason&gt;
+  &lt;/finish&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+</pre></figure>
+  </div>
+<h2 id="tie-breaking">4.
+       Tie Breaking<a class="anchor-link" href="#tie-breaking"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">It is possible that a &lt;propose/&gt; message can be sent at the same time by both parties or a new session started while one is already running. Implementations of this specification SHOULD implement the following solutions to solve this. (This is loosely based upon section 7.2.16 of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0166.html">Jingle (XEP-0166)</a></span>  [<a href="#nt-id23">4</a>].)</p>
+  <div class="indent"><h3 id="tie-break-1">4.1 No existing session<a class="anchor-link" href="#tie-break-1"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">In this case (e.g. no party answered the &lt;propose/&gt; message yet) the lower of the two session IDs MUST overrule the other action, where by "lower" is meant the session ID that is sorted first using "i;octet" collation as specified in Section 9.3 of <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc4790">RFC 4790</a></span>  [<a href="#nt-id30">8</a>] (in the unlikely event that the random session IDs are the same, the action sent by the lower of the JabberIDs MUST overrule the other action).</p>
+    <p class="" style="">The party that receives the &lt;propose/&gt; action with the lower of the two session IDs MUST send a &lt;retract/&gt; message for the higher session ID to the other party with a &lt;tie-break/&gt; child element alongside of a &lt;reason/&gt; element carrying the condition &lt;expired/&gt; and then eventually respond with an &lt;proceed/&gt; or &lt;reject/&gt; mesage like it would normally do for a received &lt;propose/&gt; message.</p>
+    <p class="" style="">The party that receives the &lt;propose/&gt; action with the higher of the two session IDs MUST return a &lt;reject/&gt; message to the other party with a &lt;tie-break/&gt; child element alongside of a &lt;reason/&gt; element carrying the condition &lt;expired/&gt;.</p>
+    <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> Tie break in propose state<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;!-- lower session ID --&gt;
+&lt;message from='romeo@montague.example/orchard'
+         to='juliet@capulet.example'
+         type='chat'&gt;
+  &lt;propose xmlns='urn:xmpp:jingle-message:0' id='ca3cf894-5325-482f-a412-a6e9f832298d'&gt;
+    &lt;description xmlns='urn:xmpp:jingle:apps:rtp:1' media='audio'/&gt;
+  &lt;/propose&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+
+&lt;!-- higher session ID --&gt;
+&lt;message from='juliet@capulet.example/phone'
+         to='romeo@montague.example'
+         type='chat'&gt;
+  &lt;propose xmlns='urn:xmpp:jingle-message:0' id='fecbea35-08d3-404f-9ec7-2b57c566fa74'&gt;
+    &lt;description xmlns='urn:xmpp:jingle:apps:rtp:1' media='audio'/&gt;
+  &lt;/propose&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+
+&lt;!-- Romeo received the higher ID and rejects the call --&gt;
+&lt;message from='romeo@montague.example/orchard'
+         to='juliet@capulet.example'
+         type='chat'&gt;
+  &lt;reject xmlns='urn:xmpp:jingle-message:0' id='fecbea35-08d3-404f-9ec7-2b57c566fa74'&gt;
+    &lt;reason xmlns="urn:xmpp:jingle:1"&gt;
+      &lt;expired/&gt;
+      &lt;text&gt;Tie-Break&lt;/text&gt;
+    &lt;/reason&gt;
+    &lt;tie-break/&gt;
+  &lt;/reject&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+
+&lt;!-- Juliet sent the higher ID and retracts the call --&gt;
+&lt;message from='juliet@capulet.example/phone'
+         to='romeo@montague.example'
+         type='chat'&gt;
+  &lt;retract xmlns='urn:xmpp:jingle-message:0' id='fecbea35-08d3-404f-9ec7-2b57c566fa74'&gt;
+    &lt;reason xmlns="urn:xmpp:jingle:1"&gt;
+      &lt;expired/&gt;
+      &lt;text&gt;Tie-Break&lt;/text&gt;
+    &lt;/reason&gt;
+    &lt;tie-break/&gt;
+  &lt;/reject&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+
+&lt;!-- Juliet received the lower ID and accepts the call --&gt;
+&lt;message from='juliet@capulet.example/phone'
+         to='romeo@montague.example'
+         type='chat'&gt;
+  &lt;proceed xmlns='urn:xmpp:jingle-message:0' id='ca3cf894-5325-482f-a412-a6e9f832298d'/&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+</pre></figure>
+  </div>
+  <div class="indent"><h3 id="tie-break-2">4.2 Existing session<a class="anchor-link" href="#tie-break-2"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If (from the perspective of the responder of the new session) there is already a session to the bare-jid of the initiator active (e.g. call already accepted but no &lt;finish/&gt; element received by the responder so far), the old session MUST be deemed an orphan and terminated by the responder of the new session in favor of the new one. The responder SHOULD transparently accept the new session and finish the old one, because it can be assumed that this new session is a transparent continuation of the old one.</p>
+    <p class="" style="">The responder does so by sending a &lt;finish/&gt; message including a &lt;reason/&gt; condition of &lt;expired/&gt; and having a &lt;migrated&gt; child element whose to-attribute refers to the new Jingle session id, and accepting the new session by sending an &lt;proceed/&gt; message like they would do normally.</p>
+    <p class="" style="">That makes it possible for the initiator of the new session to transparently switch devices (e.g. migrate the call to a new device) or resume a still running session after a sudden connectivity/power loss.</p>
+    <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> Tie break in accept state<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;!-- old session gets proposed... --&gt;
+&lt;message from='romeo@montague.example/orchard'
+         to='juliet@capulet.example'
+         type='chat'&gt;
+  &lt;propose xmlns='urn:xmpp:jingle-message:0' id='ca3cf894-5325-482f-a412-a6e9f832298d'&gt;
+    &lt;description xmlns='urn:xmpp:jingle:apps:rtp:1' media='audio'/&gt;
+  &lt;/propose&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+
+&lt;!-- ...and accepted --&gt;
+&lt;message from='juliet@capulet.example/phone'
+         to='romeo@montague.example'
+         type='chat'&gt;
+  &lt;proceed xmlns='urn:xmpp:jingle-message:0' id='ca3cf894-5325-482f-a412-a6e9f832298d'/&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+
+&lt;!-- ...some time passes... --&gt;
+
+&lt;!-- new session (device switch) --&gt;
+&lt;message from='juliet@capulet.example/tablet'
+         to='romeo@montague.example'
+         type='chat'&gt;
+  &lt;propose xmlns='urn:xmpp:jingle-message:0' id='989a46a6-f202-4910-a7c3-83c6ba3f3947'&gt;
+    &lt;description xmlns='urn:xmpp:jingle:apps:rtp:1' media='audio'/&gt;
+  &lt;/propose&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+
+&lt;!-- Romeo finishes the old session with id 'ca3cf894-5325-482f-a412-a6e9f832298d' using reason &lt;expired/&gt; --&gt;
+&lt;!-- because the new one is assumed to be the continuation of the old one. --&gt;
+&lt;!-- This is including a &lt;migrated/&gt; element pointing to the new session id '989a46a6-f202-4910-a7c3-83c6ba3f3947'... --&gt;
+&lt;message from='romeo@montague.example/orchard'
+         to='juliet@capulet.example'
+         type='chat'&gt;
+  &lt;finish xmlns='urn:xmpp:jingle-message:0' id='ca3cf894-5325-482f-a412-a6e9f832298d'&gt;
+    &lt;reason xmlns="urn:xmpp:jingle:1"&gt;
+      &lt;expired/&gt;
+      &lt;text&gt;Session migrated&lt;/text&gt;
+    &lt;/reason&gt;
+    &lt;migrated to='989a46a6-f202-4910-a7c3-83c6ba3f3947'/&gt;
+  &lt;/finish&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+
+&lt;!-- ...and directly afterwards accepts the new call with id '989a46a6-f202-4910-a7c3-83c6ba3f3947'. --&gt;
+&lt;message from='romeo@montague.example/orchard'
+         to='juliet@capulet.example'
+         type='chat'&gt;
+  &lt;proceed xmlns='urn:xmpp:jingle-message:0' id='989a46a6-f202-4910-a7c3-83c6ba3f3947'/&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+
+&lt;!-- ...some more time passes... --&gt;
+
+&lt;!-- the new session is termianted normally by Romeo... --&gt;
+&lt;message from='romeo@montague.example/orchard'
+         to='juliet@capulet.example'
+         type='chat'&gt;
+  &lt;finish xmlns='urn:xmpp:jingle-message:0' id='989a46a6-f202-4910-a7c3-83c6ba3f3947'&gt;
+    &lt;reason xmlns="urn:xmpp:jingle:1"&gt;
+      &lt;success/&gt;
+      &lt;text&gt;Success&lt;/text&gt;
+    &lt;/reason&gt;
+  &lt;/finish&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+
+&lt;!-- and Juliet... --&gt;
+&lt;message from='juliet@capulet.example/tablet'
+         to='romeo@montague.example'
+         type='chat'&gt;
+  &lt;finish xmlns='urn:xmpp:jingle-message:0' id='989a46a6-f202-4910-a7c3-83c6ba3f3947'&gt;
+    &lt;reason xmlns="urn:xmpp:jingle:1"&gt;
+      &lt;success/&gt;
+      &lt;text&gt;Success&lt;/text&gt;
+    &lt;/reason&gt;
+  &lt;/finish&gt;
+  &lt;store xmlns="urn:xmpp:hints"/&gt;
+&lt;/message&gt;
+
+</pre></figure>
+  </div>
+<h2 id="business-rules">5.
+       Business Rules<a class="anchor-link" href="#business-rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Participants MUST use <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0280.html">Message Carbons (XEP-0280)</a></span>  [<a href="#nt-id26">1</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-id27">2</a>] to make sure all devices of initiator and responder receive all messages exchanged by this protocol.
+  Without <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0280.html">Message Carbons (XEP-0280)</a></span>  [<a href="#nt-id26">1</a>] implementations would need to send copies of outgoing messages to their own bare jid, to inform their own devices about an event (like it was done with the &lt;accept/&gt; message in the old urn:xmpp:jingle:jingle-message:0 specification).</p>
+  <p class="" style="">In a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-id27">2</a>] (or <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0198.html">Stream Management (XEP-0198)</a></span>  [<a href="#nt-id31">9</a>]) catchup scenario client developers MAY choose to not show an "incoming call" UI upon receiving a &lt;propose/&gt; message because they could receive another message for the same Jingle session id later in the catchup process invalidating the &lt;propose/&gt; received before. Showing the "incoming call" UI as soon as receiving a &lt;propose/&gt; might comprise bad UX.</p>
+  <p class="" style="">In the rare case of missing &lt;finish/&gt; elements from both initiator and responder, sessions SHOULD be considered terminated after an appropriate timeframe (for example 24 hours) and indicated so in the UI.</p>
+  <p class="" style="">All 'id' attributes MUST be globally unique to make sure they do not collide, and therefore it is RECOMMENDED to use UUIDv4.</p>
+<h2 id="security">6.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Because exchanging messages with other entities is effectively a presence leak, an XMPP client that implements the receiving side of this specification MUST disable sending of accept messages by default and MUST enable the feature only as a result of explicit user confirmation. Such confirmation can be provided per request, by automatically allowing requests received from Jingle initiators in the responder's contact list, or through some other suitable means as long as sending accept messages does not occur by default.</p>
+  <p class="" style="">Because sending of reasons other than the default ones (e.g. &lt;cancel/&gt; for &lt;retract/&gt;, &lt;busy/&gt; or &lt;expired/&gt; for &lt;reject/&gt; and &lt;success/&gt; or &lt;expired/&gt; (or &lt;connectivity-error/&gt;) for &lt;finish/&gt;) may leak privacy related information the user does not want to leak, sending of those non-default reasons should be carefully considered by client developers.</p>
+<h2 id="acks">7.
+       Acknowledgements<a class="anchor-link" href="#acks"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Thanks to Lance Stout, Holger Weiß and Daniel Gultsch for their feedback.</p>
+<h2 id="iana">8.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id32">10</a>].</p>
+<h2 id="registrar">9.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><h3 id="registrar-ns">9.1 Protocol Namespaces<a class="anchor-link" href="#registrar-ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This specification defines the following XML namespace:</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:jingle:jingle-message:0</li>
+    </ul>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id33">11</a>] includes the foregoing namespace to the registry located at &lt;<a href="https://xmpp.org/registrar/namespaces.html">https://xmpp.org/registrar/namespaces.html</a>&gt;, as described in Section 4 of <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0053.html">XMPP Registrar Function (XEP-0053)</a></span>  [<a href="#nt-id34">12</a>].</p>
+  </div>
+  <div class="indent"><h3 id="registrar-versioning">9.2 Protocol Versioning<a class="anchor-link" href="#registrar-versioning"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+<h2 id="design">10.
+       Design Considerations<a class="anchor-link" href="#design"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Versions 0.4 and 0.5 of this specification define more or less the same protocol in the namespace urn:xmpp:jingle:jingle-message:1 (but in many places using MUST rather than SHOULD and removing &lt;proceed/&gt; in favor of &lt;accept/&gt;). To provide for greater backwards compatibility, version 0.6 of this document switched back to the old urn:xmpp:jingle:jingle-message:0 namespace. Future updates requiring a namespace bump should therefore directly bump the namespace version to :2 ans skip :1.</p>
+<h2 id="schema">11.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    xmlns:xml='http://www.w3.org/XML/1998/namespace'
+    targetNamespace='urn:xmpp:jingle-message:0'
+    xmlns='urn:xmpp:jingle-message:0'
+    xmlns:jingle='urn:xmpp:jingle:1'
+    elementFormDefault='qualified'&gt;
+
+  &lt;xs:element name='propose'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:any namespace='##other' minOccurs='1' maxOccurs='unbounded'/&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name='id' type='xs:string' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='accept'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:simpleContent&gt;
+        &lt;xs:extension base='empty'&gt;
+          &lt;xs:attribute name='id' type='xs:string' use='required'/&gt;
+        &lt;/xs:extension&gt;
+      &lt;/xs:simpleContent&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+  
+  &lt;xs:element name='finish'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element ref='jingle:reason' minOccurs='0' maxOccurs='1'/&gt;
+        &lt;xs:element name='migrated' type='migratedElementType' minOccurs='0' maxOccurs='1'/&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name='id' type='xs:string' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='reject'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element ref='jingle:reason' minOccurs='0' maxOccurs='1'/&gt;
+        &lt;xs:element name='tie-break' type='empty' minOccurs='0' maxOccurs='1'/&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name='id' type='xs:string' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='retract'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element ref='jingle:reason' minOccurs='0' maxOccurs='1'/&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name='id' type='xs:string' use='required'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:complexType name='migratedElementType'&gt;
+    &lt;xs:simpleContent&gt;
+      &lt;xs:extension base='empty'&gt;
+        &lt;xs:attribute name='to' type='xs:string' use='required'/&gt;
+      &lt;/xs:extension&gt;
+    &lt;/xs:simpleContent&gt;
+  &lt;/xs:complexType&gt;
+
+  &lt;!-- strictly empty type (no children, attributes, or text) --&gt;
+  &lt;xs:complexType name="empty" mixed="false"&gt;
+    &lt;xs:sequence/&gt;
+  &lt;/xs:complexType&gt;
+
+&lt;/xs:schema&gt;
+</pre></figure>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0353</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.7.0</dd><dt>Last Updated</dt><dd>2025-09-16</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd><a href="xep-0166.html">XEP-0166</a>, <a href="xep-0280.html">XEP-0280</a>, <a href="xep-0313.html">XEP-0313</a>, <a href="xep-0334.html">XEP-0334</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>jingle-message</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0353.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0353.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0353.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Philipp Hancke</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:fippo@andyet.com">fippo@andyet.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:fippo@goodadvice.pages.de">fippo@goodadvice.pages.de</a></dd></dl><h5>Peter Saint-Andre</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:stpeter@stpeter.im">stpeter@stpeter.im</a></dd><dt>JabberID</dt><dd><a href="xmpp:stpeter@jabber.org">stpeter@jabber.org</a></dd><dt>URI</dt><dd><a href="https://stpeter.im/">https://stpeter.im/</a></dd></dl><h5>Thilo Molitor</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:thilo+xmpp@eightysoft.de">thilo+xmpp@eightysoft.de</a></dd><dt>JabberID</dt><dd><a href="xmpp:thilo.molitor@juforum.de">thilo.molitor@juforum.de</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">
+          The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED",
+          "MAY", and "OPTIONAL" in this document are to be interpreted as
+          described in <a href="https://tools.ietf.org/rfc/bcp/bcp14.txt">BCP 14</a>
+          [<a href="https://www.ietf.org/rfc/rfc2119.txt">RFC2119</a>]
+          [<a href="https://tools.ietf.org/rfc/rfc8174.txt">RFC8174</a>] when,
+          and only when, they appear in all capitals, as shown here.
+        </p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id26">1</a>. XEP-0280: Message Carbons &lt;<a href="https://xmpp.org/extensions/xep-0280.html">https://xmpp.org/extensions/xep-0280.html</a>&gt;.</p><p><a name="nt-id27">2</a>. XEP-0313: Message Archive Management &lt;<a href="https://xmpp.org/extensions/xep-0313.html">https://xmpp.org/extensions/xep-0313.html</a>&gt;.</p><p><a name="nt-id28">3</a>. XEP-0334: Message Processing Hints &lt;<a href="https://xmpp.org/extensions/xep-0334.html">https://xmpp.org/extensions/xep-0334.html</a>&gt;.</p><p><a name="nt-id23">4</a>. XEP-0166: Jingle &lt;<a href="https://xmpp.org/extensions/xep-0166.html">https://xmpp.org/extensions/xep-0166.html</a>&gt;.</p><p><a name="nt-id24">5</a>. XEP-0115: Entity Capabilities &lt;<a href="https://xmpp.org/extensions/xep-0115.html">https://xmpp.org/extensions/xep-0115.html</a>&gt;.</p><p><a name="nt-id25">6</a>. XEP-0276: Presence Decloaking &lt;<a href="https://xmpp.org/extensions/xep-0276.html">https://xmpp.org/extensions/xep-0276.html</a>&gt;.</p><p><a name="nt-id29">7</a>. RFC 6121: Extensible Messaging and Presence Protocol (XMPP): Instant Messaging and Presence &lt;<a href="http://tools.ietf.org/html/rfc6121">http://tools.ietf.org/html/rfc6121</a>&gt;.</p><p><a name="nt-id30">8</a>. RFC 4790: Internet Application Protocol Collation Registry &lt;<a href="http://tools.ietf.org/html/rfc4790">http://tools.ietf.org/html/rfc4790</a>&gt;.</p><p><a name="nt-id31">9</a>. XEP-0198: Stream Management &lt;<a href="https://xmpp.org/extensions/xep-0198.html">https://xmpp.org/extensions/xep-0198.html</a>&gt;.</p><p><a name="nt-id32">10</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id33">11</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id34">12</a>. XEP-0053: XMPP Registrar Function &lt;<a href="https://xmpp.org/extensions/xep-0053.html">https://xmpp.org/extensions/xep-0053.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.7.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0353-0.7.0.html">0.7.0</a> (2025-09-16)<a class="anchor-link" href="#revision-history-v0.7.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <ul class="" style="">
+        <li class="" style="">Remove local redefinition of jingle &lt;reason/&gt; element in XML schema and reference existing.</li>
+        <li class="" style="">Make usage of &lt;reason/&gt; element optional in schema, as specified in the text.</li>
+        <li class="" style="">Add missing definition of 'empty' type in XML schema.</li>
+      </ul>
+    <div class="revision-author">lnj</div></li><li id="revision-history-v0.6.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0353-0.6.0.html">0.6.0</a> (2022-01-29)<a class="anchor-link" href="#revision-history-v0.6.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      Port version 0.5 to :0 namespace and improve tie-breaking section
+    <div class="revision-author">tm</div></li><li id="revision-history-v0.5.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0353-0.5.0.html">0.5.0</a> (2022-01-05)<a class="anchor-link" href="#revision-history-v0.5.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      Recommend usage of UUID v4 for id attributes.
+    <div class="revision-author">tm</div></li><li id="revision-history-v0.4.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0353-0.4.0.html">0.4.0</a> (2021-11-27)<a class="anchor-link" href="#revision-history-v0.4.0"><abbr title="Link to this point in the document">¶</abbr></a></div>
+        <ul class="" style="">
+            <li class="" style="">Rework whole spec, namespace bump</li>
+            <li class="" style="">Add new &lt;finish/&gt; message</li>
+            <li class="" style="">Add dependency on <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0280.html">Message Carbons (XEP-0280)</a></span>  [<a href="#nt-id26">1</a>], <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0313.html">Message Archive Management (XEP-0313)</a></span>  [<a href="#nt-id27">2</a>] and <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0334.html">Message Processing Hints (XEP-0334)</a></span>  [<a href="#nt-id28">3</a>]</li>
+            <li class="" style="">Add &lt;reason/&gt; to some messages</li>
+        </ul>
+    <div class="revision-author">tm</div></li><li id="revision-history-v0.3.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0353-0.3.1.html">0.3.1</a> (2021-03-04)<a class="anchor-link" href="#revision-history-v0.3.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Cross-document editorial adjustments for inclusive language.</p><div class="revision-author">mw</div></li><li id="revision-history-v0.3"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0353-0.3.html">0.3</a> (2017-09-11)<a class="anchor-link" href="#revision-history-v0.3"><abbr title="Link to this point in the document">¶</abbr></a></div>Defer due to lack of activity.<div class="revision-author">XEP Editor (jwi)</div></li><li id="revision-history-v0.2.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0353-0.2.0.html">0.2.0</a> (2014-10-02)<a class="anchor-link" href="#revision-history-v0.2.0"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Add explicit reject by responding to sender with reject message.</p><div class="revision-author">xd, XEP Editor: ssw</div></li><li id="revision-history-v0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0353-0.1.html">0.1</a> (2014-10-02)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Initial published version approved by the XMPP Council.</p><div class="revision-author">XEP Editor (mam)</div></li><li id="revision-history-v0.0.2"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0353-0.0.2.html">0.0.2</a> (2014-08-28)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">Added explanatory text; defined more granular actions (propose, retract, accept, reject, proceed); mandated inclusion of description elements within the propose element, as in jingle-pub; defined schema.</p><div class="revision-author">psa/ph</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0353-0.0.1.html">0.0.1</a> (2014-07-15)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">ph</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{hancke2014jingle-message,
+  title = {Jingle Message Initiation},
+  author = {Hancke, Philipp and Saint-Andre, Peter and Molitor, Thilo},
+  type = {XEP},
+  number = {0353},
+  version = {0.7.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0353.html},
+  date = {2014-07-15/2025-09-16},
+}</pre><p>END</p></body></html>
