@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0041: Reliable Entity Link</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0041";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="DC.Title" content="Reliable Entity Link"><meta name="DC.Creator" content="Justin Karneges"><meta name="DC.Description" content="Protocol for linking a bytestream between two Jabber entities."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2003-09-30"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0041"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."></head><body onload="prettyPrint()"><h1>XEP-0041: Reliable Entity Link</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>Protocol for linking a bytestream between two Jabber entities.</dd><dt>Author</dt><dd>Justin Karneges</dd><dt>Copyright</dt><dd>© 2002 – 2003 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Retracted</p><div id="status-notice" class="retracted standards track">WARNING: This document has been retracted by the author(s). Implementation of the protocol described herein is not recommended. Developers desiring similar functionality are advised to implement the protocol that supersedes this one (<a href="xep-0065.html">XEP-0065</a>).</div></dd><dt>Superseded By</dt><dd><a href="xep-0065.html">XEP-0065</a></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.9 (2003-09-30)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li>Experimental</li><li class="current inserted">Retracted</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#sect-id1">Overview</a><ol><li><a href="#sect-id2">Introduction</a></li><li><a href="#sect-id3">Stream transport properties</a></li></ol></li><li><a href="#sect-id4">Usage</a><ol><li><a href="#sect-id5">Service discovery</a></li><li><a href="#sect-id6">Obtaining a REL context</a></li><li><a href="#sect-id7">Selecting a Stream</a></li></ol></li><li><a href="#sect-id8">Security Considerations</a></li><li><a href="#sect-id9">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a></li><li><a href="#sect-id11">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="sect-id1">1.
+       Overview<a class="anchor-link" href="#sect-id1"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+<div class="indent"><h3 id="sect-id2">1.1 Introduction<a class="anchor-link" href="#sect-id2"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+<p class="" style="">Reliable Entity Link (or simply 'REL'), is a system for coordinating reliable bytestreams between two Jabber entities for the purpose of keeping applications (and application specifications) simple.  However, this proposal does not define any specific bytestream protocol.  It is expected that there will be multiple ways to obtain a bytestream between Jabber entities (thru-server and peer-to-peer are two methods that come to mind), but applications can refer to REL instead of some particular stream transport.</p>
+</div>
+
+<div class="indent"><h3 id="sect-id3">1.2 Stream transport properties<a class="anchor-link" href="#sect-id3"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+<p class="" style="">A REL-compatible stream transport must have the following properties:</p>
+<ul class="" style="">
+  <li class="" style="">Provides a reliable bytestream between two Jabber entities, which means that the bytestream transport handles all data delivery issues, such that the application need not worry about them.</li>
+  <li class="" style="">Has link states from the following table.
+  </li>
+  <li class="" style="">Defines a stream identifier, which MUST have a unique ASCII representation. The stream protocol MUST be able to use any ASCII identifier chosen during REL negotiation, as long as the sending party doesn't use the same identifier more than once.</li>
+</ul>
+<figure class="table"><figcaption id="table-1"><strong>Table 1:</strong> Link states<a class="anchor-link" href="#table-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+  <tr class="body">
+    <th colspan="" rowspan="">Code</th>
+    <th colspan="" rowspan="">Description</th>
+  </tr>
+  <tr class="body">
+    <td align="" colspan="" rowspan=""><code>INIT</code></td>
+    <td align="" colspan="" rowspan="">Initiation</td>
+  </tr>
+  <tr class="body">
+    <td align="" colspan="" rowspan=""><code>GOOD</code></td>
+    <td align="" colspan="" rowspan="">Successful initiation (connected)</td>
+  </tr>
+  <tr class="body">
+    <td align="" colspan="" rowspan=""><code>BAD</code></td>
+    <td align="" colspan="" rowspan="">Unsuccessful initiation (stream is closed, no further state)</td>
+  </tr>
+  <tr class="body">
+    <td align="" colspan="" rowspan=""><code>CLOS</code></td>
+    <td align="" colspan="" rowspan="">Successful closure after establishment (stream is closed, no further state)</td>
+  </tr>
+  <tr class="body">
+    <td align="" colspan="" rowspan=""><code>ERR</code></td>
+    <td align="" colspan="" rowspan="">Link failure after establishment (stream is closed, no further state)</td>
+  </tr>
+</table></figure>
+<p class="" style="">The following stream transports that meet these guidelines are:</p>
+<figure class="table"><figcaption id="table-2"><strong>Table 2:</strong> Supported streams<a class="anchor-link" href="#table-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+  <tr class="body">
+    <th colspan="" rowspan="">Short name</th>
+    <th colspan="" rowspan="">Protocol</th>
+  </tr>
+  <tr class="body">
+    <td align="" colspan="" rowspan="">ibb</td>
+    <td align="" colspan="" rowspan=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0047.html">In-Band Bytestreams (XEP-0047)</a></span>  [<a href="#nt-id12">1</a>]</td>
+  </tr>
+  <tr class="body">
+    <td align="" colspan="" rowspan="">s5b</td>
+    <td align="" colspan="" rowspan=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0065.html">SOCKS5 Bytestreams (XEP-0065)</a></span>  [<a href="#nt-id13">2</a>]</td>
+  </tr>
+</table></figure>
+
+</div>
+<h2 id="sect-id4">2.
+       Usage<a class="anchor-link" href="#sect-id4"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+<div class="indent"><h3 id="sect-id5">2.1 Service discovery<a class="anchor-link" href="#sect-id5"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+<p class="" style="">Before using REL, ensure it is a supported service of the remote entity by using <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id14">3</a>]:</p>
+
+<figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Requesting disco information<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type="get" to="joe@blow.com/Home" id="sd_1"&gt;
+  &lt;query xmlns="http://jabber.org/protocol/disco#info"/&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+<p class="" style="">The remote entity will advertise the "http://jabber.org/protocol/rel" namespace as a feature to represent they implement this protocol.</p>
+
+<figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> Response<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type="result" from="joe@blow.com/Home" id="sd_1"&gt;
+  &lt;query xmlns="http://jabber.org/protocol/disco#info"&gt;
+    &lt;feature var="http://jabber.org/protocol/rel"/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+</div>
+
+<div class="indent"><h3 id="sect-id6">2.2 Obtaining a REL context<a class="anchor-link" href="#sect-id6"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+<p class="" style="">To use REL, the entities must obtain a REL Context ID (or <em>cid</em>) through some action.  A <em>cid</em> is simply an opaque alphanumeric string.  For example, perhaps the link is needed for a file transfer:</p>
+
+<figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Possible File Transfer<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type="set" id="ft_1" to="joe@blow.com/Home"&gt;
+  &lt;query xmlns="filexfer" filename="coolfile.txt"/&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+<figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> Possible response<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type="result" id="ft_1" from="joe@blow.com/Home"&gt;
+  &lt;query xmlns="filexfer"&gt;
+    &lt;cid xmlns="http://jabber.org/protocol/rel" value="myCID"/&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+<p class="" style="">All high-level protocols that use Reliable Entity Link MUST have a way of providing such a cid.  The cid must be unique among all other REL cids between the two entities.</p>
+</div>
+
+<div class="indent"><h3 id="sect-id7">2.3 Selecting a Stream<a class="anchor-link" href="#sect-id7"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+<p class="" style="">The next step is to ask the remote entity which stream method it would like to use.  We will use <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0020.html">Feature Negotiation (XEP-0020)</a></span>  [<a href="#nt-id15">4</a>] for this.  The streams are listed using the short names from the table of supported streams.</p>
+
+<figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Selecting a stream<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type="get" id="rel_1" to="joe@blow.com/Home"&gt;
+  &lt;query xmlns="http://jabber.org/protocol/rel" cid="myCID" keepAlive='true'&gt;
+    &lt;feature xmlns="http://jabber.org/protocol/feature-neg"&gt;
+      &lt;x xmlns="jabber:x:data"&gt;
+        &lt;field var="method" type="list-single"&gt;
+          &lt;option&gt;&lt;value&gt;s5b&lt;/value&gt;&lt;/option&gt;
+          &lt;option&gt;&lt;value&gt;ibb&lt;/value&gt;&lt;/option&gt;
+        &lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/feature&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+<p class="" style="">The keepAlive attribute indicates that the initiator is planning on trying another method if the one selected here is to fail.  An entity SHOULD use keepAlive for all attempts but the last for a given application.  If keepAlive is omitted, then it is considered false.</p>
+
+<p class="" style="">The remote entity will then agree on a method:</p>
+<figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> Possible response<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type="result" id="rel_1" from="joe@blow.com/Home"&gt;
+  &lt;query xmlns="http://jabber.org/protocol/rel" cid="myCID"&gt;
+    &lt;feature xmlns="http://jabber.org/protocol/feature-neg"&gt;
+      &lt;x xmlns="jabber:x:data" type="submit"&gt;
+        &lt;field var="method"&gt;
+          &lt;value&gt;s5b&lt;/value&gt;
+        &lt;/field&gt;
+      &lt;/x&gt;
+    &lt;/feature&gt;
+  &lt;/query&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+<p class="" style="">Or maybe an error:</p>
+<figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Error<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq type="error" id="rel_1" from="joe@blow.com/Home"&gt;
+  &lt;error code="501"&gt;No supported protocols.&lt;/error&gt;
+&lt;/iq&gt;
+</pre></figure>
+
+<p class="" style="">If the entity returns error, then the REL cid is invalidated and the application fails.  If a stream method has been chosen successfully, then now it must be initiated using the REL cid as the stream's identifier (the stream goes into <strong><code>INIT</code></strong> state).</p>
+
+<p class="" style="">On <strong><code>GOOD</code></strong>: This indicates the stream is ready for use within the original context, and data exchanged over the stream is to be left up to the application.</p>
+
+<p class="" style="">On <strong><code>BAD</code></strong>: If the keepAlive="true" attribute was specified, then the initiator MUST repeat this section over again to attempt with a different method.  If keepAlive was not specified, then the REL cid is invalidated and the application fails.</p>
+
+<p class="" style="">On <strong><code>CLOS</code></strong> or <strong><code>ERR</code></strong>, the REL cid is invalidated.</p>
+</div>
+<h2 id="sect-id8">3.
+       Security Considerations<a class="anchor-link" href="#sect-id8"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">There are no security considerations.</p>
+<h2 id="sect-id9">4.
+       IANA Considerations<a class="anchor-link" href="#sect-id9"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the <span class="ref" style=""><a href="http://www.iana.org/">Internet Assigned Numbers Authority (IANA)</a></span>  [<a href="#nt-id16">5</a>].</p>
+<h2 id="registrar">5.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id17">6</a>] shall register the 'http://jabber.org/protocol/rel' namespace as a result of this document.</p>
+<h2 id="sect-id11">6.
+       XML Schema<a class="anchor-link" href="#sect-id11"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption></figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='http://jabber.org/protocol/rel'
+    xmlns='http://jabber.org/protocol/rel'
+    elementFormDefault='qualified'&gt;
+
+   &lt;xs:element name='query'&gt;
+     &lt;xs:complexType&gt;
+      &lt;xs:attribute name='cid' type='xs:string' use='required'/&gt;
+      &lt;xs:attribute name='keepAlive' type='xs:boolean' use='optional'/&gt;
+     &lt;/xs:complexType&gt;
+   &lt;/xs:element&gt;
+
+&lt;/xs:schema&gt;
+</pre></figure>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0041</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Retracted">Retracted</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.9</dd><dt>Last Updated</dt><dd>2003-09-30</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, <a href="xep-0020.html">XEP-0020</a>, <a href="xep-0030.html">XEP-0030</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd><a href="xep-0065.html">XEP-0065</a></dd><dt>Short Name</dt><dd>rel</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0041.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0041.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0041.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>Justin Karneges</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:justin@karneges.com">justin@karneges.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:justin@andbit.net">justin@andbit.net</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">
+          The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED",
+          "MAY", and "OPTIONAL" in this document are to be interpreted as
+          described in <a href="https://tools.ietf.org/rfc/bcp/bcp14.txt">BCP 14</a>
+          [<a href="https://www.ietf.org/rfc/rfc2119.txt">RFC2119</a>]
+          [<a href="https://tools.ietf.org/rfc/rfc8174.txt">RFC8174</a>] when,
+          and only when, they appear in all capitals, as shown here.
+        </p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id12">1</a>. XEP-0047: In-Band Bytestreams &lt;<a href="https://xmpp.org/extensions/xep-0047.html">https://xmpp.org/extensions/xep-0047.html</a>&gt;.</p><p><a name="nt-id13">2</a>. XEP-0065: SOCKS5 Bytestreams &lt;<a href="https://xmpp.org/extensions/xep-0065.html">https://xmpp.org/extensions/xep-0065.html</a>&gt;.</p><p><a name="nt-id14">3</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id15">4</a>. XEP-0020: Feature Negotiation &lt;<a href="https://xmpp.org/extensions/xep-0020.html">https://xmpp.org/extensions/xep-0020.html</a>&gt;.</p><p><a name="nt-id16">5</a>. The Internet Assigned Numbers Authority (IANA) is the central coordinator for the assignment of unique parameter values for Internet protocols, such as port numbers and URI schemes. For further information, see &lt;<a href="http://www.iana.org/">http://www.iana.org/</a>&gt;.</p><p><a name="nt-id17">6</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.9"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0041-0.9.html">0.9</a> (2003-09-30)<a class="anchor-link" href="#revision-history-v0.9"><abbr title="Link to this point in the document">¶</abbr></a></div>At the request of the author, the status of this specification has been changed to Retracted since it has been superseded by XEP-0065.<div class="revision-author">psa</div></li><li id="revision-history-v0.8"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0041-0.8.html">0.8</a> (2003-06-26)<a class="anchor-link" href="#revision-history-v0.8"><abbr title="Link to this point in the document">¶</abbr></a></div>Refactored to old jidlink roots<div class="revision-author">jk</div></li><li id="revision-history-v0.7"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0041-0.7.html">0.7</a> (2003-04-29)<a class="anchor-link" href="#revision-history-v0.7"><abbr title="Link to this point in the document">¶</abbr></a></div>Overhaul and rename<div class="revision-author">jk</div></li><li id="revision-history-v0.6"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0041-0.6.html">0.6</a> (2002-11-23)<a class="anchor-link" href="#revision-history-v0.6"><abbr title="Link to this point in the document">¶</abbr></a></div>Reflect changes to DTCP<div class="revision-author">jk</div></li><li id="revision-history-v0.5"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0041-0.5.html">0.5</a> (2002-10-10)<a class="anchor-link" href="#revision-history-v0.5"><abbr title="Link to this point in the document">¶</abbr></a></div>Table of stream transports<div class="revision-author">jk</div></li><li id="revision-history-v0.4"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0041-0.4.html">0.4</a> (2002-10-10)<a class="anchor-link" href="#revision-history-v0.4"><abbr title="Link to this point in the document">¶</abbr></a></div>New name, cleaned up the text, added test mode.<div class="revision-author">jk</div></li><li id="revision-history-v0.3"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0041-0.3.html">0.3</a> (2002-09-12)<a class="anchor-link" href="#revision-history-v0.3"><abbr title="Link to this point in the document">¶</abbr></a></div>Changed the implementation.<div class="revision-author">jk</div></li><li id="revision-history-v0.2"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0041-0.2.html">0.2</a> (2002-08-16)<a class="anchor-link" href="#revision-history-v0.2"><abbr title="Link to this point in the document">¶</abbr></a></div>Fixed spelling errors, simplified the document.<div class="revision-author">jk</div></li><li id="revision-history-v0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0041-0.1.html">0.1</a> (2002-08-15)<a class="anchor-link" href="#revision-history-v0.1"><abbr title="Link to this point in the document">¶</abbr></a></div>Initial version.<div class="revision-author">jk</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{karneges2002rel,
+  title = {Reliable Entity Link},
+  author = {Karneges, Justin},
+  type = {XEP},
+  number = {0041},
+  version = {0.9},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0041.html},
+  date = {2002-08-15/2003-09-30},
+}</pre><p>END</p></body></html>
