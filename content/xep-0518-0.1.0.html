@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>XEP-0518: Payment Required</title><style type="text/css">
+/* don't mind this hack */
+nav#toc h2:before {
+display: none;
+content: "XEP-0518";
+}
+        </style><link rel="stylesheet" type="text/css" href="xmpp.css"><link href="prettify.css" type="text/css" rel="stylesheet"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"><script type="text/javascript" src="prettify.js"></script><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="title" content="XEP-0518: Payment Required"><meta name="description" content="This specification defines an XMPP protocol extension that enables services to require payment before granting access to a resource. It provides a payment-system-neutral invoice format built on payment URIs (such as the RFC 8905 payto scheme), supporting multiple concurrent payment options, from bank transfers to transfers over distributed ledgers or instant-settlement networks, and integrates with the existing CAPTCHA challenge mechanism defined in XEP-0158."><meta name="DC.Title" content="Payment Required"><meta name="DC.Creator" content="JC Brand"><meta name="DC.Description" content="This specification defines an XMPP protocol extension that enables services to require payment before granting access to a resource. It provides a payment-system-neutral invoice format built on payment URIs (such as the RFC 8905 payto scheme), supporting multiple concurrent payment options, from bank transfers to transfers over distributed ledgers or instant-settlement networks, and integrates with the existing CAPTCHA challenge mechanism defined in XEP-0158."><meta name="DC.Publisher" content="XMPP Standards Foundation"><meta name="DC.Contributor" content="XMPP Extensions Editor"><meta name="DC.Date" content="2026-08-25"><meta name="DC.Type" content="XMPP Extension Protocol"><meta name="DC.Format" content="XHTML"><meta name="DC.Identifier" content="XEP-0518"><meta name="DC.Language" content="en"><meta name="DC.Rights" content="This XMPP Extension Protocol is copyright © 1999 – 2024 by the XMPP Standards Foundation (XSF)."><meta property="og:type" content="website"><meta property="og:url" content="https://xmpp.org/extensions/xep-0518.html"><meta property="og:title" content="XEP-0518: Payment Required"><meta property="og:description" content="This specification defines an XMPP protocol extension that enables services to require payment before granting access to a resource. It provides a payment-system-neutral invoice format built on payment URIs (such as the RFC 8905 payto scheme), supporting multiple concurrent payment options, from bank transfers to transfers over distributed ledgers or instant-settlement networks, and integrates with the existing CAPTCHA challenge mechanism defined in XEP-0158."><meta property="og:image" content="https://xmpp.org/images/logos/xmpp-logo-text-banner.jpg"><meta property="og:image:alt" content="XMPP (Extensible Messaging and Presence Protocol) Logo"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary"><meta name="twitter:url" content="https://xmpp.org/extensions/xep-0518.html"><meta name="twitter:title" content="XEP-0518: Payment Required"><meta name="twitter:description" content="This specification defines an XMPP protocol extension that enables services to require payment before granting access to a resource. It provides a payment-system-neutral invoice format built on payment URIs (such as the RFC 8905 payto scheme), supporting multiple concurrent payment options, from bank transfers to transfers over distributed ledgers or instant-settlement networks, and integrates with the existing CAPTCHA challenge mechanism defined in XEP-0158."><meta name="twitter:image" content="https://xmpp.org/images/logos/xmpp-logo-text-banner.jpg"></head><body onload="prettyPrint()"><h1>XEP-0518: Payment Required</h1><div class="docmeta-wrap"><dl id="docmeta" class="compact"><dt>Abstract</dt><dd>This specification defines an XMPP protocol extension that enables services to require payment before granting access to a resource. It provides a payment-system-neutral invoice format built on payment URIs (such as the RFC 8905 payto scheme), supporting multiple concurrent payment options, from bank transfers to transfers over distributed ledgers or instant-settlement networks, and integrates with the existing CAPTCHA challenge mechanism defined in XEP-0158.</dd><dt>Author</dt><dd>JC Brand</dd><dt>Copyright</dt><dd>© 2026 – 2026 XMPP Standards Foundation. <a href="#appendix-legal">SEE LEGAL NOTICES</a>.</dd><dt>Status</dt><dd><p>Experimental</p><div id="status-notice" class="experimental standards track">WARNING: This Standards-Track document is Experimental. Publication as an XMPP Extension Protocol does not imply approval of this proposal by the XMPP Standards Foundation. Implementation of the protocol described herein is encouraged in exploratory implementations, but production systems are advised to carefully consider whether it is appropriate to deploy implementations of this protocol before it advances to a status of Draft.</div></dd><dt>Type</dt><dd>Standards Track</dd><dt>Version</dt><dd>0.1.0 (2026-08-25)</dd></dl><div class="timeline-wrap"><div class="timeline-head">Document Lifecycle</div><ol class="timeline"><li class="current">Experimental</li><li>Proposed</li><li>Stable</li><li>Final</li></ol></div></div><nav id="toc"><a href="#top"><h2>Table of Contents</h2></a><ol class="toc"><li><a href="#intro">Introduction</a></li><li><a href="#reqs">Requirements</a></li><li><a href="#glossary">Glossary</a></li><li><a href="#usecases">Use Cases</a><ol><li><a href="#usecase-muc">Paid MUC Room Entry with Multiple Payment Options</a></li><li><a href="#usecase-bot">Per-Message Fee for an AI Agent Bot</a></li><li><a href="#usecase-antispam">Anti-Spam Deposit for Non-Roster Contacts</a></li><li><a href="#usecase-proactive">Proactive Invoice Request</a></li><li><a href="#usecase-captcha">Payment Challenge as Alternative to CAPTCHA</a></li></ol></li><li><a href="#protocol">Protocol</a><ol><li><a href="#protocol-ns">Namespace</a></li><li><a href="#protocol-elements">Elements</a><ol><li><a href="#protocol-invoice">The invoice Element</a></li><li><a href="#protocol-option">The option Element</a></li><li><a href="#protocol-payment">The payment Element</a><ol><li><a href="#proof-types">Conventional Proof Types</a></li></ol></li><li><a href="#protocol-payment-required">The payment-required Element</a></li><li><a href="#protocol-receipt">The receipt Element</a></li><li><a href="#protocol-get-invoice">The get-invoice Element</a></li></ol></li><li><a href="#protocol-error-flow">Error Flow</a></li><li><a href="#protocol-verification">Verification</a></li></ol></li><li><a href="#rules">Business Rules</a><ol><li><a href="#rules-service">Service Behavior</a></li><li><a href="#rules-client">Client Behavior</a></li></ol></li><li><a href="#impl">Implementation Notes</a></li><li><a href="#access">Accessibility Considerations</a></li><li><a href="#i18n">Internationalization Considerations</a></li><li><a href="#security">Security Considerations</a><ol><li><a href="#security-replay">Replay Attacks</a></li><li><a href="#security-session-binding">Session Binding</a></li><li><a href="#security-tampering">Invoice Tampering</a></li><li><a href="#security-amount">Amount Presentation Integrity</a></li><li><a href="#security-financial">Financial Safety</a></li></ol></li><li><a href="#privacy">Privacy Considerations</a></li><li><a href="#iana">IANA Considerations</a></li><li><a href="#registrar">XMPP Registrar Considerations</a><ol><li><a href="#registrar-ns">Protocol Namespaces</a></li><li><a href="#registrar-features">Service Discovery Features</a></li><li><a href="#registrar-schemes">Payment Schemes and Proof Types</a></li><li><a href="#registrar-services">Invoice Request Service Registry</a></li></ol></li><li><a href="#design">Design Considerations</a><ol><li><a href="#design-dataforms">Using Data Forms for the Invoice</a></li><li><a href="#design-errortype">Choosing auth as the Error Type</a></li><li><a href="#design-sessions">Streaming Payment Sessions</a></li></ol></li><li><a href="#schema">XML Schema</a></li></ol><h6><a href="#appendices">Appendices</a></h6><ol class="toc-appendices"><li><a href="#appendix-docinfo">Document Information</a></li><li><a href="#appendix-authorinfo">Author Information</a></li><li><a href="#appendix-legal">Legal Notices</a></li><li><a href="#appendix-xmpp">Relation to XMPP</a></li><li><a href="#appendix-discuss">Discussion Venue</a></li><li><a href="#appendix-conformance">Requirements Conformance</a></li><li><a href="#appendix-notes">Notes</a></li><li><a href="#appendix-revs">Revision History</a></li><li><a href="#appendix-biblatex">Bib(La)Tex Entry</a></li></ol></nav><h2 id="intro">1.
+       Introduction<a class="anchor-link" href="#intro"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This XEP provides a mechanism for XMPP services to require payment before access to their resources or functionality is granted. Use cases include charging for account registration or hosting, compensating operators of AI agents or bots for compute costs, monetizing file hosting services per upload or download, requiring an entry fee for access to a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id46">1</a>] room, and requiring a small payment from users not already in a contact's roster as a proof-of-intent mechanism to deter unsolicited messages.</p>
+
+  <p class="" style="">Existing XMPP anti-spam work (<span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0158.html">CAPTCHA Forms (XEP-0158)</a></span>  [<a href="#nt-id47">2</a>]) defines robot challenges using either image/audio CAPTCHAs or hashcash proof-of-work tokens. This specification extends that concept by adding a payment-required challenge type that follows the same challenge-retry flow, while independently defining a richer invoice format suitable for both human and automated payers.</p>
+
+  <p class="" style="">Protocols such as <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0060.html">Publish-Subscribe (XEP-0060)</a></span>  [<a href="#nt-id48">3</a>] already acknowledge that services may require payment for operations (e.g., node subscriptions or item retrieval) but leave the payment mechanism out-of-band. This specification provides the in-band protocol to fulfill that need.</p>
+
+  <p class="" style="">The design is informed by analogous protocols in the HTTP ecosystem: the long-reserved HTTP 402 Payment Required status code; the L402 protocol published by Lightning Labs, in which a client receives a <code>WWW-Authenticate</code> header containing a macaroon token and a Lightning invoice and presents a token-preimage credential after payment; the x402 protocol published by Coinbase et al., in which a client receives an HTTP 402 response with a <code>PAYMENT-REQUIRED</code> header listing accepted payment schemes and retries with a <code>PAYMENT-SIGNATURE</code> header; and the Machine Payments Protocol (MPP) published by Stripe and Tempo, an IETF-tracked open standard for machine-to-machine payments that similarly uses HTTP 402 challenges with multi-method selection, machine-readable error codes, payment receipts, and cryptographic challenge binding.
+  </p>
+
+  <p class="" style="">The conceptual parallels shared by all four are:</p>
+  <ol start="" class="" style="">
+    <li class="" style="">a service declines a request and presents payment instructions in-band</li>
+    <li class="" style="">the client completes payment and retries, optionally supplying a proof-of-payment token</li>
+    <li class="" style="">multiple simultaneously valid payment options MAY be presented so that the client can choose the most suitable scheme</li>
+  </ol>
+
+  <p class="" style="">This specification is payment-system agnostic. A service MAY require payment exclusively via bank transfer, distributed ledger,
+    instant-settlement network, or any combination thereof. No payment system is privileged over any other at the protocol level.
+    This specification also does not enumerate or curate payment systems. Each payment option is expressed as a payment URI,
+    and the payment system is identified by that URI's scheme. Adding support for a new payment network therefore requires no change
+    to this document.</p>
+  <p class="" style="">
+    The payment URI SHOULD be registered in the IANA URI Schemes registry, but there are URIs widely used by wallet and payment software
+    that are not yet registered, such the <code>lightning:</code> URI scheme, documented in the Lightning Network specifications (BOLT #11).
+    For the <code>payto:</code> scheme, which is IANA registered, the payment target types are maintained externally per RFC 8905.</p>
+<h2 id="reqs">2.
+       Requirements<a class="anchor-link" href="#reqs"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This specification was designed with the following requirements in mind:</p>
+  <ul class="" style="">
+    <li class="" style="">A service MUST be able to decline a stanza and return structured payment instructions using a standard XMPP error stanza.</li>
+    <li class="" style="">The payment instructions MUST support multiple concurrent payment options, each carrying sufficient information for fully automated processing as well as human-readable presentation.</li>
+    <li class="" style="">Each payment option MUST be expressed as a payment URI, identified by its URI scheme, so that the specification need not maintain its own registry of payment systems.</li>
+    <li class="" style="">A client MUST be able to support this protocol without parsing scheme-specific payment URIs and therefore MAY treat a payment URI as an opaque string to be handed over to a payment application (or rendered as a QR code).</li>
+    <li class="" style="">A payment option MAY additionally carry a pre-formatted QR payload for payment systems whose scannable QR format differs from the URI. Clients SHOULD render it as a QR code without interpreting it.</li>
+    <li class="" style="">Proof-of-payment tokens MUST be expressible in-band so that a client can retry a declined stanza with evidence of payment.</li>
+    <li class="" style="">The protocol MUST integrate gracefully with the existing <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0158.html">CAPTCHA Forms (XEP-0158)</a></span>  [<a href="#nt-id47">2</a>] challenge mechanism.</li>
+    <li class="" style="">The protocol MUST be usable at the stanza level independently of the application layer (MUC, file upload, message routing, etc.)
+      so that application-layer XEPs can reference this specification without modification.</li>
+    <li class="" style="">Services MUST be able to advertise support via <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id49">4</a>].</li>
+  </ul>
+<h2 id="glossary">3.
+       Glossary<a class="anchor-link" href="#glossary"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <div class="indent"><dl>
+    
+      <dt><strong>Payer</strong></dt>
+      <dd>The XMPP entity that receives a payment-required error and is expected to fulfill the payment. Typically this is the originating client.</dd>
+    
+    
+      <dt><strong>Payee / Service</strong></dt>
+      <dd>The XMPP entity that requires payment before granting access to a resource. This may be a server component, a MUC service, a bot, or any other XMPP service.</dd>
+    
+    
+      <dt><strong>Invoice</strong></dt>
+      <dd>A structured XML element, defined in this specification, that conveys one or more payment options to a payer.</dd>
+    
+    
+      <dt><strong>Payment Option</strong></dt>
+      <dd>A single, self-contained description of one method by which payment may be made (e.g., a SEPA bank transfer, a UPI payment request, a Lightning Network invoice).</dd>
+    
+    
+      <dt><strong>Proof of Payment</strong></dt>
+      <dd>A token supplied by the payer on retry to demonstrate that a payment has been made. The format depends on the payment scheme used (e.g., a Lightning Network payment preimage, a bank transaction reference number).</dd>
+    
+    
+      <dt><strong>Payment Session</strong></dt>
+      <dd>A short-lived, service-generated identifier that correlates a payment-required error with the subsequent retry stanza, analogous to a session identifier in <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0050.html">Ad-Hoc Commands (XEP-0050)</a></span>  [<a href="#nt-id50">5</a>].</dd>
+    
+  </dl></div>
+<h2 id="usecases">4.
+       Use Cases<a class="anchor-link" href="#usecases"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+  <div class="indent"><h3 id="usecase-muc">4.1 Paid MUC Room Entry with Multiple Payment Options<a class="anchor-link" href="#usecase-muc"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+  <p class="" style="">Juliet operates a premium conference room on <code>conference.shakespeare.lit</code> that charges an entry fee.
+  Romeo attempts to join but is declined and presented with multiple invoice options.</p>
+    <figure class="code-example" id="example-1"><figcaption><strong>Example 1.</strong> Romeo attempts to join a paid MUC room<a class="anchor-link" href="#example-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence from='romeo@shakespeare.lit/orchard'
+          to='upperroom@conference.shakespeare.lit/Romeo'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc'/&gt;
+&lt;/presence&gt;
+</pre></figure>
+    <figure class="code-example" id="example-2"><figcaption><strong>Example 2.</strong> The MUC service declines with a payment-required error<a class="anchor-link" href="#example-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence from='upperroom@conference.shakespeare.lit'
+          to='romeo@shakespeare.lit/orchard'
+          type='error'&gt;
+  &lt;error type='auth'&gt;
+    &lt;payment-required xmlns='urn:xmpp:payment:0'/&gt;
+    &lt;text xml:lang='en'
+          xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'&gt;
+      An entry fee of EUR 5.00 is required to join this room.
+    &lt;/text&gt;
+    &lt;invoice expires='2026-04-19T14:00:00Z'
+             purpose='Premium room monthly entry'
+             session='c4a1f902-7d3b-4e8c-a510-2f9b0e6d3178'
+             xmlns='urn:xmpp:payment:0'&gt;
+      &lt;description&gt;
+        Pay once per calendar month. Include your JID as the payment
+        reference so your access can be confirmed promptly.
+      &lt;/description&gt;
+      &lt;option label='Bank transfer (SEPA)'
+              proof='reference'&gt;payto://iban/DE02200400300200270112?amount=EUR:5.00&amp;amp;message=upperroom-c4a1f902&amp;amp;receiver-name=Capulet+Hosting
+        &lt;qr&gt;BCD
+002
+1
+SCT
+
+Capulet Hosting
+DE02200400300200270112
+EUR5.00
+
+upperroom-c4a1f902&lt;/qr&gt;
+      &lt;/option&gt;
+      &lt;option label='UPI'
+              proof='reference'&gt;payto://upi/capulethosting@examplebank?amount=INR:450&amp;amp;message=upperroom-c4a1f902&amp;amp;receiver-name=Capulet+Hosting
+      &lt;/option&gt;
+      &lt;option label='Lightning Network (instant)'
+              proof='preimage'&gt;lightning:lnbc50n1pn2s4czpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypq
+      &lt;/option&gt;
+    &lt;/invoice&gt;
+  &lt;/error&gt;
+&lt;/presence&gt;
+</pre></figure>
+
+    <figure class="code-example" id="example-3"><figcaption><strong>Example 3.</strong> Romeo retries after paying by SEPA bank transfer<a class="anchor-link" href="#example-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence from='romeo@shakespeare.lit/orchard'
+          to='upperroom@conference.shakespeare.lit/Romeo'&gt;
+  &lt;x xmlns='http://jabber.org/protocol/muc'/&gt;
+  &lt;payment session='c4a1f902-7d3b-4e8c-a510-2f9b0e6d3178'
+           xmlns='urn:xmpp:payment:0'&gt;
+    &lt;proof type='reference'&gt;NOTPROVIDED20260419DE02&lt;/proof&gt;
+  &lt;/payment&gt;
+&lt;/presence&gt;
+</pre></figure>
+
+  <p class="" style="">Because SEPA bank transfers may take time to settle, the service SHOULD set a generous session expiry for bank-transfer
+  options and MAY grant access provisionally upon receiving the retry stanza, subsequently revoking it if reconciliation fails.
+  Alternatively, where the service has detected the payment but has not yet confirmed settlement, it MAY ask the payer to wait
+  and retry later (see <a href="#protocol-error-flow">Error Flow</a>).</p>
+
+    <figure class="code-example" id="example-4"><figcaption><strong>Example 4.</strong> The service has seen the transfer but awaits settlement, asking Romeo to retry later<a class="anchor-link" href="#example-4"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;presence from='upperroom@conference.shakespeare.lit'
+          to='romeo@shakespeare.lit/orchard'
+          type='error'&gt;
+  &lt;error type='wait'&gt;
+    &lt;payment-required xmlns='urn:xmpp:payment:0'
+                      reason='payment-pending'
+                      retry-after='3600'/&gt;
+    &lt;text xml:lang='en'
+          xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'&gt;
+      Your payment has been received and is awaiting settlement.
+      Please retry in about an hour.
+    &lt;/text&gt;
+  &lt;/error&gt;
+&lt;/presence&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="usecase-bot">4.2 Per-Message Fee for an AI Agent Bot<a class="anchor-link" href="#usecase-bot"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+  <p class="" style="">Balthasar operates a news-summary bot that charges per query. Because the amounts are small and latency matters, only instant-settlement options are offered.
+  This is a service-level policy decision, not a protocol constraint.</p>
+    <figure class="code-example" id="example-5"><figcaption><strong>Example 5.</strong> Romeo sends a message to the bot<a class="anchor-link" href="#example-5"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='romeo@shakespeare.lit/orchard'
+         id='msg-001'
+         to='newssummary@bots.shakespeare.lit'
+         type='chat'&gt;
+  &lt;body&gt;Summarize today's news from Verona.&lt;/body&gt;
+&lt;/message&gt;
+</pre></figure>
+    <figure class="code-example" id="example-6"><figcaption><strong>Example 6.</strong> The bot declines with a payment-required error<a class="anchor-link" href="#example-6"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='newssummary@bots.shakespeare.lit'
+         id='msg-001'
+         to='romeo@shakespeare.lit/orchard'
+         type='error'&gt;
+  &lt;body&gt;Summarize today's news from Verona.&lt;/body&gt;
+  &lt;error type='auth'&gt;
+    &lt;payment-required xmlns='urn:xmpp:payment:0'/&gt;
+    &lt;text xml:lang='en'
+      xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'&gt;
+      A payment of 10 sats is required per query.
+    &lt;/text&gt;
+    &lt;invoice expires='2026-03-19T14:20:00Z'
+             purpose='Per-query fee'
+             session='a3f7c291-84d0-4b2e-9b1a-0f3e2d1c5678'
+             xmlns='urn:xmpp:payment:0'&gt;
+      &lt;option label='Lightning (instant, automated)'
+              proof='preimage'&gt;lightning:lnbc100n1pn2s3dzpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypq
+      &lt;/option&gt;
+      &lt;option label='BOLT 12 offer'
+              proof='preimage'&gt;lightning:lno1qgsyz4uzesxqcyq5rqwzqfqpqdynf
+      &lt;/option&gt;
+    &lt;/invoice&gt;
+  &lt;/error&gt;
+&lt;/message&gt;
+</pre></figure>
+
+    <figure class="code-example" id="example-7"><figcaption><strong>Example 7.</strong> Romeo retries after paying via Lightning<a class="anchor-link" href="#example-7"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='romeo@shakespeare.lit/orchard'
+         id='msg-002'
+         to='newssummary@bots.shakespeare.lit'
+         type='chat'&gt;
+  &lt;body&gt;Summarize today's news from Verona.&lt;/body&gt;
+  &lt;payment session='a3f7c291-84d0-4b2e-9b1a-0f3e2d1c5678'
+           xmlns='urn:xmpp:payment:0'&gt;
+    &lt;proof type='preimage'&gt;a8f3e1d2b4c9078564fae012cc3d99a1b5e7d0f3a2c81496057832bd7e4f0c1a&lt;/proof&gt;
+  &lt;/payment&gt;
+&lt;/message&gt;
+</pre></figure>
+
+    <figure class="code-example" id="example-8"><figcaption><strong>Example 8.</strong> The bot fulfills the request and returns a payment receipt<a class="anchor-link" href="#example-8"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='newssummary@bots.shakespeare.lit'
+         id='msg-003'
+         to='romeo@shakespeare.lit/orchard'
+         type='chat'&gt;
+  &lt;body&gt;Today in Verona: the Montagues and Capulets have agreed to a temporary truce...&lt;/body&gt;
+  &lt;receipt reference='a8f3e1d2b4c9078564fae012cc3d99a1b5e7d0f3a2c81496057832bd7e4f0c1a'
+           session='a3f7c291-84d0-4b2e-9b1a-0f3e2d1c5678'
+           settled='2026-03-20T09:01:14Z'
+           xmlns='urn:xmpp:payment:0'/&gt;
+&lt;/message&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="usecase-antispam">4.3 Anti-Spam Deposit for Non-Roster Contacts<a class="anchor-link" href="#usecase-antispam"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Juliet's server requires a small deposit from senders not present in her roster, as a proof-of-intent mechanism to deter unsolicited messages.
+      Instant-settlement options are used because slow bank transfers would allow queuing before verification.</p>
+    <figure class="code-example" id="example-9"><figcaption><strong>Example 9.</strong> An unknown sender is declined pending a deposit<a class="anchor-link" href="#example-9"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='juliet@shakespeare.lit'
+         id='spam-001'
+         to='stranger@othello.lit/mobile'
+         type='error'&gt;
+  &lt;body&gt;Buy cheap goblets!&lt;/body&gt;
+  &lt;error type='auth'&gt;
+    &lt;payment-required xmlns='urn:xmpp:payment:0'/&gt;
+    &lt;text xml:lang='en'
+          xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'&gt;
+      A small deposit is required to message this user for the first time.
+      The deposit will be refunded if the recipient accepts your contact request.
+    &lt;/text&gt;
+    &lt;invoice expires='2026-03-19T16:01:00Z'
+             purpose='First-contact anti-spam deposit'
+             session='f1c3d9e2-7a04-4b8f-a629-3e0d15b7c412'
+             xmlns='urn:xmpp:payment:0'&gt;
+      &lt;option label='Lightning deposit'
+              proof='preimage'&gt;lightning:lnbc100n1pn2s5azpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypq
+      &lt;/option&gt;
+    &lt;/invoice&gt;
+  &lt;/error&gt;
+&lt;/message&gt;
+</pre></figure>
+  </div>
+
+  <div class="indent"><h3 id="usecase-proactive">4.4 Proactive Invoice Request<a class="anchor-link" href="#usecase-proactive"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">A client MAY proactively request an invoice from a service before sending the gated stanza.
+      This is useful when the client wishes to present payment options to the user before committing to an action.
+      Before sending a proactive invoice request, the client SHOULD discover whether the service supports this
+      feature by querying for the 'urn:xmpp:payment:0#invoice-request' feature via <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id49">4</a>].</p>
+    <figure class="code-example" id="example-10"><figcaption><strong>Example 10.</strong> Romeo requests an invoice before attempting to join<a class="anchor-link" href="#example-10"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='romeo@shakespeare.lit/orchard'
+    id='inv-001'
+    to='conference.shakespeare.lit'
+    type='get'&gt;
+  &lt;get-invoice service='muc-entry'
+               target='upperroom@conference.shakespeare.lit'
+               xmlns='urn:xmpp:payment:0'/&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <figure class="code-example" id="example-11"><figcaption><strong>Example 11.</strong> The service returns an invoice<a class="anchor-link" href="#example-11"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;iq from='conference.shakespeare.lit'
+    id='inv-001'
+    to='romeo@shakespeare.lit/orchard'
+    type='result'&gt;
+  &lt;invoice expires='2026-04-19T14:00:00Z'
+           purpose='Premium room monthly entry'
+           session='3c91b2e4-6f07-4a2d-b839-5e0f17d9c823'
+           xmlns='urn:xmpp:payment:0'&gt;
+    &lt;option label='Bank transfer (SEPA)'
+            proof='reference'&gt;payto://iban/DE02200400300200270112?amount=EUR:5.00&amp;amp;message=3c91b2e4&amp;amp;receiver-name=Capulet+Hosting
+    &lt;/option&gt;
+    &lt;option label='Lightning (instant)'
+            proof='preimage'&gt;lightning:lnbc50n1pn2s4czpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypq
+    &lt;/option&gt;
+  &lt;/invoice&gt;
+&lt;/iq&gt;
+</pre></figure>
+    <p class="" style="">If the service does not support proactive invoice requests, it SHOULD return a <code>&lt;feature-not-implemented/&gt;</code> error of type "cancel".</p>
+  </div>
+
+  <div class="indent"><h3 id="usecase-captcha">4.5 Payment Challenge as Alternative to CAPTCHA<a class="anchor-link" href="#usecase-captcha"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This specification extends <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0158.html">CAPTCHA Forms (XEP-0158)</a></span>  [<a href="#nt-id47">2</a>] by defining a new challenge field type that carries a payment invoice,
+    allowing a service to offer payment as an alternative to solving a CAPTCHA.</p>
+    <p class="" style="">To embed a payment invoice within a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0158.html">CAPTCHA Forms (XEP-0158)</a></span>  [<a href="#nt-id47">2</a>] challenge, the challenger SHOULD include a field with
+    <code>var='urn:xmpp:payment:0'</code> inside the Data Form. The invoice is transmitted as a sibling element to the <code>&lt;x/&gt;</code> element in the same stanza.</p>
+    <figure class="code-example" id="example-12"><figcaption><strong>Example 12.</strong> A service offers payment as an alternative to a CAPTCHA<a class="anchor-link" href="#example-12"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><pre class="prettyprint">
+&lt;message from='security.shakespeare.lit'
+         id='challenge-001'
+         to='romeo@shakespeare.lit/orchard'&gt;
+  &lt;x type='form' xmlns='jabber:x:data'&gt;
+    &lt;title&gt;Verify your intent&lt;/title&gt;
+    &lt;field type='hidden' var='FORM_TYPE'&gt;
+      &lt;value&gt;urn:xmpp:captcha&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;field type='hidden' var='challenge'&gt;
+      &lt;value&gt;challenge-abc-123&lt;/value&gt;
+    &lt;/field&gt;
+    &lt;field label='Enter the text you see:'
+           type='text-single'
+           var='ocr'&gt;
+      &lt;media xmlns='urn:xmpp:media-element'&gt;
+        &lt;uri type='image/jpeg'&gt;https://security.shakespeare.lit/captcha/abc123.jpg&lt;/uri&gt;
+      &lt;/media&gt;
+      &lt;required/&gt;
+    &lt;/field&gt;
+    &lt;field label='Or pay the verification fee (enter session ID after payment):'
+           type='text-single'
+           var='urn:xmpp:payment:0'/&gt;
+  &lt;/x&gt;
+  &lt;invoice expires='2026-03-19T14:30:00Z'
+           purpose='Account verification fee'
+           session='9d4e2c01-5b8f-4a3e-b796-0f1e28d7c589'
+           xmlns='urn:xmpp:payment:0'&gt;
+    &lt;option label='Bank transfer (SEPA)'
+            proof='reference'&gt;payto://iban/DE02200400300200270112?amount=EUR:0.01&amp;amp;message=9d4e2c01
+    &lt;/option&gt;
+    &lt;option label='Lightning'
+            proof='preimage'&gt;lightning:lnbc10p1pn2s6azpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypq
+    &lt;/option&gt;
+  &lt;/invoice&gt;
+&lt;/message&gt;
+</pre></figure>
+  </div>
+
+<h2 id="protocol">5.
+       Protocol<a class="anchor-link" href="#protocol"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+  <div class="indent"><h3 id="protocol-ns">5.1 Namespace<a class="anchor-link" href="#protocol-ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This specification uses the namespace 'urn:xmpp:payment:0'. (see <a href="#registrar-versioning">Namespace Versioning</a> regarding the possibility of incrementing the version number)</p>
+  </div>
+
+  <div class="indent"><h3 id="protocol-elements">5.2 Elements<a class="anchor-link" href="#protocol-elements"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The following elements are defined in the 'urn:xmpp:payment:0' namespace.</p>
+
+    <div class="indent"><h4 id="protocol-invoice">5.2.1 The invoice Element<a class="anchor-link" href="#protocol-invoice"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">The <code>&lt;invoice/&gt;</code> element is the container for all payment options associated with a single payment event. It MUST contain at least one <code>&lt;option/&gt;</code> child element and MAY contain a <code>&lt;description/&gt;</code> child element whose character data provides additional human-readable context.</p>
+      <p class="" style="">The <code>&lt;invoice/&gt;</code> element has the following attributes:</p>
+      <ul class="" style="">
+        <li class="" style=""><code>session</code> (REQUIRED) — An opaque, service-generated string that MUST be globally unique and MUST be included verbatim in the 'session' attribute of the corresponding <code>&lt;payment/&gt;</code> element. How the service generates this value is an implementation choice; <a href="#security-session-binding">Session Binding</a> describes two strategies (a random identifier such as a UUID version 4 per RFC 4122 with server-side state, or a stateless keyed token derived from the invoice parameters). Where a bank transfer option is present, the session value also serves as the RECOMMENDED payment reference that the payer SHOULD include in the transfer.</li>
+        <li class="" style=""><code>expires</code> (RECOMMENDED) — A UTC date-time value, formatted per <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles (XEP-0082)</a></span>  [<a href="#nt-id51">6</a>], after which the invoice MUST NOT be honored. The payer SHOULD NOT attempt payment after this time.</li>
+        <li class="" style=""><code>purpose</code> (OPTIONAL) — A short human-readable string describing the reason for the payment requirement (e.g., "Room entry fee", "File upload", "Anti-spam deposit").</li>
+      </ul>
+    </div>
+
+    <div class="indent"><h4 id="protocol-option">5.2.2 The option Element<a class="anchor-link" href="#protocol-option"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">Each <code>&lt;option/&gt;</code> element describes one complete, self-contained payment method. The payer MUST use exactly one option to fulfill the invoice.</p>
+      <p class="" style="">The character data of the <code>&lt;option/&gt;</code> element MUST be a <strong>payment URI</strong>. The payment system is identified by the URI's scheme (e.g. <code>payto:</code> per RFC 8905), and the amount, currency, and beneficiary are carried within the URI as defined by that scheme's own standard. This specification neither defines nor curates the set of usable schemes. The <code>payto</code> URI scheme (RFC 8905) is RECOMMENDED as the primary scheme.</p>
+      <p class="" style="">A client is NOT required to parse the payment URI. It MAY treat the URI as an opaque string to be handed to an external payment application or rendered as a QR code; see <a href="#security-amount">Amount Presentation Integrity</a>.</p>
+      <p class="" style="">The <code>&lt;option/&gt;</code> element possesses the following attributes:</p>
+      <ul class="" style="">
+        <li class="" style=""><code>proof</code> (OPTIONAL) — The type of proof-of-payment the service expects the payer to echo on retry (see <a href="#protocol-payment">The payment Element</a>). The issuer declares this value and the payer returns it verbatim in the 'type' attribute of the <code>&lt;proof/&gt;</code> element. Its absence means the service verifies payment out of band and requires no payer-supplied proof. The value's meaning is defined by the payment system the option uses; <a href="#proof-types">Conventional Proof Types</a> lists common values non-normatively.</li>
+        <li class="" style=""><code>label</code> (OPTIONAL) — A short human-readable string for display in a list (e.g., "Bank transfer (SEPA)", "UPI", "Lightning").</li>
+      </ul>
+      <p class="" style="">This specification does not define a separate human-readable amount field. The amount is carried in the payment URI. A client that parses the option's scheme reads it from there for display, while one that does not delegates the URI to a payment application that displays it (see <a href="#security-amount">Amount Presentation Integrity</a>). A duplicate amount supplied alongside the URI would be redundant in the first case and unverifiable in the second. The amount is readily extracted from common schemes (<code>payto</code> from its <code>amount=currency:value</code> parameter, <code>bitcoin:</code> from its decimal <code>amount</code>, a <code>lightning:</code> BOLT 11 invoice from its prefix). For less common schemes, and where no amount is encoded at all (such as a zero-amount Lightning invoice), the payer's payment application presents the amount it is about to send for confirmation.</p>
+      <p class="" style="">The <code>&lt;option/&gt;</code> element MAY also contain a <code>&lt;qr/&gt;</code> child element whose character data is a payment string to be rendered as a QR code. This is useful where the payment URI is not itself the QR payload that the payer's payment application expects to scan, for example, a SEPA credit transfer for which banking apps scan a European Payments Council (EPC069-12) payload rather than a <code>payto</code> URI. A client renders the <code>&lt;qr/&gt;</code> content as a QR code <em>without interpreting it</em>, exactly as it would QR-encode the URI, so no scheme-specific parsing is required. This specification does not define or constrain the format of the <code>&lt;qr/&gt;</code> payload; that is a matter between the service and the scanning payment application. Because a payment URI is always present, the <code>&lt;qr/&gt;</code> element is purely an additional rendering and payment convenience and is subject to the same integrity considerations as other invoice content (see <a href="#security-amount">Amount Presentation Integrity</a>). Clients SHOULD also present the underlying URI as selectable or copyable text for accessibility.</p>
+    </div>
+
+    <div class="indent"><h4 id="protocol-payment">5.2.3 The payment Element<a class="anchor-link" href="#protocol-payment"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">The <code>&lt;payment/&gt;</code> element is added by the payer as an extension to the retried stanza to indicate that a payment has been made for the referenced session.</p>
+      <p class="" style="">The <code>&lt;payment/&gt;</code> element possesses a single attribute:</p>
+      <ul class="" style="">
+        <li class="" style=""><code>session</code> (REQUIRED) — The value of the 'session' attribute from the <code>&lt;invoice/&gt;</code> element that this payment satisfies. The session is the sole correlator the service needs. Because the service issued the invoice for that session, it already knows which option(s) and payment system(s) were offered.</li>
+      </ul>
+      <p class="" style="">The <code>&lt;payment/&gt;</code> element MAY contain a <code>&lt;proof/&gt;</code> child element. The <code>&lt;proof/&gt;</code> element possesses a required 'type' attribute and its character data is the proof token. Where the satisfied option carried a 'proof' attribute, the payer SHOULD set 'type' to that declared value. The proof token is opaque to XMPP; its syntax and verification are defined by the payment system the option uses, not by this specification.</p>
+      <div class="indent"><h5 id="proof-types">5.2.3.1 Conventional Proof Types</h5>
+      <p class="" style="">The following proof types are in common use. This list is <strong>non-normative</strong>: it is a convenience vocabulary, not a registry maintained by this specification. The format and verification of each is defined by the relevant payment system's own standard.</p>
+      <figure class="table"><figcaption id="table-1"><strong>Table 1:</strong> Conventional Proof Types (non-normative)<a class="anchor-link" href="#table-1"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+        <tr class="body">
+          <th colspan="" rowspan="">Type</th>
+          <th colspan="" rowspan="">Meaning</th>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">preimage</td>
+          <td align="" colspan="" rowspan="">A secret revealed upon settlement of a hash-locked payment (e.g. a Lightning Network payment preimage).</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">reference</td>
+          <td align="" colspan="" rowspan="">A transaction or end-to-end reference string supplied by the payment network (e.g. a SEPA end-to-end identifier, a UPI transaction ID, a PIX E2EID).</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">txid</td>
+          <td align="" colspan="" rowspan="">An on-chain transaction identifier.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">proof</td>
+          <td align="" colspan="" rowspan="">A payee-verifiable cryptographic payment proof supplied out of band (e.g. a private-network transaction proof).</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">token</td>
+          <td align="" colspan="" rowspan="">An opaque bearer token issued by a facilitator after verified payment, enabling a "pay once, use many times" pattern.</td>
+        </tr>
+      </table></figure>
+      </div>
+    </div>
+
+    <div class="indent"><h4 id="protocol-payment-required">5.2.4 The payment-required Element<a class="anchor-link" href="#protocol-payment-required"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">The <code>&lt;payment-required/&gt;</code> element is an application-specific stanza error condition.
+        It is used as a child of the <code>&lt;error/&gt;</code> element to indicate that the requested action requires payment before it can be fulfilled.</p>
+
+      <p class="" style="">The <code>&lt;payment-required/&gt;</code> element possesses the following OPTIONAL attributes:</p>
+      <ul class="" style="">
+        <li class="" style=""><code>reason</code> (OPTIONAL) — A machine-readable code providing additional detail. This is intended for use in error responses to retried stanzas
+          (i.e., where a <code>&lt;payment/&gt;</code> was present), not in the initial decline. Defined values are:</li>
+      </ul>
+      <figure class="table"><figcaption id="table-2"><strong>Table 2:</strong> Registered reason Codes<a class="anchor-link" href="#table-2"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+        <tr class="body">
+          <th colspan="" rowspan="">Value</th>
+          <th colspan="" rowspan="">Meaning</th>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">payment-required</td>
+          <td align="" colspan="" rowspan="">No <code>&lt;payment/&gt;</code> element was present. The resource requires payment before access is granted.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">invalid-session</td>
+          <td align="" colspan="" rowspan="">The 'session' value is unknown, has already been consumed, or does not match the HMAC verification check.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">payment-expired</td>
+          <td align="" colspan="" rowspan="">The invoice has passed its 'expires' time and may no longer be honored. The payer SHOULD request a fresh invoice.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">verification-failed</td>
+          <td align="" colspan="" rowspan="">A <code>&lt;proof/&gt;</code> element was present but the proof could not be verified as valid for the referenced payment.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">payment-insufficient</td>
+          <td align="" colspan="" rowspan="">The payment amount detected was less than the required amount.</td>
+        </tr>
+        <tr class="body">
+          <td align="" colspan="" rowspan="">payment-pending</td>
+          <td align="" colspan="" rowspan="">A payment has been detected for the referenced session but has not yet been confirmed as settled. The payer should wait and retry.
+            This is not a failure and is therefore paired with stanza error type "wait" and SHOULD be accompanied by a 'retry-after' attribute (see <a href="#protocol-error-flow">Error Flow</a>).</td>
+        </tr>
+      </table></figure>
+
+        <p class="" style="">The <code>&lt;payment-required/&gt;</code> element additionally possesses an OPTIONAL <code>retry-after</code> attribute.
+          If it exists, it MUST be set to a non-negative integer number of seconds the payer SHOULD wait before retrying the same session.
+          It is meaningful with the 'payment-pending' reason (and MAY accompany any transient condition returned with stanza error type "wait").</p>
+    </div>
+
+    <div class="indent"><h4 id="protocol-receipt">5.2.5 The receipt Element<a class="anchor-link" href="#protocol-receipt"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">The <code>&lt;receipt/&gt;</code> element MAY be included by a service in the successful response to a retried stanza to provide the payer with a machine-readable record of the settled payment.
+        It is an OPTIONAL protocol element and its absence does not indicate that the payment failed.</p>
+
+      <p class="" style="">The <code>&lt;receipt/&gt;</code> element has the following attributes:</p>
+      <ul class="" style="">
+        <li class="" style=""><code>session</code> (REQUIRED) — The session identifier from the <code>&lt;invoice/&gt;</code> that was satisfied, allowing the payer to correlate the receipt with the original invoice.</li>
+        <li class="" style=""><code>reference</code> (RECOMMENDED) — A payment-network reference that can be used for auditing and dispute resolution. For Lightning Network payments this is, for example, the payment hash; for bank transfers, the end-to-end identifier provided by the receiving bank; for distributed ledger payments, the transaction identifier.</li>
+        <li class="" style=""><code>settled</code> (OPTIONAL) — A UTC date-time value, formatted per <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0082.html">XMPP Date and Time Profiles (XEP-0082)</a></span>  [<a href="#nt-id51">6</a>], indicating when the payment was confirmed as settled. For asynchronous settlement methods (e.g., bank transfers) this MAY be omitted if settlement has not yet been confirmed.</li>
+      </ul>
+
+      <p class="" style="">A service that supports emitting receipts SHOULD advertise the feature 'urn:xmpp:payment:0#receipt' via <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0030.html">Service Discovery (XEP-0030)</a></span>  [<a href="#nt-id49">4</a>].</p>
+    </div>
+
+    <div class="indent"><h4 id="protocol-get-invoice">5.2.6 The get-invoice Element<a class="anchor-link" href="#protocol-get-invoice"><abbr title="Link to this point in the document">¶</abbr></a></h4>
+      <p class="" style="">The <code>&lt;get-invoice/&gt;</code> element is the payload of a proactive invoice request. It is sent as the child of an IQ-get stanza and possesses the following attributes:</p>
+      <ul class="" style="">
+        <li class="" style=""><code>service</code> (REQUIRED) — A registered service type identifier (see <a href="#registrar-services">Invoice Request Service Registry</a>).</li>
+        <li class="" style=""><code>target</code> (OPTIONAL) — The JID of the specific resource being requested (e.g., the JID of a MUC room).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="indent"><h3 id="protocol-error-flow">5.3 Error Flow<a class="anchor-link" href="#protocol-error-flow"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">When a service requires payment for an action, it MUST respond to the triggering stanza with an error of type "auth" containing the <code>&lt;payment-required/&gt;</code> application condition element qualified by 'urn:xmpp:payment:0', and MUST include an <code>&lt;invoice/&gt;</code> element as a sibling of the error condition element within the <code>&lt;error/&gt;</code> element.</p>
+    <p class="" style="">The "auth" error type is appropriate because the payer has not yet demonstrated authorization (via payment) to access the resource. The <code>&lt;payment-required/&gt;</code> application condition distinguishes this case from <code>&lt;not-authorized/&gt;</code> and <code>&lt;registration-required/&gt;</code>.</p>
+    <p class="" style="">If the requesting entity is not authenticated at all (e.g., it has not completed SASL authentication with its own server, or its JID cannot be verified), the service SHOULD return a <code>&lt;not-authorized/&gt;</code> error rather than a <code>&lt;payment-required/&gt;</code> error. Payment challenges SHOULD only be issued to entities whose identity can be established, to prevent anonymous entities from exploiting the payment flow to probe service behavior.</p>
+    <p class="" style="">The service SHOULD include a human-readable <code>&lt;text/&gt;</code> child within the <code>&lt;error/&gt;</code> element describing the reason for the payment requirement.</p>
+    <p class="" style="">When a <code>&lt;payment/&gt;</code> element is present on a retried stanza but verification fails, the service SHOULD return a <code>&lt;not-acceptable/&gt;</code> error of type "modify" containing a <code>&lt;payment-required/&gt;</code> element with an appropriate 'reason' attribute (see <a href="#protocol-payment-required">The payment-required Element</a>), and MAY include a new <code>&lt;invoice/&gt;</code> element to allow the payer to retry with a fresh payment. Using a machine-readable 'reason' value allows automated agents to distinguish between a recoverable failure (e.g., 'payment-expired', which warrants requesting a new invoice) and a non-recoverable one (e.g., 'verification-failed', which warrants escalating to the user).</p>
+    <p class="" style="">Some payment systems settle asynchronously: the service may have detected a payment for the session but cannot yet confirm it has settled (e.g. a bank transfer awaiting reconciliation, or a cryptocurrency payment awaiting confirmations). In this case, where the service does not need a proof from the payer, only more time, it SHOULD return a stanza error of type <strong>"wait"</strong> (per <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-id52">7</a>], signifying a transient condition that warrants retrying after a delay) containing a <code>&lt;payment-required/&gt;</code> element with <code>reason='payment-pending'</code>, and SHOULD include a <code>retry-after</code> attribute giving the number of seconds the payer should wait. The payer then retries the <em>same</em> session after the indicated interval; it does not pay again. This differs from the verification-failure case both in error type ("wait" rather than "modify"/"auth") and in semantics: the payment is on its way, not rejected.</p>
+  </div>
+
+  <div class="indent"><h3 id="protocol-verification">5.4 Verification<a class="anchor-link" href="#protocol-verification"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The mechanism by which a service verifies that a payment has been made is outside the scope of this specification. The following non-normative guidance is provided for implementors.</p>
+    <p class="" style="">For bank transfers (SEPA, IBAN, UPI, PIX, SWIFT, etc.), the service typically cannot verify payment in real time. The service SHOULD encode the session identifier as the payment reference in the <code>payto</code> URI (the 'message' or 'instruction' query parameter) and reconcile incoming payments against outstanding sessions via its bank's API or statement-import mechanism. Because bank transfers can take from seconds (SEPA Instant) to days (SWIFT) to settle, bank transfer options are best suited to one-time access grants such as account registration or monthly subscriptions rather than per-message micropayments.</p>
+    <p class="" style="">For Lightning Network payments, the service MAY verify payment by stateless preimage verification: if the payment hash is encoded in the session identifier, the service verifies that SHA-256(preimage) matches the payment hash without querying external state. Alternatively, the service MAY query its own Lightning node for a settled invoice.</p>
+    <p class="" style="">A facilitator service MAY issue an opaque bearer token after verifying payment. The token can be used across multiple retried stanzas within its validity period, enabling a "pay once, use many times" pattern. The format and lifecycle of such tokens is outside the scope of this specification.</p>
+    <p class="" style="">A service MUST NOT accept the same session identifier more than once. Once a session is consumed, the service MUST invalidate it. A service MUST NOT honor a session after the time specified in the 'expires' attribute.</p>
+  </div>
+
+<h2 id="rules">6.
+       Business Rules<a class="anchor-link" href="#rules"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The following rules apply to implementations of this specification.</p>
+  <div class="indent"><h3 id="rules-service">6.1 Service Behavior<a class="anchor-link" href="#rules-service"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <ul class="" style="">
+      <li class="" style="">A service MUST generate a new, unique session identifier for every invoice issued.</li>
+      <li class="" style="">A service MUST include at least one payment option.</li>
+      <li class="" style="">A service MUST NOT include personally identifiable information in invoice payloads beyond what is required for payment routing.</li>
+      <li class="" style="">Services SHOULD keep session expiry times appropriately short for instant-settlement options (10 to 30 minutes) and appropriately generous for slower bank-transfer options (1 to 3 business days).</li>
+    </ul>
+  </div>
+  <div class="indent"><h3 id="rules-client">6.2 Client Behavior<a class="anchor-link" href="#rules-client"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <ul class="" style="">
+      <li class="" style="">Clients SHOULD present all payment options to the user, ordered from most to least preferred, to allow the user or automated agent to select the most suitable option.</li>
+      <li class="" style="">Automated agents SHOULD prefer instant-settlement options because these can be completed and verified programmatically without user interaction.</li>
+      <li class="" style="">Clients presenting a user interface SHOULD render URI-based options (e.g., <code>payto</code> URIs) as QR codes to facilitate payment from a mobile banking or wallet application.</li>
+      <li class="" style="">A client MAY treat a payment URI as an opaque string and delegate it to an external payment application (via an operating-system URI handler or a QR code) without parsing it. Such a client relies on the payment application to display the authoritative amount and beneficiary and to obtain the user's final authorization.</li>
+      <li class="" style="">A client MAY present a payment option without recognising its URI scheme by renderering the URI as a QR code for the user to scan, hand it to an operating-system URI handler, or show it as selectable text. Recognising the scheme is not a prerequisite for offering an option, and a client SHOULD NOT hide an option merely because it cannot parse its scheme. An option is genuinely unactionable only when the client can surface its URI to the payer in none of these ways (most plausibly an automated agent paying without human interaction and with no means of settling that scheme); such a client SHOULD act on whichever options it can and report that the remainder cannot be fulfilled rather than silently discarding them.</li>
+      <li class="" style="">A client that implements automated payment (paying without a human reviewing the amount in a payment application) MUST obtain the amount from the payment URI itself.</li>
+      <li class="" style="">Clients MUST NOT silently retry a stanza without presenting payment options to the user unless the client has been explicitly configured by the user to auto-pay up to a defined amount threshold.</li>
+      <li class="" style="">If the 'expires' time has passed before the user initiates payment, the client SHOULD request a fresh invoice via the proactive IQ flow rather than attempting to pay an expired one.</li>
+    </ul>
+  </div>
+<h2 id="impl">7.
+       Implementation Notes<a class="anchor-link" href="#impl"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The 'payto' URI scheme (RFC 8905) is the RECOMMENDED primary URI scheme for traditional bank rails, because it covers the widest range of them within a single IETF-standardized format. Examples of valid payto URIs include:</p>
+  <ul class="" style="">
+    <li class="" style=""><code>payto://iban/DE75512108001245126199?amount=EUR:200.00&amp;message=hello</code> (SEPA bank transfer)</li>
+    <li class="" style=""><code>payto://upi/merchant@examplebank?amount=INR:200&amp;receiver-name=Example</code> (India UPI)</li>
+    <li class="" style=""><code>payto://ach/122000661/0000000123?amount=USD:200.00</code> (US ACH transfer)</li>
+  </ul>
+  <p class="" style="">Because each option carries a payment URI, any payment system reachable through a registered URI scheme is usable without modifying this specification.
+    Cryptocurrency networks are often better addressed through their own native schemes rather than through a <code>payto</code> target type because typically
+    the native scheme is the form the payer's wallet recognises (see <a href="#protocol-option">The option Element</a>).</p>
+
+  <p class="" style="">A QR code is normally generated directly from the payment URI: the client renders the URI string as a QR code without interpreting it,
+    and the payer scans it with a wallet or banking application. This works natively for cryptocurrency URI schemes. For some bank-transfer systems,
+    however, the payment application expects a different QR payload (for example, banking apps in several European countries scan a European Payments Council
+    EPC069-12 payload rather than a <code>payto</code> URI). In that case the service MAY additionally supply that payload in the <code>&lt;qr/&gt;</code>
+    child of the option, which the client likewise renders as a QR code without interpreting it. The payment URI itself remains REQUIRED,
+    so a machine-readable, scheme-identified payment instruction is always present.</p>
+<h2 id="access">8.
+       Accessibility Considerations<a class="anchor-link" href="#access"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Clients MUST NOT present a payment interface as the sole means of completing an action where an accessibility-equivalent alternative exists.
+    Where a service also offers a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0158.html">CAPTCHA Forms (XEP-0158)</a></span>  [<a href="#nt-id47">2</a>] CAPTCHA challenge, the payment option and the CAPTCHA option SHOULD be presented with equal prominence.</p>
+  <p class="" style="">When rendering a payment option as a QR code, whether from the payment URI or from a <code>&lt;qr/&gt;</code> payload,
+    clients SHOULD also present the underlying payment URI as selectable text so that users of screen readers or other assistive technologies can copy and use it directly.</p>
+<h2 id="i18n">9.
+       Internationalization Considerations<a class="anchor-link" href="#i18n"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The 'purpose' attribute of <code>&lt;invoice/&gt;</code> and the 'label' attribute of <code>&lt;option/&gt;</code> are human-readable strings. Services SHOULD provide these in the language of the recipient where known. Multiple language variants MAY be provided using the standard 'xml:lang' attribute on any element containing character data.</p>
+  <p class="" style="">This specification does not define an amount or currency syntax of its own: the amount, currency, and any denomination are carried inside the payment URI and are governed by that URI scheme's own standard (for <code>payto</code>, the RFC 8905 <code>currency:amount</code> notation). A client that displays the amount derives it from the URI and SHOULD format it for the recipient's locale.</p>
+<h2 id="security">10.
+       Security Considerations<a class="anchor-link" href="#security"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">The following security considerations apply to implementations of this specification.</p>
+  <div class="indent"><h3 id="security-replay">10.1 Replay Attacks<a class="anchor-link" href="#security-replay"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Session identifiers MUST be unique and single-use. A service MUST maintain a record of consumed session identifiers for at least as long as the invoice expiry window to prevent replay attacks. Reusing a session identifier to obtain multiple access grants MUST be rejected.</p>
+  </div>
+
+  <div class="indent"><h3 id="security-session-binding">10.2 Session Binding<a class="anchor-link" href="#security-session-binding"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Because XMPP servers routinely mutate stanzas in transit — adding elements such as <code>&lt;delay/&gt;</code>, rewriting the 'from' attribute, injecting stream management acknowledgements, and normalizing namespace prefixes — it is not possible for a service to cryptographically bind an invoice to the byte content of the stanza it declined. Body-level hashing, as used by HTTP-based payment protocols, is therefore not applicable in XMPP.</p>
+    <p class="" style="">A service therefore MUST verify a session against parameters it knows itself, never against any property of the client's retry stanza; this is what allows verification to survive server-side stanza mutation. The session value MUST be unguessable and MUST be bound to what was purchased (e.g. the resource the invoice grants access to and the amount required) so that a session obtained for one resource or amount cannot be redeemed for another. Where the invoice was issued in response to a proactive <code>&lt;get-invoice/&gt;</code> request, the 'target' resource SHOULD be part of this binding.</p>
+    <p class="" style="">How the service achieves this is an implementation choice. It MAY store server-side state mapping the session to the invoice, or encode the binding into a self-contained keyed token, for example an HMAC over those service-side parameters (not the option URIs, which embed the session and are not echoed on retry) together with a per-invoice nonce, so that each session stays unique and can be re-verified without storing the invoice. Either way the service MUST record consumed sessions until they expire (see <a href="#security-replay">Replay Attacks</a>): the token approach avoids storing invoice parameters but not the set of consumed sessions.</p>
+  </div>
+
+  <div class="indent"><h3 id="security-tampering">10.3 Invoice Tampering<a class="anchor-link" href="#security-tampering"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">An intermediary XMPP server could modify <code>&lt;invoice/&gt;</code> contents in transit, redirecting payment destinations to attacker-controlled accounts. Implementations SHOULD use end-to-end encryption (e.g., <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0384.html">OMEMO Encryption (XEP-0384)</a></span>  [<a href="#nt-id53">8</a>]) when the integrity of invoice contents is critical. For Lightning Network options, stateless preimage verification protects the service from granting access without payment: because the session identifier is bound to the payment hash (see <a href="#security-session-binding">Session Binding</a>), a tampered invoice would yield a preimage that fails verification. This does not protect the payer, who may still send funds to an attacker; end-to-end encryption is required for that.</p>
+    <p class="" style="">For traditional bank transfer options, no equivalent cryptographic binding between the invoice and the beneficiary account exists. Users SHOULD independently verify beneficiary account details before initiating a bank transfer, particularly when communicating with a service for the first time.</p>
+  </div>
+
+  <div class="indent"><h3 id="security-amount">10.4 Amount Presentation Integrity<a class="anchor-link" href="#security-amount"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The authoritative amount and beneficiary of a payment are those encoded in the payment URI of the chosen <code>&lt;option/&gt;</code>. This specification deliberately carries no separate human-readable amount field: a duplicate amount supplied alongside the URI could not be verified against it by a client that does not parse the scheme, and a preview diverging from the URI is a spoofing risk. The <code>label</code> and <code>purpose</code> attributes remain human-readable text describing the option and the reason for payment.</p>
+    <p class="" style="">Accordingly:</p>
+    <ul class="" style="">
+      <li class="" style="">A client that displays an amount MUST derive it from the payment URI, and MUST NOT treat the <code>label</code>, <code>purpose</code>, or any other free-text field as an amount or use such a field as the basis for an automated decision, including the financial-safety threshold check of <a href="#security-financial">Financial Safety</a>.</li>
+      <li class="" style="">A client is not required to parse payment URIs. A client that treats the URI as opaque and delegates it to a payment application relies on that application to display the authoritative amount and beneficiary and to obtain the user's final authorization; such a client SHOULD make clear that the binding amount and beneficiary are those confirmed in the payment application. This is the established "what you see is what you sign" model: the trusted endpoint that authorizes the payment is also the one that re-displays its details.</li>
+      <li class="" style="">A client implementing automated payment (with no human reviewing the amount in a payment application) MUST derive the amount from the URI itself, since there is no downstream party to verify it.</li>
+      <li class="" style="">A <code>&lt;qr/&gt;</code> payload, where present, is a rendering convenience and carries the same in-transit tampering risk as the URI; it is not a substitute for the payment application's confirmation of the authoritative amount and beneficiary. A client able to interpret both the URI and the <code>&lt;qr/&gt;</code> payload SHOULD verify that they describe the same payment.</li>
+    </ul>
+    <p class="" style="">End-to-end encryption (e.g. <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0384.html">OMEMO Encryption (XEP-0384)</a></span>  [<a href="#nt-id53">8</a>]) protects the integrity of the URI in transit.</p>
+  </div>
+
+  <div class="indent"><h3 id="security-financial">10.5 Financial Safety<a class="anchor-link" href="#security-financial"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">Clients MUST NOT automatically pay an invoice above a configurable amount threshold without explicit user confirmation.
+      Implementations SHOULD default this threshold to zero (i.e., all payments require explicit user approval) and SHOULD allow the user to raise it.
+      Automated agents operating within a pre-authorized budget MAY raise this threshold programmatically for their specific use case,
+      but MUST NOT do so without the knowledge and consent of the account holder.</p>
+  </div>
+
+<h2 id="privacy">11.
+       Privacy Considerations<a class="anchor-link" href="#privacy"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Services MUST NOT include information in invoice metadata that would allow correlation of payments to real-world identities beyond what is required for the service function.</p>
+  <p class="" style="">Lightning Network payment hashes are pseudonymous. However, a service that retains proof-of-payment preimages alongside session records can link a payment to the payer's JID.
+    Services SHOULD minimize the identity information stored alongside consumed session records and SHOULD delete such records once the access grant has expired.</p>
+  <p class="" style="">Traditional bank transfer options inherently reveal the payer's real name and account details to the payee, as this is a property of the underlying banking system.
+    Clients SHOULD inform the user of this before initiating a bank transfer to a party the user has not previously transacted with.</p>
+  <p class="" style="">The 'session' value SHOULD NOT encode any information about the payer's identity or behavior.</p>
+<h2 id="iana">12.
+       IANA Considerations<a class="anchor-link" href="#iana"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">This document requires no interaction with the Internet Assigned Numbers Authority (IANA).</p>
+<h2 id="registrar">13.
+       XMPP Registrar Considerations<a class="anchor-link" href="#registrar"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+
+  <div class="indent"><h3 id="registrar-ns">13.1 Protocol Namespaces<a class="anchor-link" href="#registrar-ns"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id54">9</a>] shall include 'urn:xmpp:payment:0' in its registry of protocol namespaces.</p>
+    <p class="" style="">If the protocol defined in this specification undergoes a revision that is not fully backwards-compatible with an older version, the XMPP Registrar shall increment the protocol version number found at the end of the XML namespaces defined herein, as described in Section 4 of <span class="ref">XEP-0053</span>.</p>
+  </div>
+
+  <div class="indent"><h3 id="registrar-features">13.2 Service Discovery Features<a class="anchor-link" href="#registrar-features"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id54">9</a>] shall include the following features in its registry of service discovery features (see &lt;<a href="https://xmpp.org/registrar/disco-features.html">https://xmpp.org/registrar/disco-features.html</a>&gt;):</p>
+    <ul class="" style="">
+      <li class="" style="">urn:xmpp:payment:0</li>
+      <li class="" style="">urn:xmpp:payment:0#invoice-request</li>
+      <li class="" style="">urn:xmpp:payment:0#receipt</li>
+    </ul>
+    <p class="" style="">An entity that supports the error-flow portion of this protocol MUST advertise the feature 'urn:xmpp:payment:0'.
+      An entity that additionally supports the proactive IQ-based invoice request MUST advertise 'urn:xmpp:payment:0#invoice-request'.
+      An entity that supports emitting <code>&lt;receipt/&gt;</code> elements upon successful payment MUST advertise 'urn:xmpp:payment:0#receipt'.</p>
+  </div>
+
+  <div class="indent"><h3 id="registrar-schemes">13.3 Payment Schemes and Proof Types<a class="anchor-link" href="#registrar-schemes"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This specification deliberately does <strong>not</strong> establish an <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id54">9</a>] registry of payment schemes, payment systems, or proof-of-payment formats.
+      Curating payment systems is outside the XSF's area of expertise and is already handled by external bodies. Payment options are identified by their URI scheme,
+      ideally via the IANA URI Schemes registry, and for the <code>payto</code> scheme by the payment target types maintained externally under RFC 8905.
+      Proof types are declared per option by the issuing service and echoed by the payer (see <a href="#protocol-payment">The payment Element</a>).
+      The conventional values listed there are non-normative and their formats are defined by the relevant payment systems' own specifications.</p>
+  </div>
+
+  <div class="indent"><h3 id="registrar-services">13.4 Invoice Request Service Registry<a class="anchor-link" href="#registrar-services"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This is the one registry this specification defines, and it concerns XMPP application contexts (a domain within the XSF's remit) rather than payment systems.</p>
+    <p class="" style="">The <span class="ref" style=""><a href="https://xmpp.org/registrar/">XMPP Registrar</a></span>  [<a href="#nt-id54">9</a>] shall maintain a registry of service type identifiers for use in the 'service' attribute of the <code>&lt;get-invoice/&gt;</code> element. The initial contents of this registry are as follows.</p>
+    <figure class="table"><figcaption id="table-3"><strong>Table 3:</strong> Initial Invoice Request Service Registry<a class="anchor-link" href="#table-3"><abbr title="Link to this point in the document">¶</abbr></a></figcaption><table>
+      <tr class="body">
+        <th colspan="" rowspan="">Value</th>
+        <th colspan="" rowspan="">Description</th>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">muc-entry</td>
+        <td align="" colspan="" rowspan="">Entry fee for a <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0045.html">Multi-User Chat (XEP-0045)</a></span>  [<a href="#nt-id46">1</a>] room.</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">file-upload</td>
+        <td align="" colspan="" rowspan="">Fee for a file upload service (e.g., <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0363.html">HTTP File Upload (XEP-0363)</a></span>  [<a href="#nt-id55">10</a>]).</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">message</td>
+        <td align="" colspan="" rowspan="">Per-message fee, e.g., for a bot service or an anti-spam deposit.</td>
+      </tr>
+      <tr class="body">
+        <td align="" colspan="" rowspan="">registration</td>
+        <td align="" colspan="" rowspan="">Account registration or hosting fee.</td>
+      </tr>
+    </table></figure>
+  </div>
+
+<h2 id="design">14.
+       Design Considerations<a class="anchor-link" href="#design"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <p class="" style="">Several alternative designs were considered during the development of this specification.</p>
+  <div class="indent"><h3 id="design-dataforms">14.1 Using Data Forms for the Invoice<a class="anchor-link" href="#design-dataforms"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style=""><span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0004.html">Data Forms (XEP-0004)</a></span>  [<a href="#nt-id56">11</a>] Data Forms were considered as the vehicle for invoice delivery, since <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0158.html">CAPTCHA Forms (XEP-0158)</a></span>  [<a href="#nt-id47">2</a>] already uses them for challenges. Data Forms were rejected for the primary invoice format because the structured multi-element nature of an invoice (multiple <code>&lt;option/&gt;</code> children, each with a payload string and a display annotation) does not map naturally onto flat form fields, and because a dedicated element is more self-describing and easier to parse for automated agents. Data Forms are retained only for the <span class="ref" style=""><a href="https://xmpp.org/extensions/xep-0158.html">CAPTCHA Forms (XEP-0158)</a></span>  [<a href="#nt-id47">2</a>] integration use case, where the payment option appears as a single field alongside other challenge fields.</p>
+  </div>
+  <div class="indent"><h3 id="design-errortype">14.2 Choosing auth as the Error Type<a class="anchor-link" href="#design-errortype"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">The "auth" error type was chosen for the payment-required error rather than, say, "cancel" or a new type, because the payer genuinely lacks authorization to perform the requested action until payment is made. This mirrors the semantics of HTTP 402 and is consistent with the existing use of "auth" for <code>&lt;registration-required/&gt;</code> in <span class="ref" style=""><a href="http://tools.ietf.org/html/rfc6120">RFC 6120</a></span>  [<a href="#nt-id52">7</a>].</p>
+  </div>
+  <div class="indent"><h3 id="design-sessions">14.3 Streaming Payment Sessions<a class="anchor-link" href="#design-sessions"><abbr title="Link to this point in the document">¶</abbr></a></h3>
+    <p class="" style="">This specification defines only single-payment ("charge") semantics: one invoice, one payment, one grant. For high-frequency use cases such as per-query AI agent bots, this model requires a new invoice round-trip for every request, which introduces latency and overhead.</p>
+    <p class="" style="">A future companion specification MAY define streaming payment session semantics, analogous to the session intent in the Machine Payments Protocol (MPP). In such a model, an agent would open a payment channel by pre-funding it, and subsequent requests within the same channel would be settled using off-chain cryptographic vouchers without requiring a new invoice or an on-chain transaction per query. Such a specification would advertise support via a new feature (e.g., 'urn:xmpp:payment:0#session') and is outside the scope of this document.</p>
+  </div>
+<h2 id="schema">15.
+       XML Schema<a class="anchor-link" href="#schema"><abbr title="Link to this point in the document">¶</abbr></a></h2>
+  <figure class="code"><figcaption>XML Schema for urn:xmpp:payment:0</figcaption><pre class="prettyprint">
+&lt;?xml version='1.0' encoding='UTF-8'?&gt;
+&lt;xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    elementFormDefault='qualified'
+    targetNamespace='urn:xmpp:payment:0'
+    xmlns='urn:xmpp:payment:0'&gt;
+
+  &lt;!-- invoice: emitted by services in error stanzas and IQ results --&gt;
+  &lt;xs:element name='invoice'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element maxOccurs='1'
+                    minOccurs='0'
+                    ref='description'/&gt;
+        &lt;xs:element maxOccurs='unbounded'
+                    minOccurs='1'
+                    ref='option'/&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name='expires'
+                    type='xs:dateTime'
+                    use='optional'/&gt;
+      &lt;xs:attribute name='purpose'
+                    type='xs:string'
+                    use='optional'/&gt;
+      &lt;xs:attribute name='session'
+                    type='xs:string'
+                    use='required'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='description' type='xs:string'/&gt;
+
+  &lt;!-- option: one payment option (a payment URI) within an invoice --&gt;
+  &lt;xs:element name='option'&gt;
+    &lt;xs:complexType mixed='true'&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element maxOccurs='1'
+                    minOccurs='0'
+                    ref='qr'/&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name='label'
+                    type='xs:string'
+                    use='optional'/&gt;
+      &lt;xs:attribute name='proof'
+                    type='xs:string'
+                    use='optional'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;!-- qr: a payment string to be rendered as a QR code, for use when the URI is not the scannable payload --&gt;
+  &lt;xs:element name='qr' type='xs:string'/&gt;
+
+  &lt;!-- payment: added to retried stanzas by the payer --&gt;
+  &lt;xs:element name='payment'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element maxOccurs='1'
+                    minOccurs='0'
+                    ref='proof'/&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name='session'
+                    type='xs:string'
+                    use='required'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;xs:element name='proof'&gt;
+    &lt;xs:complexType mixed='true'&gt;
+      &lt;xs:attribute name='type'
+                    type='xs:string'
+                    use='required'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;!-- payment-required: application-specific stanza error condition --&gt;
+  &lt;xs:element name='payment-required'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:attribute name='reason'
+                    type='xs:string'
+                    use='optional'/&gt;
+      &lt;xs:attribute name='retry-after'
+                    type='xs:nonNegativeInteger'
+                    use='optional'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;!-- receipt: optional element returned by the service upon successful settlement --&gt;
+  &lt;xs:element name='receipt'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:attribute name='reference'
+                    type='xs:string'
+                    use='optional'/&gt;
+      &lt;xs:attribute name='session'
+                    type='xs:string'
+                    use='required'/&gt;
+      &lt;xs:attribute name='settled'
+                    type='xs:dateTime'
+                    use='optional'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+  &lt;!-- get-invoice: IQ-get payload for proactive invoice request --&gt;
+  &lt;xs:element name='get-invoice'&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:attribute name='service'
+                    type='xs:string'
+                    use='required'/&gt;
+      &lt;xs:attribute name='target'
+                    type='xs:string'
+                    use='optional'/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+
+&lt;/xs:schema&gt;
+</pre></figure>
+<hr><a name="appendices"></a><h2>Appendices</h2><h3 id="appendix-docinfo">Appendix A: Document Information<a class="anchor-link" href="#appendix-docinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><dl class="compact"><dt>Series</dt><dd><a href="https://xmpp.org/extensions/">XEP</a></dd><dt>Number</dt><dd>0518</dd><dt>Publisher</dt><dd><a href="/xsf/">XMPP Standards Foundation</a></dd><dt>Status</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#states-Experimental">Experimental</a></dd><dt>Type</dt><dd><a href="https://xmpp.org/extensions/xep-0001.html#types-Standards%20Track">Standards Track</a></dd><dt>Version</dt><dd>0.1.0</dd><dt>Last Updated</dt><dd>2026-08-25</dd><dt>Approving Body</dt><dd><a href="https://xmpp.org/council/">XMPP Council</a></dd><dt>Dependencies</dt><dd>XMPP Core, XMPP IM, <a href="xep-0004.html">XEP-0004</a>, <a href="xep-0030.html">XEP-0030</a>, <a href="xep-0082.html">XEP-0082</a>, <a href="xep-0158.html">XEP-0158</a>, <a href="https://datatracker.ietf.org/doc/html/rfc8905">RFC 8905</a></dd><dt>Supersedes</dt><dd>None</dd><dt>Superseded By</dt><dd>None</dd><dt>Short Name</dt><dd>NOT_YET_ASSIGNED</dd><dt>Source Control</dt><dd><a class="standardsButton" href="https://github.com/xsf/xeps/blob/master/xep-0518.xml">HTML</a></dd></dl><p>
+          This document in other formats:
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0518.xml">XML</a> 
+          <a class="standardsButton" href="https://xmpp.org/extensions/xep-0518.pdf">PDF</a></p><h3 id="appendix-authorinfo">Appendix B: Author Information<a class="anchor-link" href="#appendix-authorinfo"><abbr title="Link to this point in the document">¶</abbr></a></h3><h5>JC Brand</h5><dl class="compact"><dt>Email</dt><dd><a href="mailto:jc@opkode.com">jc@opkode.com</a></dd><dt>JabberID</dt><dd><a href="xmpp:jc@opkode.com">jc@opkode.com</a></dd></dl><h3 id="appendix-legal">Appendix C: Legal Notices<a class="anchor-link" href="#appendix-legal"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><h4>Copyright</h4><p>This XMPP Extension Protocol is copyright © 1999 – 2024 by the <a href="https://xmpp.org/">XMPP Standards Foundation</a> (XSF).</p><h4>Permissions</h4><p>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</p><h4>Disclaimer of Warranty</h4><p class="box info">## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</p><h4>Limitation of Liability</h4><p>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</p><h4>IPR Conformance</h4><p>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;<a href="https://xmpp.org/about/xsf/ipr-policy">https://xmpp.org/about/xsf/ipr-policy</a>&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</p><h4>Visual Presentation</h4><p>The HTML representation (you are looking at) is maintained by the XSF. It is based on the <a href="http://yaml.de">YAML CSS Framework</a>, which is licensed under the terms of the <a href="https://creativecommons.org/licenses/by/2.0/">CC-BY-SA 2.0</a> license.</p></div><h3 id="appendix-xmpp">Appendix D: Relation to XMPP<a class="anchor-link" href="#appendix-xmpp"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The Extensible Messaging and Presence Protocol (XMPP) is defined in the XMPP Core (RFC 6120) and XMPP IM (RFC 6121) specifications contributed by the XMPP Standards Foundation to the Internet Standards Process, which is managed by the Internet Engineering Task Force in accordance with RFC 2026. Any protocol defined in this document has been developed outside the Internet Standards Process and is to be understood as an extension to XMPP rather than as an evolution, development, or modification of XMPP itself.</p><h3 id="appendix-discuss">Appendix E: Discussion Venue<a class="anchor-link" href="#appendix-discuss"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">The primary venue for discussion of XMPP Extension Protocols is the &lt;<a href="https://mail.jabber.org/mailman/listinfo/standards">standards@xmpp.org</a>&gt; discussion list.</p><p class="indent">Discussion on other xmpp.org discussion lists might also be appropriate; see &lt;<a href="https://xmpp.org/community/">https://xmpp.org/community/</a>&gt; for a complete list.</p><p class="indent">Given that this XMPP Extension Protocol normatively references IETF technologies, discussion on the &lt;<a href="https://mail.jabber.org/mailman/listinfo/xsf-ietf">xsf-ietf@xmpp.org</a>&gt; list might also be appropriate.</p><p class="indent">Errata can be sent to &lt;<a href="mailto:editor@xmpp.org">editor@xmpp.org</a>&gt;.</p><h3 id="appendix-conformance">Appendix F: Requirements Conformance<a class="anchor-link" href="#appendix-conformance"><abbr title="Link to this point in the document">¶</abbr></a></h3><p class="indent">
+          The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED",
+          "MAY", and "OPTIONAL" in this document are to be interpreted as
+          described in <a href="https://tools.ietf.org/rfc/bcp/bcp14.txt">BCP 14</a>
+          [<a href="https://www.ietf.org/rfc/rfc2119.txt">RFC2119</a>]
+          [<a href="https://tools.ietf.org/rfc/rfc8174.txt">RFC8174</a>] when,
+          and only when, they appear in all capitals, as shown here.
+        </p><h3 id="appendix-notes">Appendix G: Notes<a class="anchor-link" href="#appendix-notes"><abbr title="Link to this point in the document">¶</abbr></a></h3><div class="indent"><p><a name="nt-id46">1</a>. XEP-0045: Multi-User Chat &lt;<a href="https://xmpp.org/extensions/xep-0045.html">https://xmpp.org/extensions/xep-0045.html</a>&gt;.</p><p><a name="nt-id47">2</a>. XEP-0158: CAPTCHA Forms &lt;<a href="https://xmpp.org/extensions/xep-0158.html">https://xmpp.org/extensions/xep-0158.html</a>&gt;.</p><p><a name="nt-id48">3</a>. XEP-0060: Publish-Subscribe &lt;<a href="https://xmpp.org/extensions/xep-0060.html">https://xmpp.org/extensions/xep-0060.html</a>&gt;.</p><p><a name="nt-id49">4</a>. XEP-0030: Service Discovery &lt;<a href="https://xmpp.org/extensions/xep-0030.html">https://xmpp.org/extensions/xep-0030.html</a>&gt;.</p><p><a name="nt-id50">5</a>. XEP-0050: Ad-Hoc Commands &lt;<a href="https://xmpp.org/extensions/xep-0050.html">https://xmpp.org/extensions/xep-0050.html</a>&gt;.</p><p><a name="nt-id51">6</a>. XEP-0082: XMPP Date and Time Profiles &lt;<a href="https://xmpp.org/extensions/xep-0082.html">https://xmpp.org/extensions/xep-0082.html</a>&gt;.</p><p><a name="nt-id52">7</a>. RFC 6120: Extensible Messaging and Presence Protocol (XMPP): Core &lt;<a href="http://tools.ietf.org/html/rfc6120">http://tools.ietf.org/html/rfc6120</a>&gt;.</p><p><a name="nt-id53">8</a>. XEP-0384: OMEMO Encryption &lt;<a href="https://xmpp.org/extensions/xep-0384.html">https://xmpp.org/extensions/xep-0384.html</a>&gt;.</p><p><a name="nt-id54">9</a>. The XMPP Registrar maintains a list of reserved protocol namespaces as well as registries of parameters used in the context of XMPP extension protocols approved by the XMPP Standards Foundation. For further information, see &lt;<a href="https://xmpp.org/registrar/">https://xmpp.org/registrar/</a>&gt;.</p><p><a name="nt-id55">10</a>. XEP-0363: HTTP File Upload &lt;<a href="https://xmpp.org/extensions/xep-0363.html">https://xmpp.org/extensions/xep-0363.html</a>&gt;.</p><p><a name="nt-id56">11</a>. XEP-0004: Data Forms &lt;<a href="https://xmpp.org/extensions/xep-0004.html">https://xmpp.org/extensions/xep-0004.html</a>&gt;.</p></div><h3 id="appendix-revs">Appendix H: Revision History<a class="anchor-link" href="#appendix-revs"><abbr title="Link to this point in the document">¶</abbr></a></h3><p>Note: Older versions of this specification might be available at <a href="https://xmpp.org/extensions/attic/">https://xmpp.org/extensions/attic/</a></p><ol class="revision-history"><li id="revision-history-v0.1.0"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0518-0.1.0.html">0.1.0</a> (2026-08-25)<a class="anchor-link" href="#revision-history-v0.1.0"><abbr title="Link to this point in the document">¶</abbr></a></div>Accepted as Experimental by council vote on 2026-07-07<div class="revision-author">XEP Editor (dg)</div></li><li id="revision-history-v0.0.2"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0518-0.0.2.html">0.0.2</a> (2026-06-12)<a class="anchor-link" href="#revision-history-v0.0.2"><abbr title="Link to this point in the document">¶</abbr></a></div>
+      <p class="" style="">Following community review: identify payment systems by their URI scheme
+      instead of an XSF-maintained registry; the option payload is now a payment URI
+      and the redundant 'scheme' and 'amount' attributes are removed (amount and
+      currency are carried by the URI). Made the payment URI mandatory and added an optional
+      <code>&lt;qr/&gt;</code> child carrying a payment string to render as a QR code, for systems
+      whose scannable QR format differs from the URI. Removed the Payment Schemes and Proof Types
+      registries; proof types are now declared per option by the issuer and echoed by
+      the payer, with a non-normative list of conventional types. Added the
+      'payment-pending' reason and a 'retry-after' attribute returned with stanza error
+      type "wait". Added security guidance on amount-presentation integrity and clarified
+      that clients need not parse payment URIs. Removed the <code>&lt;display-amount/&gt;</code> element:
+      the amount is carried by the payment URI and obtained from there for display, avoiding a
+      duplicate, unverifiable amount that could diverge from the URI. Clarified that a client can
+      present any option without recognising its scheme — by QR code, URI handoff, or selectable
+      text — and narrowed the case in which an option is genuinely unactionable.</p>
+    <div class="revision-author">jcb</div></li><li id="revision-history-v0.0.1"><div class="revision-head">Version <a href="https://xmpp.org/extensions/attic/xep-0518-0.0.1.html">0.0.1</a> (2026-04-23)<a class="anchor-link" href="#revision-history-v0.0.1"><abbr title="Link to this point in the document">¶</abbr></a></div><p class="" style="">First draft.</p><div class="revision-author">jcb</div></li></ol><h3 id="appendix-biblatex">Appendix I: Bib(La)TeX Entry</h3><pre>
+@report{brand2026xep0518,
+  title = {Payment Required},
+  author = {Brand, JC},
+  type = {XEP},
+  number = {0518},
+  version = {0.1.0},
+  institution = {XMPP Standards Foundation},
+  url = {https://xmpp.org/extensions/xep-0518.html},
+  date = {2026-04-23/2026-08-25},
+}</pre><p>END</p></body></html>
